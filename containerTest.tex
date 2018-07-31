@@ -19,21 +19,27 @@
 
 \section{System Tests and variants}
 
+Before selecting a specific setup, different variants of systems are tested for their real-time capabilities, maintainability and ease of setup. Candidates for this session are:
+
+\begin{itemize}
+	\item[resinOS] operating system designed to run containers on different architectures and hardware devices
+	\item[ubuntu Core] an operating system for IoT devices implemented using the new snap image approach
+	\item[Xenomai 3] the co-core extension for Linux based operating systems, which allows hard-real-time scheduling
+	\item[PREEMPT\_RT] a kernel patch for linux based systems incrementing the preemption level for soft-realtime based
+	\item[CGroups] resource partitioning and CPU pinning (affinity selection), also in combination with previous system.
+\end{itemize}
+
+The systems are setup in virtual machines and verified for real-time scheduling properties. Installations verify runtime of containers of different type, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
 
-
-\subsubsection{System layout}
-
-\begin{itemize}
-	\item resinOS with containerization pre-configured via balena
-	\item AlpineOs as default container OS. Can be changed
-\end{itemize}
+\textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the connect to. The images and deltas of containers are also managed via a Balena engine on the \texttt{resin.io} website. The containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
 \subsubsection{Local Virtual Machine}
 
 Download Intel NCU image from resinOS website
 install the resin CLI tool
+
 \begin{verbatim}
 	npm install --global --production --unsafe-perm resin-cli
 \end{verbatim}
