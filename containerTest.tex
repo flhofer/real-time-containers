@@ -1,0 +1,189 @@
+\documentclass[]{scrartcl}
+
+%opening
+\title{Testing Containers in the Cloud}
+\author{Florian Hofer}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization under real-time constrains in the cloud.
+\end{abstract}
+
+\section{Introduction}
+
+
+
+
+\section{System Tests and variants}
+
+
+\subsection{resinOS by Resin.io}
+
+
+\subsubsection{System layout}
+
+\begin{itemize}
+	\item resinOS with containerization pre-configured via balena
+	\item AlpineOs as default container OS. Can be changed
+\end{itemize}
+
+\subsubsection{Local Virtual Machine}
+
+Download Intel NCU image from resinOS website
+install the resin CLI tool
+\begin{verbatim}
+	npm install --global --production --unsafe-perm resin-cli
+\end{verbatim}
+Configure the image as needed
+\begin{verbatim}
+	sudo resin local configure ~/Downloads/resin.img
+\end{verbatim}
+-> Details see https://resinos.io/docs/intel-nuc/gettingstarted/
+
+
+https://resin.io/blog/no-hardware-use-virtualbox/
+
+Create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK.
+Create a virtual Disk of Size 4GB. Add the resinOS image once converted with 
+\begin{verbatim}
+	VBoxManage convertdd resin.img resin.vdi
+\end{verbatim}
+At first startup the new disk is populated with the settings. Remove resin.vdi from disk images
+Add port forward in netwoking settings advanced for 8080 - > 80 (for test only) and 2375 2375 (for container upload) to guest address usually 10.0.2.15
+
+system is now ready to run and containers can be pushed via 
+\begin{verbatim}
+	sudo resin local push resin.local --source .
+\end{verbatim}
+
+A sample application can be found here : \url{git clone https://github.com/resin-io-playground/resinos-sample}
+
+Do not forget to change de image Origin for Alpine Linux to 
+
+\subsection{Ubuntu core}
+
+\subsubsection{Local Virtual machine}
+download and convert kvm image. run as ubunntu. register to ubuntu one. add ssh key for the registration of the ssh in. snaps only in this image. no apt-get. patch not possible as patch command not installed.
+
+Uses snaps for applications
+
+Snap general specifications:
+standard in ubuntu since 2 years now (16.04 has them preinstalled)
+
+snap sandboxing
+something in between docker and apt
+gives the flexibilty of continuous updates of an application without interacting with the filesystem of the client during the installation
+
+has different partitions. The normal filesystem is readonly. The binary section in the image which contains the application is readonly. There is an additional section which is rw where the application can actually write its data. 
+The interaction with the system is transparent. no virtual network cards and integration to the x server is seamless. (graphics app are plotted on same screen)
+maybe consider snap conversion of apps just to test the outcome. Not a must that the applications are to be on separate sandboxes. -> problem maybe with the portability of the host system, even though fedora ecc also include the snap subsystem
+
+\subsection{Ubuntu Server 16.04.4 with xenomai}
+
+
+\subsubsection{Local Virtual machine}
+
+ubuntu server uses kernel 4.4, thus ideal for kernel 4.9 upgrade
+
+New image, > disk size. uses more than 10gb for kernel compilation. script by pasquale uses older patch name for i-pipe. update the end of the file 4 to 5.
+
+--- corrected folder changes, cd.. was in the wrong position
+
+-> xenomai ! sudo autoreconf
+needed as the system and architecture changes
+
+The balena package (one binary) has been installed properly
+
+
+\subsection{Ubuntu Server 16.04.4 with patch RT}
+
+\subsubsection{Local Virtual machine}
+
+downloaded patched kernel from kernel.org
+make menuconfig
+-> (needs libncurses5 libncurses5-dev)
+
+remove cpu-freq and cpu idle (needs PM cpu deactivation first)
+search with /
+
+-> need all kernel packages as before
+sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc
+https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-from-source-6d8df5345980
+
+install as in script
+
+
+
+\section{Tests of system}
+
+
+\subsection{Cyclictest}
+
+apt install xenomai-system-tools
+
+install testbench for realtime
+https://wiki.linuxfoundation.org/realtime/documentation/howto/tools/rt-tests#compile-and-instal
+
+
+
+./cyclictest 
+-n nanosec rtc based
+-t num of threads
+-l no of loops
+-d delay between threads
+-p priority of threads
+-i interval of thread
+
+
+example: 
+cyclictest -t 50 -i 1000 -d 86400 -l 1000000 -a -p 99 -n
+
+\subsection{Other testing tool}
+
+other tools that might be helpful
+htop
+iftop
+iotop
+
+
+\section{Additional fixes}
+
+balena, even though installed via script, is not properly configured
+
+https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file
+
+
+\section{Issues and verifications}
+
+WARN[0001] Your kernel does not support swap memory limit 
+
+Oh nuts, is it...
+
+#CONFIG_MEMCG_SWAP_ENABLED is not set -> WARNING: No swap limit support
+
+and
+
+# CONFIG_MEMCG_KMEM is not set -> WARNING: No memory limit support
+
+possible temporary fix https://github.com/moby/moby/issues/4250
+
+
+
+WARN[0001] Your kernel does not support cgroup rt period 
+WARN[0001] Your kernel does not support cgroup rt runtime 
+-> not activated if Preempt full!!
+
+\section{Virtualization sustainability tests}
+
+% AWS ? virtual machine test resoure pinning in vbox -> pin local host? balance share.
+
+\end{document}
+
+
+% Fri Non slide 
+
+
+
