@@ -79,8 +79,8 @@ The configured image is now ready to be deployed, but before it has to be conver
 	VBoxManage convertdd resin.img resin.vdi
 \end{verbatim}
 
-Next, create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK.
-Create a virtual Disk of Size of at least 4GB as main disk. 
+Next, create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK. Create a virtual Disk of Size of at least 4GB as main disk. 
+When created, open the settings dialogue for the virtual machine. In general settings, set the parameters as in Figure \ref{fig:resingen}. Now add the boot image for resinOS in the storage menu, Figure \ref{fig:resindisk}.
 
 \begin{figure}
 	\centering
@@ -94,11 +94,7 @@ Create a virtual Disk of Size of at least 4GB as main disk.
 	\includegraphics[width=0.6\textwidth]{resin-vbox2}
 	\caption{Disk settings for resinOS}
 	\label{fig:resindisk}
-	\end{figure}
-
-Add the resinOS image once converted with 
-
-https://resin.io/blog/no-hardware-use-virtualbox/
+\end{figure}
 
 
 At first startup the new disk is populated with the settings. Remove resin.vdi from disk images
