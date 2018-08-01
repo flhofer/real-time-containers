@@ -9,29 +9,31 @@
 \maketitle
 
 \begin{abstract}
-	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization under real-time constrains in the cloud.
+	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization under real-time constrains in the cloud. To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
 \end{abstract}
 
 \section{Introduction}
 
 
-
-
 \section{System Tests and variants}
+
+{\small\textsc{Identification of application candidates, 25-30/07/18} \bigskip}
 
 Before selecting a specific setup, different variants of systems are tested for their real-time capabilities, maintainability and ease of setup. Candidates for this session are:
 
 \begin{itemize}
-	\item[resinOS] operating system designed to run containers on different architectures and hardware devices
-	\item[ubuntu Core] an operating system for IoT devices implemented using the new snap image approach
-	\item[Xenomai 3] the co-core extension for Linux based operating systems, which allows hard-real-time scheduling
-	\item[PREEMPT\_RT] a kernel patch for linux based systems incrementing the preemption level for soft-realtime based
-	\item[CGroups] resource partitioning and CPU pinning (affinity selection), also in combination with previous system.
+	\item \textbf{resinOS} operating system designed to run containers on different architectures and hardware devices
+	\item \textbf{ubuntu Core} an operating system for IoT devices implemented using the new snap image approach
+	\item \textbf{Xenomai 3} the co-core extension for Linux based operating systems, which allows hard-real-time scheduling
+	\item \textbf{PREEMPT\_RT} a kernel patch for linux based systems incrementing the preemption level for soft-realtime based
+	\item \textbf{CGroups} resource partitioning and CPU pinning (affinity selection), also in combination with previous system.
 \end{itemize}
 
 The systems are setup in virtual machines and verified for real-time scheduling properties. Installations verify runtime of containers of different type, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
+
+{\small\textsc{Testrun resinOS, 25/07/18} \bigskip}
 
 \textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the connect to. The images and deltas of containers are also managed via a Balena engine on the \texttt{resin.io} website. The containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
@@ -70,6 +72,8 @@ A sample application can be found here : \url{git clone https://github.com/resin
 Do not forget to change de image Origin for Alpine Linux to 
 
 \subsection{Ubuntu core}
+{\small\textsc{Testrun Ubuntu core, 25/07/18} \bigskip}
+
 
 \subsubsection{Local Virtual machine}
 download and convert kvm image. run as ubunntu. register to ubuntu one. add ssh key for the registration of the ssh in. snaps only in this image. no apt-get. patch not possible as patch command not installed.
@@ -89,6 +93,7 @@ maybe consider snap conversion of apps just to test the outcome. Not a must that
 
 \subsection{Ubuntu Server 16.04.4 with xenomai}
 
+{\small\textsc{Testrun Xenomai, 26/07/18} \bigskip}
 
 \subsubsection{Local Virtual machine}
 
@@ -106,6 +111,9 @@ The balena package (one binary) has been installed properly
 
 \subsection{Ubuntu Server 16.04.4 with patch RT}
 
+{\small\textsc{Testrun Preempt-RT, 27/07/18} \bigskip}
+
+
 \subsubsection{Local Virtual machine}
 
 downloaded patched kernel from kernel.org
@@ -121,10 +129,9 @@ https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-
 
 install as in script
 
-
-
 \section{Tests of system}
 
+{\small\textsc{Testrun and comparison of systems, 30/07/18} \bigskip}
 
 \subsection{Cyclictest}
 
@@ -164,6 +171,10 @@ https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-acce
 
 \section{Issues and verifications}
 
+{\small\textsc{, 31/07/18} \bigskip}
+
+
+
 WARN[0001] Your kernel does not support swap memory limit 
 
 Oh nuts, is it...
@@ -184,6 +195,8 @@ WARN[0001] Your kernel does not support cgroup rt runtime
 
 \section{Virtualization sustainability tests}
 
+{\small\textsc{Testrun Containers \& CPU pinning, 01/08 - 3/08/18} \bigskip}
+
 % AWS ? virtual machine test resoure pinning in vbox -> pin local host? balance share.
 
 
@@ -192,6 +205,27 @@ man 7 capabilities  -> list of all linux based capabilities
 
 --> check sourcecode of balena tells the compose supported commands and capabilities
 
+creation of a balena container for RT tests
+
+
+\section{Meetings}
+
+\begin{table}
+	\centering
+	\caption{List of meetings during the stay at UC Berkeley}
+	
+	\begin{tabular}{l l l}
+	Date & Participants & Topics \\
+	\hline
+	26/07/18 & Martin Sehr, Ines Ugalde Diaz, Antonio Iannopollo, Florian Hofer & Project setup, generic requirements, questions for BU\\
+	31/07/18 & Martin Sehr, Ines Ugalde Diaz, Florian Hofer & Progress of testing, Dummy testing approach\\
+	07/08/18 & Ines Ugalde Diaz, Florian Hofer & \\
+	10/08/18 & Ines Ugalde Diaz, Florian Hofer & \\
+	\hline
+	\end{tabular}
+	
+	\label{tab:meeting}
+\end{table}
 
 \end{document}
 
