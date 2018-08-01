@@ -96,11 +96,13 @@ When created, open the settings dialogue for the virtual machine. In general set
 	\label{fig:resindisk}
 \end{figure}
 
+To properly connect and download eventual containers we have to configure some forwards. In the ``Network'' menu, select advanced, then Port forward. Configure now the forward of port 8022 to 22  and 2375 to 2375 for client host 10.0.2.15 (usually).
 
-At first startup the new disk is populated with the settings. Remove resin.vdi from disk images
-Add port forward in netwoking settings advanced for 8080 - > 80 (for test only) and 2375 2375 (for container upload) to guest address usually 10.0.2.15
+If the virtual machine is run now, the downloaded boot image creates a new instance of resinOS on the previously created virtual drive. The new disk is populates with the settings specified in the configuration step. The system shuts down automatically. Now the resin boot image can be removed.
 
-system is now ready to run and containers can be pushed via 
+\subsubsection{Run a Balena container in resinOS}
+
+The system is now ready to run and containers can be pushed via 
 \begin{verbatim}
 	sudo resin local push resin.local --source .
 \end{verbatim}
