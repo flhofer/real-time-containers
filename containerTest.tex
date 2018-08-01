@@ -1,10 +1,12 @@
 \documentclass[]{scrartcl}
 
 \usepackage{url}
+\usepackage{graphicx}
 
 %opening
 \title{Testing Containers in the Cloud}
 \author{Florian Hofer}
+\date{}
 
 \begin{document}
 
@@ -16,6 +18,9 @@
 
 \section{Introduction}
 
+
+
+Virtualbox >5.x with extension pack is needed
 
 \section{System Tests and variants}
 
@@ -48,32 +53,54 @@ The image does not contain any additional configuration concerning network setup
 \begin{itemize}
 	
 	\item \textbf{node.js 6.x} you can installa the latest version via snap using \textit{snap install node --classic --channel=x} where x can be substituted with the desired version, 8 or 10. You can also use a standard package installation. Instructions can be found at \url{https://github.com/nodesource/distributions}
-	\item npm package manager
-	\item rsync
-	\item ssh
+	\item \textbf{npm} the node package manager is part of the node distribution. If not yet installed, install it with \textit{apt-get install npm}
+	\item \textbf{rsync} versatile remote file copying tool, intstallable, if not already present, via \textit{apt-get install rsync}
+	\item \textbf{ssh} the secure shell client is usually pre-installed on all debian based systems. If that is not the case, install it via \textit{apt-get install openssh-client}
 	
 \end{itemize}
+
+Once verified that all needed software is installed, the CLI tool for resin can be added using the node package manager. Please note the need of proper privileges (sudo).
 
 \begin{verbatim}
 	npm install --global --production --unsafe-perm resin-cli
 \end{verbatim}
 
-
+The CLI will now allow us to configure the image as needed. For a guided configuration, and assuming the downloaded image is in \textit{~/Downloads}, type the following 
 
 Configure the image as needed
 \begin{verbatim}
 	sudo resin local configure ~/Downloads/resin.img
 \end{verbatim}
--> Details see https://resinos.io/docs/intel-nuc/gettingstarted/
 
+Manual configuration instructions and further details and documentation can be found at \url{https://resinos.io/docs/intel-nuc/gettingstarted/}.
 
-https://resin.io/blog/no-hardware-use-virtualbox/
-
-Create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK.
-Create a virtual Disk of Size 4GB. Add the resinOS image once converted with 
+The configured image is now ready to be deployed, but before it has to be converted to a virtual disk image in order to boot from it. Use the virtualbox CLI tool to execute the conversion. Once switched to the folder where the image has been downloaded, type
 \begin{verbatim}
 	VBoxManage convertdd resin.img resin.vdi
 \end{verbatim}
+
+Next, create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK.
+Create a virtual Disk of Size of at least 4GB as main disk. 
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\textwidth]{resin-vbox}
+	\caption{Virtualbox general settings for resinOS}
+	\label{fig:resingen}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\textwidth]{resin-vbox2}
+	\caption{Disk settings for resinOS}
+	\label{fig:resindisk}
+	\end{figure}
+
+Add the resinOS image once converted with 
+
+https://resin.io/blog/no-hardware-use-virtualbox/
+
+
 At first startup the new disk is populated with the settings. Remove resin.vdi from disk images
 Add port forward in netwoking settings advanced for 8080 - > 80 (for test only) and 2375 2375 (for container upload) to guest address usually 10.0.2.15
 
