@@ -32,7 +32,7 @@ Before selecting a specific setup, different variants of systems are tested for 
 	\item \textbf{resinOS} operating system designed to run containers on different architectures and hardware devices
 	\item \textbf{ubuntu Core} an operating system for IoT devices implemented using the new snap image approach
 	\item \textbf{Xenomai 3} the co-core extension for Linux based operating systems, which allows hard-real-time scheduling
-	\item \textbf{PREEMPT\_RT} a kernel patch for linux based systems incrementing the preemption level for soft-realtime based
+	\item \textbf{PREEMPT\_RT} a kernel patch for linux based systems incrementing the preemption level for soft-real-time based
 	\item \textbf{CGroups} resource partitioning and CPU pinning (affinity selection), also in combination with previous system.
 \end{itemize}
 
@@ -40,7 +40,7 @@ The systems are setup in virtual machines and verified for real-time scheduling 
 
 \subsection{resinOS by Resin.io}
 
-{\small\textsc{Testrun resinOS, 25/07/18} \bigskip}
+{\small\textsc{Test-run resinOS, 25/07/18} \bigskip}
 
 \textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the connect to. The images and deltas of containers are also managed via a Balena engine on the \texttt{resin.io} website. The containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
@@ -54,7 +54,7 @@ The image does not contain any additional configuration concerning network setup
 	
 	\item \textbf{node.js 6.x} you can installa the latest version via snap using \textit{snap install node --classic --channel=x} where x can be substituted with the desired version, 8 or 10. You can also use a standard package installation. Instructions can be found at \url{https://github.com/nodesource/distributions}
 	\item \textbf{npm} the node package manager is part of the node distribution. If not yet installed, install it with \textit{apt-get install npm}
-	\item \textbf{rsync} versatile remote file copying tool, intstallable, if not already present, via \textit{apt-get install rsync}
+	\item \textbf{rsync} versatile remote file copying tool, installable, if not already present, via \textit{apt-get install rsync}
 	\item \textbf{ssh} the secure shell client is usually pre-installed on all debian based systems. If that is not the case, install it via \textit{apt-get install openssh-client}
 	
 \end{itemize}
@@ -125,28 +125,20 @@ The resinOS core ships with an even kernel version. Unfortunately the PREEMPT\_R
 NOTE: Consider Xenomai patch for this concept
 
 \subsection{Ubuntu core}
-{\small\textsc{Testrun Ubuntu core, 25/07/18} \bigskip}
+{\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
 
 Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The software is shipped in a snap and run sandboxed in a container like environment while keeping the transparency of a traditional application. 
 
+Snaps are standard feature of Ubuntu based distributions since since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sandboxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from evetualy malicious software. In addition, the binaries are digitally signed and thus avoid tampering with the executables. This gives the flexibility of continuous updates of an application, independent from the host system and flavor, and without interacting with the file system of the host.
 
-Snap general specifications:
-standard in ubuntu since 2 years now (16.04 has them preinstalled)
-
-snap sandboxing
-something in between docker and apt
-gives the flexibilty of continuous updates of an application without interacting with the filesystem of the client during the installation
-
-has different partitions. The normal filesystem is readonly. The binary section in the image which contains the application is readonly. There is an additional section which is rw where the application can actually write its data. 
-The interaction with the system is transparent. no virtual network cards and integration to the x server is seamless. (graphics app are plotted on same screen)
-maybe consider snap conversion of apps just to test the outcome. Not a must that the applications are to be on separate sandboxes. -> problem maybe with the portability of the host system, even though fedora ecc also include the snap subsystem
+A variety of Linux flavors support snaps and snap stores can be privately hosted, making this solution very interesting. More details can be found at \url{https://snapcraft.io/}
 
 In this test a setup is described and feasibility of the candidate is verified.
 
 \subsubsection{Local Virtual machine}
 
 Like in the previous example, the image is downloaded, ready to be used. Visit \url{https://developer.ubuntu.com/core/get-started} for an additional step by step guide.
-Get and unpack the latest KVM core image:
+Get and unpack the latest KVM core image (replace version numbers where appropriate):
 
 \begin{verbatim}
 	wget http://cdimage.ubuntu.com/ubuntu-core/16/stable/current/ubuntu-core-16-amd64.img.xz
@@ -161,30 +153,50 @@ Before it can be used, the image has to be converted from a raw image to a virtu
 
 Now we create a new virtual machine, based on Ubuntu 64bit, and add the existing disk. The system is ready to run.
 
-In order to be able to connect to the new virtual machine, we need a ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually).
+In order to be able to connect to the new virtual machine, we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually).
 
 \subsubsection{Evaluation}
 
 Unfortunately, the core is stripped to minimum and thus patching for real-time capabilities is not easily possible. This means, it does not include a package manager and patching the kernel is hard as a patch command not installed.
 
-The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to ubuntu, and a patched kernel could reach realtime properties, the binding with the hosts name and filespace hinders the use of application duplicates. This approach is thus archived for the moment.
+The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to Ubuntu, and a patched kernel could reach real-time properties, the binding with the hosts name and file-space hinders the use of application duplicates. This approach is thus archived for the moment.
+
+If all other attempts are not successful enough, a conversion of the apps to snaps and proper configuration might be considered.
 
 \subsection{Ubuntu Server 16.04.4 with xenomai}
 
 {\small\textsc{Testrun Xenomai, 26/07/18} \bigskip}
 
+Xenomai is a os extension to implement POSIX real-time features to a standard kernel. Xenomai supplements it with Cobalt, a small real-time infrastructure which schedules time-critical activities independently from the main kernel logic.The interfacing with an interrupt dispatcher (I-pipe) allows to increase response time and performance and thus enables also for hard-real-time execution. Through extension with skins, also non POSIX compliant real-time software can be configured to run on a Xenomai patched system.
+
+Main concerns of this approach are setup complexity and maintainability.
+
 \subsubsection{Local Virtual machine}
+\label{sec:xenoinst}
+The os should be lightweight but still fully featured. Thus, an Ubuntu server flavor with minimal installation has been chosen. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}. The latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is the closest version with 4.4.x and thus the candidate for a kernel upgrade.
 
-ubuntu server uses kernel 4.4, thus ideal for kernel 4.9 upgrade
+\begin{verbatim}
+	# download image
+	wget http://releases.ubuntu.com/16.04.4/ubuntu-16.04.4-desktop-amd64.iso
+	# verify image hash
+	curl -sfL http://releases.ubuntu.com/16.04.4/SHA256SUMS
+	|	sha256sum -c 2>&1 | grep OK
+\end{verbatim}
 
-New image, > disk size. uses more than 10gb for kernel compilation. script by pasquale uses older patch name for i-pipe. update the end of the file 4 to 5.
+Now we create a new Ubuntu 64bit based virtual machine with a disk size of at least 20GB. We need the space for the compiling of the kernel. Memory size can be arbitrary chosen between 384 mB and $\inf$. When setting the number of assigned CPUs, consider that the more, the faster is the compiling of the new kernel.
+Before starting the machine, we add the Ubuntu server disk image to the cd drive of the new machine.
 
---- corrected folder changes, cd.. was in the wrong position
+Now follow the guide of the installer. If asked, add only ssh server to the pre-installed packages and continue with software deployment. When installation is done, don't forget to upgrade the system to the newest packages and restart before proceeding with the kernel build. Execute:
 
--> xenomai ! sudo autoreconf
-needed as the system and architecture changes
+\begin{verbatim}
+	apt-get update && apt-get dist-upgrade -y
+\end{verbatim}
 
-The balena package (one binary) has been installed properly
+The patching steps have all be resumed in an installer script by Pasquale Antonante. Unfortunately some steps are outdated and some configurations have changed. The script has therefore been updated and placed in the appropriate directory of the repository. The install script provides downloads of the two patches, Xenomai/Cobalt and I-Pipe, the kernel, performs the patch and installs new kernel and the Balena environment.
+
+\subsubsection{Evaluation}
+
+
 
 
 \subsection{Ubuntu Server 16.04.4 with patch RT}
@@ -194,18 +206,18 @@ The balena package (one binary) has been installed properly
 
 \subsubsection{Local Virtual machine}
 
+The same conditions as in the previous example apply. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}, if not already done. Also here the latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is again the closest version with 4.4.x and thus the candidate for a kernel upgrade. See section \ref{sec:xenoinst}.
+
+The patching steps have all be resumed in an installer script similar to the previous. The install script provides downloads of the patch and the kernel, performs the patch and installs new kernel and the Balena environment.
+
 downloaded patched kernel from kernel.org
 make menuconfig
 -> (needs libncurses5 libncurses5-dev)
 
 remove cpu-freq and cpu idle (needs PM cpu deactivation first)
-search with /
 
--> need all kernel packages as before
-sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc
-https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-from-source-6d8df5345980
+For further guides on how to compile and install a kernel, visit \url{ https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-from-source-6d8df5345980}
 
-install as in script
 
 \section{Tests of system}
 
