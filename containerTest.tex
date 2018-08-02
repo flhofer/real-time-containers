@@ -227,34 +227,50 @@ The Preempt-RT requires a dedicated patch and recompiling of the kernel to suppo
 
 Some small cyclic execution tests are performed to verify default availability of real-time sheduling and the timing behavior of the scheduler.
 
-\subsection{Cyclictest}
+\subsection{rt-tests}
 
-apt install xenomai-system-tools
+the rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most prominent are \textit{cyclictest} and \textit{hackbench}. To install the software we may use one of the two approaches:
 
-install testbench for realtime
-https://wiki.linuxfoundation.org/realtime/documentation/howto/tools/rt-tests#compile-and-instal
+1) We use Xenomai, thus there is a tool package ready and available
 
+\begin{verbatim}
+	apt-get install xenomai-system-tools
+\end{verbatim}
 
+2) We use another real-time approach and compile the binaries from the source code.
+For this approach we need first some additional packages. Get them with:
 
-./cyclictest 
--n nanosec rtc based
--t num of threads
--l no of loops
--d delay between threads
--p priority of threads
--i interval of thread
+\begin{verbatim}
+	sudo apt-get install build-essential libnuma-dev
+\end{verbatim}
 
+Now proceed with the installation. Download the git repository and compile the source.
 
-example: 
-cyclictest -t 50 -i 1000 -d 86400 -l 1000000 -a -p 99 -n
+\begin{verbatim}
+	git clone git://git.kernel.org/pub/scm/utils/rt-tests/rt-tests.git
+	cd rt-tests
+	git checkout stable/v1.0
+	make all
+	make install
+\end{verbatim}
+
+The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test is: 
+
+\begin{verbatim}
+	cyclictest -t 50 -i 1000 -d 86400 -l 1000000 -a -p 99 -n
+\end{verbatim}
+
+The code in the example creates fifty tasks with priority 99 (maximum) an intervall of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer.
 
 \subsection{Other testing tool}
 
-other tools that might be helpful
-htop
-iftop
-iotop
+A list of other tools that might be helpful:
 
+\begin{itemize}
+	\item \textbf{htop} a colored memory view to analyse memory use of single processes
+	\item \textbf{iftop} interface monitor to view actual network traffic
+	\item \textbf{iotop} generic i/o monitor
+\end{itemize}
 
 \section{Additional fixes}
 
