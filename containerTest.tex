@@ -44,9 +44,6 @@ The systems are setup in virtual machines and verified for real-time scheduling 
 
 \textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the connect to. The images and deltas of containers are also managed via a Balena engine on the \texttt{resin.io} website. The containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
-
-
-
 \subsubsection{Local Virtual Machine}
 
 The resinOS operating system was primarily made to run on low resource systems, embedded devices or alike, and does thus not have a specific image for desktop/laptop or server. To run the OS in a virtual machine we download the Intel based 64 bit image for the Intel NCU from the resinOS website. \url{https://resinos.io/#downloads}
@@ -87,14 +84,14 @@ When created, open the settings dialogue for the virtual machine. In general set
 
 \begin{figure}
 	\centering
-	\includegraphics[width=0.6\textwidth]{resin-vbox}
+	\includegraphics[width=0.8\textwidth]{resin-vbox}
 	\caption{Virtualbox general settings for resinOS}
 	\label{fig:resingen}
 \end{figure}
 
 \begin{figure}
 	\centering
-	\includegraphics[width=0.6\textwidth]{resin-vbox2}
+	\includegraphics[width=0.8\textwidth]{resin-vbox2}
 	\caption{Disk settings for resinOS}
 	\label{fig:resindisk}
 \end{figure}
@@ -113,7 +110,7 @@ Clone the repository to a local directory with
 	git clone https://github.com/resin-io-playground/resinos-sample
 \end{verbatim}
 
-now enter the repository and edit ``Dockerfile''. Replace the text after FROM with \textit{resin/intel-nuc-alpine-node:slim}. Now compile and upload the container to the virtual host with
+Now enter the repository and edit ``Dockerfile''. Replace the text after FROM with \textit{resin/intel-nuc-alpine-node:slim}. Now compile and upload the container to the virtual host with
 
 \begin{verbatim}
 	sudo resin local push localhost --source .
@@ -121,13 +118,17 @@ now enter the repository and edit ``Dockerfile''. Replace the text after FROM wi
 
 Browsing to localhost should now display a test page.
 
+\subsubsection{Evaluation}
+
+The resinOS core ships with an even kernel version. Unfortunately the PREEMPT\_RT patch is not available for odd kernel versions and this image can therefore be patched only manually. This increases the maintenance effort and makes thus a resinOS based approach unpractical.
+
+NOTE: Consider Xenomai patch for this concept
+
 \subsection{Ubuntu core}
 {\small\textsc{Testrun Ubuntu core, 25/07/18} \bigskip}
 
-\subsubsection{Local Virtual machine}
-download and convert kvm image. run as ubunntu. register to ubuntu one. add ssh key for the registration of the ssh in. snaps only in this image. no apt-get. patch not possible as patch command not installed.
+Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The software is shipped in a snap and run sandboxed in a container like environment while keeping the transparency of a traditional application. 
 
-Uses snaps for applications
 
 Snap general specifications:
 standard in ubuntu since 2 years now (16.04 has them preinstalled)
@@ -139,6 +140,34 @@ gives the flexibilty of continuous updates of an application without interacting
 has different partitions. The normal filesystem is readonly. The binary section in the image which contains the application is readonly. There is an additional section which is rw where the application can actually write its data. 
 The interaction with the system is transparent. no virtual network cards and integration to the x server is seamless. (graphics app are plotted on same screen)
 maybe consider snap conversion of apps just to test the outcome. Not a must that the applications are to be on separate sandboxes. -> problem maybe with the portability of the host system, even though fedora ecc also include the snap subsystem
+
+In this test a setup is described and feasibility of the candidate is verified.
+
+\subsubsection{Local Virtual machine}
+
+Like in the previous example, the image is downloaded, ready to be used. Visit \url{https://developer.ubuntu.com/core/get-started} for an additional step by step guide.
+Get and unpack the latest KVM core image:
+
+\begin{verbatim}
+	wget http://cdimage.ubuntu.com/ubuntu-core/16/stable/current/ubuntu-core-16-amd64.img.xz
+	unxz ubuntu-core-16-amd64.img.xz
+\end{verbatim}
+
+Before it can be used, the image has to be converted from a raw image to a virtual drive. We convert the image again with the Virtualbox CLI tool.
+
+\begin{verbatim}
+	VBoxManage convertdd ubuntu-core-16-amd64.img ubuntu-core-16-amd64.vdi
+\end{verbatim}
+
+Now we create a new virtual machine, based on Ubuntu 64bit, and add the existing disk. The system is ready to run.
+
+In order to be able to connect to the new virtual machine, we need a ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually).
+
+\subsubsection{Evaluation}
+
+Unfortunately, the core is stripped to minimum and thus patching for real-time capabilities is not easily possible. This means, it does not include a package manager and patching the kernel is hard as a patch command not installed.
+
+The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to ubuntu, and a patched kernel could reach realtime properties, the binding with the hosts name and filespace hinders the use of application duplicates. This approach is thus archived for the moment.
 
 \subsection{Ubuntu Server 16.04.4 with xenomai}
 
