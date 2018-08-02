@@ -254,13 +254,13 @@ Now proceed with the installation. Download the git repository and compile the s
 	make install
 \end{verbatim}
 
-The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test is: 
+The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test, as recommended on Kernel.org is: 
 
 \begin{verbatim}
-	cyclictest -t 50 -i 1000 -d 86400 -l 1000000 -a -p 99 -n
+	cyclictest -t 50 -i 1000 -d 86400 -l 10000000 -a -p 99 -n
 \end{verbatim}
 
-The code in the example creates fifty tasks with priority 99 (maximum) an intervall of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer.
+The code in the example creates fifty tasks with priority 99 (maximum) an intervall of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which sets up the virtual machine. 
 
 \subsection{Other testing tool}
 
@@ -316,6 +316,9 @@ man 7 capabilities  -> list of all linux based capabilities
 --> check sourcecode of balena tells the compose supported commands and capabilities
 
 creation of a balena container for RT tests
+-> resin.io
+
+
 
 
 \section{Meetings}
