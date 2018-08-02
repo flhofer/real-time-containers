@@ -196,13 +196,13 @@ The patching steps have all be resumed in an installer script by Pasquale Antona
 
 \subsubsection{Evaluation}
 
-
-
+Because of the interrupt handling allowing out-of-band interrupt handlers and thus immediate IRQ reception, Xenomai is a ideal candidate for hard-real-time constraints. The patching is bound to kernel versions, thus the progress depends on the patch development of I-Pipe. Currently the kernel patch is stuck at version 4.14.4.(the latest kernel shipped with Ubuntu 16.04 LTS is 4.15.0-29, the latest stable 4.17.11). The scheduling of the real-time tasks is based on the co-kernel and is thus easier to modify and change, a promising approach.
 
 \subsection{Ubuntu Server 16.04.4 with patch RT}
 
 {\small\textsc{Testrun Preempt-RT, 27/07/18} \bigskip}
 
+The main aim of the PREEMPT\_RT patch is to minimize the amount of kernel code that is non-preemptible. Therefore several substitution mechanisms and new mechanisms are implemented.
 
 \subsubsection{Local Virtual machine}
 
@@ -210,18 +210,22 @@ The same conditions as in the previous example apply. Download the image from th
 
 The patching steps have all be resumed in an installer script similar to the previous. The install script provides downloads of the patch and the kernel, performs the patch and installs new kernel and the Balena environment.
 
-downloaded patched kernel from kernel.org
-make menuconfig
--> (needs libncurses5 libncurses5-dev)
-
-remove cpu-freq and cpu idle (needs PM cpu deactivation first)
+%downloaded patched kernel from kernel.org
+%make menuconfig
+%-> (needs libncurses5 libncurses5-dev)
+%remove cpu-freq and cpu idle (needs PM cpu deactivation first)
 
 For further guides on how to compile and install a kernel, visit \url{ https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-from-source-6d8df5345980}
 
+\subsubsection{Evaluation}
+
+The Preempt-RT requires a dedicated patch and recompiling of the kernel to support soft-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower level of real-time feasibility. Lately the project has made remarkable progress. To exploit its full potential, an Ubuntu 18.04 LTS kernel patching as a future step is taken into consideration.
 
 \section{Tests of system}
 
 {\small\textsc{Testrun and comparison of systems, 30/07/18} \bigskip}
+
+Some small cyclic execution tests are performed to verify default availability of real-time sheduling and the timing behavior of the scheduler.
 
 \subsection{Cyclictest}
 
