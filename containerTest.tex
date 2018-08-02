@@ -2,6 +2,7 @@
 
 \usepackage{url}
 \usepackage{graphicx}
+\usepackage{float}
 
 %opening
 \title{Testing Containers in the Cloud}
@@ -276,7 +277,7 @@ A list of other tools that might be helpful:
 
 balena, even though installed via script, is not properly configured
 
-https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file
+\url{https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file}
 
 
 \section{Issues and verifications}
@@ -285,15 +286,21 @@ https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-acce
 
 
 
+\begin{figure}
+	\centering
+	\includegraphics[width=0.8\textwidth]{balena-err}
+	\caption{text}
+\end{figure}
+
 WARN[0001] Your kernel does not support swap memory limit 
 
 Oh nuts, is it...
 
-#CONFIG_MEMCG_SWAP_ENABLED is not set -> WARNING: No swap limit support
+\#CONFIG\_MEMCG\_SWAP\_ENABLED is not set -> WARNING: No swap limit support
 
 and
 
-# CONFIG_MEMCG_KMEM is not set -> WARNING: No memory limit support
+\# CONFIG\_MEMCG\_KMEM is not set -> WARNING: No memory limit support
 
 possible temporary fix https://github.com/moby/moby/issues/4250
 
@@ -313,21 +320,20 @@ WARN[0001] Your kernel does not support cgroup rt runtime
 man 7 capabilities  -> list of all linux based capabilities
 
 
---> check sourcecode of balena tells the compose supported commands and capabilities
+--> check sourcecode of balena tells the compose supported commands and capabilities. Balena sourcecode declarations differ from the one on the docker site.
 
 creation of a balena container for RT tests
 -> resin.io
-
-
+Documentation describes that balena containers for resinOS (And thus also for other balena systems), need a local docker-compose installation and upload via remote.
 
 
 \section{Meetings}
 
-\begin{table}
+\begin{table}[h]
 	\centering
 	\caption{List of meetings during the stay at UC Berkeley}
 	
-	\begin{tabular}{l l l}
+	\begin{tabular}{l p{5cm} p{5cm}}
 	Date & Participants & Topics \\
 	\hline
 	26/07/18 & Martin Sehr, Ines Ugalde Diaz, Antonio Iannopollo, Florian Hofer & Project setup, generic requirements, questions for BU\\
