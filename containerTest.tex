@@ -23,6 +23,12 @@
 
 Virtualbox >5.x with extension pack is needed
 
+
+Linux PREEMPT-RT v2.6.33 versus v3.6.6: 
+Better or worse for real-time applications? CONFIG_NO_HZ_FULL
+http://sigbed.seas.upenn.edu/archives/2014-02/ewili13_submission_1.pdf
+
+
 \section{System Tests and variants}
 
 {\small\textsc{Identification of application candidates, 25-30/07/18} \bigskip}
@@ -258,12 +264,31 @@ Now proceed with the installation. Download the git repository and compile the s
 The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test, as recommended on Kernel.org is: 
 
 \begin{verbatim}
-	cyclictest -t 50 -i 1000 -d 86400 -l 10000000 -a -p 99 -n
+	cyclictest -t 50 -n -d 86400 -l 100000 -a -p 99
 \end{verbatim}
 
 The code in the example creates fifty tasks with priority 99 (maximum) an intervall of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which sets up the virtual machine. 
 
-\subsection{Other testing tool}
+\subsection{stress}
+
+In order to verify behaviour also under stress we use the tool \textit{stress}. The installation can be performed by downloading and compiling the source code. Further information can be found at \url{http://people.seas.harvard.edu/~apw/stress/}.
+
+\begin{verbatim}
+	#download and extract
+	curl -sfL http://people.seas.harvard.edu/~apw/stress/stress-1.0.4.tar.gz | tar xvz
+	# compile and install
+	cd stress-1.0.4
+	./configure
+	sudo make install
+\end{verbatim}
+
+An example execution can be performed via the command:
+
+\begin{verbatim}
+	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M
+\end{verbatim}
+
+\subsection{Other testing tools}
 
 A list of other tools that might be helpful:
 
@@ -274,17 +299,18 @@ A list of other tools that might be helpful:
 \end{itemize}
 
 \section{Additional fixes}
-
-balena, even though installed via script, is not properly configured
-
-\url{https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file}
-
-
-\section{Issues and verifications}
-
 {\small\textsc{, 31/07/18} \bigskip}
 
 
+balena, even though installed via script, is not properly configured
+
+User group balena needs access to some groups !
+\url{https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file}
+
+
+Binary is missing balena-init
+is present in resinOs version of balena, where is the catch?
+What does balena init do?
 
 \begin{figure}
 	\centering
@@ -309,6 +335,8 @@ possible temporary fix https://github.com/moby/moby/issues/4250
 WARN[0001] Your kernel does not support cgroup rt period 
 WARN[0001] Your kernel does not support cgroup rt runtime 
 -> not activated if Preempt full!!
+https://wiki.linuxfoundation.org/realtime/documentation/known_limitations#disabled-config_-options
+
 
 \section{Virtualization sustainability tests}
 
@@ -319,12 +347,110 @@ WARN[0001] Your kernel does not support cgroup rt runtime
 
 man 7 capabilities  -> list of all linux based capabilities
 
-
 --> check sourcecode of balena tells the compose supported commands and capabilities. Balena sourcecode declarations differ from the one on the docker site.
 
 creation of a balena container for RT tests
 -> resin.io
 Documentation describes that balena containers for resinOS (And thus also for other balena systems), need a local docker-compose installation and upload via remote.
+
+Docker application running as a real-time task. creation of a dummy task, mabye through stress application in container? it is real-time capable
+
+during these tests, the virtual machine is set to 3 cpus, and the cpu afinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
+
+\subsection{CPU isolation and partitioning}
+
+do a stress test based on this command. Previously installed test kits
+
+no load, 3 cpus
+cyclictest -n -m -p 99 -l 100000
+results
+T: 0 ( 1489) P:99 I:1000 C: 109551 Min:      0 Act: 4894 Avg: 1370 Max:  4914811
+
+load 3cpus
+stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M & cyclictest -n -m -p 99 -l 100000;
+results
+T: 0 ( 1514) P:99 I:1000 C: 100000 Min:      2 Act:   88 Avg:  358 Max:   23924
+
+
+install cpuset
+apt-get install cpuset
+
+
+Setup isolation
+sudo cset shield -c 0-2 -k on --shield
+sudo cset shield --shield --threads --pid <>
+
+image cpu
+
+no load, 3 cpus
+cyclictest -n -m -p 99 -l 100000
+T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166
+
+load 3cpus
+stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M & cyclictest -n -m -p 99 -l 100000;
+results
+T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   233955
+
+Removing load balancer
+echo 0 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
+echo 0 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance
+echo 1 > /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance
+
+T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855
+
+move irq affinity
+
+for file in /proc/irq/*; do   echo 3 > \$file/smp_affinity; done
+
+T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777
+
+set cpu affinity isolating rt from system in guest
+sudo cset shield -c 0-1 -k on --shield
+sudo cset shield --shield --threads --pid <cycletest pid>
+
+T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888
+
+after puttng load balance and irq settings of host back to normal
+
+T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773
+
+setting irq affinity to 2
+and load balancing to off like for host
+
+T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850
+
+when shielded, go up!?
+T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958
+T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389
+
+also valid for single type process
+
+
+unshielded host -> delay tasks go to the sky again!
+
+
+http://linuxrealtime.org/index.php/Basic_Linux_from_a_Real-Time_Perspective
+-> contains also description of available realtime modes
+
+
+VB tasks can be pinned, will do that to test machine, 3 vCPUs (cores) = 1 cpu HT + 1 Thread of CPU2
+
+1CPU fully to RT, 1 Thread to nRT, 1 Thread to host
+
+https://forums.virtualbox.org/viewtopic.php?p=45847
+
+
+
+\subsection{improve rt properties}
+
+http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties
+
+
+
+
+
+
+
 
 
 \section{Meetings}
