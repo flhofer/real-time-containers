@@ -19,15 +19,16 @@
 
 \section{Introduction}
 
+In these tests we try to verify the suitability of the different approaches to run a real-time capable containerization in order to distribute applications on a lower amount of resources where run-time determinism is needed. In figure \ref{fig:plan} the planned migration is shown. 
 
+\begin{figure}
+	\centering
+	\includegraphics[width=0.8\textwidth]{plan}
+	\caption{Planned resource re-allocation}
+	\label{fig:plan}
+\end{figure}
 
-Virtualbox >5.x with extension pack is needed
-
-
-Linux PREEMPT-RT v2.6.33 versus v3.6.6: 
-Better or worse for real-time applications? CONFIG_NO_HZ_FULL
-http://sigbed.seas.upenn.edu/archives/2014-02/ewili13_submission_1.pdf
-
+It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic.
 
 \section{System Tests and variants}
 
@@ -127,9 +128,7 @@ Browsing to localhost should now display a test page.
 
 \subsubsection{Evaluation}
 
-The resinOS core ships with an even kernel version. Unfortunately the PREEMPT\_RT patch is not available for odd kernel versions and this image can therefore be patched only manually. This increases the maintenance effort and makes thus a resinOS based approach unpractical.
-
-NOTE: Consider Xenomai patch for this concept
+The resinOS core ships with no packager manager and is missing building tools. This image can therefore be patched only manually and with greater effort. This increases the maintenance effort and makes thus a resinOS based approach unpractical.
 
 \subsection{Ubuntu core}
 {\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
@@ -210,6 +209,13 @@ Because of the interrupt handling allowing out-of-band interrupt handlers and th
 {\small\textsc{Testrun Preempt-RT, 27/07/18} \bigskip}
 
 The main aim of the PREEMPT\_RT patch is to minimize the amount of kernel code that is non-preemptible. Therefore several substitution mechanisms and new mechanisms are implemented.
+In the last years there where some major improvements in the PREEMPT-RT. A paper of Fayyad-Kazan \textit{et al.} shows improvement on kernel versions v2.6.33 versus v3.6.6, a total improvement of 35\%. 
+
+
+
+Better or worse for real-time applications? CONFIG_NO_HZ_FULL
+http://sigbed.seas.upenn.edu/archives/2014-02/ewili13_submission_1.pdf
+
 
 \subsubsection{Local Virtual machine}
 
@@ -329,13 +335,26 @@ and
 \# CONFIG\_MEMCG\_KMEM is not set -> WARNING: No memory limit support
 
 possible temporary fix https://github.com/moby/moby/issues/4250
+That does not exist, don't know why
 
+
+verify configuration of system
+wget https://raw.githubusercontent.com/dotcloud/docker/master/contrib/check-config.sh
+chmod =x check-config.sh
+./check-config.sh
 
 
 WARN[0001] Your kernel does not support cgroup rt period 
 WARN[0001] Your kernel does not support cgroup rt runtime 
 -> not activated if Preempt full!!
 https://wiki.linuxfoundation.org/realtime/documentation/known_limitations#disabled-config_-options
+
+
+Configuration for realtime sheduler requires CONFIG\_RT\_CGROUP
+https://docs.docker.com/config/containers/resource_constraints/
+
+balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.
+
 
 
 \section{Virtualization sustainability tests}
@@ -382,6 +401,8 @@ sudo cset shield --shield --threads --pid <>
 
 image cpu
 
+
+---verify again ths> ,7 secs seems much
 no load, 3 cpus
 cyclictest -n -m -p 99 -l 100000
 T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166
@@ -440,19 +461,36 @@ VB tasks can be pinned, will do that to test machine, 3 vCPUs (cores) = 1 cpu HT
 https://forums.virtualbox.org/viewtopic.php?p=45847
 
 
-
 \subsection{improve rt properties}
 
 http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties
 
 
-
-
-
-
 AWS vCPU scheduler description
 https://wiki.xenproject.org/wiki/Xen_Project_Schedulers
 
+
+
+\subsection{Tests balena container}
+
+start balenad with host listen option, by default it listens to localhost, meaning 0.0.0.0 127.0.0.1
+
+balenad -H 10.0.2.15:2375 to add listen to host, default is localhost 0.0.0.0 loop interface?
+
+add port forward to 2375 port
+
+
+------
+tests with rt runtime..
+added flags for memory and rt_groups
+limit of runtime for docker must be <= the max amount specified
+/sys/fs/cgroup/cpu/cpu.rt\_runtime\_us 
+
+whereas docker settings are specified 
+/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us
+or via command line. then every container can range in this limit
+
+same is true for the period parameters (docker and general)
 
 
 \section{Meetings}
