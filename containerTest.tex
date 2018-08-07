@@ -28,7 +28,18 @@ In these tests we try to verify the suitability of the different approaches to r
 	\label{fig:plan}
 \end{figure}
 
-It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic.
+It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
+
+LXC/LXD is the default Linux-based containerization engine and its use might not always be straight forward. This is probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC/LXD technology. IT has centralized container image storage, an open API and easy to use CLI interface\footnote{see \url{docker.com} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason Balena has been chosen as the containerization engine. Balena is an open source project hosted by resin.io.
+
+If not further specified, sources of information for this document are:
+\begin{itemize}
+	\item linuxfoundation.org
+	\item kernel.org
+	\item docker.com
+	\item resin.io
+	\item balena.io
+\end{itemize}
 
 \section{System Tests and variants}
 
@@ -37,20 +48,19 @@ It is planned that this re-organization will save a major amount of resources, r
 Before selecting a specific setup, different variants of systems are tested for their real-time capabilities, maintainability and ease of setup. Candidates for this session are:
 
 \begin{itemize}
-	\item \textbf{resinOS} operating system designed to run containers on different architectures and hardware devices
-	\item \textbf{ubuntu Core} an operating system for IoT devices implemented using the new snap image approach
-	\item \textbf{Xenomai 3} the co-core extension for Linux based operating systems, which allows hard-real-time scheduling
-	\item \textbf{PREEMPT\_RT} a kernel patch for linux based systems incrementing the preemption level for soft-real-time based
-	\item \textbf{CGroups} resource partitioning and CPU pinning (affinity selection), also in combination with previous system.
+	\item \textbf{resinOS} operating system by resin.io, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
+	\item \textbf{Ubuntu Core} an operating system for IoT devices implemented using the new snap image approach. Snap based as well as Balena based approaches are investigated on this hardware optimized image
+	\item \textbf{Xenomai 3} is co-core extension for Linux based operating systems, which allows hard-real-time scheduling. Together with an interrupt patch it is suggested to be the most performing of the real-time approaches.
+	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft-real-time based performance
 \end{itemize}
 
-The systems are setup in virtual machines and verified for real-time scheduling properties. Installations verify runtime of containers of different type, including synthetic applications.
+CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image. The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the runtime behavior of containers of different types, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
 
 {\small\textsc{Test-run resinOS, 25/07/18} \bigskip}
 
-\textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the connect to. The images and deltas of containers are also managed via a Balena engine on the \texttt{resin.io} website. The containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
+\textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the different configured devices connect to. The default containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
 \subsubsection{Local Virtual Machine}
 
@@ -82,22 +92,22 @@ Configure the image as needed
 
 Manual configuration instructions and further details and documentation can be found at \url{https://resinos.io/docs/intel-nuc/gettingstarted/}.
 
-The configured image is now ready to be deployed, but before it has to be converted to a virtual disk image in order to boot from it. Use the virtualbox CLI tool to execute the conversion. Once switched to the folder where the image has been downloaded, type
+The configured image is now ready to be deployed, but before it has to be converted to a virtual disk image in order to boot from it. Use the Virtual-Box CLI tool to execute the conversion. Once switched to the folder where the image has been downloaded, type
 \begin{verbatim}
 	VBoxManage convertdd resin.img resin.vdi
 \end{verbatim}
 
-Next, create new virtual machine in Virtualbox based on ``Other Linux 64bit''. Minimum requirements are OK. Create a virtual Disk of Size of at least 4GB as main disk. 
+Next, create new virtual machine in Virtual-Box based on ``Other Linux 64bit''. Minimum requirements are OK. Create a virtual Disk of Size of at least 4GB as main disk. 
 When created, open the settings dialogue for the virtual machine. In general settings, set the parameters as in Figure \ref{fig:resingen}. Now add the boot image for resinOS in the storage menu, Figure \ref{fig:resindisk}.
 
-\begin{figure}
+\begin{figure}[t]
 	\centering
 	\includegraphics[width=0.8\textwidth]{resin-vbox}
 	\caption{Virtualbox general settings for resinOS}
 	\label{fig:resingen}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[t]
 	\centering
 	\includegraphics[width=0.8\textwidth]{resin-vbox2}
 	\caption{Disk settings for resinOS}
@@ -106,11 +116,11 @@ When created, open the settings dialogue for the virtual machine. In general set
 
 To properly connect and download eventual containers we have to configure some forwards. In the ``Network'' menu, select advanced, then Port forward. Configure now the forward of port 8022 to 22  and 2375 to 2375 for client host 10.0.2.15 (usually).
 
-If the virtual machine is run now, the downloaded boot image creates a new instance of resinOS on the previously created virtual drive. The new disk is populates with the settings specified in the configuration step. The system shuts down automatically. Now the resin boot image can be removed.
+If the virtual machine is run now, the downloaded boot image creates a new instance of resinOS on the previously created virtual drive. The new disk is populates with the settings specified in the configuration step. Once done, the system shuts down automatically and the resin boot image can be removed from the machine settings.
 
 \subsubsection{Run a Balena container in resinOS}
 
-\textit{resinOS} is shipped with Balena pre-installed and the system is now ready to run any desired container. 
+As alredy discussed before, \textit{resinOS} is shipped with Balena pre-installed and the system is now ready to run any desired container. 
 An example application responding to a simple web request can be set-up and tested with the following guide.
 
 Clone the repository to a local directory with
@@ -124,27 +134,26 @@ Now enter the repository and edit ``Dockerfile''. Replace the text after FROM wi
 	sudo resin local push localhost --source .
 \end{verbatim}
 
-Browsing to localhost should now display a test page.
+Setup a route from the virtual machine to the localhost, line before, from port 80 to port 8080. Browsing to localhost:8080 should now display a test page.
 
 \subsubsection{Evaluation}
 
-The resinOS core ships with no packager manager and is missing building tools. This image can therefore be patched only manually and with greater effort. This increases the maintenance effort and makes thus a resinOS based approach unpractical.
+The resinOS core ships with no packager manager and is missing buildin tools. This image can therefore be patched only manually and with greater effort. This also means that it increases the maintenance effort and makes thus a resinOS based approach unpractical. In addition, the image has been tuned for small devices operation. An operation on a server infrastructure would therefore not use the maximum capabilities of the hardware constraining the system in its execution.
 
-\subsection{Ubuntu core}
+\subsection{Ubuntu Core}
 {\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
 
-Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The software is shipped in a snap and run sandboxed in a container like environment while keeping the transparency of a traditional application. 
+Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The developed software is shipped in a snap and then run sandboxed in a container like environment while keeping the transparency of a traditional application. 
 
-Snaps are standard feature of Ubuntu based distributions since since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sandboxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from evetualy malicious software. In addition, the binaries are digitally signed and thus avoid tampering with the executables. This gives the flexibility of continuous updates of an application, independent from the host system and flavor, and without interacting with the file system of the host.
+Snaps are standard feature of Ubuntu based distributions since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sandboxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from eventual malicious software. In addition, the binaries are digitally signed and thus tampering with the executables is avoided. This gives the whole system the flexibility of continuous updates of an application while being independent from the host system and flavor, and without interacting with the file system of the host.
+A variety of Linux flavors support snaps. In addition, snap-stores can be privately hosted, making this solution very interesting. More details can be found at \url{https://snapcraft.io/}
 
-A variety of Linux flavors support snaps and snap stores can be privately hosted, making this solution very interesting. More details can be found at \url{https://snapcraft.io/}
-
-In this test a setup is described and feasibility of the candidate is verified.
+In this test, a setup is described and feasibility of the candidate is verified.
 
 \subsubsection{Local Virtual machine}
 
-Like in the previous example, the image is downloaded, ready to be used. Visit \url{https://developer.ubuntu.com/core/get-started} for an additional step by step guide.
-Get and unpack the latest KVM core image (replace version numbers where appropriate):
+Like in the previous example, the image is downloaded and ready to be used. Visit \url{https://developer.ubuntu.com/core/get-started} for an additional step-by-step guide.
+First, we get and unpack the latest KVM core image (replace version numbers where appropriate):
 
 \begin{verbatim}
 	wget http://cdimage.ubuntu.com/ubuntu-core/16/stable/current/ubuntu-core-16-amd64.img.xz
@@ -157,29 +166,33 @@ Before it can be used, the image has to be converted from a raw image to a virtu
 	VBoxManage convertdd ubuntu-core-16-amd64.img ubuntu-core-16-amd64.vdi
 \end{verbatim}
 
-Now we create a new virtual machine, based on Ubuntu 64bit, and add the existing disk. The system is ready to run.
+Now we create a new virtual machine based on Ubuntu 64bit and add the existing disk. The setup of the virtual machine is guided and therefore no additional description is given here. Standard settings are good enough. Once done, the system is ready to run.
 
-In order to be able to connect to the new virtual machine, we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually).
+In order to be able to connect to the new virtual machine, we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually), the same way as described for resinOS.
+
+For a description on how to create an ssh key, visit \url{https://confluence.atlassian.com/bitbucketserver/creating-ssh-keys-776639788.html}
+
 
 \subsubsection{Evaluation}
 
 Unfortunately, the core is stripped to minimum and thus patching for real-time capabilities is not easily possible. This means, it does not include a package manager and patching the kernel is hard as a patch command not installed.
 
-The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to Ubuntu, and a patched kernel could reach real-time properties, the binding with the hosts name and file-space hinders the use of application duplicates. This approach is thus archived for the moment.
+The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to Ubuntu, and a patched kernel could add the needed real-time properties, the binding with the hosts name and file-space hinders the use of application duplicates. This approach is thus archived for the moment.
 
 If all other attempts are not successful enough, a conversion of the apps to snaps and proper configuration might be considered.
 
-\subsection{Ubuntu Server 16.04.4 with xenomai}
+\subsection{Ubuntu Server 16.04.4 with Xenomai}
 
 {\small\textsc{Testrun Xenomai, 26/07/18} \bigskip}
 
-Xenomai is a os extension to implement POSIX real-time features to a standard kernel. Xenomai supplements it with Cobalt, a small real-time infrastructure which schedules time-critical activities independently from the main kernel logic.The interfacing with an interrupt dispatcher (I-pipe) allows to increase response time and performance and thus enables also for hard-real-time execution. Through extension with skins, also non POSIX compliant real-time software can be configured to run on a Xenomai patched system.
+Xenomai is a os extension to implement POSIX real-time features to a standard kernel. Xenomai supplements it with Cobalt, a small real-time infrastructure which schedules time-critical activities independently from the main kernel logic. The interfacing with an interrupt dispatcher (I-pipe) allows to increase response time and performance and thus enables also for hard-real-time execution. Through extension with skins, also non POSIX compliant real-time software can be configured to run on a Xenomai patched system.
 
-Main concerns of this approach are setup complexity and maintainability.
+The main expressed concerns of this approach are setup complexity and maintainability.
 
 \subsubsection{Local Virtual machine}
 \label{sec:xenoinst}
-The os should be lightweight but still fully featured. Thus, an Ubuntu server flavor with minimal installation has been chosen. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}. The latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is the closest version with 4.4.x and thus the candidate for a kernel upgrade.
+
+The base-OS should be lightweight but still fully featured. Thus, an Ubuntu server flavor with minimal installation has been chosen. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}. The latest patches available for Xenomai/I-Pipe are based on Kernel 4.9.x and 4.14.x. Ubuntu 16.04 is the closest version with 4.4.x as the next LTS, namely Ubuntu 18.04, is shipped with Kernel 4.15.x. Thus, we select Ubuntu Server 16.04.4 as the candidate for a kernel upgrade and patch.
 
 \begin{verbatim}
 	# download image
@@ -189,33 +202,31 @@ The os should be lightweight but still fully featured. Thus, an Ubuntu server fl
 	|	sha256sum -c 2>&1 | grep OK
 \end{verbatim}
 
-Now we create a new Ubuntu 64bit based virtual machine with a disk size of at least 20GB. We need the space for the compiling of the kernel. Memory size can be arbitrary chosen between 384 mB and $\inf$. When setting the number of assigned CPUs, consider that the more, the faster is the compiling of the new kernel.
+Now we create a new Ubuntu 64bit based virtual machine with a disk size of at least 20GB. Even though Ubuntu takes just a few GB, we need at least 10GB extra space for the libraries, source code and compiling process of the kernel image and header. 
+The memory size for the virtual machine can be arbitrary chosen between 384 mB and $\inf$. When setting the number of assigned CPUs, consider that the more, the faster is the compiling of the new kernel. If you increase the number of CPUs, increase also the amount of RAM.
 Before starting the machine, we add the Ubuntu server disk image to the cd drive of the new machine.
 
-Now follow the guide of the installer. If asked, add only ssh server to the pre-installed packages and continue with software deployment. When installation is done, don't forget to upgrade the system to the newest packages and restart before proceeding with the kernel build. Execute:
+Now follow the guide of the installer. If asked, add only ssh server to the pre-selected packages and continue with software deployment. When installation is done, don't forget to upgrade the system to the newest packages and restart before proceeding with the kernel build. Execute:
 
 \begin{verbatim}
 	apt-get update && apt-get dist-upgrade -y
 \end{verbatim}
 
-The patching steps have all be resumed in an installer script by Pasquale Antonante. Unfortunately some steps are outdated and some configurations have changed. The script has therefore been updated and placed in the appropriate directory of the repository. The install script provides downloads of the two patches, Xenomai/Cobalt and I-Pipe, the kernel, performs the patch and installs new kernel and the Balena environment.
+The patching steps have all be resumed in an installer script by Pasquale Antonante. Unfortunately some steps are outdated and some configurations have changed. The script has therefore been updated and placed in the appropriate directory of this repository (ianno/real-time-containers). The install script provides downloads of the two patches, Xenomai/Cobalt and I-Pipe, the kernel, performs the patch and installs new kernel and the Balena environment.
 
 \subsubsection{Evaluation}
 
-Because of the interrupt handling allowing out-of-band interrupt handlers and thus immediate IRQ reception, Xenomai is a ideal candidate for hard-real-time constraints. The patching is bound to kernel versions, thus the progress depends on the patch development of I-Pipe. Currently the kernel patch is stuck at version 4.14.4.(the latest kernel shipped with Ubuntu 16.04 LTS is 4.15.0-29, the latest stable 4.17.11). The scheduling of the real-time tasks is based on the co-kernel and is thus easier to modify and change, a promising approach.
+Because of the way interrupt handling is implemented, allowing out-of-band interrupt handlers and thus immediate IRQ reception, Xenomai is a ideal candidate for hard-real-time constraints. The patching is bound to kernel versions, thus the progress depends on the patch development of I-Pipe. 
+The scheduling of the real-time tasks is based on the co-kernel and is thus easier to modify and change, a promising approach.
+Currently the kernel patch is stuck at version 4.14.4 (the latest kernel shipped with Ubuntu 16.04 LTS is 4.15.0-29, the latest stable 4.17.11). This could be a sign of an abandoned project. Before continuing with this implementation line, a proper investigation of the project status and agenda must be performed.
 
 \subsection{Ubuntu Server 16.04.4 with patch RT}
 
 {\small\textsc{Testrun Preempt-RT, 27/07/18} \bigskip}
 
-The main aim of the PREEMPT\_RT patch is to minimize the amount of kernel code that is non-preemptible. Therefore several substitution mechanisms and new mechanisms are implemented.
-In the last years there where some major improvements in the PREEMPT-RT. A paper of Fayyad-Kazan \textit{et al.} shows improvement on kernel versions v2.6.33 versus v3.6.6, a total improvement of 35\%. 
-
-
-
-Better or worse for real-time applications? CONFIG_NO_HZ_FULL
-http://sigbed.seas.upenn.edu/archives/2014-02/ewili13_submission_1.pdf
-
+PREEMPT\_RT is a real-time kernel project maintained by the Linux foundation. 
+The main aim of the PREEMPT\_RT patch is to minimize the amount of kernel code that is non-preemptible. Therefore several substitutions and new mechanisms are implemented.
+In the last years there where some major improvements in PREEMPT-RT. A paper of Fayyad-Kazan \textit{et al.} shows improvement on kernel versions v2.6.33 versus v3.6.6, a total improvement of 35\% \cite{Fayyad-Kazanetal2014}. In order to keep performances and results comparable, the same Ubuntu image will be used for patching.
 
 \subsubsection{Local Virtual machine}
 
@@ -232,7 +243,9 @@ For further guides on how to compile and install a kernel, visit \url{ https://m
 
 \subsubsection{Evaluation}
 
-The Preempt-RT requires a dedicated patch and recompiling of the kernel to support soft-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower level of real-time feasibility. Lately the project has made remarkable progress. To exploit its full potential, an Ubuntu 18.04 LTS kernel patching as a future step is taken into consideration.
+The Preempt-RT requires a dedicated patch and recompiling of the kernel to support soft-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower level of real-time feasibility. Anyway, lately the project has made remarkable progress.
+Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup. This makes this solution a major candidate for further investigation.
+To exploit its full potential, an Ubuntu 18.04 LTS kernel patching as a future step is taken into consideration.
 
 \section{Tests of system}
 
@@ -273,7 +286,8 @@ The last step is optional. The binaries can now be run (within the directory) to
 	cyclictest -t 50 -n -d 86400 -l 100000 -a -p 99
 \end{verbatim}
 
-The code in the example creates fifty tasks with priority 99 (maximum) an intervall of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which sets up the virtual machine. 
+The code in the example creates fifty tasks with priority 99 (maximum) an interval of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer. 
+As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which sets up the virtual machine. 
 
 \subsection{stress}
 
@@ -305,10 +319,9 @@ A list of other tools that might be helpful:
 \end{itemize}
 
 \section{Additional fixes}
-{\small\textsc{, 31/07/18} \bigskip}
+{\small\textsc{Configuration test, 31/07/18} \bigskip}
 
-
-balena, even though installed via script, is not properly configured
+Balena, even though installed via script, is not properly configured
 
 User group balena needs access to some groups !
 \url{https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file}
@@ -318,10 +331,10 @@ Binary is missing balena-init
 is present in resinOs version of balena, where is the catch?
 What does balena init do?
 
-\begin{figure}
+\begin{figure}[t]
 	\centering
 	\includegraphics[width=0.8\textwidth]{balena-err}
-	\caption{text}
+	\caption{Error messages displayed by Balena at first run}
 \end{figure}
 
 WARN[0001] Your kernel does not support swap memory limit 
@@ -377,6 +390,9 @@ Docker application running as a real-time task. creation of a dummy task, mabye 
 during these tests, the virtual machine is set to 3 cpus, and the cpu afinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
 
 \subsection{CPU isolation and partitioning}
+
+\textbf{CGroups} is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties
+
 
 do a stress test based on this command. Previously installed test kits
 
@@ -466,6 +482,13 @@ https://forums.virtualbox.org/viewtopic.php?p=45847
 http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties
 
 
+%TODO: CONFIG_NO_HZ_FULL ? effect on kernel?
+
+To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
+
+The application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file /sys/fs/cgroup/cpuset/rt/cpuset.tasks (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition. Binding can also be done by the application itself using the sched_setaffinity() function defined in sched.h.
+
+
 AWS vCPU scheduler description
 https://wiki.xenproject.org/wiki/Xen_Project_Schedulers
 
@@ -511,6 +534,9 @@ same is true for the period parameters (docker and general)
 	
 	\label{tab:meeting}
 \end{table}
+
+\bibliographystyle{IEEEtran}
+\bibliography{IEEEabrv,bibliography}
 
 \end{document}
 
