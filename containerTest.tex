@@ -321,54 +321,45 @@ A list of other tools that might be helpful:
 \section{Additional fixes}
 {\small\textsc{Configuration test, 31/07/18} \bigskip}
 
-Balena, even though installed via script, is not properly configured
-
-User group balena needs access to some groups !
-\url{https://docs.docker.com/install/linux/linux-postinstall/#configuring-remote-access-with-systemd-unit-file}
-
-
-Binary is missing balena-init
-is present in resinOs version of balena, where is the catch?
-What does balena init do?
+Balena, even though installed via script, appears not properly configured. It does not run at startup and there is no typical dedicated group in order to ease and limit access to the engine.
+Therefore groups and systemd configuration files to manage these must be added manually. Use the docker reference manual to provide for this. The manual can be found at \url{https://docs.docker.com/reference/}. The balena daemon is started via the command \textit{balenad}.
 
 \begin{figure}[t]
 	\centering
 	\includegraphics[width=0.8\textwidth]{balena-err}
 	\caption{Error messages displayed by Balena at first run}
+	\label{fig:balenad}
 \end{figure}
 
-WARN[0001] Your kernel does not support swap memory limit 
+An additional not clear thing is the missing of the \texttt{balena-init} file, see \ref{fig:balenad}. Comparing the installation to the standard resinOS shipping we can see that the latter has the missing file and they have the same version number, but also, that the main binary is different in size. It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove al the orphanage resources and prepare the new container for a clean run. According to th docker reference manual, \url{https://docs.docker.com/engine/reference/run/}, the init binary is obtained via tini, thus can be safely pulled from there. The git repository can be found at \url{https://github.com/krallin/tini/tree/v0.18.0}.
 
-Oh nuts, is it...
+In the image also other warnings can be found. In particular we can identify two groups of warnings:
 
-\#CONFIG\_MEMCG\_SWAP\_ENABLED is not set -> WARNING: No swap limit support
+\begin{itemize}
+	\item \textit{WARN[0001] Your kernel does not support swap memory limit}
 
-and
+	\item \textit{WARN[0001] Your kernel does not support cgroup rt period} and \textit{WARN[0001] Your kernel does not support cgroup rt runtime} 
+\end{itemize}
 
-\# CONFIG\_MEMCG\_KMEM is not set -> WARNING: No memory limit support
+The former is due to the fact that memory swap support has not been enabled ad kernel built time. 
+The configuration setting to be enabled is \texttt{\#CONFIG\_MEMCG\_SWAP\_ENABLED}. As a temporary fix we can enable the settings at boot-time. 
+To do this we edit \texttt{/etc/default/grub} and set 
+\texttt{GRUB\_CMDLINE\_LINUX\_DEFAULT} to \texttt{"cgroup\_enable=memory swapaccount=1"}
 
-possible temporary fix https://github.com/moby/moby/issues/4250
-That does not exist, don't know why
+The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum cpu execution slice, see \url{https://docs.docker.com/config/containers/resource_constraints/}. 
+In fact, if we try to set some of the real-time settings on our running balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
+The required setting can be enabled at kernel compilation time via the \texttt{CONFIG\_RT\_CGROUP} flag. 
+Unfortunately the flag can not be enabled for the PREEMPT\_RT version of the virtual machine. Due to some temporary compatibility constraints, the simultaneous operation of the \texttt{CONFIG\_PREEMPT\_FULL} flag, necessary for the ability of full kernel preemption, and the CGroup flag has been disabled. Details can be found at \url{https://wiki.linuxfoundation.org/realtime/documentation/known_limitations#disabled-config_-options}.
 
+Finally, I found a script that could do the verifications for you. If you would like to test your system for parameter and capability compliance, the docker comunity has developed a configuration testing script. The test can be run via these inputs:
 
-verify configuration of system
-wget https://raw.githubusercontent.com/dotcloud/docker/master/contrib/check-config.sh
-chmod =x check-config.sh
-./check-config.sh
+\begin{verbatim}
+	wget https://raw.githubusercontent.com/dotcloud/docker/master/contrib/check-config.sh
+	chmod =x check-config.sh
+	./check-config.sh
+\end{verbatim}
 
-
-WARN[0001] Your kernel does not support cgroup rt period 
-WARN[0001] Your kernel does not support cgroup rt runtime 
--> not activated if Preempt full!!
-https://wiki.linuxfoundation.org/realtime/documentation/known_limitations#disabled-config_-options
-
-
-Configuration for realtime sheduler requires CONFIG\_RT\_CGROUP
-https://docs.docker.com/config/containers/resource_constraints/
-
-balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.
-
-
+The run of the script confirms that the Xenomai version of the image, after all reconfiguration and recompilation, has the correct settings to operate the container engine properly.
 
 \section{Virtualization sustainability tests}
 
@@ -505,7 +496,6 @@ add port forward to 2375 port
 
 ------
 tests with rt runtime..
-added flags for memory and rt_groups
 limit of runtime for docker must be <= the max amount specified
 /sys/fs/cgroup/cpu/cpu.rt\_runtime\_us 
 
@@ -514,6 +504,22 @@ whereas docker settings are specified
 or via command line. then every container can range in this limit
 
 same is true for the period parameters (docker and general)
+
+
+\section{Final considerations, Meeting decisions and updated remarks}
+
+Docker chosen as a main visualization platform. Kubernetes as management tool for the virtualized machine. Therefore we use a C5 instance with at least 4 cores and in addition a generic instance with a Kubernetes monitoring system.
+
+\url{https://en.wikipedia.org/wiki/SCHED_DEADLINE}
+
+``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm.[35] The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
+
+
+https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt
+https://www.kernel.org/doc/Documentation/scheduler/sched-deadline.txt
+
+
+https://github.com/scheduler-tools !!!
 
 
 \section{Meetings}
@@ -527,8 +533,8 @@ same is true for the period parameters (docker and general)
 	\hline
 	26/07/18 & Martin Sehr, Ines Ugalde Diaz, Antonio Iannopollo, Florian Hofer & Project setup, generic requirements, questions for BU\\
 	31/07/18 & Martin Sehr, Ines Ugalde Diaz, Florian Hofer & Progress of testing, Dummy testing approach\\
-	07/08/18 & Ines Ugalde Diaz, Florian Hofer & \\
-	10/08/18 & Ines Ugalde Diaz, Florian Hofer & \\
+	07/08/18 & Martin Sehr, Ines Ugalde Diaz, Antonio Iannopollo, Florian Hofer & Switch to Docker and Kubernetes in Ubuntu Server 18.04\\
+	10/08/18 & Martin Sehr, Ines Ugalde Diaz, Florian Hofer & ``Suspended''\\
 	\hline
 	\end{tabular}
 	
