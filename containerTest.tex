@@ -492,7 +492,7 @@ For now only the tasks, user or system, have been moved from their original CPU 
 
 \begin{verbatim}
 	# move irq affinity to Cpu 3
-	for file in /proc/irq/*; do   echo 3 > \$file/smp_affinity; done
+	for file in /proc/irq/*; do   echo 4 > \$file/smp_affinity; done
 \end{verbatim}
 
 The new test/results is then as follows:
@@ -505,10 +505,7 @@ The new test/results is then as follows:
 
 \subsubsection{Cpu-isolation guest, host no load balancer \& irq affinity }
 
-1CPU fully to RT, 1 Thread to nRT, 1 Thread to host
-
-set cpu affinity isolating rt from system in guest
-\bigskip
+Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
 \noindent Command : 
 
@@ -527,13 +524,15 @@ set cpu affinity isolating rt from system in guest
 
 \subsubsection{Conclusions isolation Host}
 
-We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the HyperThreading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
 
-The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 cpu HT + 1 Thread of CPU2, have been assigned to the virtual machine.
+The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 physical CPU + 1 thread of CPU2, have been assigned to the virtual machine.
 
 \subsubsection{Cpu-isolation guest, host back to simple isolation}
 
-after puttng load balance and irq settings of host back to normal
+After we put load balance and IRQ affinity settings of the host back to normal, keeping cpu isolation we get the following results:
+
+\bigskip
 
 \noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
 
@@ -541,10 +540,9 @@ after puttng load balance and irq settings of host back to normal
 
 \noindent \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-\subsubsection{Cpu-isolation guest, set irq affinity \& no load balancer}
+\subsubsection{Cpu-isolation guest, set irq affinity \& no load balancer for RT}
 
-setting irq affinity to 2
-and load balancing to off like for host
+Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 2 this time for CPU affinity of the IRQs.
 
 \noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
 
@@ -552,9 +550,11 @@ and load balancing to off like for host
 
 \noindent \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
 
+When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
+
 \subsubsection{Cpu-isolation guest, test multiple}
 
---- going up wo shild?
+Test with mutliple threads and cpu isolation active on guest, irq affinity and balancer normal
 
 \noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
 
@@ -565,68 +565,77 @@ and load balancing to off like for host
 \noindent
 \texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
 
+It seems that cpu isolation of any kind on the guest has no bigger impact on the real-time performance.
 
-\subsubsection{Counterproof isolation Host}
+\subsubsection{Counter-proof isolation Host}
 
-unshielded host -> delay tasks go to the sky again!
-if we remove shield on host, we get back to the first result again.
+If we now try to remove the shield on the host operating system, exposing the vm again to normal CFS task scheduling, the values go up to the sky again. The results are equal to the first testing example of this section.
 
-\subsection{improve rt properties}
+\subsection{Full dynamic ticks}
 
-http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties
+A thing not evaluated yet are full dynamic ticks (see \url{http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
 
+Second, the application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file \url{/sys/fs/cgroup/cpuset/rt/cpuset.tasks} (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition.
 
-%TODO: CONFIG_NO_HZ_FULL ? effect on kernel?
-
-To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
-
-The application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file /sys/fs/cgroup/cpuset/rt/cpuset.tasks (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition. Binding can also be done by the application itself using the sched_setaffinity() function defined in sched.h.
-
-
-AWS vCPU scheduler description
-https://wiki.xenproject.org/wiki/Xen_Project_Schedulers
-
-
+But just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, discarded.
 
 \subsection{Tests balena container}
 
-Docker application running as a real-time task. creation of a dummy task, mabye through stress application in container? it is real-time capable
+Studying the balena/docker manual it was possible to identify the parameters to use in order to run the daemon with real-time capabilities. The parameter \texttt{--cpu-rt-runtime=<value>} enables the RT-sheduler for the daemon, set it to \texttt{-1} for no limit. In additon, for each RT-container \texttt{--cap-add=sys\_nice} must be set, while \texttt{--cpu-rt-runtime=<value>} and \texttt{--ulimit rtprio=<value>} can be used to limit runtime and priority for each container respectively.
+More info at \url{https://docs.docker.com/config/containers/resource_constraints/#configure-the-realtime-scheduler}
 
-start balenad with host listen option, by default it listens to localhost, meaning 0.0.0.0 127.0.0.1
+By default the daemon listens to the sock file only. To change this, and thus allow external access, we can specify the connecting interface where to listen to with \texttt{-H}. By default a virtual host has an IP address of \texttt{10.0.2.15}. To enable the debug mode, we can add the \texttt{-D} flag.
 
-balenad -H 10.0.2.15:2375 to add listen to host, default is localhost 0.0.0.0 loop interface?
+To start the deamon in real-time mode thus we use:
 
-add port forward to 2375 port
+\begin{verbatim}
+	balenad -H 0.0.0.0:2375 -H 10.0.2.15:2375 --cpu-rt-runtime=-1
+\end{verbatim}
 
+where 0.0.0.0:2375 stands for the default sock connection. Before we can connect from outside we have to add the usual port forward to the client ip 10.0.2.15 and port 2375 on both sides.
 
-------
-tests with rt runtime..
-limit of runtime for docker must be <= the max amount specified
-/sys/fs/cgroup/cpu/cpu.rt\_runtime\_us 
+We can now run a test container with the real-time test program using the container setup in test-cont folder. The container has been setup creating a standard Dockerfile and a docker-compose file where the needed parameters are set. To upload the container do the machine, change into the container folder and type:
 
-whereas docker settings are specified 
-/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us
-or via command line. then every container can range in this limit
+\begin{verbatim}
+	DOCKER\_API\_VERSION=1.22 DOCKER\_HOST=tcp://localhost:2375 docker-compose up
+\end{verbatim}
 
-same is true for the period parameters (docker and general)
+\textit{docker-compose} will now take care of downloading, building and running the image on the host.
 
+\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker compose file, the docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. Warning, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \url{https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt}.
 
 \section{Final considerations, Meeting decisions and updated remarks}
 
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
-Docker chosen as a main visualization platform. Kubernetes as management tool for the virtualized machine. Therefore we use a C5 instance with at least 4 cores and in addition a generic instance with a Kubernetes monitoring system.
+During my last investigation on cgroups and how they migt be used in docker/balena I bumped into a file that mentions for the first time now an implementation of a EDF based sheduler, 
+\url{https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt}.
+Following the description I found then in the other mentioned file,
+\url{https://www.kernel.org/doc/Documentation/scheduler/sched-deadline.txt}, the actual discussion on a patch release, going to be implemented on a mainline kernel version.
+Finally, in the repository of the chrt standard scheduling tools \url{https://github.com/scheduler-tools} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
+By further investigating on kernel source files on Kernel.org, reading through sources i found links to
+\url{https://en.wikipedia.org/wiki/SCHED_DEADLINE}, which finally stated that the completeness of the EDF is only recent. It might be one of the reasons for the delay od the tool release.
+\bigskip
 
-\url{https://en.wikipedia.org/wiki/SCHED_DEADLINE}
+``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm. The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
+\bigskip
 
-``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm.[35] The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
+In addition, the source code gave insight into an other work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all this suggests that the scheduler development is ongoing. It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
 
+During the study of the AWS system some recent changes came up. While the traditional systems still ase on XEN which uses a CFS cpu sheduler \url{https://wiki.xenproject.org/wiki/Xen_Project_Schedulers}, more recent virtual instance like the C5 use a new Hypervisor based on KVM \url{https://aws.amazon.com/ec2/instance-types/c5/} 
+This new Hypervisor will allow direct assignment and control of hardware and resources.
+This means, in short, that there is no need to use bare metal server instead. The new instances promise the same performance with greater flexibility and scalability.
 
-https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt
-https://www.kernel.org/doc/Documentation/scheduler/sched-deadline.txt
+In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers. The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technoloy and thus it would reduce the training cost of the final operators. In sight of the findings about the latest Hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and in addition a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
 
+\section{Fresh System setup}
+%TODO: this is a planned outcome :)
 
-https://github.com/scheduler-tools !!!
+{\small\textsc{Clean system setup \& test repeat, 08/08 - 10/08/18} \bigskip}
+
+In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed.
+All patches and kernel modifications have been repeated and images, headers and resulting scripts uploaded to the repository.
+
 
 
 \section{Meetings}
