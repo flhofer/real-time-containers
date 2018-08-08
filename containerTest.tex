@@ -363,110 +363,213 @@ The run of the script confirms that the Xenomai version of the image, after all 
 
 \section{Virtualization sustainability tests}
 
-{\small\textsc{Testrun Containers \& CPU pinning, 01/08 - 3/08/18} \bigskip}
+{\small\textsc{Testrun Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
 % AWS ? virtual machine test resoure pinning in vbox -> pin local host? balance share.
 
+In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell.
 
-man 7 capabilities  -> list of all linux based capabilities
+During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \url{https://docs.resin.io}, the instructions specify to install docker-compose on a remote system and operate the containers via remote.
+\texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single json file even from a remote machine, a welcome feature for our project.
+Anyway, by the source code of Balena we can tell that not all the tags are supported. This is particularly valid for the `Deploy' section.
 
---> check sourcecode of balena tells the compose supported commands and capabilities. Balena sourcecode declarations differ from the one on the docker site.
+More detail on the different operations taken in this section and on the why those are performed, can be found at \url{http://linuxrealtime.org/index.php/Basic_Linux_from_a_Real-Time_Perspective}.
 
-creation of a balena container for RT tests
--> resin.io
-Documentation describes that balena containers for resinOS (And thus also for other balena systems), need a local docker-compose installation and upload via remote.
+\subsection{Preparing steps}
 
-Docker application running as a real-time task. creation of a dummy task, mabye through stress application in container? it is real-time capable
+In preparation for the upcoming tests we need to install docker-compose and configure the proper cpu-isolation for the virutal machine.
+The instructions can be found in the reference of docker, see  \url{https://docs.docker.com/compose/install/}. 
+On debian systems this can be done simply via 
 
-during these tests, the virtual machine is set to 3 cpus, and the cpu afinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
+\begin{verbatim}
+	apt-get install docker-compose
+\end{verbatim}
 
-\subsection{CPU isolation and partitioning}
+During these tests, the virtual machine is set to 3 cpus, and the cpu afinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
+In the settings of the virtual machine we set the CPUs to 3 and we start the virtual machine.  Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a console and use the following command-line (\url{https://forums.virtualbox.org/viewtopic.php?p=45847}):
 
-\textbf{CGroups} is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties
+\begin{verbatim}
+	taskset -p 7 <read-pid>
+\end{verbatim} 
+
+The virtual machine is now running confined to CPUs 1, 2 and 3.
+
+\subsection{CPU isolation and partitioning tests}
+
+Let us try to start with some first measurements. We will run the tool cyclictest in different combinations, with and without stress on the CPU.
+
+\subsubsection{no load, 3 cpus}
+
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
+
+\noindent Results :
+
+\noindent \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min:      0 Act: 4894 Avg: 1370 Max:  4914811}
+
+\subsubsection{load 3cpus}
+
+\noindent Command : \textit{stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M \& cyclictest -n -m -p 99 -l 100000;}
+
+\noindent Results :
+
+\noindent \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min:      2 Act:   88 Avg:  358 Max:   23924}
+
+\subsubsection{no load, 3 cpus, isolation}
+
+\textbf{CGroups} is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
+
+Thus, in oder to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up cpu isolation for the host CPU. A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
+
+First we need to install the \texttt{cpuset} utility.This can be done via:
+
+\begin{verbatim}
+	apt-get install cpuset
+\end{verbatim}
+
+Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a shell and change to root (or use sudo):
+
+\begin{verbatim}
+	sudo cset shield -c 0-2 -k on --shield
+	sudo cset shield --shield --threads --pid <read-pid>
+\end{verbatim}
+
+The virtual machine and all depending tasks are now moved to a separate control group which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 (verify with \texttt{cset set -l --shield} and \texttt{cset set -l --unshield}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=0.8\textwidth]{test-cpu}
+	\caption{System monitor showing the isolated virtual machine (idle) and the loaded host vCPU}
+	\label{fig:test-cpu}
+\end{figure}
+
+%TODO:---verify again ths> ,7 secs seems much
+
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
+
+\noindent Results :
+
+\noindent \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166}
+
+\subsubsection{load 3cpus, isolation}
+
+In this second test we put again the virtual machine under load. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
+
+\noindent Command : \textit{stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M \& cyclictest -n -m -p 99 -l 100000;}
+
+\noindent Results : 
+
+\noindent \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   233955}
 
 
-do a stress test based on this command. Previously installed test kits
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=0.8\textwidth]{test-cpuload}
+	\caption{System monitor showing the same isolated virtual machine under load}
+	\label{fig:test-cpuload}
+\end{figure}
 
-no load, 3 cpus
-cyclictest -n -m -p 99 -l 100000
-results
-T: 0 ( 1489) P:99 I:1000 C: 109551 Min:      0 Act: 4894 Avg: 1370 Max:  4914811
+\subsubsection{no load 3cpus, isolation, no load balancer}
 
-load 3cpus
-stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M & cyclictest -n -m -p 99 -l 100000;
-results
-T: 0 ( 1514) P:99 I:1000 C: 100000 Min:      2 Act:   88 Avg:  358 Max:   23924
+Even though the threads of the virtual machine are confined on the tree cpus, the load balancer of the Complete Fair Scheduler (CFS) is still active. We test now what happens when we deactivate the scheduler:
 
+\begin{verbatim}
+	#Removing load balancer
+	echo 0 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
+	echo 0 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance
+	echo 1 > /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance
+\end{verbatim}
+%\bigskip
 
-install cpuset
-apt-get install cpuset
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
 
+\noindent Results :
 
-Setup isolation
-sudo cset shield -c 0-2 -k on --shield
-sudo cset shield --shield --threads --pid <>
+\noindent  \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855}
 
-image cpu
+\subsubsection{no load 3cpus, isolation, irq affinity}
 
+For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multicore system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
----verify again ths> ,7 secs seems much
-no load, 3 cpus
-cyclictest -n -m -p 99 -l 100000
-T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166
+\begin{verbatim}
+	# move irq affinity to Cpu 3
+	for file in /proc/irq/*; do   echo 3 > \$file/smp_affinity; done
+\end{verbatim}
 
-load 3cpus
-stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M & cyclictest -n -m -p 99 -l 100000;
-results
-T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   233955
+The new test/results is then as follows:
 
-Removing load balancer
-echo 0 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
-echo 0 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance
-echo 1 > /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
 
-T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855
+\noindent Results :
 
-move irq affinity
+\noindent \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777}
 
-for file in /proc/irq/*; do   echo 3 > \$file/smp_affinity; done
+\subsubsection{Cpu-isolation guest, host no load balancer \& irq affinity }
 
-T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777
+1CPU fully to RT, 1 Thread to nRT, 1 Thread to host
 
 set cpu affinity isolating rt from system in guest
-sudo cset shield -c 0-1 -k on --shield
-sudo cset shield --shield --threads --pid <cycletest pid>
+\bigskip
 
-T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888
+\noindent Command : 
+
+\begin{verbatim}
+	# run shielding
+	cset shield -c 0-1 -k on --shield
+	# start test
+	cyclictest -n -m -p 99 -l 100000
+	# enable shield on test pid
+	cset shield --shield --threads --pid <cycletest pid>
+\end{verbatim}
+
+\noindent Results :
+
+\noindent \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888}
+
+\subsubsection{Conclusions isolation Host}
+
+We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the HyperThreading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+
+The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 cpu HT + 1 Thread of CPU2, have been assigned to the virtual machine.
+
+\subsubsection{Cpu-isolation guest, host back to simple isolation}
 
 after puttng load balance and irq settings of host back to normal
 
-T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
+
+\noindent Results :
+
+\noindent \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
+
+\subsubsection{Cpu-isolation guest, set irq affinity \& no load balancer}
 
 setting irq affinity to 2
 and load balancing to off like for host
 
-T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850
+\noindent Command : \textit{cyclictest -n -m -p 99 -l 100000}
 
-when shielded, go up!?
-T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958
-T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389
+\noindent Results :
 
-also valid for single type process
+\noindent \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
 
+\subsubsection{Cpu-isolation guest, test multiple}
+
+--- going up wo shild?
+
+\noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
+
+\noindent Results :
+
+\noindent  
+\texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}
+\noindent
+\texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
+
+
+\subsubsection{Counterproof isolation Host}
 
 unshielded host -> delay tasks go to the sky again!
-
-
-http://linuxrealtime.org/index.php/Basic_Linux_from_a_Real-Time_Perspective
--> contains also description of available realtime modes
-
-
-VB tasks can be pinned, will do that to test machine, 3 vCPUs (cores) = 1 cpu HT + 1 Thread of CPU2
-
-1CPU fully to RT, 1 Thread to nRT, 1 Thread to host
-
-https://forums.virtualbox.org/viewtopic.php?p=45847
-
+if we remove shield on host, we get back to the first result again.
 
 \subsection{improve rt properties}
 
@@ -486,6 +589,8 @@ https://wiki.xenproject.org/wiki/Xen_Project_Schedulers
 
 
 \subsection{Tests balena container}
+
+Docker application running as a real-time task. creation of a dummy task, mabye through stress application in container? it is real-time capable
 
 start balenad with host listen option, by default it listens to localhost, meaning 0.0.0.0 127.0.0.1
 
@@ -507,6 +612,8 @@ same is true for the period parameters (docker and general)
 
 
 \section{Final considerations, Meeting decisions and updated remarks}
+
+{\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
 Docker chosen as a main visualization platform. Kubernetes as management tool for the virtualized machine. Therefore we use a C5 instance with at least 4 cores and in addition a generic instance with a Kubernetes monitoring system.
 
