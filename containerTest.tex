@@ -19,7 +19,23 @@
 
 \section{Introduction}
 
-In these tests we try to verify the suitability of the different approaches to run a real-time capable containerization in order to distribute applications on a lower amount of resources where run-time determinism is needed. In figure \ref{fig:plan} the planned migration is shown. 
+This document is a report containing steps performed and outcomes obtained during the visit at University of California at Berkeley. It is intended as a summary and, at the same time, a guideline if someone would like to repeat some or all of the executed tests.
+
+The team is composed as follows:
+
+\begin{table}[H]
+	\begin{tabular}{l l l}
+		Alberto L. Sangiovanni-Vincentelli & UC Berkeley & Project Lead UCB \\
+		Antonio Iannopollo & UC Berkeley & Project peer \\
+		Martin Sehr & Siemens USA & Team lead Siemens \\
+		Ines Ugalde Diaz & Siemens USA & Software Engineer \\
+		Florian Hofer & Free Univ. of Bozano-Bozen & Investigator \\		
+	\end{tabular}
+\end{table}
+
+During the three weeks of stay, a weekly team meeting is planned (see Section \ref{sec:meeting}) as well as daily informal and internal sync at UC Berlekey.
+
+In the performed tests we try to verify the suitability of the different approaches to run a real-time capable containerization in order to distribute applications on a lower amount of resources where run-time determinism is needed. In figure \ref{fig:plan} the planned migration is shown. 
 
 \begin{figure}
 	\centering
@@ -30,16 +46,16 @@ In these tests we try to verify the suitability of the different approaches to r
 
 It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
 
-LXC/LXD is the default Linux-based containerization engine and its use might not always be straight forward. This is probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC/LXD technology. IT has centralized container image storage, an open API and easy to use CLI interface\footnote{see \url{docker.com} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason Balena has been chosen as the containerization engine. Balena is an open source project hosted by resin.io.
-
-If not further specified, sources of information for this document are:
-\begin{itemize}
-	\item linuxfoundation.org
-	\item kernel.org
-	\item docker.com
-	\item resin.io
-	\item balena.io
-\end{itemize}
+LXC/LXD is the default Linux-based containerization engine and its use might not always be straight forward. This is probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC/LXD technology. IT has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason Balena has been chosen as the containerization engine. Balena is an open source project hosted by resin.io.
+%
+%If not further specified, sources of information for this document are:
+%\begin{itemize}
+%	\item linuxfoundation.org
+%	\item kernel.org
+%	\item docker.com
+%	\item resin.io
+%	\item balena.io
+%\end{itemize}
 
 \section{System Tests and variants}
 
@@ -54,7 +70,7 @@ Before selecting a specific setup, different variants of systems are tested for 
 	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft-real-time based performance
 \end{itemize}
 
-CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image. The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the runtime behavior of containers of different types, including synthetic applications.
+CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image and is stripped down to the bare minimum (LXC/LXD has been excluded beforhand). The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the runtime behavior of containers of different types, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
 
@@ -64,13 +80,13 @@ CoreOS has been excluded from the candidate list as it comes with a LXC/LXD imag
 
 \subsubsection{Local Virtual Machine}
 
-The resinOS operating system was primarily made to run on low resource systems, embedded devices or alike, and does thus not have a specific image for desktop/laptop or server. To run the OS in a virtual machine we download the Intel based 64 bit image for the Intel NCU from the resinOS website. \url{https://resinos.io/#downloads}
+The resinOS operating system was primarily made to run on low resource systems, embedded devices or alike, and does thus not have a specific image for desktop/laptop or server. To run the OS in a virtual machine we download the Intel based 64 bit image for the Intel NCU from the resinOS website \cite{resin01}.
 
-The image does not contain any additional configuration concerning network setup or ssh keys to be able to connect to the device. To configure the image, we need the CLI tool. Before installing the tool, make sure that following packages are installed:
+The image does not contain any additional configuration concerning network setup or ssh keys to be able to connect to the device. To configure the image we need the CLI tool. Before installing the tool, make sure that following packages are installed:
 
 \begin{itemize}
 	
-	\item \textbf{node.js 6.x} you can installa the latest version via snap using \textit{snap install node --classic --channel=x} where x can be substituted with the desired version, 8 or 10. You can also use a standard package installation. Instructions can be found at \url{https://github.com/nodesource/distributions}
+	\item \textbf{node.js 6.x} you can installa the latest version via snap using \textit{snap install node --classic --channel=x} where x can be substituted with the desired version, 8 or 10. You can also use a standard package installation. Instructions can be found at \cite{node01}
 	\item \textbf{npm} the node package manager is part of the node distribution. If not yet installed, install it with \textit{apt-get install npm}
 	\item \textbf{rsync} versatile remote file copying tool, installable, if not already present, via \textit{apt-get install rsync}
 	\item \textbf{ssh} the secure shell client is usually pre-installed on all debian based systems. If that is not the case, install it via \textit{apt-get install openssh-client}
@@ -90,7 +106,7 @@ Configure the image as needed
 	sudo resin local configure ~/Downloads/resin.img
 \end{verbatim}
 
-Manual configuration instructions and further details and documentation can be found at \url{https://resinos.io/docs/intel-nuc/gettingstarted/}.
+Manual configuration instructions and further details and documentation can be found at \cite{resin02}.
 
 The configured image is now ready to be deployed, but before it has to be converted to a virtual disk image in order to boot from it. Use the Virtual-Box CLI tool to execute the conversion. Once switched to the folder where the image has been downloaded, type
 \begin{verbatim}
@@ -143,16 +159,16 @@ The resinOS core ships with no packager manager and is missing buildin tools. Th
 \subsection{Ubuntu Core}
 {\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
 
-Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The developed software is shipped in a snap and then run sandboxed in a container like environment while keeping the transparency of a traditional application. 
+Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The developed software is shipped in a snap and then run sandboxed in a container-like environment while keeping the transparency of a traditional application. 
 
 Snaps are standard feature of Ubuntu based distributions since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sandboxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from eventual malicious software. In addition, the binaries are digitally signed and thus tampering with the executables is avoided. This gives the whole system the flexibility of continuous updates of an application while being independent from the host system and flavor, and without interacting with the file system of the host.
-A variety of Linux flavors support snaps. In addition, snap-stores can be privately hosted, making this solution very interesting. More details can be found at \url{https://snapcraft.io/}
+A variety of Linux flavors support snaps. In addition, snap-stores can be privately hosted, making this solution very interesting. More details can be found at \cite{snap01}
 
 In this test, a setup is described and feasibility of the candidate is verified.
 
 \subsubsection{Local Virtual machine}
 
-Like in the previous example, the image is downloaded and ready to be used. Visit \url{https://developer.ubuntu.com/core/get-started} for an additional step-by-step guide.
+Like in the previous example, the image is downloaded and ready to be used. Visit \cite{ubuntu01} for an additional step-by-step guide.
 First, we get and unpack the latest KVM core image (replace version numbers where appropriate):
 
 \begin{verbatim}
@@ -166,12 +182,11 @@ Before it can be used, the image has to be converted from a raw image to a virtu
 	VBoxManage convertdd ubuntu-core-16-amd64.img ubuntu-core-16-amd64.vdi
 \end{verbatim}
 
-Now we create a new virtual machine based on Ubuntu 64bit and add the existing disk. The setup of the virtual machine is guided and therefore no additional description is given here. Standard settings are good enough. Once done, the system is ready to run.
+Now we create a new virtual machine based on ``Ubuntu 64bit'' and add the existing disk. The setup of the virtual machine is guided and therefore no additional description is given here. Standard settings are good enough. Once done, the system is ready to run.
 
 In order to be able to connect to the new virtual machine, we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually), the same way as described for resinOS.
 
-For a description on how to create an ssh key, visit \url{https://confluence.atlassian.com/bitbucketserver/creating-ssh-keys-776639788.html}
-
+For a description on how to create an ssh key, visit \cite{atlassian01}
 
 \subsubsection{Evaluation}
 
@@ -192,7 +207,7 @@ The main expressed concerns of this approach are setup complexity and maintainab
 \subsubsection{Local Virtual machine}
 \label{sec:xenoinst}
 
-The base-OS should be lightweight but still fully featured. Thus, an Ubuntu server flavor with minimal installation has been chosen. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}. The latest patches available for Xenomai/I-Pipe are based on Kernel 4.9.x and 4.14.x. Ubuntu 16.04 is the closest version with 4.4.x as the next LTS, namely Ubuntu 18.04, is shipped with Kernel 4.15.x. Thus, we select Ubuntu Server 16.04.4 as the candidate for a kernel upgrade and patch.
+The base-OS should be lightweight but still fully featured. Thus, an Ubuntu server flavor with minimal installation has been chosen. Download the image from the Ubuntu website \cite{ubuntu02}. The latest patches available for Xenomai/I-Pipe are based on Kernel 4.9.x and 4.14.x. Ubuntu 16.04 is the closest version with 4.4.x as the next LTS, namely Ubuntu 18.04, is shipped with Kernel 4.15.x. Thus, we select Ubuntu Server 16.04.4 as the candidate for a kernel upgrade and patch.
 
 \begin{verbatim}
 	# download image
@@ -230,7 +245,7 @@ In the last years there where some major improvements in PREEMPT-RT. A paper of 
 
 \subsubsection{Local Virtual machine}
 
-The same conditions as in the previous example apply. Download the image from the Ubuntu website \url{http://releases.ubuntu.com/16.04.4/}, if not already done. Also here the latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is again the closest version with 4.4.x and thus the candidate for a kernel upgrade. See section \ref{sec:xenoinst}.
+The same conditions as in the previous example apply. Download the image from the Ubuntu website \cite{ubuntu02}, if not already done. Also here the latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is again the closest version with 4.4.x and thus the candidate for a kernel upgrade. See section \ref{sec:xenoinst}.
 
 The patching steps have all be resumed in an installer script similar to the previous. The install script provides downloads of the patch and the kernel, performs the patch and installs new kernel and the Balena environment.
 
@@ -239,7 +254,7 @@ The patching steps have all be resumed in an installer script similar to the pre
 %-> (needs libncurses5 libncurses5-dev)
 %remove cpu-freq and cpu idle (needs PM cpu deactivation first)
 
-For further guides on how to compile and install a kernel, visit \url{ https://medium.freecodecamp.org/building-and-installing-the-latest-linux-kernel-from-source-6d8df5345980}
+For further guides on how to compile and install a kernel, visit \cite{misc01}.
 
 \subsubsection{Evaluation}
 
@@ -291,7 +306,7 @@ As an example, we compared the results between virtual machines of the different
 
 \subsection{stress}
 
-In order to verify behaviour also under stress we use the tool \textit{stress}. The installation can be performed by downloading and compiling the source code. Further information can be found at \url{http://people.seas.harvard.edu/~apw/stress/}.
+In order to verify behaviour also under stress we use the tool \textit{stress}. The installation can be performed by downloading and compiling the source code. Further information can be found at \cite{stress01}.
 
 \begin{verbatim}
 	#download and extract
@@ -322,7 +337,7 @@ A list of other tools that might be helpful:
 {\small\textsc{Configuration test, 31/07/18} \bigskip}
 
 Balena, even though installed via script, appears not properly configured. It does not run at startup and there is no typical dedicated group in order to ease and limit access to the engine.
-Therefore groups and systemd configuration files to manage these must be added manually. Use the docker reference manual to provide for this. The manual can be found at \url{https://docs.docker.com/reference/}. The balena daemon is started via the command \textit{balenad}.
+Therefore groups and systemd configuration files to manage these must be added manually. Use the docker reference manual to provide for this. The manual can be found at \cite{docker02}. The balena daemon is started via the command \textit{balenad}.
 
 \begin{figure}[t]
 	\centering
@@ -331,7 +346,7 @@ Therefore groups and systemd configuration files to manage these must be added m
 	\label{fig:balenad}
 \end{figure}
 
-An additional not clear thing is the missing of the \texttt{balena-init} file, see \ref{fig:balenad}. Comparing the installation to the standard resinOS shipping we can see that the latter has the missing file and they have the same version number, but also, that the main binary is different in size. It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove al the orphanage resources and prepare the new container for a clean run. According to th docker reference manual, \url{https://docs.docker.com/engine/reference/run/}, the init binary is obtained via tini, thus can be safely pulled from there. The git repository can be found at \url{https://github.com/krallin/tini/tree/v0.18.0}.
+An additional not clear thing is the missing of the \texttt{balena-init} file, see \ref{fig:balenad}. Comparing the installation to the standard resinOS shipping we can see that the latter has the missing file and they have the same version number, but also, that the main binary is different in size. It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove al the orphanage resources and prepare the new container for a clean run. According to th docker reference manual, \cite{docker03}, the init binary is obtained via tini, thus can be safely pulled from there. The git repository can be found at \cite{tini01}.
 
 In the image also other warnings can be found. In particular we can identify two groups of warnings:
 
@@ -346,10 +361,10 @@ The configuration setting to be enabled is \texttt{\#CONFIG\_MEMCG\_SWAP\_ENABLE
 To do this we edit \texttt{/etc/default/grub} and set 
 \texttt{GRUB\_CMDLINE\_LINUX\_DEFAULT} to \texttt{"cgroup\_enable=memory swapaccount=1"}
 
-The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum cpu execution slice, see \url{https://docs.docker.com/config/containers/resource_constraints/}. 
+The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum cpu execution slice, see \cite{docker04}. 
 In fact, if we try to set some of the real-time settings on our running balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
 The required setting can be enabled at kernel compilation time via the \texttt{CONFIG\_RT\_CGROUP} flag. 
-Unfortunately the flag can not be enabled for the PREEMPT\_RT version of the virtual machine. Due to some temporary compatibility constraints, the simultaneous operation of the \texttt{CONFIG\_PREEMPT\_FULL} flag, necessary for the ability of full kernel preemption, and the CGroup flag has been disabled. Details can be found at \url{https://wiki.linuxfoundation.org/realtime/documentation/known_limitations#disabled-config_-options}.
+Unfortunately the flag can not be enabled for the PREEMPT\_RT version of the virtual machine. Due to some temporary compatibility constraints, the simultaneous operation of the \texttt{CONFIG\_PREEMPT\_FULL} flag, necessary for the ability of full kernel preemption, and the CGroup flag has been disabled. Details can be found at \cite{lfnd01}.
 
 Finally, I found a script that could do the verifications for you. If you would like to test your system for parameter and capability compliance, the docker comunity has developed a configuration testing script. The test can be run via these inputs:
 
@@ -365,20 +380,18 @@ The run of the script confirms that the Xenomai version of the image, after all 
 
 {\small\textsc{Testrun Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-% AWS ? virtual machine test resoure pinning in vbox -> pin local host? balance share.
-
 In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell.
 
-During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \url{https://docs.resin.io}, the instructions specify to install docker-compose on a remote system and operate the containers via remote.
+During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \cite{resin03}, the instructions specify to install docker-compose on a remote system and operate the containers via remote.
 \texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single json file even from a remote machine, a welcome feature for our project.
 Anyway, by the source code of Balena we can tell that not all the tags are supported. This is particularly valid for the `Deploy' section.
 
-More detail on the different operations taken in this section and on the why those are performed, can be found at \url{http://linuxrealtime.org/index.php/Basic_Linux_from_a_Real-Time_Perspective}.
+More detail on the different operations taken in this section and on the why those are performed, can be found at \cite{lrt01}.
 
 \subsection{Preparing steps}
 
 In preparation for the upcoming tests we need to install docker-compose and configure the proper cpu-isolation for the virutal machine.
-The instructions can be found in the reference of docker, see  \url{https://docs.docker.com/compose/install/}. 
+The instructions can be found in the reference of docker, see \cite{docker05}. 
 On debian systems this can be done simply via 
 
 \begin{verbatim}
@@ -386,7 +399,7 @@ On debian systems this can be done simply via
 \end{verbatim}
 
 During these tests, the virtual machine is set to 3 cpus, and the cpu afinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
-In the settings of the virtual machine we set the CPUs to 3 and we start the virtual machine.  Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a console and use the following command-line (\url{https://forums.virtualbox.org/viewtopic.php?p=45847}):
+In the settings of the virtual machine we set the CPUs to 3 and we start the virtual machine.  Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a console and use the following command-line (\cite{vbox01}):
 
 \begin{verbatim}
 	taskset -p 7 <read-pid>
@@ -414,7 +427,7 @@ Let us try to start with some first measurements. We will run the tool cyclictes
 
 \noindent \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min:      2 Act:   88 Avg:  358 Max:   23924}
 
-\subsubsection{no load, 3 cpus, isolation}
+\subsubsection{No load, 3 vCPUs, isolation}
 
 \textbf{CGroups} is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 
@@ -450,7 +463,7 @@ The virtual machine and all depending tasks are now moved to a separate control 
 
 \noindent \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166}
 
-\subsubsection{load 3cpus, isolation}
+\subsubsection{With load, 3 vCPUs, isolation}
 
 In this second test we put again the virtual machine under load. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
@@ -468,7 +481,7 @@ In this second test we put again the virtual machine under load. The system's CP
 	\label{fig:test-cpuload}
 \end{figure}
 
-\subsubsection{no load 3cpus, isolation, no load balancer}
+\subsubsection{No load, 3 vCPUs, isolation, no load balancer}
 
 Even though the threads of the virtual machine are confined on the tree cpus, the load balancer of the Complete Fair Scheduler (CFS) is still active. We test now what happens when we deactivate the scheduler:
 
@@ -486,7 +499,7 @@ Even though the threads of the virtual machine are confined on the tree cpus, th
 
 \noindent  \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855}
 
-\subsubsection{no load 3cpus, isolation, irq affinity}
+\subsubsection{No load, 3 vCPUs, isolation, irq affinity}
 
 For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multicore system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
@@ -540,7 +553,7 @@ After we put load balance and IRQ affinity settings of the host back to normal, 
 
 \noindent \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-\subsubsection{Cpu-isolation guest, set irq affinity \& no load balancer for RT}
+\subsubsection{Cpu-isolation guest, set IRQ affinity \& no load balancer for RT}
 
 Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 2 this time for CPU affinity of the IRQs.
 
@@ -573,20 +586,20 @@ If we now try to remove the shield on the host operating system, exposing the vm
 
 \subsection{Full dynamic ticks}
 
-A thing not evaluated yet are full dynamic ticks (see \url{http://linuxrealtime.org/index.php/Improving_the_Real-Time_Properties}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
+A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
 
 Second, the application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file \url{/sys/fs/cgroup/cpuset/rt/cpuset.tasks} (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition.
 
 But just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, discarded.
 
-\subsection{Tests balena container}
+\subsection{Tests Balena container}
 
 Studying the balena/docker manual it was possible to identify the parameters to use in order to run the daemon with real-time capabilities. The parameter \texttt{--cpu-rt-runtime=<value>} enables the RT-sheduler for the daemon, set it to \texttt{-1} for no limit. In additon, for each RT-container \texttt{--cap-add=sys\_nice} must be set, while \texttt{--cpu-rt-runtime=<value>} and \texttt{--ulimit rtprio=<value>} can be used to limit runtime and priority for each container respectively.
-More info at \url{https://docs.docker.com/config/containers/resource_constraints/#configure-the-realtime-scheduler}
+More info at \cite{docker06}
 
 By default the daemon listens to the sock file only. To change this, and thus allow external access, we can specify the connecting interface where to listen to with \texttt{-H}. By default a virtual host has an IP address of \texttt{10.0.2.15}. To enable the debug mode, we can add the \texttt{-D} flag.
 
-To start the deamon in real-time mode thus we use:
+To start the daemon in real-time mode thus we use:
 
 \begin{verbatim}
 	balenad -H 0.0.0.0:2375 -H 10.0.2.15:2375 --cpu-rt-runtime=-1
@@ -602,19 +615,19 @@ We can now run a test container with the real-time test program using the contai
 
 \textit{docker-compose} will now take care of downloading, building and running the image on the host.
 
-\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker compose file, the docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. Warning, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \url{https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt}.
+\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker compose file, the docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. Warning, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \cite{kernel01}.
 
 \section{Final considerations, Meeting decisions and updated remarks}
 
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
 During my last investigation on cgroups and how they migt be used in docker/balena I bumped into a file that mentions for the first time now an implementation of a EDF based sheduler, 
-\url{https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt}.
+\cite{kernel01}.
 Following the description I found then in the other mentioned file,
-\url{https://www.kernel.org/doc/Documentation/scheduler/sched-deadline.txt}, the actual discussion on a patch release, going to be implemented on a mainline kernel version.
-Finally, in the repository of the chrt standard scheduling tools \url{https://github.com/scheduler-tools} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
+\cite{kernel02}, the actual discussion on a patch release, going to be implemented on a mainline kernel version.
+Finally, in the repository of the chrt standard scheduling tools \cite{schtools01} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
 By further investigating on kernel source files on Kernel.org, reading through sources i found links to
-\url{https://en.wikipedia.org/wiki/SCHED_DEADLINE}, which finally stated that the completeness of the EDF is only recent. It might be one of the reasons for the delay od the tool release.
+\cite{wiki01}, which finally stated that the completeness of the EDF is only recent. It might be one of the reasons for the delay od the tool release.
 \bigskip
 
 ``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm. The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
@@ -622,11 +635,13 @@ By further investigating on kernel source files on Kernel.org, reading through s
 
 In addition, the source code gave insight into an other work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all this suggests that the scheduler development is ongoing. It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
 
-During the study of the AWS system some recent changes came up. While the traditional systems still ase on XEN which uses a CFS cpu sheduler \url{https://wiki.xenproject.org/wiki/Xen_Project_Schedulers}, more recent virtual instance like the C5 use a new Hypervisor based on KVM \url{https://aws.amazon.com/ec2/instance-types/c5/} 
+During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS cpu sheduler \cite{xen01}, more recent virtual instance like the C5 use a new Hypervisor based on KVM \cite{amazon01} 
 This new Hypervisor will allow direct assignment and control of hardware and resources.
 This means, in short, that there is no need to use bare metal server instead. The new instances promise the same performance with greater flexibility and scalability.
 
-In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers. The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technoloy and thus it would reduce the training cost of the final operators. In sight of the findings about the latest Hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and in addition a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
+In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers. The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of the final operators. In sight of the findings about the latest Hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and in addition a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
+
+\cite{Buelnaetal2017}
 
 \section{Fresh System setup}
 %TODO: this is a planned outcome :)
@@ -639,8 +654,9 @@ All patches and kernel modifications have been repeated and images, headers and 
 
 
 \section{Meetings}
+\label{sec:meeting}
 
-\begin{table}[h]
+\begin{table}[H]
 	\centering
 	\caption{List of meetings during the stay at UC Berkeley}
 	
