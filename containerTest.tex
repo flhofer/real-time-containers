@@ -403,14 +403,14 @@ The virtual machine is now running confined to CPUs 1, 2 and 3.
 
 \subsection{CPU isolation and partitioning tests}
 
-Let us try to start with some first measurements. We will run the tool cyclictest in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without.
+Let us try to start with some first measurements. We will run the tool cyclictest in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the cyclictest program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results.
 
 \begin{verbatim}
 	#Test without load
-	cyclictest -n -m -p 99 -l 100000
+	cyclictest -n -m -q -p 99 -l 100000
 	#Test with system load
-	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M 
-	& cyclictest -n -m -p 99 -l 100000;
+	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M &
+	 cyclictest -n -m -q -p 99 -l 100000;
 \end{verbatim}
 
 The measurement result are then printed with the following schema
@@ -435,16 +435,18 @@ Where:
 \subsubsection{First tests with host}
 
 First of all, let us get some base measurements. The guest has been set-up to three cores
-and started without any further change.
+and started without any further change. The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyperthreading component has been take into account.
 \bigskip
 
 \noindent No load, 3 cpus :
 
-\noindent \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  4914811}
+\noindent \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}
+\noindent \texttt{T: 0 ( 1918) P:99 I:1000 C: 100000 Min: 1 Act:  113 Avg:  484 Max:  168451}
 
 \noindent Load, 3 cpus :
 
 \noindent \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min: 2 Act:   88 Avg:  358 Max:   23924}
+\noindent \texttt{T: 0 ( 1946) P:99 I:1000 C: 100000 Min: 2 Act: 3623 Avg:  442 Max:   35814}
 \bigskip
 
 The first values obtained show already very high peak values. Interesting is the fact that the stressed run has a lower peak. That is probably due to the continuous movement of tasks on different vCPUs in the first case. The low load allows the sheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs. Virtual tasks are not excluded
@@ -464,8 +466,8 @@ First we need to install the \texttt{cpuset} utility.This can be done via:
 Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a shell and change to root (or use sudo):
 
 \begin{verbatim}
-	sudo cset shield -c 0-2 -k on --shield
-	sudo cset shield --shield --threads --pid <read-pid>
+	cset shield -c 0-2 -k on --shield &&
+	cset shield --shield --threads --pid <read-pid>
 \end{verbatim}
 
 The virtual machine and all depending tasks are now moved to a separate control group which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 (verify with \texttt{cset set -l --shield} and \texttt{cset set -l --unshield}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
@@ -477,17 +479,16 @@ The virtual machine and all depending tasks are now moved to a separate control 
 	\label{fig:test-cpu}
 \end{figure}
 
-%TODO:---verify again ths> ,7 secs seems much
-
 \noindent Results :
 
-\noindent \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min:      0 Act:  263 Avg: 1319 Max:  7618166}
+\noindent \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}
+\noindent \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}
 
 In this second test we put again the virtual machine under load. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
 \noindent Results : 
 
-\noindent \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   233955}
+\noindent \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   23395}
 
 
 \begin{figure}[t]
@@ -520,8 +521,6 @@ For now only the tasks, user or system, have been moved from their original CPU 
 \end{verbatim}
 
 The new test/results is then as follows:
-
-\noindent Results :
 
 \noindent \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777}
 
