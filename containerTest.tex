@@ -10,7 +10,7 @@
 \setlist[where]{labelwidth=2cm,labelsep=0.5em,itemsep=0pt,leftmargin=!,align=myright,font=\normalfont}
 
 %opening
-\title{Testing Containers in the Cloud}
+\title{Testing Containers for the Cloud}
 \author{Florian Hofer}
 \date{}
 
@@ -19,7 +19,7 @@
 \maketitle
 
 \begin{abstract}
-	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization under real-time constrains in the cloud. To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
+	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization to be run under real-time constrains in the cloud. To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
 \end{abstract}
 
 \section{Introduction}
@@ -40,8 +40,14 @@ The project team is composed as follows:
 	\end{tabular}
 \end{table}
 
+The description in this document describes the work performed by the author of this report only. This document is not exhaustive and may be integrated in near future.
+
 During my three weeks of stay, a weekly team meeting is planned (see Section \ref{sec:meeting}) as well as daily informal sync at UC Berlekey.
 
+\subsection{Background}
+
+%TODO: add more introduction description
+Throughout this document, a variety of operating systems, configurations and tests are performed.
 In the performed tests we try to verify the suitability of the different approaches to run a real-time capable containerization in order to distribute applications on a lower amount of resources where run-time determinism is needed. In figure \ref{fig:plan} the planned migration is shown. 
 
 \begin{figure}
@@ -65,7 +71,7 @@ Before selecting a specific setup, different variants of systems are tested for 
 	\item \textbf{resinOS} operating system by resin.io, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
 	\item \textbf{Ubuntu Core} an operating system for IoT devices implemented using the new snap image approach. Snap based as well as Balena based approaches are investigated on this hardware optimized image
 	\item \textbf{Xenomai 3} is co-core extension for Linux based operating systems, which allows hard-real-time scheduling. Together with an interrupt patch it is suggested to be the most performing of the real-time approaches.
-	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft-real-time based performance
+	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft-real-time based performance, reaching hard-real-time on a properly tuned system
 \end{itemize}
 
 CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image and is stripped down to the bare minimum (LXC/LXD has been excluded beforhand). The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the runtime behavior of containers of different types, including synthetic applications.
@@ -225,7 +231,7 @@ Now follow the guide of the installer. If asked, add only ssh server to the pre-
 	apt-get update && apt-get dist-upgrade -y
 \end{verbatim}
 
-The patching steps have all be resumed in an installer script by Pasquale Antonante. Unfortunately some steps are outdated and some configurations have changed. The script has therefore been updated and placed in the appropriate directory of this repository (ianno/real-time-containers). The install script provides downloads of the two patches, Xenomai/Cobalt and I-Pipe, the kernel, performs the patch and installs new kernel and the Balena environment.
+The patching steps have all be resumed in an installer script by Pasquale Antonante. Unfortunately some steps are outdated and some configurations have changed. The script has therefore been updated and placed in the appropriate directory of this repository \cite{gitrepo}. The install script provides downloads of the two patches, Xenomai/Cobalt and I-Pipe, the kernel, performs the patch and installs new kernel and the Balena environment.
 
 \subsubsection{Evaluation}
 
@@ -251,19 +257,19 @@ For further guides on how to compile and install a kernel, visit \cite{misc01}.
 
 \subsubsection{Evaluation}
 
-The Preempt-RT requires a dedicated patch and recompiling of the kernel to support soft-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower level of real-time feasibility. Anyway, lately the project has made remarkable progress.
+The Preempt-RT requires a dedicated patch and recompiling and tuning of the kernel to support hard-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower real-time guarantee. In particular, drivers must be tuned for real-time operation in order to reach low process firing jitter. Anyway, lately the project has made remarkable progress.
 Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup. This makes this solution a major candidate for further investigation.
 To exploit its full potential, newer kernel patching as a future step is taken into consideration.
 
 \section{Tests of system}
 
-{\small\textsc{Testrun and comparison of systems, 30/07/18} \bigskip}
+{\small\textsc{Test-run and comparison of systems, 30/07/18} \bigskip}
 
-Some small cyclic execution tests are performed to verify default availability of real-time scheduling and the timing behavior of the scheduler.
+Some small cyclic execution tests are performed to verify default availability of real-time scheduling and the timing behavior of the scheduler. Some tools will be downloaded and installed to test for latencies, responsiveness and reaction under CPU stress. 
 
 \subsection{rt-tests}
 
-the rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most prominent are \textit{cyclictest} and \textit{hackbench}. To install the software we may use one of the two approaches:
+The rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most known are \textit{cyclictest} and \textit{hackbench}. To install the software we may use one of the two approaches:
 
 1) We use Xenomai, thus there is a tool package ready and available
 
@@ -288,7 +294,7 @@ Now proceed with the installation. Download the git repository and compile the s
 	make install
 \end{verbatim}
 
-The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test, as recommended on Kernel.org is: 
+The last step is optional. The binaries can now be run (within the directory) to perform the different tests. An example of a test recommended by Kernel.org is: 
 
 \begin{verbatim}
 	cyclictest -t 50 -n -d 86400 -l 100000 -a -p 99
@@ -371,20 +377,20 @@ Finally, I found a script that could do the verifications for you. If you would 
 The run of the script confirms that the Xenomai version of the image, after all reconfiguration and recompilation, has the correct settings to operate the container engine properly.
 
 \section{Virtualization sustainability tests}
-
+\label{sec:virtsust}
 {\small\textsc{Test-run Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell.
+In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  Hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment.
 
-During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \cite{resin03}, the instructions specify to install \texttt{docker-compose} on a remote system and operate the containers via remote.
-\texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single json file even from a remote machine, a welcome feature for our project.
+During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API and thus the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \cite{resin03}, the instructions specify to install \texttt{docker-compose} on a remote system and operate the containers via remote.
+\texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single Json file even from a remote machine, a welcome feature for our project.
 Anyway, by the source code of Balena we can tell that not all the tags are supported. This is particularly valid for the `Deploy' section. 
 
 More detail on the different operations taken in this section and on the why those are performed, can be found at \cite{lrt01}.
 
 \subsection{Preparing steps}
 
-In preparation for the upcoming tests we need to install \texttt{docker-compose} and configure the proper cpu-isolation for the virutal machine.
+In preparation for the upcoming tests we need to install \texttt{docker-compose} and configure the proper cpu-isolation for the virtual machine.
 The instructions can be found in the reference of Docker, see \cite{docker05}. 
 On debian systems this can be done simply via 
 
@@ -403,7 +409,7 @@ The virtual machine is now running confined to CPUs 1, 2 and 3.
 
 \subsection{CPU isolation and partitioning tests}
 
-Let us try to start with some first measurements. We will run the tool cyclictest in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the cyclictest program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results.
+Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the cyclictest program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results.
 
 \begin{verbatim}
 	#Test without load
@@ -414,10 +420,10 @@ Let us try to start with some first measurements. We will run the tool cyclictes
 \end{verbatim}
 
 The measurement result are then printed with the following schema
+\bigskip
 
-\begin{verbatim}
-	T: 0 (<pid>) P:<p> I: <i> C: <c> Min: <n> Act: <a> Avg: <v> Max: <x>
-\end{verbatim}
+\noindent \small \texttt{T: 0 (<pid>) P:<p> I: <i> C: <c> Min: <n> Act: <a> Avg: <v> Max: <x>}
+\bigskip
 
 Where:
 \begin{where}
@@ -431,22 +437,23 @@ Where:
 	\item[x =] max run delay in $\mu s$.
 \end{where} 
 
+Tests will be repeated to confirm values also in different situations.
 
 \subsubsection{First tests with host}
 
 First of all, let us get some base measurements. The guest has been set-up to three cores
-and started without any further change. The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyperthreading component has been take into account.
+and started without any further change. The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyper-threading component has been take into account.
 \bigskip
 
 \noindent No load, 3 cpus :
 
-\noindent \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}
-\noindent \texttt{T: 0 ( 1918) P:99 I:1000 C: 100000 Min: 1 Act:  113 Avg:  484 Max:  168451}
+\noindent \small \#1 \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}\\
+\noindent \small \#2 \texttt{T: 0 ( 1918) P:99 I:1000 C: 100000 Min: 1 Act:  113 Avg:  484 Max:  168451}
 
 \noindent Load, 3 cpus :
 
-\noindent \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min: 2 Act:   88 Avg:  358 Max:   23924}
-\noindent \texttt{T: 0 ( 1946) P:99 I:1000 C: 100000 Min: 2 Act: 3623 Avg:  442 Max:   35814}
+\noindent \small \#1 \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min: 2 Act:   88 Avg:  358 Max:   23924}\\
+\noindent \small \#2 \texttt{T: 0 ( 1946) P:99 I:1000 C: 100000 Min: 2 Act: 3623 Avg:  442 Max:   35814}
 \bigskip
 
 The first values obtained show already very high peak values. Interesting is the fact that the stressed run has a lower peak. That is probably due to the continuous movement of tasks on different vCPUs in the first case. The low load allows the sheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs. Virtual tasks are not excluded
@@ -470,7 +477,7 @@ Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monito
 	cset shield --shield --threads --pid <read-pid>
 \end{verbatim}
 
-The virtual machine and all depending tasks are now moved to a separate control group which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 (verify with \texttt{cset set -l --shield} and \texttt{cset set -l --unshield}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
+The virtual machine and all depending tasks are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset set -l --shield} and \texttt{cset set -l --unshield}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
 
 \begin{figure}[t]
 	\centering
@@ -479,14 +486,14 @@ The virtual machine and all depending tasks are now moved to a separate control 
 	\label{fig:test-cpu}
 \end{figure}
 
-\noindent Results :
+\noindent Results with CPU isolation:
 
-\noindent \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}
-\noindent \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}
+\noindent \small \#1 \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}\\
+\noindent \small \#2 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}
 
 In this second test we put again the virtual machine under load. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
-\noindent Results : 
+\noindent Results with added load: 
 
 \noindent \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   23395}
 
@@ -508,10 +515,9 @@ Even though the threads of the virtual machine are confined on the tree cpus, th
 \end{verbatim}
 %\bigskip
 
-\noindent Results :
+\noindent Results without load balancer:
 
 \noindent  \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855}
-
 
 For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multicore system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
@@ -520,11 +526,11 @@ For now only the tasks, user or system, have been moved from their original CPU 
 	for file in /proc/irq/*; do   echo 8 > \$file/smp_affinity; done
 \end{verbatim}
 
-The new test/results is then as follows:
+\noindent The new test-results with moved IRQ affinity are then as follows:
 
 \noindent \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777}
 
-\subsubsection{Cpu-isolation guest, host no load balancer \& irq affinity}
+\subsubsection{CPU-isolation guest, host no load balancer \& irq affinity}
 
 Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
@@ -543,7 +549,7 @@ Next, we try to set-up the same isolation concept also for the virtual guest. Th
 
 \noindent \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888}
 
-\subsubsection{Conclusions isolation Host}
+\subsubsection{Conclusions - isolation Host}
 
 We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
 
@@ -591,6 +597,7 @@ If we now try to remove the shield on the host operating system, exposing the vm
 
 \subsection{Full dynamic ticks}
 
+%TODO: rewrite
 A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
 
 Second, the application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file \url{/sys/fs/cgroup/cpuset/rt/cpuset.tasks} (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition.
@@ -620,19 +627,18 @@ We can now run a test container with the real-time test program using the contai
 
 \textit{docker-compose} will now take care of downloading, building and running the image on the host.
 
-\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker-compose file, the Docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. Warning, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \cite{kernel01}.
+\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker-compose file, the Docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. \textbf{Warning}, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \cite{kernel01}.
 
 \section{Final considerations, Meeting decisions and updated remarks}
 
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
-During my last investigation on cgroups and how they migt be used in Docker/Balena I bumped into a file that mentions for the first time now an implementation of a EDF based scheduler, 
-\cite{kernel01}.
-Following the description I found then in the other mentioned file,
-\cite{kernel02}, the actual discussion on a patch release, going to be implemented on a mainline kernel version.
+During my last investigation on cgroups and how they might be used in Docker/Balena, I bumped into a file that mentions for the first time now an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
+Following the description I found then in an other mentioned file,
+\cite{kernel02}, the actual discussion on a patch release, going to be implemented on a mainline kernel version. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
 Finally, in the repository of the chrt standard scheduling tools \cite{schtools01} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
-By further investigating on kernel source files on Kernel.org, reading through sources i found links to
-\cite{wiki01}, which finally stated that the completeness of the EDF is only recent. It might be one of the reasons for the delay od the tool release.
+By further investigating on kernel source files on Kernel.org, reading through sources, I found links to documents \cite{wiki01} which stated that the completeness of the EDF is only recent.
+It might be one of the reasons for the release delay of the updated tools.
 \bigskip
 
 ``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm. The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
@@ -646,17 +652,27 @@ This means, in short, that there is no need to use bare metal server instead. Th
 
 In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers. The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of the final operators. In sight of the findings about the latest Hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and in addition a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
 
-\cite{Buelnaetal2017}
-
-\section{Fresh System setup}
-%TODO: this is a planned outcome :)
+\section{Concluding steps}
 
 {\small\textsc{Clean system setup \& test repeat, 08/08 - 10/08/18} \bigskip}
 
-In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed.
-All patches and kernel modifications have been repeated and images, headers and resulting scripts uploaded to the repository.
+In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed. The latest kernel has been used (4.18-rc) and patched with the PREEMPT-RT patch to verify the updated capabilities. All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option.
+%TODO: what was this good for?
 
+As a concluding work, a test script (exec.sh) has been created to automate all the test steps performed in Section \ref{sec:virtsust}. The script is in the sub-folder \texttt{test-monitor} of the project repository \cite{gitrepo} and has to be run with root privileges. In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for realt-time tasks. The output files are stored in the repository and can be consulted for further studying.
 
+Before the script can be run, a few pre-configuration steps have to be done. The commands are sent via SSH, thus an automatic authentication has to be setup. In addition, the user running the remote commands must have the privileges to create real-time tasks. To keep things simple, in our test setup we will execute everything as root. If you need to test in production, change the script to different or parametrized authentication.
+
+\begin{itemize}
+	\item on the virtual guest, set a root password, \texttt{sudo passwd root}
+	\item on the virtual guest, set \texttt{PermitRootLogin} to yes in \url{/etc/ssh/sshd_config}, and restart the shell daemon via \texttt{sudo service ssh restart}
+	\item on the host, generate a ssh key for root. Enter as root in a shell and then type \texttt{ssh-keygen}
+	\item copy the key from the host to the guest via \texttt{ssh-copy-id root@localhost -p 8022}
+	\item now the parameter PermitRootLogin can also be set back to the defaul value
+	\item install the nmon system monitor via apt-get
+\end{itemize}
+
+Now the script can be run. The parameters to be passed are host, port and virtual host PID. The script will write the results in csv and txt files respectively.
 
 \section{Meetings}
 \label{sec:meeting}
@@ -683,9 +699,6 @@ All patches and kernel modifications have been repeated and images, headers and 
 \bibliography{IEEEabrv,bibliography}
 
 \end{document}
-
-
-% Fri Non slide 
 
 
 
