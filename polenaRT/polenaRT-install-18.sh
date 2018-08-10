@@ -10,8 +10,8 @@ linux_ver="4.18-rc8"
 #################################
 echo
 echo "## Installing dependencies..."
-sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl
-#libncurses5-dev pkg-config bison flex 
+sudo apt-get update
+sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl libncurses5-dev pkg-config bison flex libelf-dev
 # if xconfig...
 sudo apt-get install -y qt5-default
 # if create-pkg...

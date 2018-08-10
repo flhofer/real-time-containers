@@ -10,7 +10,7 @@
 \setlist[where]{labelwidth=2cm,labelsep=0.5em,itemsep=0pt,leftmargin=!,align=myright,font=\normalfont}
 
 %opening
-\title{Testing Containers for the Cloud}
+\title{Testing real-time containers for the cloud}
 \author{Florian Hofer}
 \date{}
 
@@ -24,7 +24,7 @@
 
 \section{Introduction}
 
-This document is a report containing steps performed and outcomes obtained during the visit at University of California at Berkeley. It is intended as a summary and, at the same time, a guideline if someone would like to repeat some or all of the executed tests.
+This document is a report containing steps performed and outcomes obtained during the short visit at University of California at Berkeley. It is intended as a summary and, at the same time, a guideline if someone would like to repeat some, or all, of the tests.
 
 The project team is composed as follows:
 
@@ -40,15 +40,16 @@ The project team is composed as follows:
 	\end{tabular}
 \end{table}
 
-The description in this document describes the work performed by the author of this report only. This document is not exhaustive and may be integrated in near future.
+The description in this document resumes the work performed by the author of this report only. This document is not exhaustive and may be integrated in near future.
 
-During my three weeks of stay, a weekly team meeting is planned (see Section \ref{sec:meeting}) as well as daily informal sync at UC Berlekey.
+During my three weeks of stay, a weekly team meeting is planned (see Section \ref{sec:meeting}) as well as daily informal sync at UC Berkeley.
 
 \subsection{Background}
 
 %TODO: add more introduction description
-Throughout this document, a variety of operating systems, configurations and tests are performed.
-In the performed tests we try to verify the suitability of the different approaches to run a real-time capable containerization in order to distribute applications on a lower amount of resources where run-time determinism is needed. In figure \ref{fig:plan} the planned migration is shown. 
+
+The target of this short visit is to explore the possibilities for moving real-time applications into a virtualized context. In order to gain an insight in possibilities and limits of such an approach, a set of operating systems as well as system modifications are tried.
+The resulting configurations are then tested to verify their suitability to run a real-time capable containerization environment. If successful, this will allow a redistribution of applications onto a lower amount of resources. Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while keeping the run-time determinism.
 
 \begin{figure}
 	\centering
@@ -59,7 +60,7 @@ In the performed tests we try to verify the suitability of the different approac
 
 It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
 
-LXC/LXD is the default Linux-based containerization engine. The first release, LXC, was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
+LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
 
 \section{System Tests and variants}
 
@@ -370,7 +371,7 @@ Finally, I found a script that could do the verifications for you. If you would 
 
 \begin{verbatim}
 	wget https://raw.githubusercontent.com/dotcloud/docker/master/contrib/check-config.sh
-	chmod =x check-config.sh
+	chmod +x check-config.sh
 	./check-config.sh
 \end{verbatim}
 
@@ -530,7 +531,14 @@ For now only the tasks, user or system, have been moved from their original CPU 
 
 \noindent \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777}
 
-\subsubsection{CPU-isolation guest, host no load balancer \& irq affinity}
+\subsubsection{Conclusions - isolation Host}
+
+We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+
+The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 physical CPU + 1 thread of CPU2, have been assigned to the virtual machine.
+
+\subsubsection{Working with guest CPU isolation}
+%
 
 Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
@@ -545,49 +553,43 @@ Next, we try to set-up the same isolation concept also for the virtual guest. Th
 	cset shield --shield --threads --pid <cycletest pid>
 \end{verbatim}
 
-\noindent Results :
+\noindent Results with CPU-isolation guest, no load balancer \& IRQ affinity set on host:
 
-\noindent \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888}
+\noindent \small \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888}
 
-\subsubsection{Conclusions - isolation Host}
-
-We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
-
-The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 physical CPU + 1 thread of CPU2, have been assigned to the virtual machine.
-
-\subsubsection{Cpu-isolation guest, host back to simple isolation}
+%\subsubsection{Cpu-isolation guest, host back to simple isolation}
 
 After we put load balance and IRQ affinity settings of the host back to normal, keeping cpu isolation we get the following results:
 
 \bigskip
 
-\noindent Results :
+\noindent Results with CPU-isolation guest, load balancer and IRQ back in place for host:
 
-\noindent \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
+\noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-\subsubsection{Cpu-isolation guest, set IRQ affinity \& no load balancer for RT}
+%\subsubsection{Cpu-isolation guest, set IRQ affinity \& no load balancer for RT}
 
 Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
 \bigskip
 
 \noindent Results :
 
-\noindent \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
+\noindent \small \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
 
 When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
 
-\subsubsection{Cpu-isolation guest, test multiple}
+%\subsubsection{Cpu-isolation guest, test multiple}
 
-Test with mutliple threads and cpu isolation active on guest, irq affinity and balancer normal
+Test with multiple threads and cpu isolation active on guest, irq affinity and balancer normal
 
 \noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
 
 \noindent Results :
 
 \noindent  
-\texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}
+\small \texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}\\
 \noindent
-\texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
+\small \texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
 
 It seems that cpu isolation of any kind on the guest has no bigger impact on the real-time performance.
 
