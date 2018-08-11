@@ -19,7 +19,9 @@
 \maketitle
 
 \begin{abstract}
-	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization to be run under real-time constrains in the cloud. To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
+	In this report a summary of the tasks performed during the short stay at UC Berkeley is given.
+	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization to be run under real-time constrains in the cloud. The outcome of this tests will give insight in which might be the better configuration to run containers who rely on determinism in the cloud, and what influence hardware and softwate configurations may have.
+	To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
 \end{abstract}
 
 \section{Introduction}
@@ -58,7 +60,7 @@ The resulting configurations are then tested to verify their suitability to run 
 	\label{fig:plan}
 \end{figure}
 
-It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
+It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
 
 LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
 
@@ -81,7 +83,7 @@ CoreOS has been excluded from the candidate list as it comes with a LXC/LXD imag
 
 {\small\textsc{Test-run resinOS, 25/07/18} \bigskip}
 
-\textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' for containerized running of small systems. The design also includes a cloud based monitoring system where the different configured devices connect to. The default containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
+\textit{resinOS} is an Project-Yocto based operating system designed by ``resin.io'' to run containerized applications on small systems. The design also includes a cloud based monitoring infrastructure where the different configured devices connect to. The default containers supplied by resinOS are based on the lightweight general purpose Alpine Linux.
 
 \subsubsection{Local Virtual Machine}
 
@@ -490,13 +492,20 @@ The virtual machine and all depending tasks are now moved to a separate control 
 \noindent Results with CPU isolation:
 
 \noindent \small \#1 \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}\\
-\noindent \small \#2 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}
+\noindent \small \#2 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}\\
+\noindent \small \#3 \texttt{T: 0 ( 1615) P:99 I:1000 C: 100000 Min: 1 Act: 4387 Avg: 9382 Max: 1102853}\\
+\noindent \small \#4 \texttt{T: 0 ( 1710) P:99 I:1000 C: 100000 Min: 1 Act:  156 Avg: 5043 Max:  976019}
 
-In this second test we put again the virtual machine under load. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
+With isolation the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. One reason could be that load balancing is still active, thus the computation could be shifted in the host onto other vCPUs to keep the load balanced. This is a phenomena particularly visible under low system load where the Complete Fair Scheduler (CFS) tries to distribute among CPUs allowing then also the governor to clock down the main bus (if enabled) and thus saving power.
+
+Thus, in this second test, let us put again the virtual machine under load. If the previous theory is correct, an improvement on average and max values should be seen. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
 \noindent Results with added load: 
 
-\noindent \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min:      0 Act:   49 Avg:  337 Max:   23395}
+\noindent \small \#1 \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min: 0 Act:   49 Avg:  337 Max:   23395}\\
+\noindent \small \#2 \texttt{T: 0 ( 2364) P:99 I:1000 C: 100000 Min: 2 Act:  201 Avg:  348 Max:   17171}\\
+\noindent \small \#3 \texttt{T: 0 ( 2470) P:99 I:1000 C: 100000 Min: 1 Act:   38 Avg:  319 Max:   13496}\\
+\noindent \small \#4 \texttt{T: 0 ( 2577) P:99 I:1000 C: 100000 Min: 1 Act:   48 Avg:  345 Max:   16509}
 
 
 \begin{figure}[t]
@@ -506,21 +515,29 @@ In this second test we put again the virtual machine under load. The system's CP
 	\label{fig:test-cpuload}
 \end{figure}
 
-Even though the threads of the virtual machine are confined on the tree cpus, the load balancer of the Complete Fair Scheduler (CFS) is still active. We test now what happens when we deactivate the scheduler:
+And, as expected, the average dropped way below one millisecond, confirming the previous theory.
+Even though the threads of the virtual machine are confined on the tree cpus, the load balancer of the CFS is still active. We test now what happens when we deactivate the scheduler on the host:
 
 \begin{verbatim}
-	#Removing load balancer
+	#Removing load balancer total
 	echo 0 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
+	#Removing load balancer shielded group
 	echo 0 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance
+	#keep load balancer system group
 	echo 1 > /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance
 \end{verbatim}
 %\bigskip
 
 \noindent Results without load balancer:
 
-\noindent  \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min:      0 Act: 2815 Avg: 2183 Max:  8679855}
+%#1 might be redone. keep attn to the load on the system, might infuence the outcome
+\noindent \small \#1 \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min: 0 Act: 2815 Avg: 2183 Max:  867985}\\
+\noindent \small \#2 \texttt{T: 0 ( 1792) P:99 I:1000 C: 100000 Min: 3 Act: 9211 Avg: 8121 Max:  950163}\\
+\noindent \small \#3 \texttt{T: 0 ( 1874) P:99 I:1000 C: 100000 Min: 4 Act:  345 Avg: 8841 Max:  999643}
 
-For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multicore system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
+As we can see from the results, the values between with and without load balancer did not change much. The values are more uniform, now that tasks are not moved around on the vCPUs, but the values are still very high. On reason might be that the virtual machine has its own scheduler which might perform the same CFS distribution. We should therefore see some change if we perform the same configuration also for the guest, but first we will do a last test.
+
+For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
 \begin{verbatim}
 	# move irq affinity to Cpu 3
