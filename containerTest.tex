@@ -272,7 +272,10 @@ Some small cyclic execution tests are performed to verify default availability o
 
 \subsection{rt-tests}
 
-The rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most known are \textit{cyclictest} and \textit{hackbench}. To install the software we may use one of the two approaches:
+The rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most known are \textit{cyclictest} and \textit{hackbench}.
+The former is used to create a number of real-time tasks executing periodically which then report their starting latencies.
+
+has specific features to backtrack also single latencies (\texttt{--breaktrace}), allowing to debug the latency trace of the preemption kernel. It is a feature that requires a specific kernel configuration and might thus be used in a second moment, i.e. when configuring the container host OS. To install the software we may use one of the two approaches:
 
 1) We use Xenomai, thus there is a tool package ready and available
 
@@ -303,8 +306,9 @@ The last step is optional. The binaries can now be run (within the directory) to
 	cyclictest -t 50 -n -d 86400 -l 100000 -a -p 99
 \end{verbatim}
 
-The code in the example creates fifty tasks with priority 99 (maximum) an interval of 1000 $\mu s$ and a task delay of 86400 $\mu s$ and using a clock-based nanosecond timer. 
-As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which sets up the virtual machine. 
+The code in the example creates fifty tasks with priority 99 (maximum) an interval of 1000 () $\mu s$ and a task period distance of 86400 $\mu s$ and using a clock-based nanosecond timer. 
+As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which runs the virtual machine.
+
 
 \subsection{stress}
 
@@ -412,7 +416,7 @@ The virtual machine is now running confined to CPUs 1, 2 and 3.
 
 \subsection{CPU isolation and partitioning tests}
 
-Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the cyclictest program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results.
+Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. The goal of this test is to find a configuration that permits a very low average latency
 
 \begin{verbatim}
 	#Test without load
@@ -445,15 +449,28 @@ Tests will be repeated to confirm values also in different situations.
 \subsubsection{First tests with host}
 
 First of all, let us get some base measurements. The guest has been set-up to three cores
-and started without any further change. The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyper-threading component has been take into account.
+and started without any further change. 
+Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in oder to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
+In addition, often the cpu-governor still controls the bus frequency while on battery. Change the governor settings running the following as root. 
+
+\begin{verbatim}
+	cpupower frequency-set -g performance
+\end{verbatim}
+
+Now the clock frequency should be locked between upper limit and turbo frequency (where available). The cores are all enabled and the system ready to perform.
+
+%The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyper-threading component has been take into account.
+
+%% REPEAT TESTS FROM HERE
+
 \bigskip
 
-\noindent No load, 3 cpus :
+\noindent No load :
 
 \noindent \small \#1 \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}\\
 \noindent \small \#2 \texttt{T: 0 ( 1918) P:99 I:1000 C: 100000 Min: 1 Act:  113 Avg:  484 Max:  168451}
 
-\noindent Load, 3 cpus :
+\noindent Load:
 
 \noindent \small \#1 \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min: 2 Act:   88 Avg:  358 Max:   23924}\\
 \noindent \small \#2 \texttt{T: 0 ( 1946) P:99 I:1000 C: 100000 Min: 2 Act: 3623 Avg:  442 Max:   35814}
@@ -465,7 +482,8 @@ The first values obtained show already very high peak values. Interesting is the
 
 CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 
-Thus, in oder to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up cpu isolation for the host CPU. A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
+Thus, in oder to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up cpu isolation for the host CPU.
+A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
 
 First we need to install the \texttt{cpuset} utility.This can be done via:
 
@@ -473,14 +491,14 @@ First we need to install the \texttt{cpuset} utility.This can be done via:
 	apt-get install cpuset
 \end{verbatim}
 
-Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a shell and change to root (or use sudo):
+Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host, the service and the pcd thread. Open a shell and change to root (or use sudo):
 
 \begin{verbatim}
 	cset shield -c 0-2 -k on --shield &&
-	cset shield --shield --threads --pid <read-pid>
+	cset shield --shield --threads --pid <read-pids>
 \end{verbatim}
 
-The virtual machine and all depending tasks are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset set -l --shield} and \texttt{cset set -l --unshield}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
+The virtual machine and all depending tasks are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
 
 \begin{figure}[t]
 	\centering
@@ -489,6 +507,13 @@ The virtual machine and all depending tasks are now moved to a separate control 
 	\label{fig:test-cpu}
 \end{figure}
 
+%%%%% Cheklist tests
+% shield installed onto all vbox processes?
+% laptop powered and battery full?
+% load balance ok?
+% irq shifted? 
+% life verifying of cpu load
+
 \noindent Results with CPU isolation:
 
 \noindent \small \#1 \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}\\
@@ -496,7 +521,7 @@ The virtual machine and all depending tasks are now moved to a separate control 
 \noindent \small \#3 \texttt{T: 0 ( 1615) P:99 I:1000 C: 100000 Min: 1 Act: 4387 Avg: 9382 Max: 1102853}\\
 \noindent \small \#4 \texttt{T: 0 ( 1710) P:99 I:1000 C: 100000 Min: 1 Act:  156 Avg: 5043 Max:  976019}
 
-With isolation the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. One reason could be that load balancing is still active, thus the computation could be shifted in the host onto other vCPUs to keep the load balanced. This is a phenomena particularly visible under low system load where the Complete Fair Scheduler (CFS) tries to distribute among CPUs allowing then also the governor to clock down the main bus (if enabled) and thus saving power.
+With isolation the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. One reason could be that load balancing is still active, thus the thread could be shifted in the host onto other vCPUs to keep the  average workload balanced. This is a phenomena particularly visible under low system load where the Complete Fair Scheduler (CFS) tries to distribute running tasks equally among the available vCPUs. As a side effect, this allows the CPU-governor to clock down the main bus (if enabled) and thus to save power.
 
 Thus, in this second test, let us put again the virtual machine under load. If the previous theory is correct, an improvement on average and max values should be seen. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
@@ -531,13 +556,23 @@ Even though the threads of the virtual machine are confined on the tree cpus, th
 \noindent Results without load balancer:
 
 %#1 might be redone. keep attn to the load on the system, might infuence the outcome
-\noindent \small \#1 \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min: 0 Act: 2815 Avg: 2183 Max:  867985}\\
+%\noindent \small \#1 \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min: 0 Act: 2815 Avg: 2183 Max:  867985}\\
+\noindent \small \#1 \texttt{T: 0 ( 1677) P:99 I:1000 C: 100000 Min: 1 Act: 4635 Avg: 8114 Max:  991370}\\
 \noindent \small \#2 \texttt{T: 0 ( 1792) P:99 I:1000 C: 100000 Min: 3 Act: 9211 Avg: 8121 Max:  950163}\\
-\noindent \small \#3 \texttt{T: 0 ( 1874) P:99 I:1000 C: 100000 Min: 4 Act:  345 Avg: 8841 Max:  999643}
+\noindent \small \#3 \texttt{T: 0 ( 1874) P:99 I:1000 C: 100000 Min: 4 Act:  345 Avg: 8841 Max:  999643}}\\
+\noindent \small \#4 \texttt{T: 0 ( 1598) P:99 I:1000 C: 100000 Min: 1 Act:   88 Avg: 4195 Max:  893460}
 
-As we can see from the results, the values between with and without load balancer did not change much. The values are more uniform, now that tasks are not moved around on the vCPUs, but the values are still very high. On reason might be that the virtual machine has its own scheduler which might perform the same CFS distribution. We should therefore see some change if we perform the same configuration also for the guest, but first we will do a last test.
+As we can see from the results, the values between with and without load balancer did not change much.
+%TODO: verify
+The values are more uniform, now that tasks are not moved around on the vCPUs, but the values are still very high.
+On reason might be that the virtual machine has its own scheduler which might perform the same CFS distribution. We should therefore see some change if we perform the same configuration also for the guest, but first we will do a last test.
 
-For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. To isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
+For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. 
+Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. 
+In this next test we will move all possible interrupts to the last core. This should reduce the waiting time for the real-time tasks to be fired.
+It is true that every system will always have some IRQ requests during run, but in this test we are trying ro reduce the effect of the hosts system interrupt to the virtualized tests.
+On average, a slight improvement of the measurements should be visible.
+Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
 \begin{verbatim}
 	# move irq affinity to Cpu 3
@@ -546,16 +581,29 @@ For now only the tasks, user or system, have been moved from their original CPU 
 
 \noindent The new test-results with moved IRQ affinity are then as follows:
 
-\noindent \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min:      0 Act:  198 Avg: 1693 Max:  9862777}
+%\noindent \small \#1 \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min: 0 Act:  198 Avg: 1693 Max:  86277}\\
+%\noindent \small \#2 \texttt{T: 0 ( 1778) P:99 I:1000 C: 100000 Min: 2 Act:  394 Avg: 7539 Max:  973262}
+
+%% UNTIL HERE
+\noindent \small \#1 \texttt{T: 0 ( 1868) P:99 I:1000 C: 100000 Min: 1 Act: 4617 Avg: 5309 Max:  854884}\\
+\noindent \small \#2 \texttt{T: 0 ( 1941) P:99 I:1000 C: 100000 Min: 1 Act: 8236 Avg: 5106 Max:  828495}
+\noindent \small \#3 \texttt{T: 0 ( 2063) P:99 I:1000 C: 100000 Min: 1 Act: 8929 Avg: 8509 Max:  905736}
+
+%% Probably until here!!! 
+\noindent \small \#1 \texttt{T: 0 ( 2151) P:99 I:1000 C: 100000 Min: 0 Act: 3481 Avg: 6496 Max:  892712}
 
 \subsubsection{Conclusions - isolation Host}
 
-We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+%TODO verify affirmations
+We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. 
+One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. 
+Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
 
+%TODO: Verify affirmations
 The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 physical CPU + 1 thread of CPU2, have been assigned to the virtual machine.
 
 \subsubsection{Working with guest CPU isolation}
-%
+
 
 Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
