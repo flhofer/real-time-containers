@@ -20,8 +20,8 @@
 
 \begin{abstract}
 	In this report a summary of the tasks performed during the short stay at UC Berkeley is given.
-	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization to be run under real-time constrains in the cloud. The outcome of this tests will give insight in which might be the better configuration to run containers who rely on determinism in the cloud, and what influence hardware and softwate configurations may have.
-	To better follow the execution order, chapters are listed in chronological order indicating approximate time values.
+	This document contains a global summary of steps taken, test done and options reviewed for the concept of application containerization to be run under real-time constrains in the cloud. The outcome of this tests will give insight in which might be the better configuration to run containers who rely on determinism in the cloud, and what influence hardware and software configurations may have.
+	To better follow the execution order, chapters are listed in chronological order  where possible, indicating approximate dates.
 \end{abstract}
 
 \section{Introduction}
@@ -277,14 +277,14 @@ The former is used to create a number of real-time tasks executing periodically 
 
 has specific features to backtrack also single latencies (\texttt{--breaktrace}), allowing to debug the latency trace of the preemption kernel. It is a feature that requires a specific kernel configuration and might thus be used in a second moment, i.e. when configuring the container host OS. To install the software we may use one of the two approaches:
 
-1) We use Xenomai, thus there is a tool package ready and available
+1) We use Xenomai 2.6.x (which is not our case), then there is a ready to go tool package available
 
 \begin{verbatim}
 	apt-get install xenomai-system-tools
 \end{verbatim}
 
-2) We use another real-time approach and compile the binaries from the source code.
-For this approach we need first some additional packages. Get them with:
+2) We use another version or real-time approach and compile the binaries from the source code.
+For this approach we need first some additional packages. Get them with: (\textbf{Note:} for Xenomai 3.x check new findings in Section \ref{sec:isol} before continuing)
 
 \begin{verbatim}
 	sudo apt-get install build-essential libnuma-dev
@@ -420,10 +420,10 @@ Let us try to start with some first measurements. We will run the tool \texttt{c
 
 \begin{verbatim}
 	#Test without load
-	cyclictest -n -m -q -p 99 -l 100000
+	cyclictest -n -a -m -q -p 99 -l 100000
 	#Test with system load
 	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M &
-	 cyclictest -n -m -q -p 99 -l 100000;
+	 cyclictest -n -a -m -q -p 99 -l 100000;
 \end{verbatim}
 
 The measurement result are then printed with the following schema
@@ -448,7 +448,7 @@ Tests will be repeated to confirm values also in different situations.
 
 \subsubsection{First tests with host}
 
-First of all, let us get some base measurements. The guest has been set-up to three cores
+First of all, let us get some base measurements. The testing host is a dual core, 4 thread i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
 and started without any further change. 
 Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in oder to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
 In addition, often the cpu-governor still controls the bus frequency while on battery. Change the governor settings running the following as root. 
@@ -459,24 +459,25 @@ In addition, often the cpu-governor still controls the bus frequency while on ba
 
 Now the clock frequency should be locked between upper limit and turbo frequency (where available). The cores are all enabled and the system ready to perform.
 
-%The host will continue normal operation on other tasks, such as browsing, compiling documents or streaming content. This is to verify that the Hyper-threading component has been take into account.
-
-%% REPEAT TESTS FROM HERE
-
 \bigskip
 
 \noindent No load :
 
 \noindent \small \#1 \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}\\
-\noindent \small \#2 \texttt{T: 0 ( 1918) P:99 I:1000 C: 100000 Min: 1 Act:  113 Avg:  484 Max:  168451}
+\noindent \small \#2 \texttt{T: 0 ( 1687) P:99 I:1000 C: 100000 Min: 0 Act:  186 Avg: 1877 Max:  818579}\\
+\noindent \small \#3 \texttt{T: 0 ( 1689) P:99 I:1000 C: 100000 Min: 0 Act:  604 Avg: 1664 Max:  8927944}\\
 
 \noindent Load:
 
-\noindent \small \#1 \texttt{T: 0 ( 1514) P:99 I:1000 C: 100000 Min: 2 Act:   88 Avg:  358 Max:   23924}\\
-\noindent \small \#2 \texttt{T: 0 ( 1946) P:99 I:1000 C: 100000 Min: 2 Act: 3623 Avg:  442 Max:   35814}
+\noindent \small \#1 \texttt{T: 0 ( 1731) P:99 I:1000 C: 100000 Min: 1 Act:   40 Avg:  311 Max:   11892}\\
+\noindent \small \#2 \texttt{T: 0 ( 1748) P:99 I:1000 C: 100000 Min: 1 Act:   85 Avg:  292 Max:   27666}\\
+\noindent \small \#3 \texttt{T: 0 ( 1765) P:99 I:1000 C: 100000 Min: 1 Act:  413 Avg:  290 Max:   11818}
+
 \bigskip
 
-The first values obtained show already very high peak values. Interesting is the fact that the stressed run has a lower peak. That is probably due to the continuous movement of tasks on different vCPUs in the first case. The low load allows the sheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs. Virtual tasks are not excluded
+The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. The low load allows the scheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs. This movement causes registers to flush and while L1-L2 caches will have to be refilled from L3. All this introduces latency which is visible in the average and peak values. The guest under stress does not allow very much free cpu-time in his three vCPU threads and thus the host treads are mostly run on the vCPU not busy running the virtual machine. As a consequence, even though the load on the system is higher, the overall performance is better. 
+
+A conclusion that might be drawn from this is that if the virtual host in the could is run on shared physical CPUs, a similar scenario might occur. Therefore, in such a case either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system is added a stress program like in this test, to force the host scheduler on a certain behavior. This might be accomplished as the standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
 
 \subsubsection{Working with host CPU isolation}
 
@@ -495,7 +496,7 @@ Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monito
 
 \begin{verbatim}
 	cset shield -c 0-2 -k on --shield &&
-	cset shield --shield --threads --pid <read-pids>
+	cset shield --shield --threads --pid <read-pid,read-pid>
 \end{verbatim}
 
 The virtual machine and all depending tasks are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
@@ -506,6 +507,7 @@ The virtual machine and all depending tasks are now moved to a separate control 
 	\caption{System monitor showing the isolated virtual machine (idle) and the loaded host vCPU}
 	\label{fig:test-cpu}
 \end{figure}
+\bigskip
 
 %%%%% Cheklist tests
 % shield installed onto all vbox processes?
@@ -517,11 +519,16 @@ The virtual machine and all depending tasks are now moved to a separate control 
 \noindent Results with CPU isolation:
 
 \noindent \small \#1 \texttt{T: 0 ( 1431) P:99 I:1000 C: 100000 Min: 0 Act:  263 Avg: 1319 Max:  761816}\\
-\noindent \small \#2 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}\\
-\noindent \small \#3 \texttt{T: 0 ( 1615) P:99 I:1000 C: 100000 Min: 1 Act: 4387 Avg: 9382 Max: 1102853}\\
-\noindent \small \#4 \texttt{T: 0 ( 1710) P:99 I:1000 C: 100000 Min: 1 Act:  156 Avg: 5043 Max:  976019}
+\noindent \small \#2 \texttt{T: 0 ( 1615) P:99 I:1000 C: 100000 Min: 1 Act: 4387 Avg: 9382 Max: 1102853}\\
+\noindent \small \#3 \texttt{T: 0 ( 1710) P:99 I:1000 C: 100000 Min: 1 Act:  156 Avg: 5043 Max:  976019}\\
 
-With isolation the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. One reason could be that load balancing is still active, thus the thread could be shifted in the host onto other vCPUs to keep the  average workload balanced. This is a phenomena particularly visible under low system load where the Complete Fair Scheduler (CFS) tries to distribute running tasks equally among the available vCPUs. As a side effect, this allows the CPU-governor to clock down the main bus (if enabled) and thus to save power.
+%\noindent \small \#4 \texttt{T: 0 ( 1769) P:99 I:1000 C: 100000 Min: 0 Act:  139 Avg: 1075 Max:  822142}\\
+%\noindent \small \#5 \texttt{T: 0 ( 1773) P:99 I:1000 C: 100000 Min: 0 Act:   78 Avg: 1660 Max:  963162}\\
+%\noindent \small \#6 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}\\
+
+With isolation, and still running a single real-time thread, the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. The values are very different and seem to vary based on the system load. 
+One reason could be that, even though cpu affinity is set as parameter in the test, load balancing is still active. The host does not see the internal affinity settings of the virtualized guest. He only sees some threads to be executed.
+Thus the test-thread could be shifted in the host onto other vCPUs to keep the average workload balanced. This is the same case as before where the CFS tries to distribute running tasks equally among the available vCPUs.
 
 Thus, in this second test, let us put again the virtual machine under load. If the previous theory is correct, an improvement on average and max values should be seen. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
@@ -529,8 +536,8 @@ Thus, in this second test, let us put again the virtual machine under load. If t
 
 \noindent \small \#1 \texttt{T: 0 ( 1358) P:99 I:1000 C: 100000 Min: 0 Act:   49 Avg:  337 Max:   23395}\\
 \noindent \small \#2 \texttt{T: 0 ( 2364) P:99 I:1000 C: 100000 Min: 2 Act:  201 Avg:  348 Max:   17171}\\
-\noindent \small \#3 \texttt{T: 0 ( 2470) P:99 I:1000 C: 100000 Min: 1 Act:   38 Avg:  319 Max:   13496}\\
-\noindent \small \#4 \texttt{T: 0 ( 2577) P:99 I:1000 C: 100000 Min: 1 Act:   48 Avg:  345 Max:   16509}
+\noindent \small \#3 \texttt{T: 0 ( 2470) P:99 I:1000 C: 100000 Min: 1 Act:   38 Avg:  319 Max:   13496}
+%\noindent \small \#4 \texttt{T: 0 ( 2577) P:99 I:1000 C: 100000 Min: 1 Act:   48 Avg:  345 Max:   16509}
 
 
 \begin{figure}[t]
@@ -541,7 +548,7 @@ Thus, in this second test, let us put again the virtual machine under load. If t
 \end{figure}
 
 And, as expected, the average dropped way below one millisecond, confirming the previous theory.
-Even though the threads of the virtual machine are confined on the tree cpus, the load balancer of the CFS is still active. We test now what happens when we deactivate the scheduler on the host:
+Even though the threads of the virtual machine are confined on the tree vCPUs, the load balancer of on the host is still active. We test now what happens when we deactivate the load balancer on the host:
 
 \begin{verbatim}
 	#Removing load balancer total
@@ -555,20 +562,13 @@ Even though the threads of the virtual machine are confined on the tree cpus, th
 
 \noindent Results without load balancer:
 
-%#1 might be redone. keep attn to the load on the system, might infuence the outcome
-%\noindent \small \#1 \texttt{T: 0 ( 1452) P:99 I:1000 C: 100000 Min: 0 Act: 2815 Avg: 2183 Max:  867985}\\
-\noindent \small \#1 \texttt{T: 0 ( 1677) P:99 I:1000 C: 100000 Min: 1 Act: 4635 Avg: 8114 Max:  991370}\\
-\noindent \small \#2 \texttt{T: 0 ( 1792) P:99 I:1000 C: 100000 Min: 3 Act: 9211 Avg: 8121 Max:  950163}\\
-\noindent \small \#3 \texttt{T: 0 ( 1874) P:99 I:1000 C: 100000 Min: 4 Act:  345 Avg: 8841 Max:  999643}}\\
-\noindent \small \#4 \texttt{T: 0 ( 1598) P:99 I:1000 C: 100000 Min: 1 Act:   88 Avg: 4195 Max:  893460}
+\noindent \small \#1 \texttt{T: 0 ( 1643) P:99 I:1000 C: 100000 Min: 1 Act:  345 Avg: 8740 Max:  968040}\\
+\noindent \small \#2 \texttt{T: 0 ( 1805) P:99 I:1000 C: 100000 Min: 0 Act: 3004 Avg: 1705 Max:  792388}\\
+\noindent \small \#3 \texttt{T: 0 ( 2096) P:99 I:1000 C: 100000 Min: 1 Act:   88 Avg: 6960 Max:  894669}\\
 
 As we can see from the results, the values between with and without load balancer did not change much.
-%TODO: verify
-The values are more uniform, now that tasks are not moved around on the vCPUs, but the values are still very high.
-On reason might be that the virtual machine has its own scheduler which might perform the same CFS distribution. We should therefore see some change if we perform the same configuration also for the guest, but first we will do a last test.
-
 For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. 
-Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. 
+Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. If our core serving the real-time thread has to serve the interrupt, the task has to wait.
 In this next test we will move all possible interrupts to the last core. This should reduce the waiting time for the real-time tasks to be fired.
 It is true that every system will always have some IRQ requests during run, but in this test we are trying ro reduce the effect of the hosts system interrupt to the virtualized tests.
 On average, a slight improvement of the measurements should be visible.
@@ -577,33 +577,78 @@ Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we
 \begin{verbatim}
 	# move irq affinity to Cpu 3
 	for file in /proc/irq/*; do   echo 8 > \$file/smp_affinity; done
+	echo 8 > /proc/irq/default_smp_affinity
 \end{verbatim}
 
 \noindent The new test-results with moved IRQ affinity are then as follows:
+ 
+\noindent \small \#1 \texttt{T: 0 ( 2151) P:99 I:1000 C: 100000 Min: 0 Act: 3481 Avg: 6496 Max:  892712}\\
+\noindent \small \#2 \texttt{T: 0 ( 1625) P:99 I:1000 C: 100000 Min: 1 Act: 3294 Avg: 9001 Max:  933678}
+\noindent \small \#3 \texttt{T: 0 ( 1966) P:99 I:1000 C: 100000 Min: 0 Act: 5380 Avg: 6599 Max:  928789}
 
-%\noindent \small \#1 \texttt{T: 0 ( 1456) P:99 I:1000 C: 100000 Min: 0 Act:  198 Avg: 1693 Max:  86277}\\
-%\noindent \small \#2 \texttt{T: 0 ( 1778) P:99 I:1000 C: 100000 Min: 2 Act:  394 Avg: 7539 Max:  973262}
+Not expected, the values continue to move in the multiple range of the cycle-time. Other tests that now can be performed is to enforce the isolation even more. Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
+Now we will restart the cores (via the hotplug feature of the kernel) to force moving of tasks to the other cores. We will use the procedure described in \cite{lrt02}.
 
-%% UNTIL HERE
-\noindent \small \#1 \texttt{T: 0 ( 1868) P:99 I:1000 C: 100000 Min: 1 Act: 4617 Avg: 5309 Max:  854884}\\
-\noindent \small \#2 \texttt{T: 0 ( 1941) P:99 I:1000 C: 100000 Min: 1 Act: 8236 Avg: 5106 Max:  828495}
-\noindent \small \#3 \texttt{T: 0 ( 2063) P:99 I:1000 C: 100000 Min: 1 Act: 8929 Avg: 8509 Max:  905736}
+Following the description two things where noticed: 1) it is not possible to hotplug the cpu0 and 2) disabling CPU1 disables also CPU2 and CPU3.
+While the former may be a convention in order to avoid disabling all CPUs, sometimes based on hardware \cite{lwn01}, the latter is an actual misbehavior. When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function, i.e. except 0 and 1, work properly. Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU3. This requires further investigation and is detailed in the next subsection.
 
-%% Probably until here!!! 
-\noindent \small \#1 \texttt{T: 0 ( 2151) P:99 I:1000 C: 100000 Min: 0 Act: 3481 Avg: 6496 Max:  892712}
+
+\subsection{Problem isolation and repeating}
+\label{sec:isol}
+
+{\small\textsc{Unplanned review of results, 11/08 - 12/08/18} \bigskip}
+
+Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
+
+If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second CPU. As a test, if we try to pin the thread to the last CPU with all the interrupts, we get the following results:
+
+\noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
+
+Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core. This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. Only if we include the last one or we pin on the last one, we get an average performance under one millisecond.
+
+%TODO: this must be investigated
+
+Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
+
+The following must be included before compiling again the files in the rt-test repository: in line 5 of the \textit{Makefile} add
+
+\begin{verbatim}
+	XENO_CONFIG := /usr/xenomai/bin/xeno-config
+	CFLAGS := $(shell $(XENO_CONFIG) --cobalt --cflags)
+	LDFLAGS := $(shell $(XENO_CONFIG) --cobalt --ldflags)
+	CC := $(shell $(XENO_CONFIG) --cc)
+\end{verbatim}
+
+Now if we verify with \texttt{cat /proc/xenomai/sched/threads}, we will see \texttt{cyclictest} listed as real-time application running in the cobalt scheduler.
+Naturally, now all the tests have to be repeated with the recompiled file.
+
+\noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
+
+%TODO: conclude results and affirmations
+
+Testing with latency:
+------------------------
+
+RTH|----lat min|----lat avg|----lat max|-overrun|---msw|---lat best|--lat worst
+-> no load balancer, isolated
+RTS|    -80.324|  11964.511| 103763.409| 7113315|     0|    00:14:53/00:14:53
+-> fixed irq affinity
+RTS|      0.047|  11784.684| 561911.144| 5838691|     0|    00:11:23/00:11:23
+
+
 
 \subsubsection{Conclusions - isolation Host}
 
 %TODO verify affirmations
 We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. 
 One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. 
-Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks. In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads of the vCPUs to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the VirtualBox Hypervisor. 
 
-%TODO: Verify affirmations
-The most fluid setting for the isolation of the guest system is thus simple cpu shielding (isolation) done with cset. Therefore, for the rest of the document, we assume a test machine where 3 vCPUs (cores) = 1 physical CPU + 1 thread of CPU2, have been assigned to the virtual machine.
+The virtual machine in our example uses KVM paravirualizzation. It might be thus possible to reconfigure the hypervisor to allow the thread pinning anf avoid the CFS of the hypervisor to shuffle the vCPU threads. In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
+
+For the sake of completion, the tests will be continued using the same concepts of isolation also for the guest. It should help to predict the behavior of the cloud machine.
 
 \subsubsection{Working with guest CPU isolation}
-
 
 Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
@@ -620,7 +665,8 @@ Next, we try to set-up the same isolation concept also for the virtual guest. Th
 
 \noindent Results with CPU-isolation guest, no load balancer \& IRQ affinity set on host:
 
-\noindent \small \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min:      0 Act: 3037 Avg: 1913 Max:  2011888}
+\noindent \#1 \small \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min: 0 Act: 3037 Avg: 1913 Max:  201188}\\
+T: 0 ( 2467) P:99 I:1000 C: 100000 Min:      0 Act: 4018 Avg: 1032 Max:   10262
 
 %\subsubsection{Cpu-isolation guest, host back to simple isolation}
 
@@ -644,30 +690,29 @@ Now, in addition the load balancer and irq affinity will be set to see if the pe
 When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
 
 %\subsubsection{Cpu-isolation guest, test multiple}
-
-Test with multiple threads and cpu isolation active on guest, irq affinity and balancer normal
-
-\noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
-
-\noindent Results :
-
-\noindent  
-\small \texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}\\
-\noindent
-\small \texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
-
-It seems that cpu isolation of any kind on the guest has no bigger impact on the real-time performance.
-
-\subsubsection{Counter-proof isolation Host}
-
-If we now try to remove the shield on the host operating system, exposing the vm again to normal CFS task scheduling, the values go up to the sky again. The results are equal to the first testing example of this section.
+%
+%Test with multiple threads and cpu isolation active on guest, irq affinity and balancer normal
+%
+%\noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
+%
+%\noindent Results :
+%
+%\noindent  
+%\small \texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}\\
+%\noindent
+%\small \texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
+%
+%It seems that cpu isolation of any kind on the guest has no bigger impact on the real-time performance.
+%
+%\subsubsection{Counter-proof isolation Host}
+%
+%If we now try to remove the shield on the host operating system, exposing the vm again to normal CFS task scheduling, the values go up to the sky again. The results are equal to the first testing example of this section.
 
 \subsection{Full dynamic ticks}
 
 %TODO: rewrite
-A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. It must also not use any POSIX timers, directly or indirectly. This usually excludes any kernel calls that will access the network, but also excludes a number of other kernel calls. Keeping the kernel calls to a minimum will maximize the likelihood of achieving full dynamic ticks.
-
-Second, the application must utilize the CPU partitioning described in previous section, which is done by writing the application thread's PID into the file \url{/sys/fs/cgroup/cpuset/rt/cpuset.tasks} (assuming the real-time partition is called "rt"). After this, the shell command taskset can be used to bind the task to a specific CPU in the "rt" partition.
+A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. The use of POSIX timers is also not allowed, directly or indirectly, which means that no kernel calls that require such timers, i.e. network access, and many others. Thus keeping the kernel calls at a minimum at the application itself increases the probability that a full dynamic tick system is achieved.
+Second, the application must utilize the CPU partitioning, with e.g. \texttt{cset} done in previous section After this, the shell command \texttt{taskset} can be used to bind the task to a specific CPU (task affinity) in the RT partition.
 
 But just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, discarded.
 
@@ -723,8 +768,7 @@ In the last meeting it was finally decided to continue with Docker as a main vir
 
 {\small\textsc{Clean system setup \& test repeat, 08/08 - 10/08/18} \bigskip}
 
-In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed. The latest kernel has been used (4.18-rc) and patched with the PREEMPT-RT patch to verify the updated capabilities. All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option.
-%TODO: what was this good for?
+In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed. The latest kernel has been used (4.18-rc) and patched with the PREEMPT-RT patch to verify the updated capabilities. All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option, including the latest ``completed'' EDF schedule option.
 
 As a concluding work, a test script (exec.sh) has been created to automate all the test steps performed in Section \ref{sec:virtsust}. The script is in the sub-folder \texttt{test-monitor} of the project repository \cite{gitrepo} and has to be run with root privileges. In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for realt-time tasks. The output files are stored in the repository and can be consulted for further studying.
 
@@ -739,7 +783,7 @@ Before the script can be run, a few pre-configuration steps have to be done. The
 	\item install the nmon system monitor via apt-get
 \end{itemize}
 
-Now the script can be run. The parameters to be passed are host, port and virtual host PID. The script will write the results in csv and txt files respectively.
+Now the script can be run. The parameters to be passed are host, port and virtual host PID. The script will write the results in csv and txt files respectively (See test-monitor folder for further details). 
 
 \section{Meetings}
 \label{sec:meeting}

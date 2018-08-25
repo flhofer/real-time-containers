@@ -8,7 +8,7 @@ function set_cmds () {
 	# usually -S = -t -a -n, instead
 	cyctest='cyclictest -t '$1' -n -a -m -q -p 99 -l 100000'
 	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$1' -n -a -m -q -p 99 -l 100000 && killall stress;'
-	cshield='cset shield --exec -- '
+	cshield='cset shield --exec --threads -- '
 }
 
 echo "Cleaning up directory..."
