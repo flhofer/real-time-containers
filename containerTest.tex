@@ -42,7 +42,8 @@ The project team is composed as follows:
 	\end{tabular}
 \end{table}
 
-The description in this document resumes the work performed by the author of this report only. This document is not exhaustive and may be integrated in near future.
+The description in this document resumes the work performed by the author of this report only.
+This document is not exhaustive and may be integrated in near future.
 
 During my three weeks of stay, a weekly team meeting is planned (see Section \ref{sec:meeting}) as well as daily informal sync at UC Berkeley.
 
@@ -71,13 +72,13 @@ LXC/LXD is the default Linux-based containerization engine. In its first release
 Before selecting a specific setup, different variants of systems are tested for their real-time capabilities, maintainability and ease of setup. Candidates for this session are:
 
 \begin{itemize}
-	\item \textbf{resinOS} operating system by resin.io, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
+	\item \textbf{resinOS} operating system by \textit{resin.io}, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
 	\item \textbf{Ubuntu Core} an operating system for IoT devices implemented using the new snap image approach. Snap based as well as Balena based approaches are investigated on this hardware optimized image
 	\item \textbf{Xenomai 3} is co-core extension for Linux based operating systems, which allows hard-real-time scheduling. Together with an interrupt patch it is suggested to be the most performing of the real-time approaches.
 	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft-real-time based performance, reaching hard-real-time on a properly tuned system
 \end{itemize}
 
-CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image and is stripped down to the bare minimum (LXC/LXD has been excluded beforhand). The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the runtime behavior of containers of different types, including synthetic applications.
+CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image and is stripped down to the bare minimum (LXC/LXD has been excluded beforehand). The systems are setup in separate virtual machines and are verified for real-time scheduling properties. Installations verify the run-time behavior of containers of different types, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
 
@@ -161,14 +162,14 @@ Setup a route from the virtual machine to the local host, line before, from port
 
 \subsubsection{Evaluation}
 
-The resinOS core ships with no packager manager and is missing build-in tools. This image can therefore be patched only manually and with greater effort. This also means that it increases the maintenance effort and makes thus a resinOS based approach unpractical. In addition, the image has been tuned for small devices operation. An operation on a server infrastructure would therefore not use the maximum capabilities of the hardware, constraining the system in its execution.
+The resinOS core ships with no packager manager and is missing build-in tools. This image can therefore be patched only manually and with greater effort. This also means that it increases the maintenance effort and makes thus a resinOS based approach unpractical. In addition, the image has been tuned for small devices' operation. An operation on a server infrastructure would therefore not use the maximum capabilities of the hardware, constraining the system in its execution.
 
 \subsection{Ubuntu Core}
 {\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
 
 Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The developed software is shipped in a snap and then run sand-boxed in a container-like environment while keeping the transparency of a traditional application. 
 
-Snaps are standard feature of Ubuntu based distributions since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sand-boxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from eventual malicious software. In addition, the binaries are digitally signed and thus tampering with the executables is avoided. This gives the whole system the flexibility of continuous updates of an application while being independent from the host system and flavor, and without interacting with the file system of the host.
+Snaps are standard feature of Ubuntu based distributions since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. The running applications are practically sand-boxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from eventual malicious software. In addition, the binaries are digitally signed and thus tampering with the executable is avoided. This gives the whole system the flexibility of continuous updates of an application while being independent of the host system and flavor, and without interacting with the file system of the host.
 A variety of Linux flavors support snaps. In addition, snap-stores can be privately hosted, making this solution very interesting. More details can be found at \cite{snap01}
 
 In this test, a setup is described and feasibility of the candidate is verified.
@@ -183,7 +184,7 @@ First, we get and unpack the latest KVM core image (replace version numbers wher
 	unxz ubuntu-core-16-amd64.img.xz
 \end{verbatim}
 
-Before it can be used, the image has to be converted from a raw image to a virtual drive. We convert the image again with the Virtualbox CLI tool.
+Before it can be used, the image has to be converted from a raw image to a virtual drive. We convert the image again with the VirtualBox CLI tool.
 
 \begin{verbatim}
 	VBoxManage convertdd ubuntu-core-16-amd64.img ubuntu-core-16-amd64.vdi
@@ -343,7 +344,7 @@ A list of other tools that might be helpful:
 {\small\textsc{Configuration test, 31/07/18} \bigskip}
 
 Balena, even though installed via script, appears not properly configured. It does not run at startup and there is no typical dedicated group in order to ease and limit access to the engine.
-Therefore groups and systemd configuration files to manage these must be added manually. Use the Docker reference manual to provide for this. The manual can be found at \cite{docker02}. The Balena daemon is started via the command \textit{balenad}.
+Therefore, groups and systemd configuration files to manage these must be added manually. Use the Docker reference manual to provide for this. The manual can be found at \cite{docker02}. The Balena daemon is started via the command \textit{balenad}.
 
 \begin{figure}[t]
 	\centering
@@ -352,9 +353,9 @@ Therefore groups and systemd configuration files to manage these must be added m
 	\label{fig:balenad}
 \end{figure}
 
-An additional not clear thing is the missing of the \texttt{balena-init} file, see \ref{fig:balenad}. Comparing the installation to the standard resinOS shipping we can see that the latter has the missing file and they have the same version number, but also, that the main binary is different in size. It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove al the orphanage resources and prepare the new container for a clean run. According to the Docker reference manual, \cite{docker03}, the init binary is obtained via \texttt{tini}, thus can be safely pulled from there. The git repository can be found at \cite{tini01}.
+An additional not clear thing is the missing of the \texttt{balena-init} file, see \ref{fig:balenad}. Comparing the installation to the standard resinOS shipping we can see that the latter has the missing file, and they have the same version number, but also, that the main binary is different. It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove al the orphanage resources and prepare the new container for a clean run. According to the Docker reference manual, \cite{docker03}, the init binary is obtained via \texttt{tini}, thus can be safely pulled from there. The git repository can be found at \cite{tini01}.
 
-In the image also other warnings can be found. In particular we can identify two groups of warnings:
+In the image also other warnings can be found. In particular, we can identify two groups of warnings:
 
 \begin{itemize}
 	\item \textit{WARN[0001] Your kernel does not support swap memory limit}
@@ -368,12 +369,12 @@ To do this we edit \texttt{/etc/default/grub} and set
 \texttt{GRUB\_CMDLINE\_LINUX\_DEFAULT} to \texttt{"cgroup\_enable=memory swapaccount=1"}
 
 The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum cpu execution slice, see \cite{docker04}. 
-In fact, if we try to set some of the real-time settings on our running Balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
+In fact, if we try to set some real-time settings on our running Balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
 The required setting can be enabled at kernel compilation time via the \texttt{CONFIG\_RT\_CGROUP} flag. 
 
 Unfortunately the flag can not be enabled for the PREEMPT\_RT version of the virtual machine. Due to some temporary compatibility constraints, the simultaneous operation of the \texttt{CONFIG\_PREEMPT\_FULL} flag, necessary for the ability of full kernel preemption, and the CGroup flag has been disabled. Details can be found at \cite{lfnd01}.
 
-Finally, I found a script that could do the verifications for you. If you would like to test your system for parameter and capability compliance, the Docker community has developed a configuration testing script. The test can be run via these inputs:
+Finally, I found a script that could do the verification for you. If you would like to test your system for parameter and capability compliance, the Docker community has developed a configuration testing script. The test can be run via these inputs:
 
 \begin{verbatim}
 	wget https://raw.githubusercontent.com/dotcloud/docker/master/contrib/check-config.sh
@@ -393,13 +394,13 @@ During some additional research on Balena and its relation to Docker, the source
 \texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single Json file even from a remote machine, a welcome feature for our project.
 Anyway, by the source code of Balena we can tell that not all the tags are supported. This is particularly valid for the `Deploy' section. 
 
-More detail on the different operations taken in this section and on the why those are performed, can be found at \cite{lrt01}.
+More detail on the different operations taken in this section and on why those are performed, can be found at \cite{lrt01}.
 
 \subsection{Preparing steps}
 
 In preparation for the upcoming tests we need to install \texttt{docker-compose} and configure the proper cpu-isolation for the virtual machine.
 The instructions can be found in the reference of Docker, see \cite{docker05}. 
-On debian systems this can be done simply via 
+On Debian systems this can be done simply via 
 
 \begin{verbatim}
 	apt-get install docker-compose
@@ -448,9 +449,9 @@ Tests will be repeated to confirm values also in different situations.
 
 \subsubsection{First tests with host}
 
-First of all, let us get some base measurements. The testing host is a dual core, 4 thread i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
+First of all, let us get some base measurements. The testing host is a dual core, 4 thread, sixth generation i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
 and started without any further change. 
-Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in oder to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
+Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in order to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
 In addition, often the cpu-governor still controls the bus frequency while on battery. Change the governor settings running the following as root. 
 
 \begin{verbatim}
@@ -483,8 +484,8 @@ A conclusion that might be drawn from this is that if the virtual host in the co
 
 CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 
-Thus, in oder to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up cpu isolation for the host CPU.
-A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
+Thus, in order to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up CPU isolation for the host CPU.
+A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus, we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
 
 First we need to install the \texttt{cpuset} utility.This can be done via:
 
@@ -499,7 +500,7 @@ Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monito
 	cset shield --shield --threads --pid <read-pid,read-pid>
 \end{verbatim}
 
-The virtual machine and all depending tasks are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
+The virtual machine and all tasks depending on it are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
 
 \begin{figure}[t]
 	\centering
@@ -527,8 +528,8 @@ The virtual machine and all depending tasks are now moved to a separate control 
 %\noindent \small \#6 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}\\
 
 With isolation, and still running a single real-time thread, the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. The values are very different and seem to vary based on the system load. 
-One reason could be that, even though cpu affinity is set as parameter in the test, load balancing is still active. The host does not see the internal affinity settings of the virtualized guest. He only sees some threads to be executed.
-Thus the test-thread could be shifted in the host onto other vCPUs to keep the average workload balanced. This is the same case as before where the CFS tries to distribute running tasks equally among the available vCPUs.
+One reason could be that, even though CPU affinity is set as parameter in the test, load balancing is still active. The host does not see the internal affinity settings of the virtualized guest. He only sees some threads to be executed.
+Thus, the test-thread could be shifted in the host onto other vCPUs to keep the average workload balanced. This is the same case as before where the CFS tries to distribute running tasks equally among the available vCPUs.
 
 Thus, in this second test, let us put again the virtual machine under load. If the previous theory is correct, an improvement on average and max values should be seen. The system's CPU load can be seen in Figure \ref{fig:test-cpuload}. It is as expected balanced on the three vCPUs dedicated to the virtual guest.
 
@@ -604,8 +605,7 @@ If we consider that a single test thread is run, and by default will get a CPU a
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core. This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. Only if we include the last one or we pin on the last one, we get an average performance under one millisecond.
-
+Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core. This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond.
 %TODO: this must be investigated
 
 Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
@@ -624,33 +624,34 @@ Naturally, now all the tests have to be repeated with the recompiled file.
 
 \noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
 
-%TODO: conclude results and affirmations
+To confirm our results, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and does not need additional parameters.
 
-Testing with latency:
-------------------------
-
-RTH|----lat min|----lat avg|----lat max|-overrun|---msw|---lat best|--lat worst
--> no load balancer, isolated
-RTS|    -80.324|  11964.511| 103763.409| 7113315|     0|    00:14:53/00:14:53
--> fixed irq affinity
-RTS|      0.047|  11784.684| 561911.144| 5838691|     0|    00:11:23/00:11:23
-
-
+%TODO: repeat latency with power and performance settings
+\begin{table}[h]
+	\begin{tabular}{l|r|r| r|r |r | r }
+		RTH&----lat min&----lat avg&----lat max&-overrun&---msw&---runtime\\
+		\hline
+		RTS&    -80.324&  11964.511& 103763.409& 7113315&     0&    00:14:53/00:14:53\\
+		RTS&      0.047&  11784.684& 561911.144& 5838691&     0&    00:11:23/00:11:23\\
+	\end{tabular}
+	\caption{Running resutls with latency as output by the tool}
+	\label{tab:latency}
+\end{table}
 
 \subsubsection{Conclusions - isolation Host}
+\label{sec:conciso}
 
-%TODO verify affirmations
 We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. 
-One main reason could be that the last vCPU is not actually a separate core but only one of the two threads of the Hyper-threading instance of the physical core two. 
-Thus it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks. In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads of the vCPUs to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the VirtualBox Hypervisor. 
+One main reason could be that one of the vCPUs is not actually a separate core but only one of the two threads of the Hyper-threading instance of one physical core. 
+Thus, it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks. In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads representing a vCPU to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the standard VirtualBox Hypervisor. 
 
-The virtual machine in our example uses KVM paravirualizzation. It might be thus possible to reconfigure the hypervisor to allow the thread pinning anf avoid the CFS of the hypervisor to shuffle the vCPU threads. In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
+The virtual machine in our example uses KVM paravirualizzation, a hypervisor supporting vCPU pinning. It might be thus possible to reconfigure the hypervisor by ovveriding VirtualBox to allow the thread pinning and avoid the CFS scheduler of the hypervisor to shuffle the vCPU threads. In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
 
 For the sake of completion, the tests will be continued using the same concepts of isolation also for the guest. It should help to predict the behavior of the cloud machine.
 
 \subsubsection{Working with guest CPU isolation}
 
-Next, we try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT). We will use one full physical core, 2 vCPUs, for RT and one thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
+We now try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT) groups. We will use one full physical core, 2 vCPUs, for RT and one virtualization thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
 
 \noindent Command : 
 
@@ -721,7 +722,7 @@ But just by specifying ``more than one thread on each CPU'' we can exclude this 
 Studying the Balena/Docker manual it was possible to identify the parameters to use in order to run the daemon with real-time capabilities. The parameter \texttt{--cpu-rt-runtime=<value>} enables the RT-sheduler for the daemon, set it to \texttt{-1} for no limit. In additon, for each RT-container \texttt{--cap-add=sys\_nice} must be set, while \texttt{--cpu-rt-runtime=<value>} and \texttt{--ulimit rtprio=<value>} can be used to limit runtime and priority for each container respectively.
 More info at \cite{docker06}
 
-By default the daemon listens to the sock file only. To change this, and thus allow external access, we can specify the connecting interface where to listen to with \texttt{-H}. By default a virtual host has an IP address of \texttt{10.0.2.15}. To enable the debug mode, we can add the \texttt{-D} flag.
+By default, the daemon listens to the sock file only. To change this, and thus allow external access, we can specify the connecting interface where to listen to with \texttt{-H}. By default a virtual host has an IP address of \texttt{10.0.2.15}. To enable the debug mode, we can add the \texttt{-D} flag.
 
 To start the daemon in real-time mode thus we use:
 
@@ -784,6 +785,11 @@ Before the script can be run, a few pre-configuration steps have to be done. The
 \end{itemize}
 
 Now the script can be run. The parameters to be passed are host, port and virtual host PID. The script will write the results in csv and txt files respectively (See test-monitor folder for further details). 
+
+\section{Future work}
+
+{\small\textsc{Report clean-up, future work discussions, 11/08 - 28/08/18} \bigskip}
+
 
 \section{Meetings}
 \label{sec:meeting}
