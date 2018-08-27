@@ -194,13 +194,14 @@ Now we create a new virtual machine based on ``Ubuntu 64bit'' and add the existi
 
 In order to be able to connect to the new virtual machine we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and downloads the ssh key. Finally to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward. Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually), the same way as described for resinOS.
 
-For a description on how to create an ssh key, visit \cite{atlassian01}
+For a description on how to create a ssh key, visit \cite{atlassian01}
 
 \subsubsection{Evaluation}
 
 Unfortunately, the core is stripped to minimum and thus patching for real-time capabilities is not easily possible. This means, it does not include a package manager and patching the kernel is hard as a patch command not installed.
 
-The core used snaps for applications, thus using snaps for installations was considered. Unfortunately, even though the snap feature is native to Ubuntu, and a patched kernel could add the needed real-time properties, the binding with the hosts name and file-space hinders the use of application duplicates. This approach is thus archived for the moment.
+%The core used snaps for applications, thus using snaps for installations was considered. 
+Unfortunately, even though the snap feature is native to Ubuntu, and a patched kernel could add the needed real-time properties, the binding with the hosts name and file-space hinders the use of application duplicates. This approach is thus archived for the moment.
 
 If all other attempts are not successful enough, a conversion of the apps to snaps and proper configuration might be considered.
 
@@ -208,7 +209,7 @@ If all other attempts are not successful enough, a conversion of the apps to sna
 
 {\small\textsc{Testrun Xenomai, 26/07/18} \bigskip}
 
-Xenomai is a os extension to implement POSIX real-time extensions to a standard kernel. Xenomai supplements it with Cobalt, a small real-time infrastructure which schedules time-critical activities independently from the main kernel logic. The interfacing with an interrupt dispatcher (I-pipe) allows to increase response time and performance and thus enables also for hard-real-time execution. Through extension with skins, also non POSIX compliant real-time software can be configured to run on a Xenomai patched system.
+Xenomai is a OS extension to implement POSIX real-time extensions to a standard kernel. Xenomai supplements it with Cobalt, a small real-time infrastructure which schedules time-critical activities independently of the main kernel logic. The interfacing with an interrupt dispatcher (I-pipe) allows to increase response time and performance and thus enables also for hard-real-time execution. Through extension with skins, also non POSIX compliant real-time software can be configured to run on a Xenomai patched system.
 
 The main expressed concerns of this approach are setup complexity and maintainability.
 
@@ -226,8 +227,8 @@ The base-OS should be lightweight but still fully featured. Thus, an Ubuntu serv
 \end{verbatim}
 
 Now we create a new Ubuntu 64bit based virtual machine with a disk size of at least 20GB. Even though Ubuntu takes just a few GB, we need at least 10GB extra space for the libraries, source code and compiling process of the kernel image and header. 
-The memory size for the virtual machine can be arbitrary chosen between 384 mB and $\inf$. When setting the number of assigned CPUs, consider that the more, the faster is the compiling of the new kernel. If you increase the number of CPUs, increase also the amount of RAM.
-Before starting the machine, we add the Ubuntu server disk image to the cd drive of the new machine.
+The memory size for the virtual machine can be arbitrary chosen between 384 MB and $\inf$. When setting the number of assigned CPUs, consider that the more, the faster is the compiling of the new kernel. If you increase the number of CPUs, increase also the amount of RAM.
+Before starting the machine, we add the Ubuntu server disk image to the CD drive of the new machine.
 
 Now follow the guide of the installer. If asked, add only ssh server to the pre-selected packages and continue with software deployment. When installation is done, don't forget to upgrade the system to the newest packages and restart before proceeding with the kernel build. Execute:
 
@@ -241,7 +242,7 @@ The patching steps have all be resumed in an installer script by Pasquale Antona
 
 Because of the way interrupt handling is implemented, allowing out-of-band interrupt handlers and thus immediate IRQ reception, Xenomai is a ideal candidate for hard-real-time applications. The patching is bound to kernel versions, thus the progress depends on the patch development of I-Pipe. 
 The scheduling of the real-time tasks is based on the co-kernel and is thus easier to modify and change, a promising approach.
-Currently the kernel patch is stuck at version 4.14.4 (the latest kernel shipped with Ubuntu 16.04 LTS is 4.15.0-29, the latest stable 4.17.11). This could be a sign of an abandoned project. Before continuing with this implementation line, a proper investigation of the project status and agenda must be performed.
+Currently the kernel patch development line (incomplete) is stuck at version 4.14.4 (the latest kernel shipped with Ubuntu 16.04 LTS is 4.15.0-29, the latest stable 4.17.11). This could be a sign of an abandoned project. Before continuing with this implementation line, a proper investigation of the project status and agenda must be performed.
 
 \subsection{Ubuntu Server 16.04.4 with patch RT}
 
@@ -249,20 +250,22 @@ Currently the kernel patch is stuck at version 4.14.4 (the latest kernel shipped
 
 PREEMPT\_RT is a real-time kernel project maintained by the Linux foundation. 
 The main aim of the PREEMPT\_RT patch is to minimize the amount of kernel code that is non-preemptible. Therefore, several substitutions and new mechanisms are implemented.
-In the last years there where some major improvements in the PREEMPT-RT performance. A paper of Fayyad-Kazan \textit{et al.} shows improvement on kernel versions v2.6.33 versus v3.6.6, a total improvement of 35\% \cite{Fayyad-Kazanetal2014}. In order to keep performances and results comparable, the same Ubuntu image will be used for patching.
+In the last years there were some major improvements in the PREEMPT-RT performance. A paper of Fayyad-Kazan \textit{et al.} shows improvement on kernel versions v2.6.33 versus v3.6.6, a total improvement of 35\% \cite{Fayyad-Kazanetal2014}. In order to keep performances and results comparable, preferably the same Ubuntu image as for Xenomai will be used for patching.
 
 \subsubsection{Local Virtual machine}
 
 The same conditions as in the previous example apply. Download the image from the Ubuntu website \cite{ubuntu02}, if not already done. Also here the latest patch available for Ubuntu is based on Kernel 4.9.x. Ubuntu 16.04 is again the closest version with 4.4.x and thus the candidate for a kernel upgrade. See section \ref{sec:xenoinst}.
 
-The patching steps have all be resumed in an installer script similar to the previous. The install script provides downloads of the patch and the kernel, performs the patch and installs new kernel and the Balena environment.
+The patching steps have all be resumed in a newly created installer script similar to the previous case. The install script provides downloads of the patch and the kernel, performs the patch and installs new kernel and the Balena environment.
 
 For further guides on how to compile and install a kernel, visit \cite{misc01}.
 
 \subsubsection{Evaluation}
 
-The Preempt-RT requires a dedicated patch and recompiling and tuning of the kernel to support hard-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling. Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower real-time guarantee. In particular, drivers must be tuned for real-time operation in order to reach low process firing jitter. Anyway, lately the project has made remarkable progress.
-Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup. This makes this solution a major candidate for further investigation.
+The Preempt-RT requires a dedicated patch and recompiling and tuning of the kernel to support hard-real-time properties. The additional slicing preformed to the kernel tasks allows faster preemption and a better control of the CPU scheduling.
+Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower real-time guarantee. In particular, drivers must be tuned for real-time operation in order to reach low process firing jitter.
+Anyway, lately the project has made remarkable progress.
+Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup. This makes the solution a major candidate for further investigation.
 To exploit its full potential, newer kernel patching as a future step is taken into consideration.
 
 \section{Tests of system}
@@ -274,9 +277,8 @@ Some small cyclic execution tests are performed to verify default availability o
 \subsection{rt-tests}
 
 The rt-tests suite includes a list of small tool binaries which may be used to test properties of real-time systems. The most known are \textit{cyclictest} and \textit{hackbench}.
-The former is used to create a number of real-time tasks executing periodically which then report their starting latencies.
-
-has specific features to backtrack also single latencies (\texttt{--breaktrace}), allowing to debug the latency trace of the preemption kernel. It is a feature that requires a specific kernel configuration and might thus be used in a second moment, i.e. when configuring the container host OS. To install the software we may use one of the two approaches:
+The former is used to create a number of real-time tasks executing periodically which then report their starting latencies. 
+The latter has specific features to backtrack also single latencies (\texttt{--breaktrace}), allowing to debug the latency trace of the preemption kernel. It is a feature that requires a specific kernel configuration and might thus be used in a second moment, i.e. when configuring the container host OS. To install the software we may use one of the two approaches:
 
 1) We use Xenomai 2.6.x (which is not our case), then there is a ready to go tool package available
 
@@ -307,9 +309,10 @@ The last step is optional. The binaries can now be run (within the directory) to
 	cyclictest -t 50 -n -d 86400 -l 100000 -a -p 99
 \end{verbatim}
 
-The code in the example creates fifty tasks with priority 99 (maximum) an interval of 1000 () $\mu s$ and a task period distance of 86400 $\mu s$ and using a clock-based nanosecond timer. 
-As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is a difference between normal and patched images, but the actual values are for now far from ideal. At the moment, as the host is not real-time capable, the delays also depend on the scheduling of the host which runs the virtual machine.
-
+The code in the example creates fifty tasks with priority 99 (maximum) an interval of 1000 $\mu s$ and a task period distance of 86400 $\mu s$ and using a clock-based nanosecond timer.
+An interesting feature is the \texttt{-h} flag, which plots a histogram and the number of overshoots. The feature will be used in a second moment.
+As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is a difference between normal and patched images, but the actual values are for now far from ideal. 
+At the moment, as the host is not hard-real-time capable, the delays also depend on the scheduling of the host which runs the virtual machine. Thus, even though an eventual cloud host is not hard-real-time capable, an additional series of tests with such a host could give some more comparing and reference data.
 
 \subsection{stress}
 
@@ -337,7 +340,8 @@ A list of other tools that might be helpful:
 \begin{itemize}
 	\item \textbf{htop} a colored memory view to analyse memory use of single processes
 	\item \textbf{iftop} interface monitor to view actual network traffic
-	\item \textbf{iotop} generic i/o monitor
+	\item \textbf{iotop} generic I/O monitor
+	\item \textbf{nmon} a universal monitoring tool
 \end{itemize}
 
 \section{Additional fixes}
@@ -368,7 +372,7 @@ The configuration setting to be enabled is \texttt{\#CONFIG\_MEMCG\_SWAP\_ENABLE
 To do this we edit \texttt{/etc/default/grub} and set 
 \texttt{GRUB\_CMDLINE\_LINUX\_DEFAULT} to \texttt{"cgroup\_enable=memory swapaccount=1"}
 
-The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum cpu execution slice, see \cite{docker04}. 
+The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum CPU execution slice, see \cite{docker04}. 
 In fact, if we try to set some real-time settings on our running Balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
 The required setting can be enabled at kernel compilation time via the \texttt{CONFIG\_RT\_CGROUP} flag. 
 
@@ -382,23 +386,23 @@ Finally, I found a script that could do the verification for you. If you would l
 	./check-config.sh
 \end{verbatim}
 
-The run of the script confirms that the Xenomai version of the image, after all reconfiguration and recompilation, has the correct settings to operate the container engine properly.
+The run of the script confirms that the Xenomai version of the image, after all reconfiguration and recompilation, has the correct settings to operate the container engine with real-time features.
 
 \section{Virtualization sustainability tests}
 \label{sec:virtsust}
 {\small\textsc{Test-run Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  Hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment.
+In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment.
 
-During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API and thus the use and parameters for the compose program, namely \texttt{docker-compose}, is available to run also on a Balena based engine. In addition, in the documentation of resinOS, \cite{resin03}, the instructions specify to install \texttt{docker-compose} on a remote system and operate the containers via remote.
-\texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers using a single Json file even from a remote machine, a welcome feature for our project.
+During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API. Thus, the use and parameters for compose, namely \texttt{docker-compose}, is available to run also on a Balena based system.
+\texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers remotely using a single Json file, a welcome feature for our project.
 Anyway, by the source code of Balena we can tell that not all the tags are supported. This is particularly valid for the `Deploy' section. 
 
-More detail on the different operations taken in this section and on why those are performed, can be found at \cite{lrt01}.
+More detail on the different activities performed in this section and on why those are performed, can be found at \cite{lrt01}.
 
 \subsection{Preparing steps}
 
-In preparation for the upcoming tests we need to install \texttt{docker-compose} and configure the proper cpu-isolation for the virtual machine.
+In preparation for the upcoming tests we need to install \texttt{docker-compose}.
 The instructions can be found in the reference of Docker, see \cite{docker05}. 
 On Debian systems this can be done simply via 
 
@@ -406,18 +410,20 @@ On Debian systems this can be done simply via
 	apt-get install docker-compose
 \end{verbatim}
 
-During these tests, the virtual machine is set to 3 cpus, and the cpu affinity of the task on the host is set to 7 (cpu 0,1,2). This will allow to avoid task switching and further separate RT tasks (cpu 0-1) from nRT tasks (cpu 2) inside the virtual machine
-In the settings of the virtual machine we set the CPUs to 3 and we start the virtual machine.  Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host. Open a console and use the following command-line (\cite{vbox01}):
-
-\begin{verbatim}
-	taskset -p 7 <read-pid>
-\end{verbatim} 
-
-The virtual machine is now running confined to CPUs 1, 2 and 3.
+During these tests, the virtual machine is set to 3 CPUs, and the CPU affinity of the task on the host is set to 7 (CPU 0,1,2). This will allow to avoid task switching and further separate RT tasks (CPU 0-1) from nRT tasks (CPU 2) inside the virtual machine
+In the settings of the virtual machine we set the CPUs to three, and we start the virtual machine.  
+%An easy way to confine the VirtualBox threads to CPUs is using affinity.
+%Open a process monitor, e.g. the system monitor, and get the PID of the running virtual host. Open a console and use the following command-line (\cite{vbox01}):
+%
+%\begin{verbatim}
+%	taskset -p 7 <read-pid>
+%\end{verbatim} 
+%
+%The virtual machine is now running confined to CPUs 1, 2 and 3.
 
 \subsection{CPU isolation and partitioning tests}
 
-Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The -q flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. The goal of this test is to find a configuration that permits a very low average latency
+Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The \texttt{-q} flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. The goal of this test is to find a configuration that permits a very low average latency and thus relatively the best performance in a vitualized environment.
 
 \begin{verbatim}
 	#Test without load
@@ -435,7 +441,7 @@ The measurement result are then printed with the following schema
 
 Where:
 \begin{where}
-	\item[pid =] threads pid,
+	\item[pid =] threads PID,
 	\item[p =] threads real-time priority,
 	\item[i =] execution interval in $\mu s$,
 	\item[c =] cycle count of execution
@@ -452,13 +458,16 @@ Tests will be repeated to confirm values also in different situations.
 First of all, let us get some base measurements. The testing host is a dual core, 4 thread, sixth generation i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
 and started without any further change. 
 Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in order to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
-In addition, often the cpu-governor still controls the bus frequency while on battery. Change the governor settings running the following as root. 
+In addition, in many cases the \textit{cpu-governor} controls the bus frequency even if plugged in. Change the governor settings running the following as root. 
 
 \begin{verbatim}
 	cpupower frequency-set -g performance
 \end{verbatim}
 
-Now the clock frequency should be locked between upper limit and turbo frequency (where available). The cores are all enabled and the system ready to perform.
+Now the clock frequency should be locked between upper limit and turbo frequency (where available). Frequencies can be verified with \texttt{lscpu}. 
+
+The cores are all enabled and the system is ready to perform.
+We begin thus with the first two tests:
 
 \bigskip
 
@@ -476,24 +485,31 @@ Now the clock frequency should be locked between upper limit and turbo frequency
 
 \bigskip
 
-The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. The low load allows the scheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs. This movement causes registers to flush and while L1-L2 caches will have to be refilled from L3. All this introduces latency which is visible in the average and peak values. The guest under stress does not allow very much free cpu-time in his three vCPU threads and thus the host treads are mostly run on the vCPU not busy running the virtual machine. As a consequence, even though the load on the system is higher, the overall performance is better. 
+The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. 
+The low load allows the scheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs.
+This movement of tasks causes registers to flush and L1-L2 caches will have to be refilled from L3. 
+All this introduces latency which is visible in the average and peak values.
+The guest under stress does not allow very much free CPU-time for the physical CPUs. Thus, the host treads are mostly run on the CPU thread not busy running the virtual machine. This prevents shifting of threads to other CPUs and the connected latency. As a consequence, even though the load on the system is higher, the overall performance is better. 
 
-A conclusion that might be drawn from this is that if the virtual host in the could is run on shared physical CPUs, a similar scenario might occur. Therefore, in such a case either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system is added a stress program like in this test, to force the host scheduler on a certain behavior. This might be accomplished as the standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
+A conclusion that might be drawn from this is that, if the virtual guest in the could is run on shared physical CPUs, a similar scenario might occur. The standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
+Therefore, in such case, either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system is added with stress, like in this test, to force the host scheduler into a more predicable behavior. 
 
 \subsubsection{Working with host CPU isolation}
 
 CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 
 Thus, in order to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up CPU isolation for the host CPU.
+This change should bring the virtualization host closer to the actual AWS system. The hosts threads are usually not mixed with the clients threads, although in a best effort setting, the physical CPU might be shared with another virtual instance. In the latter case, the considerations taken in the previous section might come again into place.
+
 A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus, we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
 
-First we need to install the \texttt{cpuset} utility.This can be done via:
+First of all we need to install the \texttt{cpuset} utility on the host system. This can be done via:
 
 \begin{verbatim}
 	apt-get install cpuset
 \end{verbatim}
 
-Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the pid of the running virtual host, the service and the pcd thread. Open a shell and change to root (or use sudo):
+Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monitor, and get the PID of the running virtual host, the service and the pcd thread. Open a shell and change to root (or use sudo):
 
 \begin{verbatim}
 	cset shield -c 0-2 -k on --shield &&
@@ -528,6 +544,7 @@ The virtual machine and all tasks depending on it are now moved to a separate co
 %\noindent \small \#6 \texttt{T: 0 ( 1962) P:99 I:1000 C: 100000 Min: 1 Act:  116 Avg: 6758 Max:  769945}\\
 
 With isolation, and still running a single real-time thread, the average delay is in some cases almost ten times the cycle time, causing the test duration to shift from planned 100 seconds to over 16 minutes. The values are very different and seem to vary based on the system load. 
+
 One reason could be that, even though CPU affinity is set as parameter in the test, load balancing is still active. The host does not see the internal affinity settings of the virtualized guest. He only sees some threads to be executed.
 Thus, the test-thread could be shifted in the host onto other vCPUs to keep the average workload balanced. This is the same case as before where the CFS tries to distribute running tasks equally among the available vCPUs.
 
@@ -567,9 +584,12 @@ Even though the threads of the virtual machine are confined on the tree vCPUs, t
 \noindent \small \#2 \texttt{T: 0 ( 1805) P:99 I:1000 C: 100000 Min: 0 Act: 3004 Avg: 1705 Max:  792388}\\
 \noindent \small \#3 \texttt{T: 0 ( 2096) P:99 I:1000 C: 100000 Min: 1 Act:   88 Avg: 6960 Max:  894669}\\
 
-As we can see from the results, the values between with and without load balancer did not change much.
+As we can see from the results, the values with and without load balancer did not change much.
+At the moment it is unclear why this happens. For now, let us continue with the tests.
+
 For now only the tasks, user or system, have been moved from their original CPU to vCPU 3. 
 Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. If our core serving the real-time thread has to serve the interrupt, the task has to wait.
+
 In this next test we will move all possible interrupts to the last core. This should reduce the waiting time for the real-time tasks to be fired.
 It is true that every system will always have some IRQ requests during run, but in this test we are trying ro reduce the effect of the hosts system interrupt to the virtualized tests.
 On average, a slight improvement of the measurements should be visible.
@@ -587,12 +607,14 @@ Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we
 \noindent \small \#2 \texttt{T: 0 ( 1625) P:99 I:1000 C: 100000 Min: 1 Act: 3294 Avg: 9001 Max:  933678}
 \noindent \small \#3 \texttt{T: 0 ( 1966) P:99 I:1000 C: 100000 Min: 0 Act: 5380 Avg: 6599 Max:  928789}
 
-Not expected, the values continue to move in the multiple range of the cycle-time. Other tests that now can be performed is to enforce the isolation even more. Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
+Not expected, the values continue to move in the range of multiples of the cycle-time. Other tests that now can be performed is to enforce the isolation even more. Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
 Now we will restart the cores (via the hotplug feature of the kernel) to force moving of tasks to the other cores. We will use the procedure described in \cite{lrt02}.
 
 Following the description two things where noticed: 1) it is not possible to hotplug the cpu0 and 2) disabling CPU1 disables also CPU2 and CPU3.
-While the former may be a convention in order to avoid disabling all CPUs, sometimes based on hardware \cite{lwn01}, the latter is an actual misbehavior. When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function, i.e. except 0 and 1, work properly. Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU3. This requires further investigation and is detailed in the next subsection.
-
+While the former may be a convention in order to avoid disabling all CPUs, sometimes based on hardware \cite{lwn01}, the latter is an actual misbehavior. 
+When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function work properly. 
+Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. 
+The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU3. This requires further investigation and is detailed in the next subsection.
 
 \subsection{Problem isolation and repeating}
 \label{sec:isol}
@@ -601,7 +623,7 @@ While the former may be a convention in order to avoid disabling all CPUs, somet
 
 Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
 
-If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second CPU. As a test, if we try to pin the thread to the last CPU with all the interrupts, we get the following results:
+If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU with all the interrupts, we get the following results:
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
@@ -622,9 +644,10 @@ The following must be included before compiling again the files in the rt-test r
 Now if we verify with \texttt{cat /proc/xenomai/sched/threads}, we will see \texttt{cyclictest} listed as real-time application running in the cobalt scheduler.
 Naturally, now all the tests have to be repeated with the recompiled file.
 
+%TODO: what's this?
 \noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
 
-To confirm our results, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and does not need additional parameters.
+To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and does not need additional parameters.
 
 %TODO: repeat latency with power and performance settings
 \begin{table}[h]
@@ -637,6 +660,8 @@ To confirm our results, we use another tool called \texttt{latency}, part of the
 	\caption{Running resutls with latency as output by the tool}
 	\label{tab:latency}
 \end{table}
+
+
 
 \subsubsection{Conclusions - isolation Host}
 \label{sec:conciso}
@@ -690,36 +715,17 @@ Now, in addition the load balancer and irq affinity will be set to see if the pe
 
 When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
 
-%\subsubsection{Cpu-isolation guest, test multiple}
-%
-%Test with multiple threads and cpu isolation active on guest, irq affinity and balancer normal
-%
-%\noindent Command : \textit{cyclictest -t2 -n -m -p 99 -l 100000}
-%
-%\noindent Results :
-%
-%\noindent  
-%\small \texttt{T: 0 ( 1711) P:99 I:1000 C:  34925 Min:      2 Act: 2605 Avg:  932 Max:    9958}\\
-%\noindent
-%\small \texttt{T: 1 ( 1712) P:99 I:1500 C:  26368 Min:      1 Act: 2121 Avg: 1059 Max:   10389}
-%
-%It seems that cpu isolation of any kind on the guest has no bigger impact on the real-time performance.
-%
-%\subsubsection{Counter-proof isolation Host}
-%
-%If we now try to remove the shield on the host operating system, exposing the vm again to normal CFS task scheduling, the values go up to the sky again. The results are equal to the first testing example of this section.
-
 \subsection{Full dynamic ticks}
 
 %TODO: rewrite
 A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. The use of POSIX timers is also not allowed, directly or indirectly, which means that no kernel calls that require such timers, i.e. network access, and many others. Thus keeping the kernel calls at a minimum at the application itself increases the probability that a full dynamic tick system is achieved.
-Second, the application must utilize the CPU partitioning, with e.g. \texttt{cset} done in previous section After this, the shell command \texttt{taskset} can be used to bind the task to a specific CPU (task affinity) in the RT partition.
+Second, the application must utilize the CPU partitioning, with e.g. \texttt{cset} done in previous section. After this, the shell command \texttt{taskset} can be used to bind the task to a specific CPU (task affinity) in the RT partition.
 
 But just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, discarded.
 
 \subsection{Tests Balena container}
 
-Studying the Balena/Docker manual it was possible to identify the parameters to use in order to run the daemon with real-time capabilities. The parameter \texttt{--cpu-rt-runtime=<value>} enables the RT-sheduler for the daemon, set it to \texttt{-1} for no limit. In additon, for each RT-container \texttt{--cap-add=sys\_nice} must be set, while \texttt{--cpu-rt-runtime=<value>} and \texttt{--ulimit rtprio=<value>} can be used to limit runtime and priority for each container respectively.
+Studying the Balena/Docker manual it was possible to identify the parameters to use in order to run the daemon with real-time capabilities. The parameter \texttt{--cpu-rt-runtime=<value>} enables the RT-sheduler for the daemon, set it to \texttt{-1} for no limit. In additon, for each RT-container \texttt{--cap-add=sys\_nice} must be set, while \texttt{--cpu-rt-runtime=<value>} and \texttt{--ulimit rtprio=<value>} can be used to limit run-time and priority for each container respectively.
 More info at \cite{docker06}
 
 By default, the daemon listens to the sock file only. To change this, and thus allow external access, we can specify the connecting interface where to listen to with \texttt{-H}. By default a virtual host has an IP address of \texttt{10.0.2.15}. To enable the debug mode, we can add the \texttt{-D} flag.
@@ -730,7 +736,7 @@ To start the daemon in real-time mode thus we use:
 	balenad -H 0.0.0.0:2375 -H 10.0.2.15:2375 --cpu-rt-runtime=-1
 \end{verbatim}
 
-where 0.0.0.0:2375 stands for the default sock connection. Before we can connect from outside we have to add the usual port forward to the client ip 10.0.2.15 and port 2375 on both sides.
+where 0.0.0.0:2375 stands for the default sock connection. Before we can connect from outside we have to add the usual port forward to the client IP 10.0.2.15 and port 2375 on both sides.
 
 We can now run a test container with the real-time test program using the container setup in test-cont folder. The container has been setup creating a standard Dockerfile and a \texttt{docker-compose} file where the needed parameters are set. To upload the container do the machine, change into the container folder and type:
 
@@ -740,16 +746,20 @@ We can now run a test container with the real-time test program using the contai
 
 \textit{docker-compose} will now take care of downloading, building and running the image on the host.
 
-\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers. The parameters can either be changed via docker-compose file, the Docker command line or the standard cgroup virtual file system. An example of a runtime change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}. The parameters of a child can not exceed the value of a parent. \textbf{Warning}, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \cite{kernel01}.
+\textit{docker-compose} foresees to specify a parent cgroup for each container. This means that we can group containers into resource blocks and then assign CPU, memory nodes and RT-runtime for each set of containers.
+The parameters can either be changed via docker-compose file, the Docker command line or the standard cgroup virtual file system. An example of a run-time change for the main container root is the virtual file \texttt{/sys/fs/cgroup/cpu,cpuacct/docker/cpu.rt\_runtime\_us}.
+The parameters of a child can not exceed the value of a parent. \textbf{Warning}, misconfiguration can severely destabilize a system. Generic information about real-time group scheduling can be found at \cite{kernel01}.
 
 \section{Final considerations, Meeting decisions and updated remarks}
 
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
+The test results, even if not as good as expected, showed that a real-time application with the given constraints might also be able to run with determinism in a virtualized host.
+ 
 During my last investigation on cgroups and how they might be used in Docker/Balena, I bumped into a file that mentions for the first time now an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
-Following the description I found then in an other mentioned file,
+Following the description I found then in another mentioned file,
 \cite{kernel02}, the actual discussion on a patch release, going to be implemented on a mainline kernel version. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
-Finally, in the repository of the chrt standard scheduling tools \cite{schtools01} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
+Finally, in the repository of the \texttt{chrt} standard scheduling tools \cite{schtools01} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
 By further investigating on kernel source files on Kernel.org, reading through sources, I found links to documents \cite{wiki01} which stated that the completeness of the EDF is only recent.
 It might be one of the reasons for the release delay of the updated tools.
 \bigskip
@@ -757,23 +767,29 @@ It might be one of the reasons for the release delay of the updated tools.
 ``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm. The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
 \bigskip
 
-In addition, the source code gave insight into an other work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all this suggests that the scheduler development is ongoing. It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
+In addition, the source code gave insight into another work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all, this suggests that the scheduler development is ongoing.
+It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
 
-During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS cpu scheduler \cite{xen01}, more recent virtual instance like the C5 use a new Hypervisor based on KVM \cite{amazon01} 
-This new Hypervisor will allow direct assignment and control of hardware and resources.
-This means, in short, that there is no need to use bare metal server instead. The new instances promise the same performance with greater flexibility and scalability.
+During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01} 
+This new hypervisor will allow direct assignment and control of hardware and resources.
+This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
 
-In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers. The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of the final operators. In sight of the findings about the latest Hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and in addition a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
+In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers.
+The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of the final operators.
+In sight of the findings about the latest hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
 
 \section{Concluding steps}
 
 {\small\textsc{Clean system setup \& test repeat, 08/08 - 10/08/18} \bigskip}
 
-In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed. The latest kernel has been used (4.18-rc) and patched with the PREEMPT-RT patch to verify the updated capabilities. All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option, including the latest ``completed'' EDF schedule option.
+In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 LTS has been performed. The latest kernel has been used (4.18-rc) and patched with the PREEMPT-RT patch to verify the updated capabilities. 
+All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option, including the latest ``completed'' EDF schedule option.
 
-As a concluding work, a test script (exec.sh) has been created to automate all the test steps performed in Section \ref{sec:virtsust}. The script is in the sub-folder \texttt{test-monitor} of the project repository \cite{gitrepo} and has to be run with root privileges. In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for realt-time tasks. The output files are stored in the repository and can be consulted for further studying.
+As a concluding work, a test script (exec.sh) has been created to automate all the test steps performed in Section \ref{sec:virtsust}. The script is in the sub-folder \texttt{test-monitor} of the project repository \cite{gitrepo} and has to be run with root privileges.
+In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for realt-time tasks. The output files are stored in the repository and can be consulted for further studying.
 
-Before the script can be run, a few pre-configuration steps have to be done. The commands are sent via SSH, thus an automatic authentication has to be setup. In addition, the user running the remote commands must have the privileges to create real-time tasks. To keep things simple, in our test setup we will execute everything as root. If you need to test in production, change the script to different or parametrized authentication.
+Before the script can be run, a few pre-configuration steps have to be done. The commands are sent via SSH, thus an automatic authentication has to be setup. In addition, the user running the remote commands must have the privileges to create real-time tasks.
+To keep things simple, in our test setup we will execute everything as root. If you need to test in production, change the script to different or parameterized authentication.
 
 \begin{itemize}
 	\item on the virtual guest, set a root password, \texttt{sudo passwd root}
@@ -790,6 +806,11 @@ Now the script can be run. The parameters to be passed are host, port and virtua
 
 {\small\textsc{Report clean-up, future work discussions, 11/08 - 28/08/18} \bigskip}
 
+For the following weeks more tests could give insight in additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would also add some details to the result set.
+On the software side, some tests still to be performed are latency values using the newest releases. A discussed variant is also to patch the host's kernel for hard-real-time operation.
+The new setup should use a native KVM hypervisor to allow also vCPU thread pinning. The new tests should give insight to the described phenomenon where the last vCPU always gives better results than the others.
+All the tests will be performed with scripts and data recording. The results might then be elaborated for further studying and/or publication.
+Finally, a dummy application run in a set of containers should give insight into the scheduling behavior once an application runs in a container.
 
 \section{Meetings}
 \label{sec:meeting}
