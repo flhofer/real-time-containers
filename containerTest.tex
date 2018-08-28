@@ -52,7 +52,8 @@ During my three weeks of stay, a weekly team meeting is planned (see Section \re
 %TODO: add more introduction description
 
 The target of this short visit is to explore the possibilities for moving real-time applications into a virtualized context. In order to gain an insight in possibilities and limits of such an approach, a set of operating systems as well as system modifications are tried.
-The resulting configurations are then tested to verify their suitability to run a real-time capable containerization environment. If successful, this will allow a redistribution of applications onto a lower amount of resources. Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while keeping the run-time determinism.
+The resulting configurations are then tested to verify their suitability to run a real-time capable containerization environment. If successful, this will allow a redistribution of applications onto a lower amount of resources. 
+Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while keeping the run-time determinism.
 
 \begin{figure}
 	\centering
@@ -392,7 +393,7 @@ The run of the script confirms that the Xenomai version of the image, after all 
 \label{sec:virtsust}
 {\small\textsc{Test-run Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment.
+In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment. According to Siemens, the target application will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
 
 During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API. Thus, the use and parameters for compose, namely \texttt{docker-compose}, is available to run also on a Balena based system.
 \texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers remotely using a single Json file, a welcome feature for our project.
@@ -457,8 +458,8 @@ Tests will be repeated to confirm values also in different situations.
 
 First of all, let us get some base measurements. The testing host is a dual core, 4 thread, sixth generation i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
 and started without any further change. 
-Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery. Thus, in order to have all threads running, plug-in the power chord before continuing. %TODO: find reference! Dell ?? 
-In addition, in many cases the \textit{cpu-governor} controls the bus frequency even if plugged in. Change the governor settings running the following as root. 
+Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery (a power management setting). Thus, in order to have all threads running, plug-in the power chord before continuing.
+In addition, in many cases the \textit{cpu-governor} controls the bus frequency even if plugged in. Thus, we change the governor settings running the following as root. 
 
 \begin{verbatim}
 	cpupower frequency-set -g performance
