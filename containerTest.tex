@@ -49,8 +49,6 @@ During my three weeks of stay, a weekly team meeting is planned (see Section \re
 
 \subsection{Background}
 
-%TODO: add more introduction description
-
 The target of this short visit is to explore the possibilities for moving real-time applications into a virtualized context. In order to gain an insight in possibilities and limits of such an approach, a set of operating systems as well as system modifications are tried.
 The resulting configurations are then tested to verify their suitability to run a real-time capable containerization environment. If successful, this will allow a redistribution of applications onto a lower amount of resources. 
 Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while keeping the run-time determinism.
@@ -64,7 +62,7 @@ Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while
 
 It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic. To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
 
-LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
+LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user-friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
 
 \section{System Tests and variants}
 
@@ -624,13 +622,12 @@ The interrupt table gives us also some other information: almost all interrupts 
 
 Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
 
-If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU with all the interrupts, we get the following results:
-%TODO: high interrupt count
+If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU which has the highest interrupt count, we get the following results:
+\bigskip
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
 Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core. This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond.
-%TODO: this must be investigated
 
 Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
 
@@ -646,43 +643,42 @@ The following must be included before compiling again the files in the rt-test r
 Now if we verify with \texttt{cat /proc/xenomai/sched/threads}, we will see \texttt{cyclictest} listed as real-time application running in the cobalt scheduler.
 Naturally, now all the tests have to be repeated with the recompiled file.
 
-%TODO: what's this?
-\noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
+%what's this? Unknown origin
+%\noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
 
 To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and has to be run with the parameter \texttt{-p 1000} to set the period to 1ms.
 
-%TODO: fix table and description in text
 \begin{table}[h]
-	\caption{Running resutls with latency as output by the tool}
-	\begin{tabular}{l|r|r| r|r |r | r }
-		RTH&lat min&lat avg& lat max&-overrun& msw& runtime\\
+	\caption{Running results using the  latency tool. All latency values are in $\mu s$}
+	\begin{tabular}{l|r|r| r|r | r }
+		Description &lat. min&lat. avg& lat. max&overrun& runtime\\
 		\hline
 % One core, no other settings 
-		RTS&     -2.679&     10.937&  16748.829&   65932&     0&    00:15:12/00:15:12\\
+		1C 100$\mu s$ period&     -2.679&     10.937&  16748.829&   65932&    00:15:12/00:15:12\\
 % One core, no other settings, 1000us
-		RTS&     -1.389&    190.744&  13008.966&   10782&     0&    00:24:13/00:24:13\\
+		1C&     -1.389&    190.744&  13008.966&   10782&    00:24:13/00:24:13\\
 %two cores, 1000ms
-		RTS&     -4.194&  14028.789& 488841.139& 1100418&     0&    00:20:22/00:20:22\\
+		2C&     -4.194&  14028.789& 488841.139& 1100418&    00:20:22/00:20:22\\
 %two cores, 1000ms iso
-		RTS&      0.715&  17216.756& 495533.945& 1759521&     0&    00:31:30/00:31:30\\
+		2C iso&      0.715&  17216.756& 495533.945& 1759521&    00:31:30/00:31:30\\
 % two cores, 1000ms iso, no load balancer
-		RTS&      2.135&  19644.141& 239365.520&  901520&     0&    00:16:14/00:16:14\\
+		2C iso nlb&      2.135&  19644.141& 239365.520&  901520&   00:16:14/00:16:14\\
 % two cores, 1000ms, iso, noload, irq affinity
-		RTS&      0.716&  21618.794& 492396.514& 2114650&     0&    00:37:27/00:37:27\\
-% two cores, 1000ms, iso, noload, irq affinity, thread affinity to vcpu 1
-		RTS&      0.339&    174.257&   5064.610&    4476&     0&    00:14:44/00:14:44\\
-% two cores, 1000ms, iso, noload, thread affinity to vcpu 1
-		RTS&     -4.190&    219.501&   4843.218&    3899&     0&    00:14:35/00:14:35\\
-% two cores, 1000ms, iso, thread affinity to vcpu 1
-		RTS&     -1.627&    210.960&   7560.749&    1685&     0&    00:14:25/00:14:25\\
+		2C iso nlb irq&      0.716&  21618.794& 492396.514& 2114650&  00:37:27/00:37:27\\
 % two cores, 1000ms, no isolation, affinity vcpu 1
-		RTS&     -3.681&    212.699& 288657.832&    5882&     0&    00:19:17/00:19:17\\
+		2C aff&     -3.681&    212.699& 288657.832&    5882&   00:19:17/00:19:17\\
+% two cores, 1000ms, iso, thread affinity to vcpu 1
+		2C iso aff &     -1.627&    210.960&   7560.749&    1685&  00:14:25/00:14:25\\
+% two cores, 1000ms, iso, noload, thread affinity to vcpu 1
+		2C iso nlb aff &     -4.190&    219.501&   4843.218&    3899&    00:14:35/00:14:35\\
+% two cores, 1000ms, iso, noload, irq affinity, thread affinity to vcpu 1
+		2C iso nlb irq aff&      0.339&    174.257&   5064.610&    4476&   00:14:44/00:14:44\\
 
 	\end{tabular}
 	\label{tab:latency}
 \end{table}
 
-
+The description in Table \ref{tab:latency} indicates the number of vCPUS (C), if CPU shield was active (iso), no load balancer set (nlb), IRQ affinity re-configured (irq) or cpu execution affinity to the last vCPU was set (aff).
 
 \subsubsection{Conclusions - isolation Host}
 \label{sec:conciso}
@@ -692,6 +688,10 @@ One main reason could be that one of the vCPUs is not actually a separate core b
 Thus, it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks. In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads representing a vCPU to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the standard VirtualBox Hypervisor. 
 
 The virtual machine in our example uses KVM paravirualizzation, a hypervisor supporting vCPU pinning. It might be thus possible to reconfigure the hypervisor by ovveriding VirtualBox to allow the thread pinning and avoid the CFS scheduler of the hypervisor to shuffle the vCPU threads. In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
+
+The results of the \texttt{latency} tool are very similar to the initial tests performed with \texttt{cyclictest}. With average values in the range of ten milliseconds and peaks up-to one second, the values are not yet good enough. 
+Anyway, considering the test setup and constraints, and considering the application requirements, we can safely state that running applications with a 90ms admissible latency \textbf{is} possible. The load tests did show peak values under 30ms, a third of the maximum allowance. 
+Thus, what is now to improve is the idle response time of the visualized instance. How much improvement is actually possible and what the various options will be matter of future work.
 
 For the sake of completion, the tests will be continued using the same concepts of isolation also for the guest. It should help to predict the behavior of the cloud machine.
 
@@ -713,18 +713,15 @@ We now try to set-up the same isolation concept also for the virtual guest. The 
 \noindent Results with CPU-isolation guest, no load balancer \& IRQ affinity set on host:
 
 \noindent \#1 \small \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min: 0 Act: 3037 Avg: 1913 Max:  201188}\\
-T: 0 ( 2467) P:99 I:1000 C: 100000 Min:      0 Act: 4018 Avg: 1032 Max:   10262
+\noindent \#2 \small \texttt{T: 0 ( 2467) P:99 I:1000 C: 100000 Min:      0 Act: 4018 Avg: 1032 Max:   10262}\\
+\noindent \#3 \small \texttt{T: 0 ( 1832) P:99 I:1000 C: 100000 Min:      0 Act: 3413 Avg:  222 Max:  201796}\\
+\noindent \#4 \small \texttt{T: 0 ( 1835) P:99 I:1000 C: 100000 Min:      8 Act:  836 Avg:11725 Max:  718944}\\
+\noindent \#5 \small \texttt{T: 0 ( 1869) P:99 I:1000 C: 100000 Min:      5 Act:   39 Avg:  222 Max:  199000}\\
+\noindent \#6 \small \texttt{T: 0 ( 2243) P:99 I:1000 C: 100000 Min:      0 Act:   23 Avg:  158 Max:  200210}\\
+\noindent \#7 \small \texttt{T: 0 ( 2246) P:99 I:1000 C: 100000 Min:      8 Act:   32 Avg:12487 Max:  674647}\\
+\noindent \#8 \small \texttt{T: 0 ( 2257) P:99 I:1000 C: 100000 Min:      8 Act:10152 Avg:11605 Max:  765366}\\
 
-T: 0 ( 1832) P:99 I:1000 C: 100000 Min:      0 Act: 3413 Avg:  222 Max:  201796
-T: 0 ( 1835) P:99 I:1000 C: 100000 Min:      8 Act:  836 Avg:11725 Max:  718944
-T: 0 ( 1869) P:99 I:1000 C: 100000 Min:      5 Act:   39 Avg:  222 Max:  199000
----
-T: 0 ( 2243) P:99 I:1000 C: 100000 Min:      0 Act:   23 Avg:  158 Max:  200210
-T: 0 ( 2246) P:99 I:1000 C: 100000 Min:      8 Act:   32 Avg:12487 Max:  674647
-T: 0 ( 2257) P:99 I:1000 C: 100000 Min:      8 Act:10152 Avg:11605 Max:  765366
-
-
-%\subsubsection{Cpu-isolation guest, host back to simple isolation}
+In the results we can actually notice when the task is running on the last vCPU (chosen by the sheduler in round robin) or not. The tests with averages under one millisecond have actually been found to run again on the last vCPU present. 
 
 After we put load balance and IRQ affinity settings of the host back to normal, keeping cpu isolation we get the following results:
 
@@ -732,34 +729,28 @@ After we put load balance and IRQ affinity settings of the host back to normal, 
 
 \noindent Results with CPU-isolation guest, load balancer and IRQ back in place for host:
 
-\noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
-
-T: 0 ( 1912) P:99 I:1000 C: 100000 Min:      8 Act: 1898 Avg:14618 Max:  838961
-T: 0 ( 1924) P:99 I:1000 C: 100000 Min:      8 Act: 9826 Avg:14524 Max:  847310
-T: 0 ( 1934) P:99 I:1000 C: 100000 Min:      8 Act: 9569 Avg:14566 Max:  844467
-
-%\subsubsection{Cpu-isolation guest, set IRQ affinity \& no load balancer for RT}
+\noindent \#1 \small \texttt{T: 0 ( 1912) P:99 I:1000 C: 100000 Min:      8 Act: 1898 Avg:14618 Max:  838961}\\
+\noindent \#2 \small \texttt{T: 0 ( 1924) P:99 I:1000 C: 100000 Min:      8 Act: 9826 Avg:14524 Max:  847310}\\
+\noindent \#3 \small \texttt{T: 0 ( 1934) P:99 I:1000 C: 100000 Min:      8 Act: 9569 Avg:14566 Max:  844467}
 
 Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
 \bigskip
 
 \noindent Results :
 
-\noindent \small \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
+\noindent \#1 \small \texttt{T: 0 ( 1974) P:99 I:1000 C: 100000 Min:      8 Act: 9565 Avg:15748 Max:  858912}\\
+\noindent \#2 \small \texttt{T: 0 ( 1979) P:99 I:1000 C: 100000 Min:      8 Act: 9638 Avg:13784 Max:  826807}\\
+\noindent \#3 \small \texttt{T: 0 ( 2047) P:99 I:1000 C: 100000 Min:      5 Act:39152 Avg:13109 Max:  845584}\\
 
-T: 0 ( 1974) P:99 I:1000 C: 100000 Min:      8 Act: 9565 Avg:15748 Max:  858912
-T: 0 ( 1979) P:99 I:1000 C: 100000 Min:      8 Act: 9638 Avg:13784 Max:  826807
-T: 0 ( 2047) P:99 I:1000 C: 100000 Min:      5 Act:39152 Avg:13109 Max:  845584
-
-When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
+When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact. Thus, for the moment the shielding and isolation of resources in the guest system will not be considered. 
+Anyway, some final tests with a dedicated server should be performed to confirm this conclusion.
 
 \subsection{Full dynamic ticks}
 
-%TODO: rewrite
 A thing not evaluated yet are full dynamic ticks (see \cite{lrt02}). To achieve full dynamic ticks on a CPU, there are some requirements on the application being run on this CPU. First of all, it must not run more than one thread on each CPU. The use of POSIX timers is also not allowed, directly or indirectly, which means that no kernel calls that require such timers, i.e. network access, and many others. Thus keeping the kernel calls at a minimum at the application itself increases the probability that a full dynamic tick system is achieved.
 Second, the application must utilize the CPU partitioning, with e.g. \texttt{cset} done in previous section. After this, the shell command \texttt{taskset} can be used to bind the task to a specific CPU (task affinity) in the RT partition.
 
-But just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, discarded.
+Anyway, by just by specifying ``more than one thread on each CPU'' we can exclude this approach upfront. We want to have more than one real-time application per CPU in order to save resources, thus, this configuration option is discarded.
 
 \subsection{Tests Balena container}
 
@@ -794,27 +785,29 @@ The parameters of a child can not exceed the value of a parent. \textbf{Warning}
 
 The test results, even if not as good as expected, showed that a real-time application with the given constraints might also be able to run with determinism in a virtualized host.
  
-During my last investigation on cgroups and how they might be used in Docker/Balena, I bumped into a file that mentions for the first time now an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
-Following the description I found then in another mentioned file,
-\cite{kernel02}, the actual discussion on a patch release, going to be implemented on a mainline kernel version. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
-Finally, in the repository of the \texttt{chrt} standard scheduling tools \cite{schtools01} it can be seen that the version of tools after (v2.28) the ones released with Ubuntu 16.04 (v2.27) contain the parameters for EDF scheduling.
-By further investigating on kernel source files on Kernel.org, reading through sources, I found links to documents \cite{wiki01} which stated that the completeness of the EDF is only recent.
-It might be one of the reasons for the release delay of the updated tools.
+During my last investigation on \texttt{cgroups} and how they might be used in Docker/Balena, I bumped into a file that mentions, for the first time, an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
+Following the description I found then in another text
+(\cite{kernel02}) a discussion on a patch release going to be implemented on a mainline kernel version soon. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
+By further investigating on kernel source files on Kernel.org, and reading through sources, I found links to documentation \cite{wiki01} which stated that the completeness of the EDF is only recent.
 \bigskip
 
 ``Since kernel 4.13, SCHED\_DEADLINE completed CBS with the Greedy Reclamation of Unused Bandwidth (GRUB) algorithm. The support has been developed by ReTiS Lab with the collaboration of Evidence Srl.''
 \bigskip
 
-In addition, the source code gave insight into another work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all, this suggests that the scheduler development is ongoing.
-It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
+Indeed, in the repository of the \texttt{chrt} standard scheduling tools \cite{schtools01} it can be seen that the version of tools starting from v2.28, version released with Ubuntu 16.04 is v2.27, permit input of  parameters for EDF scheduling.
+This ,the late completeness of the scheduling option might be one of the reasons for the total lack of documentation.
 
-During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
+In addition, the source code gave insight into another work in progress: the scheduling mode SCHED\_ISO. It is intended for fast interactive real-time tasks to be run for very short computation times. All in all, this suggests that the standard Linux scheduler  development is still ongoing.
+It would therefore be interesting to exchange information with, if not take part, the main scheduling development team of the Linux kernel.
+
+During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN, which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
 This new hypervisor will allow direct assignment and control of hardware and resources.
 This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
 
 In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers.
-The reason is that at the moment the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of the final operators.
-In sight of the findings about the latest hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system (possibly an EKS system). All further systems, where possible, will be operated in Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
+One of the reasons is that, at the moment, the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of operators.
+In sight of findings about the latest hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system.
+All further systems, where possible, will be running on Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
 
 \section{Concluding steps}
 
@@ -824,10 +817,13 @@ In the last days of the stay, a clean setup with the new Ubuntu Server 18.04.1 L
 All images, headers and resulting scripts have been uploaded to the repository \cite{gitrepo}. In additional test-runs it will be possible to compare the different configurations and choose the best option, including the latest ``completed'' EDF schedule option.
 
 As a concluding work, a test script (exec.sh) has been created to automate all the test steps performed in Section \ref{sec:virtsust}. The script is in the sub-folder \texttt{test-monitor} of the project repository \cite{gitrepo} and has to be run with root privileges.
-In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for realt-time tasks. The output files are stored in the repository and can be consulted for further studying.
+In addition to the details described in the section, a monitoring program is run to capture the host machine status. The running test command also will run as many testing threads as there are vCPUs available for real-time tasks. The output files are stored in the repository and can be consulted for further studying.
 
 Before the script can be run, a few pre-configuration steps have to be done. The commands are sent via SSH, thus an automatic authentication has to be setup. In addition, the user running the remote commands must have the privileges to create real-time tasks.
-To keep things simple, in our test setup we will execute everything as root. If you need to test in production, change the script to different or parameterized authentication.
+To keep things simple, in our test setup we will execute everything as root. If you need to test in production, change the script to a different or parameterized authentication.
+\bigskip
+
+Steps to be done before the script can be executed:
 
 \begin{itemize}
 	\item on the virtual guest, set a root password, \texttt{sudo passwd root}
@@ -844,11 +840,11 @@ Now the script can be run. The parameters to be passed are host, port and virtua
 
 {\small\textsc{Report clean-up, future work discussions, 11/08 - 28/08/18} \bigskip}
 
-For the following weeks more tests could give insight in additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would also add some details to the result set.
+For the following weeks more tests could clarify additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would enable to verify improvements through reduces cache misses.
+The new setup should use a native KVM hypervisor to allow also vCPU thread pinning. The new tests should shed light on the described phenomenon where the last vCPU always gives better results than the others.
 On the software side, some tests still to be performed are latency values using the newest releases. A discussed variant is also to patch the host's kernel for hard-real-time operation.
-The new setup should use a native KVM hypervisor to allow also vCPU thread pinning. The new tests should give insight to the described phenomenon where the last vCPU always gives better results than the others.
 All the tests will be performed with scripts and data recording. The results might then be elaborated for further studying and/or publication.
-Finally, a dummy application run in a set of containers should give insight into the scheduling behavior once an application runs in a container.
+Finally, a dummy application run in a set of containers will allow to study the scheduling behavior once an application runs in a container.
 
 \section{Meetings}
 \label{sec:meeting}
