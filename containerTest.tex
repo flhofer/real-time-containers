@@ -625,6 +625,7 @@ The interrupt table gives us also some other information: almost all interrupts 
 Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
 
 If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU with all the interrupts, we get the following results:
+%TODO: high interrupt count
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
@@ -648,17 +649,36 @@ Naturally, now all the tests have to be repeated with the recompiled file.
 %TODO: what's this?
 \noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
 
-To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and does not need additional parameters.
+To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and has to be run with the parameter \texttt{-p 1000} to set the period to 1ms.
 
-%TODO: repeat latency with power and performance settings
+%TODO: fix table and description in text
 \begin{table}[h]
-	\begin{tabular}{l|r|r| r|r |r | r }
-		RTH&----lat min&----lat avg&----lat max&-overrun&---msw&---runtime\\
-		\hline
-		RTS&    -80.324&  11964.511& 103763.409& 7113315&     0&    00:14:53/00:14:53\\
-		RTS&      0.047&  11784.684& 561911.144& 5838691&     0&    00:11:23/00:11:23\\
-	\end{tabular}
 	\caption{Running resutls with latency as output by the tool}
+	\begin{tabular}{l|r|r| r|r |r | r }
+		RTH&lat min&lat avg& lat max&-overrun& msw& runtime\\
+		\hline
+% One core, no other settings 
+		RTS&     -2.679&     10.937&  16748.829&   65932&     0&    00:15:12/00:15:12\\
+% One core, no other settings, 1000us
+		RTS&     -1.389&    190.744&  13008.966&   10782&     0&    00:24:13/00:24:13\\
+%two cores, 1000ms
+		RTS&     -4.194&  14028.789& 488841.139& 1100418&     0&    00:20:22/00:20:22\\
+%two cores, 1000ms iso
+		RTS&      0.715&  17216.756& 495533.945& 1759521&     0&    00:31:30/00:31:30\\
+% two cores, 1000ms iso, no load balancer
+		RTS&      2.135&  19644.141& 239365.520&  901520&     0&    00:16:14/00:16:14\\
+% two cores, 1000ms, iso, noload, irq affinity
+		RTS&      0.716&  21618.794& 492396.514& 2114650&     0&    00:37:27/00:37:27\\
+% two cores, 1000ms, iso, noload, irq affinity, thread affinity to vcpu 1
+		RTS&      0.339&    174.257&   5064.610&    4476&     0&    00:14:44/00:14:44\\
+% two cores, 1000ms, iso, noload, thread affinity to vcpu 1
+		RTS&     -4.190&    219.501&   4843.218&    3899&     0&    00:14:35/00:14:35\\
+% two cores, 1000ms, iso, thread affinity to vcpu 1
+		RTS&     -1.627&    210.960&   7560.749&    1685&     0&    00:14:25/00:14:25\\
+% two cores, 1000ms, no isolation, affinity vcpu 1
+		RTS&     -3.681&    212.699& 288657.832&    5882&     0&    00:19:17/00:19:17\\
+
+	\end{tabular}
 	\label{tab:latency}
 \end{table}
 
@@ -695,6 +715,15 @@ We now try to set-up the same isolation concept also for the virtual guest. The 
 \noindent \#1 \small \texttt{T: 0 ( 1664) P:99 I:1000 C: 100000 Min: 0 Act: 3037 Avg: 1913 Max:  201188}\\
 T: 0 ( 2467) P:99 I:1000 C: 100000 Min:      0 Act: 4018 Avg: 1032 Max:   10262
 
+T: 0 ( 1832) P:99 I:1000 C: 100000 Min:      0 Act: 3413 Avg:  222 Max:  201796
+T: 0 ( 1835) P:99 I:1000 C: 100000 Min:      8 Act:  836 Avg:11725 Max:  718944
+T: 0 ( 1869) P:99 I:1000 C: 100000 Min:      5 Act:   39 Avg:  222 Max:  199000
+---
+T: 0 ( 2243) P:99 I:1000 C: 100000 Min:      0 Act:   23 Avg:  158 Max:  200210
+T: 0 ( 2246) P:99 I:1000 C: 100000 Min:      8 Act:   32 Avg:12487 Max:  674647
+T: 0 ( 2257) P:99 I:1000 C: 100000 Min:      8 Act:10152 Avg:11605 Max:  765366
+
+
 %\subsubsection{Cpu-isolation guest, host back to simple isolation}
 
 After we put load balance and IRQ affinity settings of the host back to normal, keeping cpu isolation we get the following results:
@@ -705,6 +734,10 @@ After we put load balance and IRQ affinity settings of the host back to normal, 
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
+T: 0 ( 1912) P:99 I:1000 C: 100000 Min:      8 Act: 1898 Avg:14618 Max:  838961
+T: 0 ( 1924) P:99 I:1000 C: 100000 Min:      8 Act: 9826 Avg:14524 Max:  847310
+T: 0 ( 1934) P:99 I:1000 C: 100000 Min:      8 Act: 9569 Avg:14566 Max:  844467
+
 %\subsubsection{Cpu-isolation guest, set IRQ affinity \& no load balancer for RT}
 
 Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
@@ -713,6 +746,10 @@ Now, in addition the load balancer and irq affinity will be set to see if the pe
 \noindent Results :
 
 \noindent \small \texttt{T: 0 ( 1698) P:99 I:1000 C: 100000 Min:      0 Act:   62 Avg:  186 Max:    4850}
+
+T: 0 ( 1974) P:99 I:1000 C: 100000 Min:      8 Act: 9565 Avg:15748 Max:  858912
+T: 0 ( 1979) P:99 I:1000 C: 100000 Min:      8 Act: 9638 Avg:13784 Max:  826807
+T: 0 ( 2047) P:99 I:1000 C: 100000 Min:      5 Act:39152 Avg:13109 Max:  845584
 
 When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact.
 
@@ -771,7 +808,7 @@ It might be one of the reasons for the release delay of the updated tools.
 In addition, the source code gave insight into another work in progress, the scheduling mode SCHED\_ISO, thought for fast interactive task to be run for very short times and in real-time. All in all, this suggests that the scheduler development is ongoing.
 It would therefore be interesting to also exchange, if not take part, with the main scheduling development of the Linux kernel.
 
-During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01} 
+During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
 This new hypervisor will allow direct assignment and control of hardware and resources.
 This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
 
