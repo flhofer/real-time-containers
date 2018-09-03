@@ -390,8 +390,7 @@ It is unclear what this might mean. The init binary is intended to initialize a 
 If we refer to documentation it just seems a forgotten installation step.
 According to the Docker reference manual, \cite{docker03}, the init binary is obtained via \texttt{tini}, thus can be safely pulled from there. The git repository can be found at \cite{tini01}.
 
-Figure \ref{fig:balenad} 
-also other warnings can be found. In particular, we can identify two groups of warnings:
+Figure \ref{fig:balenad} shows also a number of further warnings. In particular, we can identify two groups of warnings:
 
 \begin{itemize}
 	\item \textit{WARN[0001] Your kernel does not support swap memory limit}
@@ -399,15 +398,15 @@ also other warnings can be found. In particular, we can identify two groups of w
 	\item \textit{WARN[0001] Your kernel does not support cgroup rt period} and \textit{WARN[0001] Your kernel does not support cgroup rt runtime} 
 \end{itemize}
 
-The former is due to the fact that memory swap support has not been enabled ad kernel built time. 
+The former is due to the fact that memory swap support has not been enabled at kernel built time. 
 The configuration setting to be enabled is \texttt{\#CONFIG\_MEMCG\_SWAP\_ENABLED}. As a temporary fix we can enable the settings at boot-time. 
 To do this we edit \texttt{/etc/default/grub} and set 
 \texttt{GRUB\_CMDLINE\_LINUX\_DEFAULT} to \texttt{"cgroup\_enable=memory swapaccount=1"}
 
-The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control the single containers' maximum CPU execution slice, see \cite{docker04}. 
+The latter of the two warning groups is also due to a configuration setting of the kernel. They concern the real-time run-time control of single cgroups. This is a feature which is needed/used in containers when we want to control a containers' maximum CPU execution slice, see \cite{docker04}. 
 In fact, if we try to set some real-time settings on our running Balena instance we get the following error message: \textit{balena: Error response from daemon: Your kernel does not support cgroup cpu real-time runtime.}.
 The required setting can be enabled at kernel compilation time via the \texttt{CONFIG\_RT\_CGROUP} flag. 
-
+%
 Unfortunately the flag can not be enabled for the PREEMPT\_RT version of the virtual machine. Due to some temporary compatibility constraints, the simultaneous operation of the \texttt{CONFIG\_PREEMPT\_FULL} flag, necessary for the ability of full kernel preemption, and the CGroup flag has been disabled. Details can be found at \cite{lfnd01}.
 
 Finally, I found a script that could do the verification for you. If you would like to test your system for parameter and capability compliance, the Docker community has developed a configuration testing script. The test can be run via these inputs:
@@ -424,7 +423,11 @@ The run of the script confirms that the Xenomai version of the image, after all 
 \label{sec:virtsust}
 {\small\textsc{Test-run Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment. According to Siemens, the target application will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
+In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. 
+The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. 
+This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. 
+The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment. 
+According to Siemens, the target application will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
 
 During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API. Thus, the use and parameters for compose, namely \texttt{docker-compose}, is available to run also on a Balena based system.
 \texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers remotely using a single Json file, a welcome feature for our project.
@@ -444,18 +447,12 @@ On Debian systems this can be done simply via
 
 During these tests, the virtual machine is set to 3 CPUs, and the CPU affinity of the task on the host is set to 7 (CPU 0,1,2). This will allow to avoid task switching and further separate RT tasks (CPU 0-1) from nRT tasks (CPU 2) inside the virtual machine
 In the settings of the virtual machine we set the CPUs to three, and we start the virtual machine.  
-%An easy way to confine the VirtualBox threads to CPUs is using affinity.
-%Open a process monitor, e.g. the system monitor, and get the PID of the running virtual host. Open a console and use the following command-line (\cite{vbox01}):
-%
-%\begin{verbatim}
-%	taskset -p 7 <read-pid>
-%\end{verbatim} 
-%
-%The virtual machine is now running confined to CPUs 1, 2 and 3.
 
 \subsection{CPU isolation and partitioning tests}
 
-Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. During the test, we will use two versions, one with system load and one without. The \texttt{-q} flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. The goal of this test is to find a configuration that permits a very low average latency and thus relatively the best performance in a vitualized environment.
+Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. 
+During the test, we will use two versions, one with system load and one without. The \texttt{-q} flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. 
+The goal of this test is to find a configuration that permits a very low average latency and thus relatively the best performance in a vitualized environment.
 
 \begin{verbatim}
 	#Test without load
@@ -517,21 +514,24 @@ We begin thus with the first two tests:
 
 \bigskip
 
-The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. 
+The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand, the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. 
 The low load allows the scheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs.
 This movement of tasks causes registers to flush and L1-L2 caches will have to be refilled from L3. 
 All this introduces latency which is visible in the average and peak values.
-The guest under stress does not allow very much free CPU-time for the physical CPUs. Thus, the host treads are mostly run on the CPU thread not busy running the virtual machine. This prevents shifting of threads to other CPUs and the connected latency. As a consequence, even though the load on the system is higher, the overall performance is better. 
+The guest under stress does not allow very much free CPU-time on the physical CPUs. Thus, the host treads are mostly run on the CPU thread not busy running the virtual machine. 
+This prevents shifting of threads to other CPUs and the resulting added latency. As a consequence, even though the load on the system is higher, the overall performance is better. 
 
-A conclusion that might be drawn from this is that, if the virtual guest in the could is run on shared physical CPUs, a similar scenario might occur. The standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
-Therefore, in such case, either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system is added with stress, like in this test, to force the host scheduler into a more predicable behavior. 
+A conclusion that might be drawn from this is that, if the virtual guest in the could is run on shared physical CPUs, a similar scenario might occur. 
+The standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
+Therefore, in such case, either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system might require some added stress, like in this test, to force the host scheduler into a more predicable behavior. 
 
 \subsubsection{Working with host CPU isolation}
 
-CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. It is a technique that might be used in combination with previous systems in order to increase the real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
-
+CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. 
+It is a technique that might be used in combination with previous systems in order to increase their real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 Thus, in order to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up CPU isolation for the host CPU.
-This change should bring the virtualization host closer to the actual AWS system. The hosts threads are usually not mixed with the clients threads, although in a best effort setting, the physical CPU might be shared with another virtual instance. In the latter case, the considerations taken in the previous section might come again into place.
+This change should bring the virtualization host closer to the actual AWS system. The hosts threads are usually not mixed with the clients threads, although in a best effort setting the physical CPU might be shared with another virtual instance.
+In the latter case, the considerations taken in the previous section might become useful again.
 
 A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus, we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
 
@@ -548,7 +548,8 @@ Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monito
 	cset shield --shield --threads --pid <read-pid,read-pid>
 \end{verbatim}
 
-The virtual machine and all tasks depending on it are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
+The virtual machine and all tasks depending on it are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. 
+All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
 
 \begin{figure}[t]
 	\centering
@@ -639,13 +640,17 @@ Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we
 \noindent \small \#2 \texttt{T: 0 ( 1625) P:99 I:1000 C: 100000 Min: 1 Act: 3294 Avg: 9001 Max:  933678}
 \noindent \small \#3 \texttt{T: 0 ( 1966) P:99 I:1000 C: 100000 Min: 0 Act: 5380 Avg: 6599 Max:  928789}
 
-Not expected, the values continue to move in the range of multiples of the cycle-time. Other tests that now can be performed is to enforce the isolation even more. Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
+Unexpectedly, the values continue to move in the range of multiples of the cycle-time. 
+Other tests that now can be performed is to enforce the isolation even more. 
+Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
 Now we will restart the cores (via the hotplug feature of the kernel) to force moving of tasks to the other cores. We will use the procedure described in \cite{lrt02}.
 
 Following the description two things where noticed: 1) it is not possible to hotplug the cpu0 and 2) disabling CPU1 disables also CPU2 and CPU3.
 While the former may be a convention in order to avoid disabling all CPUs, sometimes based on hardware \cite{lwn01}, the latter is an actual misbehavior. 
 When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function work properly. 
 Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. 
+
+%TODO: eh? why 3?
 The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU3. This requires further investigation and is detailed in the next subsection.
 
 \subsection{Problem isolation and repeating}
@@ -655,14 +660,20 @@ The interrupt table gives us also some other information: almost all interrupts 
 
 Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
 
-If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU which has the highest interrupt count, we get the following results:
+If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU which has the highest interrupt count, we get the following results: (Task pinning has been performed with \texttt{taskset -p 8 <pid-no>})
+
 \bigskip
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core. This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond.
 
-Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
+Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core.
+This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. 
+Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond.
+%TODO: this here is open ended...
+
+Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. 
+Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
 
 The following must be included before compiling again the files in the rt-test repository: in line 5 of the \textit{Makefile} add
 
