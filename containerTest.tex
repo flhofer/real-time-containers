@@ -650,30 +650,29 @@ While the former may be a convention in order to avoid disabling all CPUs, somet
 When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function work properly. 
 Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. 
 
-%TODO: eh? why 3?
-The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU3. This requires further investigation and is detailed in the next subsection.
+The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU2. This requires further investigation and is detailed in the next subsection.
 
 \subsection{Problem isolation and repeating}
 \label{sec:isol}
 
 {\small\textsc{Unplanned review of results, 11/08 - 12/08/18} \bigskip}
 
-Investigating the IRQ allocation in the Xenomai 3 version of the image, and comparing it to a standard image, the allocation is completely different. This could explain the unexpected test results.
+Investigating the IRQ allocation in the Xenomai 3 version of the virtual machine, and comparing it to a standard machine, the allocation is completely different. This could explain the unexpected test results.
 
-If we consider that a single test thread is run, and by default will get a CPU affinity to the first task (flag -a), the thread will never run on the second vCPU. As a test, if we try to pin the thread to the last CPU which has the highest interrupt count, we get the following results: (Task pinning has been performed with \texttt{taskset -p 8 <pid-no>})
+If we consider a single test thread that is run manually multiple times,on average only one out of three threads will run on the same vCPU.
+As a test, if we try to pin the thread to the last CPU, the one which has the highest interrupt count, we get the following results: (Task pinning has been performed with \texttt{taskset -p 8 <pid-no>})
 
 \bigskip
 
 \noindent \small \texttt{T: 0 ( 1695) P:99 I:1000 C: 100000 Min:      0 Act:   73 Avg:  148 Max:    4773}
 
-
 Interestingly, if we now deploy a thread on each CPU, including the last one, we get a very close result, but still worse than the thread on the last core.
 This is reproduce-able also by changing the number of CPUs and the vCPUs assigned to the virtual machine. 
-Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond.
-%TODO: this here is open ended...
+Only if we include the last one, or we pin on the last vCPU, we get an average performance under one millisecond. This phenomenon needs further investigation.
 
 Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. 
-Thus, this means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included. Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
+This means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included.
+Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
 
 The following must be included before compiling again the files in the rt-test repository: in line 5 of the \textit{Makefile} add
 
@@ -684,13 +683,14 @@ The following must be included before compiling again the files in the rt-test r
 	CC := $(shell $(XENO_CONFIG) --cc)
 \end{verbatim}
 
-Now if we verify with \texttt{cat /proc/xenomai/sched/threads}, we will see \texttt{cyclictest} listed as real-time application running in the cobalt scheduler.
+If we run a test and verify the scheduled tasks with \texttt{cat /proc/xenomai/sched/threads}, we will see \texttt{cyclictest} listed as real-time application running in the cobalt scheduler.
 Naturally, now all the tests have to be repeated with the recompiled file.
 
 %what's this? Unknown origin
 %\noindent \small \texttt{T: 0 ( 2615) P:99 I:1000 C: 100000 Min: 1 Act: 9296 Avg: 5138 Max:  7097944}
 
-To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and has to be run with the parameter \texttt{-p 1000} to set the period to 1ms.
+To confirm our conclusions, we use another tool called \texttt{latency}, part of the Xenomai library suite. First we perform a free-run test, then a test without load balancer on the host, and finally we move the IRQ affinity to the host-only CPU the same way described before. 
+The results are displayed in table \ref{tab:latency}. The tool can be found in \texttt{/usr/xenomai/bin} and has to be run with the parameter \texttt{-p 1000} to set the period to 1ms (value of cyclictest).
 
 \begin{table}[h]
 	\caption{Running results using the  latency tool. All latency values are in $\mu s$}
@@ -698,7 +698,7 @@ To confirm our conclusions, we use another tool called \texttt{latency}, part of
 		Description &lat. min&lat. avg& lat. max&overrun& runtime\\
 		\hline
 % One core, no other settings 
-		1C 100$\mu s$ period&     -2.679&     10.937&  16748.829&   65932&    00:15:12/00:15:12\\
+%		1C 100$\mu s$ period&     -2.679&     10.937&  16748.829&   65932&    00:15:12/00:15:12\\
 % One core, no other settings, 1000us
 		1C&     -1.389&    190.744&  13008.966&   10782&    00:24:13/00:24:13\\
 %two cores, 1000ms
@@ -727,11 +727,14 @@ The description in Table \ref{tab:latency} indicates the number of vCPUS (C), if
 \subsubsection{Conclusions - isolation Host}
 \label{sec:conciso}
 
-We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. The results of the reaction times are varying with unclear reasons. 
+We have seen in this first validation results that a VirtualBox task can be pinned to a certain CPU-set. Anyway, the results of the reaction times are varying with unclear reasons. 
 One main reason could be that one of the vCPUs is not actually a separate core but only one of the two threads of the Hyper-threading instance of one physical core. 
-Thus, it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks. In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads representing a vCPU to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the standard VirtualBox Hypervisor. 
+Thus, it is possible that the increase in the max latency is due to the interrupt overload on the shared physical CPU, influencing thus directly the maximum performance and average latency of the real-time tasks.
+In addition, as discussed in the VirtualBox Forum \url{https://forums.virtualbox.org/viewtopic.php?f=7&t=82721}, it is not possible to pin the single threads representing a vCPU to a physical CPU, even if shielded. It seems to be a situation isolated to the implementation of the standard VirtualBox hypervisor. 
 
-The virtual machine in our example uses KVM paravirualizzation, a hypervisor supporting vCPU pinning. It might be thus possible to reconfigure the hypervisor by ovveriding VirtualBox to allow the thread pinning and avoid the CFS scheduler of the hypervisor to shuffle the vCPU threads. In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
+The virtual machine in our example uses KVM paravirualizzation, the default setting for Linux in VirtualBox. 
+KVM is a hypervisor which is actually supporting vCPU pinning. It might be thus possible to reconfigure the hypervisor by ovveriding VirtualBox settings to  finally allow the thread pinning and avoid the CFS scheduler of the hypervisor to shuffle the vCPU threads.
+In any case, further tests with hypervisors such as native KVM supporting this feature is advised.
 
 The results of the \texttt{latency} tool are very similar to the initial tests performed with \texttt{cyclictest}. With average values in the range of ten milliseconds and peaks up-to one second, the values are not yet good enough. 
 Anyway, considering the test setup and constraints, and considering the application requirements, we can safely state that running applications with a 90ms admissible latency \textbf{is} possible. The load tests did show peak values under 30ms, a third of the maximum allowance. 
@@ -741,7 +744,9 @@ For the sake of completion, the tests will be continued using the same concepts 
 
 \subsubsection{Working with guest CPU isolation}
 
-We now try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT) groups. We will use one full physical core, 2 vCPUs, for RT and one virtualization thread, or one vCPU, for the nRT tasks such as standard operating system tasks. This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} must be performed like in the host case. We now shield and start the RT task in a isolated CPU group.
+We now try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT) groups. 
+We will use one full physical core, 2 vCPUs, for RT and one virtualization thread, or one vCPU, for the nRT tasks such as standard operating system tasks. 
+This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} is required like in the host case. We now shield and start the RT task in a isolated CPU group. 
 
 \noindent Command : 
 
@@ -749,9 +754,11 @@ We now try to set-up the same isolation concept also for the virtual guest. The 
 	# run shielding
 	cset shield -c 0-1 -k on --shield
 	# start test
-	cyclictest -n -m -p 99 -l 100000
+	cyclictest -n -a -m -q -p 99 -l 100000
 	# enable shield on test pid
 	cset shield --shield --threads --pid <cycletest pid>
+	# variant run shielded command
+	cset shield --exec --threads -- cyclictest -n -a -m -q -p 99 -l 100000
 \end{verbatim}
 
 \noindent Results with CPU-isolation guest, no load balancer \& IRQ affinity set on host:
@@ -765,9 +772,9 @@ We now try to set-up the same isolation concept also for the virtual guest. The 
 \noindent \#7 \small \texttt{T: 0 ( 2246) P:99 I:1000 C: 100000 Min:      8 Act:   32 Avg:12487 Max:  674647}\\
 \noindent \#8 \small \texttt{T: 0 ( 2257) P:99 I:1000 C: 100000 Min:      8 Act:10152 Avg:11605 Max:  765366}\\
 
-In the results we can actually notice when the task is running on the last vCPU (chosen by the sheduler in round robin) or not. The tests with averages under one millisecond have actually been found to run again on the last vCPU present. 
+In the results we can actually notice when the task is running on the last vCPU (chosen by the scheduler in round robin) or not. The tests with averages under one millisecond have actually been found to run again on the last vCPU. 
 
-After we put load balance and IRQ affinity settings of the host back to normal, keeping cpu isolation we get the following results:
+After we put load balance and IRQ affinity settings of the host back to normal, keeping CPU isolation we get the following results:
 
 \bigskip
 
@@ -777,7 +784,8 @@ After we put load balance and IRQ affinity settings of the host back to normal, 
 \noindent \#2 \small \texttt{T: 0 ( 1924) P:99 I:1000 C: 100000 Min:      8 Act: 9826 Avg:14524 Max:  847310}\\
 \noindent \#3 \small \texttt{T: 0 ( 1934) P:99 I:1000 C: 100000 Min:      8 Act: 9569 Avg:14566 Max:  844467}
 
-Now, in addition the load balancer and irq affinity will be set to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
+The test shows that isolation on the host actually influences the latency test in the guest.
+Now, in addition we set the load balancer and irq affinity ion the guest to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
 \bigskip
 
 \noindent Results :
@@ -786,7 +794,8 @@ Now, in addition the load balancer and irq affinity will be set to see if the pe
 \noindent \#2 \small \texttt{T: 0 ( 1979) P:99 I:1000 C: 100000 Min:      8 Act: 9638 Avg:13784 Max:  826807}\\
 \noindent \#3 \small \texttt{T: 0 ( 2047) P:99 I:1000 C: 100000 Min:      5 Act:39152 Avg:13109 Max:  845584}\\
 
-When changing IRQ affinity, the values remain in the same range. It seems the setting has no impact. Thus, for the moment the shielding and isolation of resources in the guest system will not be considered. 
+When changing load balanacer and IRQ affinity the values remain in the same range. It seems that the CPU isolation and configuration of the guest settings either has no impact or worsens the performance.
+Thus, for the moment, the shielding and isolation of resources in the guest system will not be considered. 
 Anyway, some final tests with a dedicated server should be performed to confirm this conclusion.
 
 \subsection{Full dynamic ticks}
@@ -828,7 +837,7 @@ The parameters of a child can not exceed the value of a parent. \textbf{Warning}
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
 The test results, even if not as good as expected, showed that a real-time application with the given constraints might also be able to run with determinism in a virtualized host.
- 
+In addition, the study of the documentations of the involved technologies and tools brought additional information.
 During my last investigation on \texttt{cgroups} and how they might be used in Docker/Balena, I bumped into a file that mentions, for the first time, an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
 Following the description I found then in another text
 (\cite{kernel02}) a discussion on a patch release going to be implemented on a mainline kernel version soon. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
@@ -844,7 +853,7 @@ This ,the late completeness of the scheduling option might be one of the reasons
 In addition, the source code gave insight into another work in progress: the scheduling mode SCHED\_ISO. It is intended for fast interactive real-time tasks to be run for very short computation times. All in all, this suggests that the standard Linux scheduler  development is still ongoing.
 It would therefore be interesting to exchange information with, if not take part, the main scheduling development team of the Linux kernel.
 
-During the study of the AWS system some recent changes came up. While the traditional systems are still based on XEN, which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
+The study of the AWS system highlighted some recent changes. While the traditional systems are still based on XEN, which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
 This new hypervisor will allow direct assignment and control of hardware and resources.
 This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
 
