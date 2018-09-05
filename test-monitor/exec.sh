@@ -244,18 +244,48 @@ function restartCores () {
 		$(echo 1 > /sys/devices/system/cpu/cpu0/online)
 	fi
 
-	#shut down cores
-	for ((i=1;i<=$prcs-1;i++));	do 
-		echo "Setting CPU"$i" offline..."
-		$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
-	done
+	#check if numa is a number or a list
+	re='^[0-9]+$';
+	if [[ ${numa[0]} =~ $re ]]; then
+		#simple number of cores
 
-	# put them back online
-	for ((i=1;i<=$prcs-1;i++))
-	do
-		echo "Putting CPU"$i" back online..."
-		$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
-	done
+		#shut down cores
+		for ((i=1;i<$prcs;i++))
+		do 
+			echo "Setting CPU"$i" offline..."
+			$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+		done
+
+		# put them back online
+		for ((i=1;i<$prcs;i++))
+		do
+			echo "Putting CPU"$i" back online..."
+			$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+		done
+	else
+		#NAN
+
+		#generate array from string
+		$(IFS=', ' read -r -a numac <<< "${numa[0]}")
+
+		#shut down cores
+		for i in $numac
+		do 
+			if [ $i -ne 0 ]; then
+				echo "Setting CPU"$i" offline..."
+				$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+			fi
+		done
+
+		# put them back online
+		for i in $numac
+		do
+			if [ $i -ne 0 ]; then
+				echo "Putting CPU"$i" back online..."
+				$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+			fi
+		done
+	fi
 }
 
 ##################### TEST EXECUTION CODE ##########################
@@ -264,7 +294,7 @@ echo "Cleaning up directory..."
 $(rm Iso* NoIso*)
 
 # set commands to use 3 threads, 1 per vCPU
-set_cmds novcpu
+set_cmds $novcpu
 
 echo "Start no isolation tests..."
 loadNoLoad NoIso
@@ -278,14 +308,14 @@ load_balancer 0
 loadNoLoad IsoNoBal
 
 echo "Start isolation tests adding IRQ affinity..."
-irq_affinity 8
+irq_affinity 1
 restartCores
 # perform shielding again
 shield_host
 loadNoLoad IsoNoBalIRQ
 
 # set commands to use 2 threads, 1 per real-time dedicated vCPU
-set_cmds novcpu-1
+set_cmds $((novcpu-1))
 
 echo "Start isolation tests guest..."
 shield_guest
@@ -296,17 +326,17 @@ guest_load_balancer 0
 loadNoLoad IsoNoBalG $cshield
 
 echo "Start isolation tests adding IRQ affinity..."
-guest_irq_affinity 4
+guest_irq_affinity 1
 loadNoLoad IsoNoBalIRQG $cshield
 
 echo "Resetting guest..."
 guest_load_balancer 1
-guest_irq_affinity f
+guest_irq_affinity $((((1<<$prcsrun))-1))
 unshield_guest
 
 echo "Resetting host..."
 load_balancer 1
-irq_affinity f
+irq_affinity $((((1<<$prcs))-1))
 unshield_host
 
 echo "Resetting user permissions to 1000 (default user)..."
