@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Test mode active. Edit script to run normally\n"
+echo "WARN: Test mode active. Edit script to run normally"
 
 cat <<EOF
 
@@ -20,7 +20,9 @@ simply real-time containers
 
 EOF
 
-if [ "$#" -ne 3 ]; then
+##################### DETERMINE CLI PARAMETERS ##########################
+
+if [ $# -lt 3 ] && [ $# -ne 0 ]; then
 
 cat <<EOF
 Not enough arguments supplied!
@@ -28,17 +30,15 @@ Usag: ./exec.sh host port [vm-pid] [montime]
  or   ./exec.sh (for defaults)
 
 Defaults are:
-host= localhost
-port= 8022
-vm-pid= (autodetect)
-montime= 900 sec
+host = localhost        remote host to connect to
+port = 8022             ssh connection port
+vm-pid = (autodetect)   pid of the main VBox process
+montime = 900 sec       max monitoring time of system
 
 EOF
 
 	exit 1
 fi
-
-FOO=${VARIABLE:-default}
 
 host=${1:-'localhost'}
 port=${2:-'8022'}
@@ -52,8 +52,28 @@ fi
 
 montime=${4:-'900'}
 
+##################### DETERMINE HARDWARE PARAMETERS ##########################
+
+#get number of cpu-threads
+prcs=$(nproc --all)
+
+#get number of numa nodes
+numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
+
+if [ $numanr -ge 2 ]; then
+
+	#get cpus assigned to numa nodes / split there for better performance
+	for ((i=0;i<$numanr;i++)); do 
+		numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
+	done
+else
+	echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
+	numa[0]='1-'$prcs
+fi	
+
 exit 0
 
+##################### FUNCTION DECLARATION ##########################
 
 function set_cmds () {
 	# vary 2 or 3 cpu tests depending on isolation setting
@@ -157,8 +177,32 @@ function loadNoLoad () {
 }
 
 function restartCores () {
+	# verify if core 0 is disableable
+	if [ -e "/sys/devices/system/cpu/cpu0/online" ]; then
+		echo "Setting CPU0 offline..."
+		# if yes, disable and reenable it immediately, otherwise no cpu left XD
+		$(echo 0 > /sys/devices/system/cpu/cpu0/online)
+		sleep 1
+		echo "Putting CPU0 back online..."
+		$(echo 1 > /sys/devices/system/cpu/cpu0/online)
+	fi
 
+	#shut down cores
+	for ((i=1;i<=$prcs-1;i++));	do 
+		echo "Setting CPU"$i" offline..."
+		$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+	done
+
+	# put them back online
+	for ((i=1;i<=$prcs-1;i++))
+	do
+		echo "Putting CPU"$i" back online..."
+		$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+	done
 }
+
+##################### TEST EXECUTION CODE ##########################
+
 
 # set commands to use 3 threads, 1 per vCPU
 set_cmds 3
@@ -176,6 +220,9 @@ loadNoLoad IsoNoBal
 
 echo "Start isolation tests adding IRQ affinity..."
 irq_affinity 8
+restartCores
+# perform shielding again
+shield_host
 loadNoLoad IsoNoBalIRQ
 
 # set commands to use 2 threads, 1 per real-time dedicated vCPU
@@ -205,3 +252,4 @@ unshield_host
 
 echo "Resetting user permissions to 1000 (default user)..."
 $(chown 1000:1000 *)
+
