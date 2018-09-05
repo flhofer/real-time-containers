@@ -26,14 +26,16 @@ if [ $# -lt 3 ] && [ $# -ne 0 ]; then
 
 cat <<EOF
 Not enough arguments supplied!
-Usag: ./exec.sh host port [vm-pid] [montime]
+Usag: ./exec.sh host port [vm-pid] [NRvCPU] [montime] [testcnt]
  or   ./exec.sh (for defaults)
 
 Defaults are:
 host = localhost        remote host to connect to
 port = 8022             ssh connection port
 vm-pid = (autodetect)   pid of the main VBox process
+NRvCPU = 3              number of virtual CPUs assigned to the VM
 montime = 900 sec       max monitoring time of system
+testcnt = 5				number of times tests are repeated
 
 EOF
 
@@ -43,48 +45,103 @@ fi
 host=${1:-'localhost'}
 port=${2:-'8022'}
 
-if [ -z  "$1"]; then
+if [ -z  "$3"]; then
 	# try to find pid of vbox instance running
 	vmpid=$(ps -ef | grep 'Box' | grep -m 1 'comment' | awk '{print $2}')
 else
 	vmpid=$3
 fi
 
-montime=${4:-'900'}
+novcpu=${4:-'900'}
+montime=${5:-'900'}
+testcnt=${6:-'5'}
+
 
 ##################### DETERMINE HARDWARE PARAMETERS ##########################
 
-#get number of cpu-threads
-prcs=$(nproc --all)
+#here we need to switch for OS type
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        #...
 
-#get number of numa nodes
-numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
+        #get number of cpu-threads
+		prcs=$(nproc --all)
 
-if [ $numanr -ge 2 ]; then
+		#get number of numa nodes
+		numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
 
-	#get cpus assigned to numa nodes / split there for better performance
-	for ((i=0;i<$numanr;i++)); do 
-		numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
-	done
+		if [ $numanr -ge 2 ]; then
+
+			#get cpus assigned to numa nodes / split there for better performance
+			for ((i=0;i<$numanr;i++)); do 
+				numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
+			done
+
+			prcsrun=prcs/2
+		else
+			echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
+			numa[0]='1-'$prcs # string
+			prcsrun=$((prcs-1))
+		fi	
+
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # Mac OSX
+        
+        #get number of cpu-threads
+		prcs=$(sysctl -n hw.logicalcpu)
+
+		numanr=1
+
+		#Macs have single NUMA only
+		echo "Single NUMA node Mac OSX detected, selecting all excepet cpu0 for isolation.."
+		numa[0]='1-'$prcs # string
+		prcsrun=$((prcs-1))
+
+# elif [[ "$OSTYPE" == "cygwin" ]]; then
+#         # POSIX compatibility layer and Linux environment emulation for Windows
+#         echo "OS not supported."
+#         exit 1
+
+# elif [[ "$OSTYPE" == "msys" ]]; then
+#         # Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
+#         echo "OS not supported."
+#         exit 1
+
+# elif [[ "$OSTYPE" == "win32" ]]; then
+#         # I'm not sure this can happen.
+#         echo "OS not supported."
+#         exit 1
+
+# elif [[ "$OSTYPE" == "freebsd"* ]]; then
+#         # ...
+#         echo "OS not supported."
+#         exit 1
+
 else
-	echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
-	numa[0]='1-'$prcs
-fi	
+        # Unknown.
+        echo "OS not supported."
+        exit 1
+fi
+
+echo "Configuration: "$prcs" threads, "$prcsrun" selected for isolation on "$numanr" NUMA node(s)"
+if [ $numanr -ge 2 ]; then
+	echo "The present Numa configurations are:"
+	echo ${numa[*]}
+fi
+
+eval echo ${numa[0]}
 
 exit 0
+
 
 ##################### FUNCTION DECLARATION ##########################
 
 function set_cmds () {
-	# vary 2 or 3 cpu tests depending on isolation setting
-	# usually -S = -t -a -n, instead
+	# vary cpu tests depending on isolation setting
+	# usually -S = -t -a -n, instead, but this way we can have less threads than vCPUs
 	cyctest='cyclictest -t '$1' -n -a -m -q -p 99 -l 100000'
 	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$1' -n -a -m -q -p 99 -l 100000 && killall stress;'
 	cshield='cset shield --exec --threads -- '
 }
-
-echo "Cleaning up directory..."
-$(rm Iso* NoIso*)
 
 function build_ssh() {
 	# create the sh command to remotely run stuff on virtual guest
@@ -104,16 +161,16 @@ function runtest() {
 }
 
 function run_loop () {
-	for i in {1..5}
+	for ((i=1;i<=$testcnt;i++))
 	do
 		runtest $1 $i $cmd
 	done
 }
 
 function shield_host() {
-	# create cpuset for vm at cpu 0-2 and move pid into it
+	# create cpuset for vm at cpus of numa0 and move pid into it
 	echo "Adding CPU shield.."
-	eval cset shield -c 0-2 -k on --shield && cset shield --shield --threads --pid $vmpid
+	eval cset shield -c ${numa[0]} -k on --shield && cset shield --shield --threads --pid $vmpid
 }
 
 function unshield_host() {
@@ -125,7 +182,7 @@ function unshield_host() {
 function shield_guest() {
 	# create cpuset for vm at cpu 0-2 and move pid into it
 	echo "Adding CPU shield to guest.."
-	build_ssh cset shield -c 0-1 -k on --shield
+	build_ssh cset shield -c 1-$((prcsrun-1)) -k on --shield
 	eval $cmd
 }
 
@@ -203,9 +260,11 @@ function restartCores () {
 
 ##################### TEST EXECUTION CODE ##########################
 
+echo "Cleaning up directory..."
+$(rm Iso* NoIso*)
 
 # set commands to use 3 threads, 1 per vCPU
-set_cmds 3
+set_cmds novcpu
 
 echo "Start no isolation tests..."
 loadNoLoad NoIso
@@ -226,7 +285,7 @@ shield_host
 loadNoLoad IsoNoBalIRQ
 
 # set commands to use 2 threads, 1 per real-time dedicated vCPU
-set_cmds 2
+set_cmds novcpu-1
 
 echo "Start isolation tests guest..."
 shield_guest
