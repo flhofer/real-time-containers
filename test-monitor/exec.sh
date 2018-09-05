@@ -1,7 +1,59 @@
 #!/bin/bash
-host=$1
-port=$2
-vmpid=$3
+
+echo "Test mode active. Edit script to run normally\n"
+
+cat <<EOF
+
+######################################
+
+Test bench execution
+______     _                  
+| ___ \   | |                 
+| |_/ /__ | | ___ _ __   __ _ 
+|  __/ _ \| |/ _ \ '_ \ / _' |
+| | | (_) | |  __/ | | | (_| |
+\_|  \___/|_|\___|_| |_|\__,_|                              
+                              
+simply real-time containers
+
+######################################
+
+EOF
+
+if [ "$#" -ne 3 ]; then
+
+cat <<EOF
+Not enough arguments supplied!
+Usag: ./exec.sh host port [vm-pid] [montime]
+ or   ./exec.sh (for defaults)
+
+Defaults are:
+host= localhost
+port= 8022
+vm-pid= (autodetect)
+montime= 900 sec
+
+EOF
+
+	exit 1
+fi
+
+FOO=${VARIABLE:-default}
+
+host=${1:-'localhost'}
+port=${2:-'8022'}
+
+if [ -z  "$1"]; then
+	# try to find pid of vbox instance running
+	vmpid=$(ps -ef | grep 'Box' | grep -m 1 'comment' | awk '{print $2}')
+else
+	vmpid=$3
+fi
+
+montime=${4:-'900'}
+
+exit 0
+
 
 function set_cmds () {
 	# vary 2 or 3 cpu tests depending on isolation setting
@@ -20,8 +72,8 @@ function build_ssh() {
 }
 
 function runtest() {
-	# Run monitor, write to file but limit to 15 mins
-	MPID=$(nmon -p -s 1 -r -c 900 -F $1$2.csv)
+	# Run monitor, write to file but limit to 15 mins (default)
+	MPID=$(nmon -p -s 1 -r -c $montime -F $1$2.csv)
 
 	echo $1$2": Test run..."
 	echo '#'$1$2' Test result' >> $1-res.txt
@@ -93,7 +145,7 @@ function guest_load_balancer() {
 	eval $cmd
 	}
 
-function LoadNoLoad () {
+function loadNoLoad () {
 	# run a noload then a load test with recording
 
 	# run build command -> returns $cmd
@@ -104,38 +156,42 @@ function LoadNoLoad () {
 	run_loop $1Load
 }
 
+function restartCores () {
+
+}
+
 # set commands to use 3 threads, 1 per vCPU
 set_cmds 3
 
 echo "Start no isolation tests..."
-LoadNoLoad NoIso
+loadNoLoad NoIso
 
 echo "Start isolation tests..."
 shield_host
-LoadNoLoad Iso
+loadNoLoad Iso
 
 echo "Start isolation tests no load balancer..."
 load_balancer 0
-LoadNoLoad IsoNoBal
+loadNoLoad IsoNoBal
 
 echo "Start isolation tests adding IRQ affinity..."
 irq_affinity 8
-LoadNoLoad IsoNoBalIRQ
+loadNoLoad IsoNoBalIRQ
 
 # set commands to use 2 threads, 1 per real-time dedicated vCPU
 set_cmds 2
 
 echo "Start isolation tests guest..."
 shield_guest
-LoadNoLoad IsoG $cshield
+loadNoLoad IsoG $cshield
 
 echo "Start isolation tests no load balancer..."
 guest_load_balancer 0
-LoadNoLoad IsoNoBalG $cshield
+loadNoLoad IsoNoBalG $cshield
 
 echo "Start isolation tests adding IRQ affinity..."
 guest_irq_affinity 4
-LoadNoLoad IsoNoBalIRQG $cshield
+loadNoLoad IsoNoBalIRQG $cshield
 
 echo "Resetting guest..."
 guest_load_balancer 1
