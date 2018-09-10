@@ -47,12 +47,17 @@ port=${2:-'8022'}
 
 if [ -z  "$3"]; then
 	# try to find pid of vbox instance running
-	vmpid=$(ps -ef | grep 'Box' | grep -m 1 'comment' | awk '{print $2}')
+	vmpid=$(ps -ef | grep 'Box' | grep -m 1 'startvm' | awk '{print $2}')
+
+	if [ -z "$vmpid" ]; then
+		echo "ERROR: Could not detected VM running!"
+		exit 1
+	fi
 else
 	vmpid=$3
 fi
 
-novcpu=${4:-'900'}
+novcpu=${4:-'3'}
 montime=${5:-'900'}
 testcnt=${6:-'5'}
 
@@ -76,7 +81,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 				numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
 			done
 
-			prcsrun=prcs/2
+			prcsrun=$((prcs/2))
 		else
 			echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
 			numa[0]='1-'$prcs # string
@@ -128,9 +133,7 @@ if [ $numanr -ge 2 ]; then
 	echo ${numa[*]}
 fi
 
-eval echo ${numa[0]}
-
-exit 0
+#exit 0
 
 
 ##################### FUNCTION DECLARATION ##########################
@@ -138,6 +141,9 @@ exit 0
 function set_cmds () {
 	# vary cpu tests depending on isolation setting
 	# usually -S = -t -a -n, instead, but this way we can have less threads than vCPUs
+#	cyctest='echo cyclictest '
+#	scyctest='echo stress'
+#	cshield='cset shield --exec --threads -- '
 	cyctest='cyclictest -t '$1' -n -a -m -q -p 99 -l 100000'
 	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$1' -n -a -m -q -p 99 -l 100000 && killall stress;'
 	cshield='cset shield --exec --threads -- '
@@ -182,7 +188,7 @@ function unshield_host() {
 function shield_guest() {
 	# create cpuset for vm at cpu 0-2 and move pid into it
 	echo "Adding CPU shield to guest.."
-	build_ssh cset shield -c 1-$((prcsrun-1)) -k on --shield
+	build_ssh cset shield -c 1-$((novcpu-1)) -k on --shield
 	eval $cmd
 }
 
@@ -265,11 +271,8 @@ function restartCores () {
 	else
 		#NAN
 
-		#generate array from string
-		$(IFS=', ' read -r -a numac <<< "${numa[0]}")
-
 		#shut down cores
-		for i in $numac
+		for i in ${numa[0]//,/ }
 		do 
 			if [ $i -ne 0 ]; then
 				echo "Setting CPU"$i" offline..."
@@ -278,7 +281,7 @@ function restartCores () {
 		done
 
 		# put them back online
-		for i in $numac
+		for i in ${numa[0]//,/ }
 		do
 			if [ $i -ne 0 ]; then
 				echo "Putting CPU"$i" back online..."
@@ -336,7 +339,7 @@ unshield_guest
 
 echo "Resetting host..."
 load_balancer 1
-irq_affinity $((((1<<$prcs))-1))
+irq_affinity $( echo "obase=16;" $((((1<<32))-1)) | bc )
 unshield_host
 
 echo "Resetting user permissions to 1000 (default user)..."
