@@ -443,7 +443,7 @@ The run of the script confirms that the Xenomai version of the image, after all 
 In this section we verify the expected latencies of real-time tasks in different settings. In order to do this, a variety of system configurations are performed and capabilities verified. 
 The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. 
 As we have seen in the previous section, the Xenomai image supports all the real-time features needed for Balena. Thus it has been selected as guest OS for the following tests.
-These tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. Thus, in our tests we try to identify parameters for three running options: 1) shared virtualized instance, where a hyper-visor controlls the whole instance, 2) virtualized instance with limited direct hardware access, allowing thus better performance and 3) bare metal server, without hyper-visor and running our preferred hard-real-time capable OS.
+These tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. Thus, in our tests we try to identify parameters for two running options: 1) shared virtualized instance, where a hyper-visor controls the whole instance, and 2) a bare metal server, without hyper-visor and running our preferred hard-real-time capable OS.
 The results will show how the set-up and configuration of a hyper-visor running a guest OS in the computing cloud, here the Host, could influence latencies and responsiveness of a real-time application running in a virtualized environment. 
 
 During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API. Thus, the use and parameters for compose, namely \texttt{docker-compose}, is available to run also on a Balena based system.
@@ -855,9 +855,9 @@ The parameters of a child can not exceed the value of a parent. \textbf{Warning}
 
 {\small\textsc{Study of further docs and sources, 06/08 - 07/08/18} \bigskip}
 
-The test results, even if not as good as expected, showed that a real-time application with the given constraints might also be able to run with determinism in a virtualized host.
+The test results, even if not as good as expected, showed that a real-time application with the given constraints might also be able to run with determinism in on virtualized host.
 In addition, the study of the documentations of the involved technologies and tools brought additional information.
-During my last investigation on \texttt{cgroups} and how they might be used in Docker/Balena, I bumped into a file that mentions, for the first time, an implementation of a Earliest Deadline First (EDF) based scheduler, \cite{kernel01}.
+During my last investigation on \texttt{cgroups} and how they might be used in Docker/Balena, I bumped into a file that mentions, for the first time, an implementation of a Earliest Deadline First (EDF) based scheduling algorithm, \cite{kernel01}.
 Following the description I found then in another text
 (\cite{kernel02}) a discussion on a patch release going to be implemented on a mainline kernel version soon. Actually, there exist some recent papers which started to experiment with the EDF scheduler on a PREEMPT-RT patched system \cite{Buelnaetal2017}.
 By further investigating on kernel source files on Kernel.org, and reading through sources, I found links to documentation \cite{wiki01} which stated that the completeness of the EDF is only recent.
@@ -872,14 +872,14 @@ Thus, the late completeness of the scheduling option might be one of the reasons
 In addition, the source code gave insight into another work in progress: the scheduling mode SCHED\_ISO. It is intended for fast interactive real-time tasks to be run for very short computation times. All in all, this suggests that the standard Linux scheduler  development is still ongoing.
 It would therefore be interesting to exchange information with, if not take part, the main scheduling development team of the Linux kernel.
 
-The study of the AWS system highlighted some recent changes. While the traditional systems are still based on XEN, which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instance like the C5 use a new hypervisor based on KVM \cite{amazon01}.
+The study of the AWS system highlighted some recent changes. While the traditional systems are still based on XEN, which uses a CFS CPU scheduler \cite{xen01}, more recent virtual instances like the C5 use a new hypervisor based on KVM \cite{amazon01}.
 This new hypervisor will allow direct assignment and control of hardware and resources.
-This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
+This means, in short, that there is no need to use bare metal server instead: the new instances promise comparable performance with greater flexibility and scalability.
 
-In the last meeting it was finally decided to continue with Docker as a main containerization platform. Furthermore, Kubernetes will be introduced as management tool for the virtualized machine and its containers.
+In the last meeting it was finally decided to continue with Docker as a main containerization platform. Furthermore, Kubernetes will be introduced as management tool for the containers.
 One of the reasons is that, at the moment, the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of operators.
-In sight of findings about the latest hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system.
-All further systems, where possible, will be running on Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
+In sight of findings about the latest hypervisor development on Amazon AWS and the Xenomai recompilation requirements, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system.
+All further systems, where possible, will be running on Ubuntu Server 18.04.x with the PREEMPT-RT patch in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
 
 \section{Concluding steps}
 
@@ -912,9 +912,9 @@ Now the script can be run. The parameters to be passed are host, port and virtua
 
 {\small\textsc{Report clean-up, future work discussions, 11/08 - 28/08/18} \bigskip}
 
-For the following weeks more tests could clarify additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would enable to verify improvements through reduced cache misses.
+For the following weeks more tests could clarify additional behavior of virtual machines in a computation cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would enable to verify improvements through reduced cache misses.
 The new setup should use a native KVM hypervisor to allow also vCPU thread pinning. The new tests should shed light on the described phenomenon where the last vCPU always gives better results than the others.
-On the software side, some tests still to be performed are latency values using the newest releases. A discussed variant is also to patch the host's kernel for hard-real-time operation.
+On the software side, aside from test repetition with the Xenomai image for comparison, some tests still to be performed are performance results using the newest releases. A discussed variant is also to patch the host's kernel for hard-real-time operation.
 All the tests will be performed with scripts and data recording. The results might then be elaborated for further studying and/or publication.
 Finally, a dummy application run in a set of containers will allow to study the scheduling behavior once an application runs in a container.
 
