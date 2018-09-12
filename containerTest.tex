@@ -60,17 +60,20 @@ Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while
 	\label{fig:plan}
 \end{figure}
 
-It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic.
+It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system, while still being appropriately deterministic.
 The software running on the system will be characterized by a set of real-time control applications. 
-There exist three types of real-time operations: 1) soft-real-time, where the value of computation decreases as the deadline overshoot gets bigger, 2) firm-real-time, where the computation value of overshoots is zero, and 3) hard-real-time, where missed deadline is dangerous for environment and/or people.
-%TODO: cite Butazzo
+
+There exist three categories of real-time operations:
+1) soft, where the value of computation decreases as the deadline overshoot gets bigger, 
+2) firm, where the computation value of overshoots is zero, and 
+3) hard, where missed deadline may have catastrophic consequences \cite{Buttazzo2011}.
 According to Siemens, the target applications will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
 
 To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
 %
 LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user-friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. 
 Docker is an open source project written in Go that was initially based on LXC technology, but has now moved on to directly use \texttt{libvirt}, a visualization library to access the dedicated kernel routines. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. 
-Balena on the other hand is a stripped down version of Docker, which allows to minimize the resource requirements. It is thus also written in Go and available as open source project, hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. 
+Balena on the other hand is a stripped down version of Docker which allows to minimize the resource requirements. It is thus also written in Go and available as open source project, hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. 
 Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
 
 \section{System Tests and variants}
@@ -84,14 +87,13 @@ Candidates for this session are:
 \begin{itemize}
 	\item \textbf{resinOS} operating system by \textit{resin.io}, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
 	\item \textbf{Ubuntu Core} an operating system for IoT devices, implemented using the new snap image approach. Snap is a technology  that takes advantages of containers and a package manager features (further explanation of Snaps in Section \ref{sub:ubntcore}). 
-	Snap based as well as Balena based approaches are investigated on this hardware optimized image
+	Snap based as well as the easily installable Balena based solutions are investigated on this hardware optimized image
 	\item \textbf{Xenomai 3} is co-core extension for Linux based operating systems, which allows hard-real-time scheduling. Together with an interrupt pipeline patch it is suggested to be the most performing of the real-time approaches.
 	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft- and firm-real-time based performance, reaching hard-real-time on a properly tuned system
 \end{itemize}
 
-%TODO: fix that phrase
-CoreOS has been excluded from the candidate list as it comes pre-configured with a LXC/LXD while being stripped down to the bare minimum (LXC/LXD has been excluded beforehand).
-The systems are setup in separate virtual machines and are verified for real-time scheduling properties. The performed test  installations will be used to verify the run-time behavior of containerized applications of different kind, including synthetic applications.
+The lightweight CoreOS has been excluded from the candidate list as it comes pre-configured with a LXC/LXD container engine (LXC/LXD has been excluded beforehand).
+The systems are setup in separate virtual machines and are verified for real-time scheduling properties. The performed test installations will be used, also in future tests, to verify the run-time behavior of containerized applications of different kind, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
 
