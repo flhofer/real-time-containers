@@ -36,8 +36,8 @@ vm-pid = (autodetect)   pid of the main VBox process
 NRvCPU = 3              number of virtual CPUs assigned to the VM
 montime = 900 sec       max monitoring time of system
 testcnt = 5				number of times tests are repeated
-
 EOF
+#tthreads = auto         testing threads, use available vCPUs by default
 
 	exit 1
 fi
@@ -60,7 +60,7 @@ fi
 novcpu=${4:-'3'}
 montime=${5:-'900'}
 testcnt=${6:-'5'}
-
+#tthreads=${7:-$novcpu}
 
 ##################### DETERMINE HARDWARE PARAMETERS ##########################
 
