@@ -60,10 +60,18 @@ Figure \ref{fig:plan} summarizes the foreseen future resource migration. % while
 	\label{fig:plan}
 \end{figure}
 
-It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic. 
-To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
+It is planned that this re-organization will save a major amount of resources, reducing the costs needed to operate the system while still being appropriately deterministic.
+The software running on the system will be characterized by a set of real-time control applications. 
+There exist three types of real-time operations: 1) soft-real-time, where the value of computation decreases as the deadline overshoot gets bigger, 2) firm-real-time, where the computation value of overshoots is zero, and 3) hard-real-time, where missed deadline is dangerous for environment and/or people.
+%TODO: cite Butazzo
+According to Siemens, the target applications will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
 
-LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user-friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. Docker is an open source project written in Go that is based on LXC technology. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. Balena on the other hand is a stripped down version of Docker, allowing to minimize the resource requirements. It is an open source project hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
+To isolate the different applications from one-another, a containerized approach has been chosen beforehand. The main choices available are LXC/LXD, Docker and Balena.
+%
+LXC/LXD is the default Linux-based containerization engine. In its first release LXC was released as set of tools which are rather low level. The new extension LXD offers now a more intuitive approach, comparable to the more user-friendly Docker. LXC was rather difficult to use at first, probably one of the reasons why containerization did not take off until Docker came in. 
+Docker is an open source project written in Go that was initially based on LXC technology, but has now moved on to directly use \texttt{libvirt}, a visualization library to access the dedicated kernel routines. It has centralized container image storage, an open API and easy to use CLI interface\footnote{see \cite{docker01} for a full list of features}. 
+Balena on the other hand is a stripped down version of Docker, which allows to minimize the resource requirements. It is thus also written in Go and available as open source project, hosted by resin.io. It uses the Docker infrastructure and has therefore a lot of its advantages while diminishing the load for the system. 
+Balena kept most of the same configurations and parameters allowing a switch to Docker and its more advanced features at any time. For this reason, at the initial meeting of the 25-26/08/18 (see meetings in Section \ref{sec:meeting}), Balena has been chosen as the containerization engine. 
 
 \section{System Tests and variants}
 
@@ -75,12 +83,14 @@ Candidates for this session are:
 
 \begin{itemize}
 	\item \textbf{resinOS} operating system by \textit{resin.io}, designed to run containers on different architectures and hardware devices. It has Balena pre-installed and features a cloud based interface to manage the different hosts and running containers.
-	\item \textbf{Ubuntu Core} an operating system for IoT devices implemented using the new snap image approach. Snap based as well as Balena based approaches are investigated on this hardware optimized image
+	\item \textbf{Ubuntu Core} an operating system for IoT devices, implemented using the new snap image approach. Snap is a technology  that takes advantages of containers and a package manager features (further explanation of Snaps in Section \ref{sub:ubntcore}). 
+	Snap based as well as Balena based approaches are investigated on this hardware optimized image
 	\item \textbf{Xenomai 3} is co-core extension for Linux based operating systems, which allows hard-real-time scheduling. Together with an interrupt pipeline patch it is suggested to be the most performing of the real-time approaches.
 	\item \textbf{PREEMPT\_RT} a kernel patch for Linux-based systems which increments the achievable preemption level of the kernel. This allows for soft- and firm-real-time based performance, reaching hard-real-time on a properly tuned system
 \end{itemize}
 
-CoreOS has been excluded from the candidate list as it comes with a LXC/LXD image and is stripped down to the bare minimum (LXC/LXD has been excluded beforehand).
+%TODO: fix that phrase
+CoreOS has been excluded from the candidate list as it comes pre-configured with a LXC/LXD while being stripped down to the bare minimum (LXC/LXD has been excluded beforehand).
 The systems are setup in separate virtual machines and are verified for real-time scheduling properties. The performed test  installations will be used to verify the run-time behavior of containerized applications of different kind, including synthetic applications.
 
 \subsection{resinOS by Resin.io}
@@ -91,7 +101,7 @@ The systems are setup in separate virtual machines and are verified for real-tim
 
 \subsubsection{Local Virtual Machine}
 
-The resinOS operating system was primarily made to run on low resource systems, embedded devices or alike, and does thus not have a specific image for desktop/laptop or server. To run the OS in a virtual machine we download the Intel based 64 bit image for the Intel NCU industrial unit from the resinOS website \cite{resin01}.
+The resinOS operating system was primarily made to run on low resource hardware, embedded devices or alike, and does thus not have a specific image for desktop/laptop or server. To run the OS in a virtual machine we download the Intel based 64 bit image for the Intel NCU industrial unit from the resinOS website \cite{resin01}.
 
 The image does not contain any additional configuration concerning network setup or ssh keys and thus by default is not possible  to connect to the device.
 To configure the image we need the CLI tool. Before installing the tool, make sure that following packages are present and configured:
@@ -170,9 +180,11 @@ Setup a route from the virtual machine to the local host, line before, from port
 The resinOS core ships with no packager manager and is missing building tools. This image can therefore be patched only manually and with greater effort. This also means that it increases the maintenance effort and makes thus a resinOS based approach unpractical. In addition, the image has been tuned for small devices' operation. An operation on a server infrastructure would therefore not use the maximum capabilities of the hardware, constraining the system in its performance.
 
 \subsection{Ubuntu Core}
+\label{sub:ubntcore}
 {\small\textsc{Test-run Ubuntu core, 25/07/18} \bigskip}
 
-Ubuntu Core is a project to bring small applications to embedded devices based on standard Ubuntu technology. The developed software is shipped in a snap and then run sand-boxed in a container-like environment while keeping the transparency of a traditional application. 
+Ubuntu Core is a project by Canonical intended to bring the advantage of standard Ubuntu technology to run small and transactionally upgradeable applications on embedded devices. 
+The developed application for the end device is shipped as a software package, a snap, and run sand-boxed in a container-like environment, while keeping the transparency of a traditional application. 
 
 Snaps are standard feature of Ubuntu based distributions since 2 years now. It combines the advantages of a package manager and a virtualized container. Even though the snap itself runs on isolated resources provided through proper \texttt{cgroup} configuration, it maintains the accessibility and transparency a locally installed software would have. 
 The running applications are practically sand-boxed, having separated partitions for binaries, application specific settings, and the actual file system of the host OS. The host and the binary partitions are read-only, protecting the hosting system from eventual malicious software. 
@@ -191,7 +203,7 @@ First, we get and unpack the latest KVM core image (replace version numbers wher
 	unxz ubuntu-core-16-amd64.img.xz
 \end{verbatim}
 
-Before it can be used, the image has to be converted from a raw image to a virtual drive. We convert the image again with the VirtualBox CLI tool.
+Before it can be used for boot-up, the downloaded ISO image has to be converted from a raw image to a virtual drive. We convert the image again with the VirtualBox CLI tool.
 
 \begin{verbatim}
 	VBoxManage convertdd ubuntu-core-16-amd64.img ubuntu-core-16-amd64.vdi
@@ -199,7 +211,8 @@ Before it can be used, the image has to be converted from a raw image to a virtu
 
 Now we create a new virtual machine based on ``Ubuntu 64bit'' and add the existing disk. The setup of the virtual machine is guided and therefore no additional description is given here. Standard settings are good enough. Once done, the system is ready to run.
 
-In order to be able to connect to the new virtual machine we need a Ubuntu one account. In the account we then specify the ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu one account and subsequently download the ssh key. 
+In order to be able to connect to the new virtual machine we need a Ubuntu One account \cite{ubuntu03}. 
+If you do not have one yet, sign up for a new free account. Once logged in, we have to configure and/or upload at least one ssh key we are going to use to connect to the core device. The booted device will ask the email of the Ubuntu One account and subsequently download all registered ssh keys. 
 Finally, to connect via ssh we have to configure some forwards. In the settings, select ``Network'', advanced, then Port forward.
 Configure now the forward of port 8022 to 22 for client host 10.0.2.15 (usually), the same way as described for resinOS.
 
@@ -287,14 +300,15 @@ The Preempt-RT requires a dedicated patch, recompiling and tuning of the kernel 
 Compared to the previous example, the handling of interrupt flow can not be controlled to the same extend reaching thus a lower real-time guarantee.
 In particular, drivers must be tuned for real-time operation in order to reach low process firing jitter.
 Anyway, lately the project has made remarkable progress.
-Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup. This makes the solution a major candidate for further investigation.
+Its mainline development is following kernel distribution at a fast pace, indicating that the project is strongly followed and has a valuable community backup (visible e.g. through events like \cite{lfnd02}).
+This makes the solution a major candidate for further investigation.
 To exploit its full potential, newer kernel patching as a future step is taken into consideration.
 
 \section{Tests of system}
 
 {\small\textsc{Test-run and comparison of systems, 30/07/18} \bigskip}
 
-Some small cyclic execution tests are performed to verify default availability of real-time scheduling and the timing behavior of the scheduler. Some tools will be downloaded and installed to test for latencies, responsiveness and reaction under CPU stress. 
+Some small cyclic execution tests are performed to verify default availability of real-time scheduling and the timing behavior of the system's scheduler. Some tools will be downloaded and installed to test for latencies, responsiveness and reaction under CPU stress. 
 
 \subsection{rt-tests}
 
@@ -337,11 +351,13 @@ The code in the example creates fifty tasks with priority 99 (maximum) an interv
 An interesting feature is the \texttt{-h} flag, which plots a histogram and the number of overshoots. The feature will be used in a second moment.
 
 As an example, we compared the results between virtual machines of the different kinds we have set up by now. There is an improvement between normal and patched images, but the actual values are for now far from ideal. 
-At the moment, as the host is not hard-real-time capable, the delays also depend on the scheduling of the host which runs the virtual machine. Thus, even though an eventual cloud host is not hard-real-time capable, an additional series of tests with such a host could give some more comparing and reference data.
+At the moment, as the host is not hard-real-time capable, the delays also depend on the task and resource scheduling of the host which runs the virtual machine.
+An eventual cloud based host will also not run a hard-real-time capable kernel by default. Thus, configuration and tweaking tests of a similar VM host could give some more comparison and reference data.
 
 \subsection{stress}
 
-In order to verify behavior also under stress we use the tool \textit{stress}. The tool starts some random computation in order to put load on the virtual machine. 
+In order to verify behavior also under stress we use the tool \textit{stress}. The tool starts some random computation in order to put load on the virtual machine.
+The particular thing about stress is that, in addition to CPU load, it can also generate threads for memory allocations, I/O sync requests and disk stress on the target system.
 The installation can be performed by downloading and compiling the source code. Further information can be found at \cite{stress01}.
 
 \begin{verbatim}
@@ -358,6 +374,8 @@ An example execution starting three threads of each function of stress can be pe
 \begin{verbatim}
 	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M
 \end{verbatim}
+
+A more advanced version, \texttt{stress-ng}, is also available. It features more tests and configuration options, and will be used for the duration tests in future work \cite{stress02}.
 
 \subsection{Other testing tools}
 
@@ -383,12 +401,12 @@ Therefore, groups and systemd configuration files to manage these must be added 
 	\label{fig:balenad}
 \end{figure}
 
-It is also unclear why the official installation script misses the \texttt{balena-init} file, see \ref{fig:balenad}. 
+It is also unclear why the official installation script misses the \texttt{balena-init} file, see Figure \ref{fig:balenad}. 
 Comparing the installation to the standard resinOS shipping we can see that the latter has the mentioned file.  The two Balena engines have the same version number, but interestingly the main binary of the tool is different. 
 It is unclear what this might mean. The init binary is intended to initialize a newly created container in order to remove all the orphaned resources and prepare it for a clean run. 
 
 If we refer to documentation it just seems a forgotten installation step.
-According to the Docker reference manual, \cite{docker03}, the init binary is obtained via \texttt{tini}, thus can be safely pulled from there. The git repository can be found at \cite{tini01}.
+According to the Docker reference manual, \cite{docker03}, the init binary for the standard Docker-based installations is obtained via the \texttt{tini} project, and can thus be safely pulled from there. The git repository can be found at \cite{tini01}.
 
 Figure \ref{fig:balenad} shows also a number of further warnings. In particular, we can identify two groups of warnings:
 
@@ -423,11 +441,11 @@ The run of the script confirms that the Xenomai version of the image, after all 
 \label{sec:virtsust}
 {\small\textsc{Test-run Containers \& CPU pinning, 01/08 - 03/08/18} \bigskip}
 
-In this section we verify the real-time latencies in different settings and how the applications behave inside a container. In order to do this, a variety of system configurations are performed and capabilities verified. 
+In this section we verify the expected latencies of real-time tasks in different settings. In order to do this, a variety of system configurations are performed and capabilities verified. 
 The list of all capabilities can be viewed on every Linux based system by typing \texttt{man 7 capabilities} into a shell. 
-This tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. 
-The results will show how the set-up and configuration of a cloud and its  hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment. 
-According to Siemens, the target application will have a period $T$ of about $100 ms$, where computing time is expected to be in the range of $\frac{1}{10}^{th}$. This means, to achieve hard-real-time operation and not miss any deadline, the application latency should never exceed $\frac{9}{10}^{th}$ of the period, i.e. $90 ms$.
+These tests should give an insight how a real-time container and/or application will behave when put into a virtualized environment like the Amazon AWS cloud. Amazon offers different setups, from shared or dedicated virtualized hosts to bare metal applications. Thus, in our tests we try to identify parameters for three running options: shared virtualized instance, virtualized instance with hardware access and bare metal server.
+The results will show how the set-up and configuration of a cloud and its hypervisor (here the Host) could influence latencies and responsiveness of a real-time application running in a virtualized environment. 
+%
 
 During some additional research on Balena and its relation to Docker, the source code of Balena actually revealed that Balena exposes the same API. Thus, the use and parameters for compose, namely \texttt{docker-compose}, is available to run also on a Balena based system.
 \texttt{docker-compose} is a tool written in python which allows to configure and connect multiple containers remotely using a single Json file, a welcome feature for our project.
@@ -445,13 +463,12 @@ On Debian systems this can be done simply via
 	apt-get install docker-compose
 \end{verbatim}
 
-During these tests, the virtual machine is set to 3 CPUs, and the CPU affinity of the task on the host is set to 7 (CPU 0,1,2). This will allow to avoid task switching and further separate RT tasks (CPU 0-1) from nRT tasks (CPU 2) inside the virtual machine
 In the settings of the virtual machine we set the CPUs to three, and we start the virtual machine.  
 
 \subsection{CPU isolation and partitioning tests}
 
 Let us try to start with some first measurements. We will run the tool \texttt{cyclictest} in different combinations, with and without stress on the CPU. 
-During the test, we will use two versions, one with system load and one without. The \texttt{-q} flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. 
+During the test, we will use two versions, one with system load generated through the tool \texttt{stress} and one without. The \texttt{-q} flag on the \texttt{cyclictest} program is mandatory because if on-line, it continues to overwrite the values which could result in shifted, bigger looking results. 
 The goal of this test is to find a configuration that permits a very low average latency and thus relatively the best performance in a vitualized environment.
 
 \begin{verbatim}
@@ -461,6 +478,8 @@ The goal of this test is to find a configuration that permits a very low average
 	stress -d 3 --hdd-bytes 20M -c 3 -i 3 -m 3 --vm-bytes 15M &
 	 cyclictest -n -a -m -q -p 99 -l 100000;
 \end{verbatim}
+
+The specified options for \texttt{cyclictest} are: nanosecond clock timer (-n), set CPU affinity thus no rescheduling of test threads (-a), lock memory allocations (-m), quiet run (-q), real-time priority 99 - maximum (-p 99), loop count 100000 (-l 100000).
 
 The measurement result are then printed with the following schema
 \bigskip
@@ -475,7 +494,7 @@ Where:
 	\item[i =] execution interval in $\mu s$,
 	\item[c =] cycle count of execution
 	\item[n =] min run delay in $\mu s$,
-	\item[a =] actual run delay in $\mu s$,
+	\item[a =] last cycle's run delay in $\mu s$,
 	\item[v =] average run delay in $\mu s$,
 	\item[x =] max run delay in $\mu s$.
 \end{where} 
@@ -486,7 +505,7 @@ Tests will be repeated to confirm values also in different situations.
 
 First of all, let us get some base measurements. The testing host is a dual core, 4 thread, sixth generation i7 Skylake (U) system with 16GB of RAM. The guest has been set-up to three cores
 and started without any further change. 
-Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery (a power management setting). Thus, in order to have all threads running, plug-in the power chord before continuing.
+Ultra-books and laptops often disable Hyper-threading to save energy when operating on battery (a power management setting). Thus, in order to have all threads running, plug-in the power cable before continuing.
 In addition, in many cases the \textit{cpu-governor} controls the bus frequency even if plugged in. Thus, we change the governor settings running the following as root. 
 
 \begin{verbatim}
@@ -504,9 +523,9 @@ We begin thus with the first two tests:
 
 \noindent \small \#1 \texttt{T: 0 ( 1489) P:99 I:1000 C: 109551 Min: 0 Act: 4894 Avg: 1370 Max:  491481}\\
 \noindent \small \#2 \texttt{T: 0 ( 1687) P:99 I:1000 C: 100000 Min: 0 Act:  186 Avg: 1877 Max:  818579}\\
-\noindent \small \#3 \texttt{T: 0 ( 1689) P:99 I:1000 C: 100000 Min: 0 Act:  604 Avg: 1664 Max:  8927944}\\
+\noindent \small \#3 \texttt{T: 0 ( 1689) P:99 I:1000 C: 100000 Min: 0 Act:  604 Avg: 1664 Max:  892794}\\
 
-\noindent Load:
+\noindent Load (stress):
 
 \noindent \small \#1 \texttt{T: 0 ( 1731) P:99 I:1000 C: 100000 Min: 1 Act:   40 Avg:  311 Max:   11892}\\
 \noindent \small \#2 \texttt{T: 0 ( 1748) P:99 I:1000 C: 100000 Min: 1 Act:   85 Avg:  292 Max:   27666}\\
@@ -514,14 +533,14 @@ We begin thus with the first two tests:
 
 \bigskip
 
-The first values obtained without load show very high peak values and average delays bigger than the cycle times. On the other hand, the stressed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. 
-The low load allows the scheduler to fill up the CPU time with other threads and thus also to distribute them (load balance) between the vCPUs.
-This movement of tasks causes registers to flush and L1-L2 caches will have to be refilled from L3. 
-All this introduces latency which is visible in the average and peak values.
-The guest under stress does not allow very much free CPU-time on the physical CPUs. Thus, the host treads are mostly run on the CPU thread not busy running the virtual machine. 
-This prevents shifting of threads to other CPUs and the resulting added latency. As a consequence, even though the load on the system is higher, the overall performance is better. 
+The first values obtained without load show very high peak values (Max) and average delays (Avg) bigger than the loop cycle times. On the other hand, the \texttt{stress}ed run has a lower peak and delay times way lower than the cycle time. That is probably due to the continuous movement of tasks on different vCPUs in the first case. 
+The low load allows the scheduler to fill up the available CPU time with other threads, and thus, also to distribute them (load balance) between the vCPUs.
+This movement of tasks causes the CPU registers to be flushed and L1-L2 caches will have to be refilled from L3. 
+All these actions introduce latencies which are visible in the average and peak values.
+The guest under stress does not allow very much free CPU-time on the physical CPUs. Thus, the host's treads are mostly run on the CPU not serving any of the virtual machine's threads. 
+Finally, this prevents the scheduler from shifting of threads to other CPUs and avoids thus resulting added latency. A direct consequence is that, even though the load on the system is higher, the overall performance is better. 
 
-A conclusion that might be drawn from this is that, if the virtual guest in the could is run on shared physical CPUs, a similar scenario might occur. 
+A conclusion that might be drawn from this is that, if the virtual guest in the cloud is run on shared physical CPUs, a similar scenario might occur. 
 The standard Amazon AWS instance uses a Complete Fair Scheduler (CFS), the same type of scheduler used for standard Linux threads in our testing host \cite{xen01}.
 Therefore, in such case, either the resources for the virtual machine are all allocated to a reasonable extent with real-time applications, or the system might require some added stress, like in this test, to force the host scheduler into a more predicable behavior. 
 
@@ -530,7 +549,7 @@ Therefore, in such case, either the resources for the virtual machine are all al
 CGroups is a standard Linux feature used for resource partitioning and CPU pinning (affinity selection). It is one of the techniques also used by Balena \& Co. to isolate the containers from the host. 
 It is a technique that might be used in combination with previous systems in order to increase their real-time properties. The tool \textit{cpuset} allows to perform a lot of the manual steps needed in an easier manner. 
 Thus, in order to give the virtual machine proper computing power, isolate it from the host processes, and to allow isolation of the real-time tasks from non real-time processes, we will now set up CPU isolation for the host CPU.
-This change should bring the virtualization host closer to the actual AWS system. The hosts threads are usually not mixed with the clients threads, although in a best effort setting the physical CPU might be shared with another virtual instance.
+This change should bring the behaviour of the virtual guest closer to an actual AWS instance. In a AWS system, the hosts threads are usually not mixed with the clients threads, although in a best effort setting the physical CPU might be shared with another virtual instance.
 In the latter case, the considerations taken in the previous section might become useful again.
 
 A two core machine will usually have four vCPUs, meaning two cores and two threads per core which equals 4. Thus, we will assign vCPUs 0-2 to the virtual guest and CPU 3 for the host system.
@@ -548,7 +567,7 @@ Next we set-up the CPU-isolation. Open a process monitor, e.g. the system monito
 	cset shield --shield --threads --pid <read-pid,read-pid>
 \end{verbatim}
 
-The virtual machine and all tasks depending on it are now moved to a separate control group named \texttt{user} which has exclusive access to the vCPUs 0 to 2. 
+The virtual machine and all tasks depending on it are now moved to a separate control group named \texttt{user}, which has exclusive access to the vCPUs 0 to 2. 
 All tasks of the host, where possible, have been moved to vCPU 3 in the new group \texttt{system} (verify with \texttt{cset shield --shield -v} and \texttt{cset shield --unshield -v}). In Figure \ref{fig:test-cpu} the effect on the host of cpu-isolation is shown.
 
 \begin{figure}[t]
@@ -624,7 +643,7 @@ For now only the tasks, user or system, have been moved from their original CPU 
 Interrupts on a multi-core system can be triggered on every active core and handled by the the specific routine. If our core serving the real-time thread has to serve the interrupt, the task has to wait.
 
 In this next test we will move all possible interrupts to the last core. This should reduce the waiting time for the real-time tasks to be fired.
-It is true that every system will always have some IRQ requests during run, but in this test we are trying ro reduce the effect of the hosts system interrupt to the virtualized tests.
+It is true that every system will always have some IRQ requests during run, but in this test we are trying ro reduce the effect of the hosts system interrupts to the virtualized tests.
 On average, a slight improvement of the measurements should be visible.
 Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we can use the following command: 
 
@@ -643,23 +662,23 @@ Thus, to isolate further the virtual machine and move the IRQs only to vCPU 3 we
 Unexpectedly, the values continue to move in the range of multiples of the cycle-time. 
 Other tests that now can be performed is to enforce the isolation even more. 
 Until now we used the tool cpuset, which isolates vCPUs from their threads and gives exclusivity of access to certain cores only to threads that have been assigned to.
-Now we will restart the cores (via the hotplug feature of the kernel) to force moving of tasks to the other cores. We will use the procedure described in \cite{lrt02}.
+Now we will restart the cores (via the hot-plug feature of the kernel) to force moving of tasks to the other cores. We will use the procedure described in \cite{lrt02}.
 
-Following the description two things where noticed: 1) it is not possible to hotplug the cpu0 and 2) disabling CPU1 disables also CPU2 and CPU3.
+Following the description two things where noticed: 1) it is not possible to hot-plug the cpu0 and 2) disabling CPU1 disables also CPU2 and CPU3.
 While the former may be a convention in order to avoid disabling all CPUs, sometimes based on hardware \cite{lwn01}, the latter is an actual misbehavior. 
-When checking interrupts via \texttt{cat /proc/interrupts} only vCPU1 is missing and assignment seems to work properly. Other CPUs hotplug function work properly. 
+When checking interrupt counters via \texttt{cat /proc/interrupts}, only vCPU1 is missing in the CPU list and IRQ reassignment seems not to work properly. Anyway, the problem looks to be isolated to some software bug and is not always reproduceable. Other CPUs hot-plug function worked properly. 
 Thus, in order to be able to work with the instructions as of \cite{lwn01}, the reserved vCPUs will now be moved at the end of the range. 
 
 The interrupt table gives us also some other information: almost all interrupts between 0 and 22 are allocated on vCPU2. This requires further investigation and is detailed in the next subsection.
 
-\subsection{Problem isolation and repeating}
+\subsection{Problem isolation and repetition}
 \label{sec:isol}
 
 {\small\textsc{Unplanned review of results, 11/08 - 12/08/18} \bigskip}
 
 Investigating the IRQ allocation in the Xenomai 3 version of the virtual machine, and comparing it to a standard machine, the allocation is completely different. This could explain the unexpected test results.
 
-If we consider a single test thread that is run manually multiple times,on average only one out of three threads will run on the same vCPU.
+If we consider a single test thread that is run manually multiple times, on average only one out of three threads will run on the same vCPU.
 As a test, if we try to pin the thread to the last CPU, the one which has the highest interrupt count, we get the following results: (Task pinning has been performed with \texttt{taskset -p 8 <pid-no>})
 
 \bigskip
@@ -672,7 +691,7 @@ Only if we include the last one, or we pin on the last vCPU, we get an average p
 
 Working through the documentation again, it is described how code must be implemented and build with Xenomai libraries in mind. 
 This means that for Xenomai to work properly, \textbf{all real-time code must be recompiled} with the proper libraries, \texttt{cyclictest} included.
-Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications and not in the Xenomai space.
+Unfortunately this means, that all tests up-to now have been executed as soft-realtime linux applications using the standard Linux kernel functions and not in the Xenomai space.
 
 The following must be included before compiling again the files in the rt-test repository: in line 5 of the \textit{Makefile} add
 
@@ -738,7 +757,7 @@ In any case, further tests with hypervisors such as native KVM supporting this f
 
 The results of the \texttt{latency} tool are very similar to the initial tests performed with \texttt{cyclictest}. With average values in the range of ten milliseconds and peaks up-to one second, the values are not yet good enough. 
 Anyway, considering the test setup and constraints, and considering the application requirements, we can safely state that running applications with a 90ms admissible latency \textbf{is} possible. The load tests did show peak values under 30ms, a third of the maximum allowance. 
-Thus, what is now to improve is the idle response time of the visualized instance. How much improvement is actually possible and what the various options will be matter of future work.
+Thus, what is now to improve is the idle response time of the visualized instance. Single or not properly distributed threads reached max lantencies over one second, ten times more than allowed by the application. How much improvement is actually possible and what the various options will be matter of future work.
 
 For the sake of completion, the tests will be continued using the same concepts of isolation also for the guest. It should help to predict the behavior of the cloud machine.
 
@@ -746,7 +765,7 @@ For the sake of completion, the tests will be continued using the same concepts 
 
 We now try to set-up the same isolation concept also for the virtual guest. The available cores are separated into real-time (RT) and non-real-time (nRT) groups. 
 We will use one full physical core, 2 vCPUs, for RT and one virtualization thread, or one vCPU, for the nRT tasks such as standard operating system tasks. 
-This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} is required like in the host case. We now shield and start the RT task in a isolated CPU group. 
+This way we can completely isolate the RT tasks on a separate core. The installation of the software \texttt{cpuset} is required like in the host case. We now shield and start the RT task in an isolated CPU group. 
 
 \noindent Command : 
 
@@ -785,7 +804,7 @@ After we put load balance and IRQ affinity settings of the host back to normal, 
 \noindent \#3 \small \texttt{T: 0 ( 1934) P:99 I:1000 C: 100000 Min:      8 Act: 9569 Avg:14566 Max:  844467}
 
 The test shows that isolation on the host actually influences the latency test in the guest.
-Now, in addition we set the load balancer and irq affinity ion the guest to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
+Now, in addition we set the load balancer and IRQ affinity ion the guest to see if the performance improves. Remember to use value 4 this time for CPU affinity of the IRQs.
 \bigskip
 
 \noindent Results :
@@ -794,7 +813,7 @@ Now, in addition we set the load balancer and irq affinity ion the guest to see 
 \noindent \#2 \small \texttt{T: 0 ( 1979) P:99 I:1000 C: 100000 Min:      8 Act: 9638 Avg:13784 Max:  826807}\\
 \noindent \#3 \small \texttt{T: 0 ( 2047) P:99 I:1000 C: 100000 Min:      5 Act:39152 Avg:13109 Max:  845584}\\
 
-When changing load balanacer and IRQ affinity the values remain in the same range. It seems that the CPU isolation and configuration of the guest settings either has no impact or worsens the performance.
+Even after changing load balanacer and IRQ affinity settings the values remain in the same range. It seems that the CPU isolation and configuration of the guest settings either has no impact or worsens the performance.
 Thus, for the moment, the shielding and isolation of resources in the guest system will not be considered. 
 Anyway, some final tests with a dedicated server should be performed to confirm this conclusion.
 
@@ -848,7 +867,7 @@ By further investigating on kernel source files on Kernel.org, and reading throu
 \bigskip
 
 Indeed, in the repository of the \texttt{chrt} standard scheduling tools \cite{schtools01} it can be seen that the version of tools starting from v2.28, version released with Ubuntu 16.04 is v2.27, permit input of  parameters for EDF scheduling.
-This ,the late completeness of the scheduling option might be one of the reasons for the total lack of documentation.
+Thus, the late completeness of the scheduling option might be one of the reasons for the total lack of documentation.
 
 In addition, the source code gave insight into another work in progress: the scheduling mode SCHED\_ISO. It is intended for fast interactive real-time tasks to be run for very short computation times. All in all, this suggests that the standard Linux scheduler  development is still ongoing.
 It would therefore be interesting to exchange information with, if not take part, the main scheduling development team of the Linux kernel.
@@ -857,7 +876,7 @@ The study of the AWS system highlighted some recent changes. While the tradition
 This new hypervisor will allow direct assignment and control of hardware and resources.
 This means, in short, that there is no need to use bare metal server instead: the new instances promise the same performance with greater flexibility and scalability.
 
-In the last meeting it was finally decided to continue with Docker as a main virtualization platform and Kubernetes will be introduced as management tool for the virtualized machine and its containers.
+In the last meeting it was finally decided to continue with Docker as a main containerization platform. Furthermore, Kubernetes will be introduced as management tool for the virtualized machine and its containers.
 One of the reasons is that, at the moment, the system of Figure \ref{fig:plan} is based on such technology and thus it would reduce the training cost of operators.
 In sight of findings about the latest hypervisor development at Amazon AWS, in the meeting of the 07/08/18 we decided to operate on a C5 instance with at least 4 cores for the containers and, in addition, a generic instance for a Kubernetes monitoring system.
 All further systems, where possible, will be running on Ubuntu Server 18.04.x in order to stay updated with the tools and exploit the 5 year maintenance of the LTS program.
@@ -893,7 +912,7 @@ Now the script can be run. The parameters to be passed are host, port and virtua
 
 {\small\textsc{Report clean-up, future work discussions, 11/08 - 28/08/18} \bigskip}
 
-For the following weeks more tests could clarify additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would enable to verify improvements through reduces cache misses.
+For the following weeks more tests could clarify additional behavior of virtual machines in the cloud. An example is a test run on dedicated server with four or more cores. A hardware solution containing multiple NUMA nodes would enable to verify improvements through reduced cache misses.
 The new setup should use a native KVM hypervisor to allow also vCPU thread pinning. The new tests should shed light on the described phenomenon where the last vCPU always gives better results than the others.
 On the software side, some tests still to be performed are latency values using the newest releases. A discussed variant is also to patch the host's kernel for hard-real-time operation.
 All the tests will be performed with scripts and data recording. The results might then be elaborated for further studying and/or publication.
