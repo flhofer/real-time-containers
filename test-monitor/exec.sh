@@ -130,7 +130,7 @@ else
 fi
 
 echo "Configuration: "$prcs" threads, "$prcsrun" selected for isolation on "$numanr" NUMA node(s)"
-echo "We will assume "$novcpu" virtual CPUs in the VM and use "$tthreads" testing threads"
+echo "We will assume "$novcpu" virtual CPUs in the VM and use "$tthreads" testing thread(s)"
 if [ $numanr -ge 2 ]; then
 	echo "The present Numa configurations are:"
 	echo ${numa[*]}
@@ -305,12 +305,12 @@ $(rm Iso* NoIso*)
 
 echo "Resetting guest..."
 guest_load_balancer 1
-guest_irq_affinity $((((1<<$prcsrun))-1))
+guest_irq_affinity $((((1<<$novcpu))-1))
 unshield_guest
 
 echo "Resetting host..."
 load_balancer 1
-irq_affinity $( echo "obase=16;" $((((1<<32))-1)) | bc )
+irq_affinity $( echo "obase=16;" $((((1<<prcs))-1)) | bc )
 unshield_host
 
 
@@ -360,12 +360,12 @@ loadNoLoad IsoNoBalIRQG $cshield
 
 echo "Resetting guest..."
 guest_load_balancer 1
-guest_irq_affinity $((((1<<$prcsrun))-1))
+guest_irq_affinity $((((1<<$novcpu))-1))
 unshield_guest
 
 echo "Resetting host..."
 load_balancer 1
-irq_affinity $( echo "obase=16;" $((((1<<32))-1)) | bc )
+irq_affinity $( echo "obase=16;" $((((1<<prcs))-1)) | bc )
 unshield_host
 
 echo "Resetting user permissions to 1000 (default user)..."
