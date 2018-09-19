@@ -22,11 +22,11 @@ EOF
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 
-if [ $# -lt 3 ] && [ $# -ne 0 ]; then
+if [ $# -lt 2 ] && [ $# -ne 0 ]; then
 
 cat <<EOF
 Not enough arguments supplied!
-Usag: ./exec.sh host port [vm-pid] [NRvCPU] [montime] [testcnt]
+Usag: ./exec.sh host port [vm-pid] [NRvCPU] [montime] [testcnt] [tthreads]
  or   ./exec.sh (for defaults)
 
 Defaults are:
@@ -36,8 +36,8 @@ vm-pid = (autodetect)   pid of the main VBox process
 NRvCPU = 3              number of virtual CPUs assigned to the VM
 montime = 900 sec       max monitoring time of system
 testcnt = 5				number of times tests are repeated
+tthreads = auto         testing threads, use available vCPUs by default
 EOF
-#tthreads = auto         testing threads, use available vCPUs by default
 
 	exit 1
 fi
@@ -45,7 +45,7 @@ fi
 host=${1:-'localhost'}
 port=${2:-'8022'}
 
-if [ -z  "$3"]; then
+if [ -z  "$3" ]; then
 	# try to find pid of vbox instance running
 	vmpid=$(ps -ef | grep 'Box' | grep -m 1 'startvm' | awk '{print $2}')
 
@@ -53,6 +53,7 @@ if [ -z  "$3"]; then
 		echo "ERROR: Could not detected VM running!"
 		exit 1
 	fi
+	echo "Detected VM with pid "$vmpid
 else
 	vmpid=$3
 fi
@@ -60,7 +61,8 @@ fi
 novcpu=${4:-'3'}
 montime=${5:-'900'}
 testcnt=${6:-'5'}
-#tthreads=${7:-$novcpu}
+# if tthread 0, default (RT vCPUs) are used
+tthreads=${7:-'0'}
 
 ##################### DETERMINE HARDWARE PARAMETERS ##########################
 
@@ -128,6 +130,7 @@ else
 fi
 
 echo "Configuration: "$prcs" threads, "$prcsrun" selected for isolation on "$numanr" NUMA node(s)"
+echo "We will assume "$novcpu" virtual CPUs in the VM and use "$tthreads" testing threads"
 if [ $numanr -ge 2 ]; then
 	echo "The present Numa configurations are:"
 	echo ${numa[*]}
@@ -144,8 +147,8 @@ function set_cmds () {
 #	cyctest='echo cyclictest '
 #	scyctest='echo stress'
 #	cshield='cset shield --exec --threads -- '
-	cyctest='cyclictest -t '$1' -n -a -m -q -p 99 -l 100000'
-	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$1' -n -a -m -q -p 99 -l 100000 && killall stress;'
+	cyctest='cyclictest -t '$2' -n -a -m -q -p 99 -l 100000'
+	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$2' -n -a -m -q -p 99 -l 100000 && killall stress;'
 	cshield='cset shield --exec --threads -- '
 }
 
@@ -297,7 +300,11 @@ echo "Cleaning up directory..."
 $(rm Iso* NoIso*)
 
 # set commands to use 3 threads, 1 per vCPU
-set_cmds $novcpu
+if [ "$tthreads" -eq 0 ]; then
+	set_cmds $novcpu $novcpu
+else
+	set_cmds $novcpu $tthreads
+fi
 
 echo "Start no isolation tests..."
 loadNoLoad NoIso
@@ -318,7 +325,11 @@ shield_host
 loadNoLoad IsoNoBalIRQ
 
 # set commands to use 2 threads, 1 per real-time dedicated vCPU
-set_cmds $((novcpu-1))
+if [ "$tthreads" -eq 0 ]; then
+	set_cmds $((novcpu-1)) $((novcpu-1))
+else
+	set_cmds $((novcpu-1)) $tthreads
+fi
 
 echo "Start isolation tests guest..."
 shield_guest
