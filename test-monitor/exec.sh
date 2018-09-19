@@ -34,7 +34,7 @@ host = localhost        remote host to connect to
 port = 8022             ssh connection port
 vm-pid = (autodetect)   pid of the main VBox process
 NRvCPU = 3              number of virtual CPUs assigned to the VM
-montime = 900 sec       max monitoring time of system
+montime = 3600 sec       max monitoring time of system
 testcnt = 5				number of times tests are repeated
 tthreads = auto         testing threads, use available vCPUs by default
 EOF
@@ -59,7 +59,7 @@ else
 fi
 
 novcpu=${4:-'3'}
-montime=${5:-'900'}
+montime=${5:-'3600'}
 testcnt=${6:-'5'}
 # if tthread 0, default (RT vCPUs) are used
 tthreads=${7:-'0'}
@@ -204,15 +204,19 @@ function unshield_guest() {
 
 function irq_affinity() {
 	echo "Setting IRQ affinity to "$1
-	for file in /proc/irq/*; do
+	for file in /proc/irq/*/; do
 	   echo $1 > $file/smp_affinity;
 	done
+	echo $1 > /proc/irq/default_smp_affinity
 	}
 
 function guest_irq_affinity() {
 	echo "Setting guest IRQ affinity to "$1
 
-	loop='for file in /proc/irq/*; do echo $1 > \$file/smp_affinity; done'
+	loop='for file in /proc/irq/*/; do echo $1 > \$file/smp_affinity; done'
+	build_ssh $loop
+	eval $cmd
+	loop='echo $1 > /proc/irq/default_smp_affinity'
 	build_ssh $loop
 	eval $cmd
 	}
@@ -299,7 +303,18 @@ function restartCores () {
 echo "Cleaning up directory..."
 $(rm Iso* NoIso*)
 
-# set commands to use 3 threads, 1 per vCPU
+echo "Resetting guest..."
+guest_load_balancer 1
+guest_irq_affinity $((((1<<$prcsrun))-1))
+unshield_guest
+
+echo "Resetting host..."
+load_balancer 1
+irq_affinity $( echo "obase=16;" $((((1<<32))-1)) | bc )
+unshield_host
+
+
+# set commands to use [tthread] or [novcpu] threads on [novcpus] vCPUs
 if [ "$tthreads" -eq 0 ]; then
 	set_cmds $novcpu $novcpu
 else
@@ -324,7 +339,7 @@ restartCores
 shield_host
 loadNoLoad IsoNoBalIRQ
 
-# set commands to use 2 threads, 1 per real-time dedicated vCPU
+# set commands to use [tthread] or [novcpu-1] threads on [novcpus] vCPUs
 if [ "$tthreads" -eq 0 ]; then
 	set_cmds $((novcpu-1)) $((novcpu-1))
 else
