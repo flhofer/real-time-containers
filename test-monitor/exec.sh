@@ -83,10 +83,10 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 				numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
 			done
 
-			prcsrun=$((prcs/2))
+			prcsrun=$((prcs/numanr))
 		else
 			echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
-			numa[0]='1-'$prcs # string
+			numa[0]='1-'$((prcs-1)) # string
 			prcsrun=$((prcs-1))
 		fi	
 
@@ -100,7 +100,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 
 		#Macs have single NUMA only
 		echo "Single NUMA node Mac OSX detected, selecting all excepet cpu0 for isolation.."
-		numa[0]='1-'$prcs # string
+		numa[0]='1-'$((prcs-1)) # string
 		prcsrun=$((prcs-1))
 
 # elif [[ "$OSTYPE" == "cygwin" ]]; then
