@@ -259,7 +259,7 @@ function restartCores () {
 
 	#check if numa is a number or a list
 	re='^[0-9]+$';
-	if [[ ${numa[0]} =~ $re ]]; then
+	if [[ $numanr -eq 1 ]]; then
 		#simple number of cores
 
 		#shut down cores
@@ -357,6 +357,14 @@ loadNoLoad IsoNoBalG $cshield
 echo "Start isolation tests adding IRQ affinity..."
 guest_irq_affinity 1
 loadNoLoad IsoNoBalIRQG $cshield
+
+echo "Start isolation tests hlb no load balancer..."
+load_balancer 1
+loadNoLoad IsoLbNoBalG $cshield
+
+echo "Start isolation tests hlb Ni no load balancer..."
+irq_affinity $( echo "obase=16;" $((((1<<prcs))-1)) | bc )
+loadNoLoad IsoLbnNiNoBalG $cshield
 
 echo "Resetting guest..."
 guest_load_balancer 1
