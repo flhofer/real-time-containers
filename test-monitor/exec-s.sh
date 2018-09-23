@@ -125,11 +125,9 @@ fi
 function set_cmds () {
 	# vary cpu tests depending on isolation setting
 	# usually -S = -t -a -n, instead, but this way we can have less threads than vCPUs
-#	cyctest='echo cyclictest '
-#	scyctest='echo stress'
-#	cshield='cset shield --exec --threads -- '
 	cyctest='cyclictest -t '$2' -n -a -m -q -p 99 -l 100000'
-	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$2' -n -a -m -q -p 99 -l 100000 && killall stress;'
+	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M &'
+	scyctestend='killall stress'
 	cshield='cset shield --exec --threads -- '
 }
 
@@ -191,8 +189,9 @@ function loadNoLoad () {
 	cmd=${@:2}" "$cyctest
 	run_loop $1NoLoad
 
-	cmd=${@:2}" "$scyctest
+	eval ${@:2}" "$scyctest
 	run_loop $1Load
+	eval $scyctestend
 }
 
 function restartCores () {

@@ -144,11 +144,9 @@ fi
 function set_cmds () {
 	# vary cpu tests depending on isolation setting
 	# usually -S = -t -a -n, instead, but this way we can have less threads than vCPUs
-#	cyctest='echo cyclictest '
-#	scyctest='echo stress'
-#	cshield='cset shield --exec --threads -- '
 	cyctest='cyclictest -t '$2' -n -a -m -q -p 99 -l 100000'
-	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M & cyclictest -t '$2' -n -a -m -q -p 99 -l 100000 && killall stress;'
+	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M &'
+	scyctestend='killall stress'
 	cshield='cset shield --exec --threads -- '
 }
 
@@ -242,8 +240,16 @@ function loadNoLoad () {
 	build_ssh ${@:2} $cyctest
 	run_loop $1NoLoad
 
+	# Start stress 
 	build_ssh ${@:2} $scyctest
+	eval $cmd
+	
+	build_ssh ${@:2} $cyctest
 	run_loop $1Load
+
+	# kill stress
+	build_ssh ${@:2} $scyctestend
+	eval $cmd
 }
 
 function restartCores () {
@@ -316,9 +322,9 @@ unshield_host
 
 # set commands to use [tthread] or [novcpu] threads on [novcpus] vCPUs
 if [ "$tthreads" -eq 0 ]; then
-	set_cmds $novcpu $novcpu
+	set_cmds $prcsrun $prcsrun
 else
-	set_cmds $novcpu $tthreads
+	set_cmds $prcsrun $tthreads
 fi
 
 echo "Start no isolation tests..."
@@ -341,9 +347,9 @@ loadNoLoad IsoNoBalIRQ
 
 # set commands to use [tthread] or [novcpu-1] threads on [novcpus] vCPUs
 if [ "$tthreads" -eq 0 ]; then
-	set_cmds $((novcpu-1)) $((novcpu-1))
+	set_cmds $((prcsrun-1)) $((prcsrun-1))
 else
-	set_cmds $((novcpu-1)) $tthreads
+	set_cmds $((prcsrun-1)) $tthreads
 fi
 
 echo "Start isolation tests guest..."
