@@ -1,0 +1,2212 @@
+AAA,progname,nmon
+AAA,command,nmon -p -s 1 -r -c -F NoIsoLoad5.csv 900 
+AAA,version,14g
+AAA,disks_per_line,150
+AAA,max_disks,256,set by -d option
+AAA,disks,13,
+AAA,host,helius
+AAA,user,root
+AAA,OS,Linux,4.15.0-30-generic,#32~16.04.1-Ubuntu SMP Thu Jul 26 20:25:39 UTC 2018,x86_64
+AAA,runname,-c
+AAA,time,09:51.50
+AAA,date,23-AUG-2018
+AAA,interval,1
+AAA,snapshots,288
+AAA,cpus,4
+AAA,proc_stat_variables,8
+AAA,note0, Warning - use the UNIX sort command to order this file before loading into a spreadsheet
+AAA,note1, The First Column is simply to get the output sorted in the right order
+AAA,note2, The T0001-T9999 column is a snapshot number. To work out the actual time; see the ZZZ section at the end
+CPU001,CPU 1 -c,User%,Sys%,Wait%,Idle%
+CPU002,CPU 2 -c,User%,Sys%,Wait%,Idle%
+CPU003,CPU 3 -c,User%,Sys%,Wait%,Idle%
+CPU004,CPU 4 -c,User%,Sys%,Wait%,Idle%
+CPU_ALL,CPU Total -c,User%,Sys%,Wait%,Idle%,Busy,CPUs
+MEM,Memory MB -c,memtotal,hightotal,lowtotal,swaptotal,memfree,highfree,lowfree,swapfree,memshared,cached,active,bigfree,buffers,swapcached,inactive
+PROC,Processes -c,Runnable,Blocked,pswitch,syscall,read,write,fork,exec,sem,msg
+NET,Network I/O -c,docker0-read-KB/s,wlp58s0-read-KB/s,lo-read-KB/s,docker0-write-KB/s,wlp58s0-write-KB/s,lo-write-KB/s,
+NETPACKET,Network Packets -c,docker0-read/s,wlp58s0-read/s,lo-read/s,docker0-write/s,wlp58s0-write/s,lo-write/s,
+DISKBUSY,Disk %Busy -c,loop0,loop1,loop2,loop3,loop4,loop5,loop6,loop7,nvme0n1,nvme0n1p1,nvme0n1p2,nvme0n1p3,loop8
+DISKREAD,Disk Read KB/s -c,loop0,loop1,loop2,loop3,loop4,loop5,loop6,loop7,nvme0n1,nvme0n1p1,nvme0n1p2,nvme0n1p3,loop8
+DISKWRITE,Disk Write KB/s -c,loop0,loop1,loop2,loop3,loop4,loop5,loop6,loop7,nvme0n1,nvme0n1p1,nvme0n1p2,nvme0n1p3,loop8
+DISKXFER,Disk transfers per second -c,loop0,loop1,loop2,loop3,loop4,loop5,loop6,loop7,nvme0n1,nvme0n1p1,nvme0n1p2,nvme0n1p3,loop8
+DISKBSIZE,Disk Block Size -c,loop0,loop1,loop2,loop3,loop4,loop5,loop6,loop7,nvme0n1,nvme0n1p1,nvme0n1p2,nvme0n1p3,loop8
+DGBUSY,Disk Group Busy helius
+DGREAD,Disk Group Read KB/s helius
+DGWRITE,Disk Group Write KB/s helius
+DGSIZE,Disk Group Block Size KB helius
+DGXFER,Disk Group Transfers/s helius
+JFSFILE,JFS Filespace %Used helius,/dev,/run,/,/run/lock,/dev/hugepages,/dev/mqueue,/snap/core/4917,/snap/core/5145,/snap/vscode/51,/snap/vscode/46,/snap/android-studio/51,/snap/go/2130,/snap/vscode/44,/snap/android-studio/53,/boot/efi,/var/lib/docker/aufs,/run/user/1000
+BBBP,000,/etc/release
+BBBP,001,/etc/release,"DISTRIB_ID=Ubuntu"
+BBBP,002,/etc/release,"DISTRIB_RELEASE=16.04"
+BBBP,003,/etc/release,"DISTRIB_CODENAME=xenial"
+BBBP,004,/etc/release,"DISTRIB_DESCRIPTION="Ubuntu 16.04.5 LTS""
+BBBP,005,/etc/release,"NAME="Ubuntu""
+BBBP,006,/etc/release,"VERSION="16.04.5 LTS (Xenial Xerus)""
+BBBP,007,/etc/release,"ID=ubuntu"
+BBBP,008,/etc/release,"ID_LIKE=debian"
+BBBP,009,/etc/release,"PRETTY_NAME="Ubuntu 16.04.5 LTS""
+BBBP,010,/etc/release,"VERSION_ID="16.04""
+BBBP,011,/etc/release,"HOME_URL="http://www.ubuntu.com/""
+BBBP,012,/etc/release,"SUPPORT_URL="http://help.ubuntu.com/""
+BBBP,013,/etc/release,"BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/""
+BBBP,014,/etc/release,"VERSION_CODENAME=xenial"
+BBBP,015,/etc/release,"UBUNTU_CODENAME=xenial"
+BBBP,016,lsb_release
+BBBP,017,lsb_release,"Distributor ID:	Ubuntu"
+BBBP,018,lsb_release,"Description:	Ubuntu 16.04.5 LTS"
+BBBP,019,lsb_release,"Release:	16.04"
+BBBP,020,lsb_release,"Codename:	xenial"
+BBBP,021,fdisk-l
+BBBP,022,fdisk-l,"Disk /dev/loop0: 718,6 MiB, 753512448 bytes, 1471704 sectors"
+BBBP,023,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,024,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,025,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,026,fdisk-l,""
+BBBP,027,fdisk-l,""
+BBBP,028,fdisk-l,"Disk /dev/loop1: 63,8 MiB, 66871296 bytes, 130608 sectors"
+BBBP,029,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,030,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,031,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,032,fdisk-l,""
+BBBP,033,fdisk-l,""
+BBBP,034,fdisk-l,"Disk /dev/loop2: 86,9 MiB, 91099136 bytes, 177928 sectors"
+BBBP,035,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,036,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,037,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,038,fdisk-l,""
+BBBP,039,fdisk-l,""
+BBBP,040,fdisk-l,"Disk /dev/loop3: 87 MiB, 91160576 bytes, 178048 sectors"
+BBBP,041,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,042,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,043,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,044,fdisk-l,""
+BBBP,045,fdisk-l,""
+BBBP,046,fdisk-l,"Disk /dev/loop4: 79,4 MiB, 83279872 bytes, 162656 sectors"
+BBBP,047,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,048,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,049,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,050,fdisk-l,""
+BBBP,051,fdisk-l,""
+BBBP,052,fdisk-l,"Disk /dev/loop5: 79,4 MiB, 83288064 bytes, 162672 sectors"
+BBBP,053,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,054,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,055,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,056,fdisk-l,""
+BBBP,057,fdisk-l,""
+BBBP,058,fdisk-l,"Disk /dev/loop6: 119,8 MiB, 125640704 bytes, 245392 sectors"
+BBBP,059,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,060,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,061,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,062,fdisk-l,""
+BBBP,063,fdisk-l,""
+BBBP,064,fdisk-l,"Disk /dev/loop7: 750,9 MiB, 787349504 bytes, 1537792 sectors"
+BBBP,065,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,066,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,067,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,068,fdisk-l,""
+BBBP,069,fdisk-l,""
+BBBP,070,fdisk-l,"Disk /dev/nvme0n1: 477 GiB, 512110190592 bytes, 1000215216 sectors"
+BBBP,071,fdisk-l,"Units: sectors of 1 * 512 = 512 bytes"
+BBBP,072,fdisk-l,"Sector size (logical/physical): 512 bytes / 512 bytes"
+BBBP,073,fdisk-l,"I/O size (minimum/optimal): 512 bytes / 512 bytes"
+BBBP,074,fdisk-l,"Disklabel type: gpt"
+BBBP,075,fdisk-l,"Disk identifier: 167BD9E6-49D4-435E-B5CF-EDA0A8F56DE3"
+BBBP,076,fdisk-l,""
+BBBP,077,fdisk-l,"Device             Start        End   Sectors   Size Type"
+BBBP,078,fdisk-l,"ddev/nvme0n1p1      2048    1050623   1048576   512M EFI System"
+BBBP,079,fdisk-l,"ddev/nvme0n1p2   1050624  966973439 965922816 460,6G Linux filesystem"
+BBBP,080,fdisk-l,"ddev/nvme0n1p3 966973440 1000214527  33241088  15,9G Linux swap"
+BBBP,081,/proc/cpuinfo
+BBBP,082,/proc/cpuinfo,"processor	: 0"
+BBBP,083,/proc/cpuinfo,"vendor_id	: GenuineIntel"
+BBBP,084,/proc/cpuinfo,"cpu family	: 6"
+BBBP,085,/proc/cpuinfo,"model		: 78"
+BBBP,086,/proc/cpuinfo,"model name	: Intel(R) Core(TM) i7-6560U CPU @ 2.20GHz"
+BBBP,087,/proc/cpuinfo,"stepping	: 3"
+BBBP,088,/proc/cpuinfo,"microcode	: 0xc2"
+BBBP,089,/proc/cpuinfo,"cpu MHz		: 3014.747"
+BBBP,090,/proc/cpuinfo,"cache size	: 4096 KB"
+BBBP,091,/proc/cpuinfo,"physical id	: 0"
+BBBP,092,/proc/cpuinfo,"siblings	: 4"
+BBBP,093,/proc/cpuinfo,"core id		: 0"
+BBBP,094,/proc/cpuinfo,"cpu cores	: 2"
+BBBP,095,/proc/cpuinfo,"apicid		: 0"
+BBBP,096,/proc/cpuinfo,"initial apicid	: 0"
+BBBP,097,/proc/cpuinfo,"fpu		: yes"
+BBBP,098,/proc/cpuinfo,"fpu_exception	: yes"
+BBBP,099,/proc/cpuinfo,"cpuid level	: 22"
+BBBP,100,/proc/cpuinfo,"wp		: yes"
+BBBP,101,/proc/cpuinfo,"flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp"
+BBBP,102,/proc/cpuinfo,"bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass"
+BBBP,103,/proc/cpuinfo,"bogomips	: 4416.00"
+BBBP,104,/proc/cpuinfo,"clflush size	: 64"
+BBBP,105,/proc/cpuinfo,"cache_alignment	: 64"
+BBBP,106,/proc/cpuinfo,"address sizes	: 39 bits physical, 48 bits virtual"
+BBBP,107,/proc/cpuinfo,"power management:"
+BBBP,108,/proc/cpuinfo,""
+BBBP,109,/proc/cpuinfo,"processor	: 1"
+BBBP,110,/proc/cpuinfo,"vendor_id	: GenuineIntel"
+BBBP,111,/proc/cpuinfo,"cpu family	: 6"
+BBBP,112,/proc/cpuinfo,"model		: 78"
+BBBP,113,/proc/cpuinfo,"model name	: Intel(R) Core(TM) i7-6560U CPU @ 2.20GHz"
+BBBP,114,/proc/cpuinfo,"stepping	: 3"
+BBBP,115,/proc/cpuinfo,"microcode	: 0xc2"
+BBBP,116,/proc/cpuinfo,"cpu MHz		: 3011.440"
+BBBP,117,/proc/cpuinfo,"cache size	: 4096 KB"
+BBBP,118,/proc/cpuinfo,"physical id	: 0"
+BBBP,119,/proc/cpuinfo,"siblings	: 4"
+BBBP,120,/proc/cpuinfo,"core id		: 1"
+BBBP,121,/proc/cpuinfo,"cpu cores	: 2"
+BBBP,122,/proc/cpuinfo,"apicid		: 2"
+BBBP,123,/proc/cpuinfo,"initial apicid	: 2"
+BBBP,124,/proc/cpuinfo,"fpu		: yes"
+BBBP,125,/proc/cpuinfo,"fpu_exception	: yes"
+BBBP,126,/proc/cpuinfo,"cpuid level	: 22"
+BBBP,127,/proc/cpuinfo,"wp		: yes"
+BBBP,128,/proc/cpuinfo,"flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp"
+BBBP,129,/proc/cpuinfo,"bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass"
+BBBP,130,/proc/cpuinfo,"bogomips	: 4416.00"
+BBBP,131,/proc/cpuinfo,"clflush size	: 64"
+BBBP,132,/proc/cpuinfo,"cache_alignment	: 64"
+BBBP,133,/proc/cpuinfo,"address sizes	: 39 bits physical, 48 bits virtual"
+BBBP,134,/proc/cpuinfo,"power management:"
+BBBP,135,/proc/cpuinfo,""
+BBBP,136,/proc/cpuinfo,"processor	: 2"
+BBBP,137,/proc/cpuinfo,"vendor_id	: GenuineIntel"
+BBBP,138,/proc/cpuinfo,"cpu family	: 6"
+BBBP,139,/proc/cpuinfo,"model		: 78"
+BBBP,140,/proc/cpuinfo,"model name	: Intel(R) Core(TM) i7-6560U CPU @ 2.20GHz"
+BBBP,141,/proc/cpuinfo,"stepping	: 3"
+BBBP,142,/proc/cpuinfo,"microcode	: 0xc2"
+BBBP,143,/proc/cpuinfo,"cpu MHz		: 3029.510"
+BBBP,144,/proc/cpuinfo,"cache size	: 4096 KB"
+BBBP,145,/proc/cpuinfo,"physical id	: 0"
+BBBP,146,/proc/cpuinfo,"siblings	: 4"
+BBBP,147,/proc/cpuinfo,"core id		: 0"
+BBBP,148,/proc/cpuinfo,"cpu cores	: 2"
+BBBP,149,/proc/cpuinfo,"apicid		: 1"
+BBBP,150,/proc/cpuinfo,"initial apicid	: 1"
+BBBP,151,/proc/cpuinfo,"fpu		: yes"
+BBBP,152,/proc/cpuinfo,"fpu_exception	: yes"
+BBBP,153,/proc/cpuinfo,"cpuid level	: 22"
+BBBP,154,/proc/cpuinfo,"wp		: yes"
+BBBP,155,/proc/cpuinfo,"flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp"
+BBBP,156,/proc/cpuinfo,"bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass"
+BBBP,157,/proc/cpuinfo,"bogomips	: 4416.00"
+BBBP,158,/proc/cpuinfo,"clflush size	: 64"
+BBBP,159,/proc/cpuinfo,"cache_alignment	: 64"
+BBBP,160,/proc/cpuinfo,"address sizes	: 39 bits physical, 48 bits virtual"
+BBBP,161,/proc/cpuinfo,"power management:"
+BBBP,162,/proc/cpuinfo,""
+BBBP,163,/proc/cpuinfo,"processor	: 3"
+BBBP,164,/proc/cpuinfo,"vendor_id	: GenuineIntel"
+BBBP,165,/proc/cpuinfo,"cpu family	: 6"
+BBBP,166,/proc/cpuinfo,"model		: 78"
+BBBP,167,/proc/cpuinfo,"model name	: Intel(R) Core(TM) i7-6560U CPU @ 2.20GHz"
+BBBP,168,/proc/cpuinfo,"stepping	: 3"
+BBBP,169,/proc/cpuinfo,"microcode	: 0xc2"
+BBBP,170,/proc/cpuinfo,"cpu MHz		: 3006.654"
+BBBP,171,/proc/cpuinfo,"cache size	: 4096 KB"
+BBBP,172,/proc/cpuinfo,"physical id	: 0"
+BBBP,173,/proc/cpuinfo,"siblings	: 4"
+BBBP,174,/proc/cpuinfo,"core id		: 1"
+BBBP,175,/proc/cpuinfo,"cpu cores	: 2"
+BBBP,176,/proc/cpuinfo,"apicid		: 3"
+BBBP,177,/proc/cpuinfo,"initial apicid	: 3"
+BBBP,178,/proc/cpuinfo,"fpu		: yes"
+BBBP,179,/proc/cpuinfo,"fpu_exception	: yes"
+BBBP,180,/proc/cpuinfo,"cpuid level	: 22"
+BBBP,181,/proc/cpuinfo,"wp		: yes"
+BBBP,182,/proc/cpuinfo,"flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp"
+BBBP,183,/proc/cpuinfo,"bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass"
+BBBP,184,/proc/cpuinfo,"bogomips	: 4416.00"
+BBBP,185,/proc/cpuinfo,"clflush size	: 64"
+BBBP,186,/proc/cpuinfo,"cache_alignment	: 64"
+BBBP,187,/proc/cpuinfo,"address sizes	: 39 bits physical, 48 bits virtual"
+BBBP,188,/proc/cpuinfo,"power management:"
+BBBP,189,/proc/cpuinfo,""
+BBBP,190,/proc/meminfo
+BBBP,191,/proc/meminfo,"MemTotal:       16138132 kB"
+BBBP,192,/proc/meminfo,"MemFree:        10135328 kB"
+BBBP,193,/proc/meminfo,"MemAvailable:   12540316 kB"
+BBBP,194,/proc/meminfo,"Buffers:          414876 kB"
+BBBP,195,/proc/meminfo,"Cached:          2830220 kB"
+BBBP,196,/proc/meminfo,"SwapCached:            0 kB"
+BBBP,197,/proc/meminfo,"Active:          2225844 kB"
+BBBP,198,/proc/meminfo,"Inactive:        2153676 kB"
+BBBP,199,/proc/meminfo,"Active(anon):    1135736 kB"
+BBBP,200,/proc/meminfo,"Inactive(anon):   851196 kB"
+BBBP,201,/proc/meminfo,"Active(file):    1090108 kB"
+BBBP,202,/proc/meminfo,"Inactive(file):  1302480 kB"
+BBBP,203,/proc/meminfo,"Unevictable:          80 kB"
+BBBP,204,/proc/meminfo,"Mlocked:              80 kB"
+BBBP,205,/proc/meminfo,"SwapTotal:      16620540 kB"
+BBBP,206,/proc/meminfo,"SwapFree:       16620540 kB"
+BBBP,207,/proc/meminfo,"Dirty:                56 kB"
+BBBP,208,/proc/meminfo,"Writeback:             0 kB"
+BBBP,209,/proc/meminfo,"AnonPages:       1134196 kB"
+BBBP,210,/proc/meminfo,"Mapped:          1593616 kB"
+BBBP,211,/proc/meminfo,"Shmem:            852512 kB"
+BBBP,212,/proc/meminfo,"Slab:             448160 kB"
+BBBP,213,/proc/meminfo,"SReclaimable:     354760 kB"
+BBBP,214,/proc/meminfo,"SUnreclaim:        93400 kB"
+BBBP,215,/proc/meminfo,"KernelStack:       12032 kB"
+BBBP,216,/proc/meminfo,"PageTables:        42440 kB"
+BBBP,217,/proc/meminfo,"NFS_Unstable:          0 kB"
+BBBP,218,/proc/meminfo,"Bounce:                0 kB"
+BBBP,219,/proc/meminfo,"WritebackTmp:          0 kB"
+BBBP,220,/proc/meminfo,"CommitLimit:    24689604 kB"
+BBBP,221,/proc/meminfo,"Committed_AS:    8159388 kB"
+BBBP,222,/proc/meminfo,"VmallocTotal:   34359738367 kB"
+BBBP,223,/proc/meminfo,"VmallocUsed:           0 kB"
+BBBP,224,/proc/meminfo,"VmallocChunk:          0 kB"
+BBBP,225,/proc/meminfo,"HardwareCorrupted:     0 kB"
+BBBP,226,/proc/meminfo,"AnonHugePages:         0 kB"
+BBBP,227,/proc/meminfo,"ShmemHugePages:        0 kB"
+BBBP,228,/proc/meminfo,"ShmemPmdMapped:        0 kB"
+BBBP,229,/proc/meminfo,"CmaTotal:              0 kB"
+BBBP,230,/proc/meminfo,"CmaFree:               0 kB"
+BBBP,231,/proc/meminfo,"HugePages_Total:       0"
+BBBP,232,/proc/meminfo,"HugePages_Free:        0"
+BBBP,233,/proc/meminfo,"HugePages_Rsvd:        0"
+BBBP,234,/proc/meminfo,"HugePages_Surp:        0"
+BBBP,235,/proc/meminfo,"Hugepagesize:       2048 kB"
+BBBP,236,/proc/meminfo,"DirectMap4k:      194948 kB"
+BBBP,237,/proc/meminfo,"DirectMap2M:     6858752 kB"
+BBBP,238,/proc/meminfo,"DirectMap1G:    10485760 kB"
+BBBP,239,/proc/stat
+BBBP,240,/proc/stat,"cpu  34031 4441 182232 531629 5752 0 467 0 0 0"
+BBBP,241,/proc/stat,"cpu0 8143 136 46332 133677 1539 0 107 0 0 0"
+BBBP,242,/proc/stat,"cpu1 8108 1689 45678 131983 1297 0 159 0 0 0"
+BBBP,243,/proc/stat,"cpu2 9070 2022 45406 131498 1508 0 94 0 0 0"
+BBBP,244,/proc/stat,"cpu3 8709 592 44815 134470 1407 0 106 0 0 0"
+BBBP,245,/proc/stat,"intr 9446390 9 5181 0 0 0 0 0 0 1 10990 0 0 211 0 0 0 0 1091440 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 19015 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5053 0 23 162755 89633 165605 156529 159009 36 59937 928 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+BBBP,246,/proc/stat,"ctxt 12399069"
+BBBP,247,/proc/stat,"btime 1535008806"
+BBBP,248,/proc/stat,"processes 23770"
+BBBP,249,/proc/stat,"procs_running 1"
+BBBP,250,/proc/stat,"procs_blocked 0"
+BBBP,251,/proc/stat,"softirq 2046226 72443 844072 177 6604 0 0 3258 646585 0 473087"
+BBBP,252,/proc/version
+BBBP,253,/proc/version,"Linux version 4.15.0-30-generic (buildd@lcy01-amd64-003) (gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.10)) #32~16.04.1-Ubuntu SMP Thu Jul 26 20:25:39 UTC 2018"
+BBBP,254,/proc/net/dev
+BBBP,255,/proc/net/dev,"Inter-|   Receive                                                |  Transmit"
+BBBP,256,/proc/net/dev," face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed"
+BBBP,257,/proc/net/dev,"docker0:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0"
+BBBP,258,/proc/net/dev,"wlp58s0: 219352387  161848    0    0    0     0          0         0  4252421   36440    0    0    0     0       0          0"
+BBBP,259,/proc/net/dev,"    lo:  969688    7668    0    0    0     0          0         0   969688    7668    0    0    0     0       0          0"
+BBBP,260,/proc/diskinfo
+BBBP,261,/proc/diskstats
+BBBP,262,/proc/diskstats,"   7       0 loop0 77 0 2154 4 0 0 0 0 0 0 0"
+BBBP,263,/proc/diskstats,"   7       1 loop1 160 0 910 4 0 0 0 0 0 0 0"
+BBBP,264,/proc/diskstats,"   7       2 loop2 144 0 2314 4 0 0 0 0 0 4 4"
+BBBP,265,/proc/diskstats,"   7       3 loop3 8180 0 18394 600 0 0 0 0 0 40 444"
+BBBP,266,/proc/diskstats,"   7       4 loop4 182 0 2392 0 0 0 0 0 0 0 0"
+BBBP,267,/proc/diskstats,"   7       5 loop5 184 0 2402 0 0 0 0 0 0 0 0"
+BBBP,268,/proc/diskstats,"   7       6 loop6 75 0 2156 28 0 0 0 0 0 4 24"
+BBBP,269,/proc/diskstats,"   7       7 loop7 76 0 2160 36 0 0 0 0 0 4 16"
+BBBP,270,/proc/diskstats," 259       0 nvme0n1 160784 1419 4609115 50868 486566 513226 434946603 1038320 0 207444 730856"
+BBBP,271,/proc/diskstats," 259       1 nvme0n1p1 193 0 11586 32 2 0 2 0 0 4 12"
+BBBP,272,/proc/diskstats," 259       2 nvme0n1p2 160311 1419 4580033 50812 457215 513226 434946601 1006184 0 213504 783072"
+BBBP,273,/proc/diskstats," 259       3 nvme0n1p3 85 0 7488 4 0 0 0 0 0 0 0"
+BBBP,274,/proc/diskstats,"   7       8 loop8 5 0 16 0 0 0 0 0 0 0 0"
+BBBP,275,/sbin/multipath
+BBBP,276,/dev/mapper
+BBBP,277,/dev/mapper,"total 0"
+BBBP,278,/dev/mapper,"crw------- 1 root root 10, 236 ago 23 09:20 control"
+BBBP,279,/dev/mpath
+BBBP,280,/dev/dm-*
+BBBP,281,/dev/md*
+BBBP,282,/dev/sd*
+BBBP,283,/proc/partitions
+BBBP,284,/proc/partitions,"major minor  #blocks  name"
+BBBP,285,/proc/partitions,""
+BBBP,286,/proc/partitions,"   7        0     735852 loop0"
+BBBP,287,/proc/partitions,"   7        1      65304 loop1"
+BBBP,288,/proc/partitions,"   7        2      88964 loop2"
+BBBP,289,/proc/partitions,"   7        3      89024 loop3"
+BBBP,290,/proc/partitions,"   7        4      81328 loop4"
+BBBP,291,/proc/partitions,"   7        5      81336 loop5"
+BBBP,292,/proc/partitions,"   7        6     122696 loop6"
+BBBP,293,/proc/partitions,"   7        7     768896 loop7"
+BBBP,294,/proc/partitions," 259        0  500107608 nvme0n1"
+BBBP,295,/proc/partitions," 259        1     524288 nvme0n1p1"
+BBBP,296,/proc/partitions," 259        2  482961408 nvme0n1p2"
+BBBP,297,/proc/partitions," 259        3   16620544 nvme0n1p3"
+BBBP,298,/proc/1/stat
+BBBP,299,/proc/1/stat,"1 (systemd) S 0 1 1 0 -1 4194560 89732 2811450 52 632 240 223 9180 1839 20 0 1 0 3 190119936 1573 18446744073709551615 94516742393856 94516743818976 140720918227504 0 0 0 671173123 4096 1260 1 0 0 17 0 0 0 5 0 0 94516743826560 94516743972584 94516760608768 140720918232898 140720918232916 140720918232916 140720918233069 0"
+BBBP,300,/proc/1/statm
+BBBP,301,/proc/1/statm,"46416 1573 998 348 0 4705 0"
+BBBP,302,/proc/net/rpc/nfs
+BBBP,303,/proc/net/rpc/nfsd
+BBBP,304,ifconfig
+BBBP,305,ifconfig,"docker0   Link encap:Ethernet  HWaddr 02:42:75:bc:d4:87  "
+BBBP,306,ifconfig,"          inet addr:172.17.0.1  Bcast:0.0.0.0  Mask:255.255.0.0"
+BBBP,307,ifconfig,"          UP BROADCAST MULTICAST  MTU:1500  Metric:1"
+BBBP,308,ifconfig,"          RX packets:0 errors:0 dropped:0 overruns:0 frame:0"
+BBBP,309,ifconfig,"          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0"
+BBBP,310,ifconfig,"          collisions:0 txqueuelen:0 "
+BBBP,311,ifconfig,"          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)"
+BBBP,312,ifconfig,""
+BBBP,313,ifconfig,"lo        Link encap:Local Loopback  "
+BBBP,314,ifconfig,"          inet addr:127.0.0.1  Mask:255.0.0.0"
+BBBP,315,ifconfig,"          inet6 addr: ::1/128 Scope:Host"
+BBBP,316,ifconfig,"          UP LOOPBACK RUNNING  MTU:65536  Metric:1"
+BBBP,317,ifconfig,"          RX packets:7676 errors:0 dropped:0 overruns:0 frame:0"
+BBBP,318,ifconfig,"          TX packets:7676 errors:0 dropped:0 overruns:0 carrier:0"
+BBBP,319,ifconfig,"          collisions:0 txqueuelen:1000 "
+BBBP,320,ifconfig,"          RX bytes:971520 (971.5 KB)  TX bytes:971520 (971.5 KB)"
+BBBP,321,ifconfig,""
+BBBP,322,ifconfig,"wlp58s0   Link encap:Ethernet  HWaddr e4:b3:18:6c:ff:61  "
+BBBP,323,ifconfig,"          inet addr:10.7.129.219  Bcast:10.7.143.255  Mask:255.255.240.0"
+BBBP,324,ifconfig,"          inet6 addr: fe80::e21e:2180:e325:cc1/64 Scope:Link"
+BBBP,325,ifconfig,"          inet6 addr: 2a02:27e8:10:dc45:0:dacb:6bf6:d2b6/128 Scope:Global"
+BBBP,326,ifconfig,"          inet6 addr: 2a02:27e8:10:dc45:93f7:b2ee:2371:e564/64 Scope:Global"
+BBBP,327,ifconfig,"          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1"
+BBBP,328,ifconfig,"          RX packets:161848 errors:0 dropped:0 overruns:0 frame:0"
+BBBP,329,ifconfig,"          TX packets:36440 errors:0 dropped:0 overruns:0 carrier:0"
+BBBP,330,ifconfig,"          collisions:0 txqueuelen:1000 "
+BBBP,331,ifconfig,"          RX bytes:219352387 (219.3 MB)  TX bytes:4252421 (4.2 MB)"
+BBBP,332,ifconfig,""
+BBBP,333,/bin/df-m
+BBBP,334,/bin/df-m,"Filesystem     1M-blocks   Used Available Use% Mounted on"
+BBBP,335,/bin/df-m,"udev                7851      0      7851   0% /dev"
+BBBP,336,/bin/df-m,"tmpfs               1576     10      1567   1% /run"
+BBBP,337,/bin/df-m,"ddev/nvme0n1p2    464114 313262    127254  72% /"
+BBBP,338,/bin/df-m,"tmpfs               7880     24      7857   1% /dev/shm"
+BBBP,339,/bin/df-m,"tmpfs                  5      1         5   1% /run/lock"
+BBBP,340,/bin/df-m,"tmpfs               7880      0      7880   0% /sys/fs/cgroup"
+BBBP,341,/bin/df-m,"ddev/loop2            87     87         0 100% /snap/core/4917"
+BBBP,342,/bin/df-m,"ddev/loop3            87     87         0 100% /snap/core/5145"
+BBBP,343,/bin/df-m,"ddev/loop6           120    120         0 100% /snap/vscode/51"
+BBBP,344,/bin/df-m,"ddev/loop4            80     80         0 100% /snap/vscode/46"
+BBBP,345,/bin/df-m,"ddev/loop0           719    719         0 100% /snap/android-studio/51"
+BBBP,346,/bin/df-m,"ddev/loop1            64     64         0 100% /snap/go/2130"
+BBBP,347,/bin/df-m,"ddev/loop5            80     80         0 100% /snap/vscode/44"
+BBBP,348,/bin/df-m,"ddev/loop7           751    751         0 100% /snap/android-studio/53"
+BBBP,349,/bin/df-m,"ddev/nvme0n1p1       511     35       477   7% /boot/efi"
+BBBP,350,/bin/df-m,"tmpfs               1576      1      1576   1% /run/user/1000"
+BBBP,351,/bin/mount
+BBBP,352,/bin/mount,"sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)"
+BBBP,353,/bin/mount,"proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)"
+BBBP,354,/bin/mount,"udev on /dev type devtmpfs (rw,nosuid,relatime,size=8039248k,nr_inodes=2009812,mode=755)"
+BBBP,355,/bin/mount,"devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000)"
+BBBP,356,/bin/mount,"tmpfs on /run type tmpfs (rw,nosuid,noexec,relatime,size=1613816k,mode=755)"
+BBBP,357,/bin/mount,"ddev/nvme0n1p2 on / type ext4 (rw,noatime,errors=remount-ro,data=ordered)"
+BBBP,358,/bin/mount,"securityfs on /sys/kernel/security type securityfs (rw,nosuid,nodev,noexec,relatime)"
+BBBP,359,/bin/mount,"tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)"
+BBBP,360,/bin/mount,"tmpfs on /run/lock type tmpfs (rw,nosuid,nodev,noexec,relatime,size=5120k)"
+BBBP,361,/bin/mount,"tmpfs on /sys/fs/cgroup type tmpfs (ro,nosuid,nodev,noexec,mode=755)"
+BBBP,362,/bin/mount,"cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,release_agent=/lib/systemd/systemd-cgroups-agent,name=systemd)"
+BBBP,363,/bin/mount,"pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime)"
+BBBP,364,/bin/mount,"efivarfs on /sys/firmware/efi/efivars type efivarfs (rw,nosuid,nodev,noexec,relatime)"
+BBBP,365,/bin/mount,"cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)"
+BBBP,366,/bin/mount,"cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)"
+BBBP,367,/bin/mount,"cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)"
+BBBP,368,/bin/mount,"cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)"
+BBBP,369,/bin/mount,"cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)"
+BBBP,370,/bin/mount,"cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)"
+BBBP,371,/bin/mount,"cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)"
+BBBP,372,/bin/mount,"cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)"
+BBBP,373,/bin/mount,"cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)"
+BBBP,374,/bin/mount,"cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)"
+BBBP,375,/bin/mount,"cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)"
+BBBP,376,/bin/mount,"systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=22,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=14759)"
+BBBP,377,/bin/mount,"debugfs on /sys/kernel/debug type debugfs (rw,relatime)"
+BBBP,378,/bin/mount,"hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime,pagesize=2M)"
+BBBP,379,/bin/mount,"mqueue on /dev/mqueue type mqueue (rw,relatime)"
+BBBP,380,/bin/mount,"configfs on /sys/kernel/config type configfs (rw,relatime)"
+BBBP,381,/bin/mount,"fusectl on /sys/fs/fuse/connections type fusectl (rw,relatime)"
+BBBP,382,/bin/mount,"dvar/lib/snapd/snaps/core_4917.snap on /snap/core/4917 type squashfs (ro,nodev,relatime)"
+BBBP,383,/bin/mount,"dvar/lib/snapd/snaps/core_5145.snap on /snap/core/5145 type squashfs (ro,nodev,relatime)"
+BBBP,384,/bin/mount,"dvar/lib/snapd/snaps/vscode_51.snap on /snap/vscode/51 type squashfs (ro,nodev,relatime)"
+BBBP,385,/bin/mount,"dvar/lib/snapd/snaps/vscode_46.snap on /snap/vscode/46 type squashfs (ro,nodev,relatime)"
+BBBP,386,/bin/mount,"dvar/lib/snapd/snaps/android-studio_51.snap on /snap/android-studio/51 type squashfs (ro,nodev,relatime)"
+BBBP,387,/bin/mount,"dvar/lib/snapd/snaps/go_2130.snap on /snap/go/2130 type squashfs (ro,nodev,relatime)"
+BBBP,388,/bin/mount,"dvar/lib/snapd/snaps/vscode_44.snap on /snap/vscode/44 type squashfs (ro,nodev,relatime)"
+BBBP,389,/bin/mount,"dvar/lib/snapd/snaps/android-studio_53.snap on /snap/android-studio/53 type squashfs (ro,nodev,relatime)"
+BBBP,390,/bin/mount,"ddev/nvme0n1p1 on /boot/efi type vfat (rw,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro)"
+BBBP,391,/bin/mount,"ddev/nvme0n1p2 on /var/lib/docker/aufs type ext4 (rw,noatime,errors=remount-ro,data=ordered)"
+BBBP,392,/bin/mount,"tmpfs on /run/user/1000 type tmpfs (rw,nosuid,nodev,relatime,size=1613816k,mode=700,uid=1000,gid=1000)"
+BBBP,393,/bin/mount,"gvfsd-fuse on /run/user/1000/gvfs type fuse.gvfsd-fuse (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000)"
+BBBP,394,/bin/mount,"binfmt_misc on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,relatime)"
+BBBP,395,/etc/fstab
+BBBP,396,/etc/fstab,"# /etc/fstab: static file system information."
+BBBP,397,/etc/fstab,"#"
+BBBP,398,/etc/fstab,"# Use 'blkid' to print the universally unique identifier for a"
+BBBP,399,/etc/fstab,"# device; this may be used with UUID= as a more robust way to name devices"
+BBBP,400,/etc/fstab,"# that works even if disks are added and removed. See fstab(5)."
+BBBP,401,/etc/fstab,"#"
+BBBP,402,/etc/fstab,"# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
+BBBP,403,/etc/fstab,"# / was on /dev/nvme0n1p2 during installation"
+BBBP,404,/etc/fstab,"UUID=00e0e143-39db-4467-bd05-268474c356f0 /               ext4    errors=remount-ro,noatime 0       1"
+BBBP,405,/etc/fstab,"# /boot/efi was on /dev/nvme0n1p1 during installation"
+BBBP,406,/etc/fstab,"UUID=4DF4-7F93  /boot/efi       vfat    umask=0077      0       1"
+BBBP,407,/etc/fstab,"# swap was on /dev/nvme0n1p3 during installation"
+BBBP,408,/etc/fstab,"UUID=9aaeeb5e-6466-408c-b5fd-dbdd140c6d59 none            swap    sw              0       0"
+BBBP,409,netstat -r
+BBBP,410,netstat -r,"Kernel IP routing table"
+BBBP,411,netstat -r,"Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface"
+BBBP,412,netstat -r,"default         10.7.143.254    0.0.0.0         UG        0 0          0 wlp58s0"
+BBBP,413,netstat -r,"one.one.one.one 10.7.143.254    255.255.255.255 UGH       0 0          0 wlp58s0"
+BBBP,414,netstat -r,"10.7.128.0      *               255.255.240.0   U         0 0          0 wlp58s0"
+BBBP,415,netstat -r,"link-local      *               255.255.0.0     U         0 0          0 docker0"
+BBBP,416,netstat -r,"172.17.0.0      *               255.255.0.0     U         0 0          0 docker0"
+BBBP,417,uptime
+BBBP,418,uptime," 09:51:50 up 31 min,  1 user,  load average: 3,62, 2,95, 1,76"
+BBBP,419,getconf PAGESIZE
+BBBP,420,getconf PAGESIZE,"4096"
+ZZZZ,T0001,09:51:51,23-AUG-2018
+CPU001,T0001,8.1,77.5,0.0,14.4
+CPU002,T0001,14.2,28.3,0.0,57.5
+CPU003,T0001,3.6,77.5,0.0,18.9
+CPU004,T0001,2.7,74.5,0.0,22.7
+CPU_ALL,T0001,7.4,64.0,0.0,28.6,,4
+MEM,T0001,15759.9,-0.0,-0.0,16231.0,9899.8,-0.0,-0.0,16231.0,-0.0,2764.0,2173.1,-1.0,405.2,0.0,2103.3
+VM,Paging and Virtual Memory,nr_dirty,nr_writeback,nr_unstable,nr_page_table_pages,nr_mapped,nr_slab,pgpgin,pgpgout,pswpin,pswpout,pgfree,pgactivate,pgdeactivate,pgfault,pgmajfault,pginodesteal,slabs_scanned,kswapd_steal,kswapd_inodesteal,pageoutrun,allocstall,pgrotated,pgalloc_high,pgalloc_normal,pgalloc_dma,pgrefill_high,pgrefill_normal,pgrefill_dma,pgsteal_high,pgsteal_normal,pgsteal_dma,pgscan_kswapd_high,pgscan_kswapd_normal,pgscan_kswapd_dma,pgscan_direct_high,pgscan_direct_normal,pgscan_direct_dma
+VM,T0001,23,0,0,10581,398360,-1,1420,353164,0,0,63702,0,0,65684,0,0,0,0,0,0,0,0,0,64029,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0001,5,0,0.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0001,0.0,0.3,8.2,0.0,0.2,8.2,
+NETPACKET,T0001,0.0,1.7,34.0,0.0,1.7,34.0,
+JFSFILE,T0001,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,23.8,0.0,23.8,0.0,0.0
+DISKREAD,T0001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1207.2,0.0,1207.2,0.0,0.0
+DISKWRITE,T0001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,298671.9,0.0,298671.9,0.0,0.0
+DISKXFER,T0001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,898.6,0.0,898.6,0.0,0.0
+DISKBSIZE,T0001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,333.7,0.0,333.7,0.0,0.0
+ZZZZ,T0002,09:51:52,23-AUG-2018
+CPU001,T0002,3.0,80.0,0.0,17.0
+CPU002,T0002,1.0,99.0,0.0,0.0
+CPU003,T0002,1.0,99.0,0.0,0.0
+CPU004,T0002,16.5,37.9,0.0,45.6
+CPU_ALL,T0002,5.5,78.6,0.0,16.0,,4
+MEM,T0002,15759.9,-0.0,-0.0,16231.0,9902.1,-0.0,-0.0,16231.0,-0.0,2761.4,2173.4,-1.0,405.2,0.0,2100.7
+VM,T0002,24,0,0,10581,398373,-1,1328,350648,0,0,60224,0,0,58752,0,0,0,0,0,0,0,0,0,59611,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0002,5,1,9240.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0002,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0002,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0002,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,25.0,0.0,32.0,0.0,0.0
+DISKREAD,T0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1326.8,0.0,1326.8,0.0,0.0
+DISKWRITE,T0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,352175.8,0.0,352175.8,0.0,0.0
+DISKXFER,T0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,989.1,0.0,989.1,0.0,0.0
+DISKBSIZE,T0002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,357.4,0.0,357.4,0.0,0.0
+ZZZZ,T0003,09:51:53,23-AUG-2018
+CPU001,T0003,6.9,67.3,0.0,25.7
+CPU002,T0003,10.8,55.9,0.0,33.3
+CPU003,T0003,5.9,83.2,0.0,10.9
+CPU004,T0003,0.0,100.0,0.0,0.0
+CPU_ALL,T0003,6.0,76.7,0.0,17.4,,4
+MEM,T0003,15759.9,-0.0,-0.0,16231.0,9902.2,-0.0,-0.0,16231.0,-0.0,2761.4,2172.8,-1.0,405.2,0.0,2100.7
+VM,T0003,33,0,0,10581,398374,-1,27,325883,0,0,46076,0,0,45289,0,0,0,0,0,0,0,0,0,45833,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0003,5,0,7941.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0003,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0003,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0003,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,30.0,0.0,0.0
+DISKREAD,T0003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,27.0,0.0,27.0,0.0,0.0
+DISKWRITE,T0003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,322769.6,0.0,322769.6,0.0,0.0
+DISKXFER,T0003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,725.3,0.0,725.3,0.0,0.0
+DISKBSIZE,T0003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,445.1,0.0,445.1,0.0,0.0
+ZZZZ,T0004,09:51:54,23-AUG-2018
+CPU001,T0004,0.0,100.0,0.0,0.0
+CPU002,T0004,3.0,80.0,0.0,17.0
+CPU003,T0004,4.1,86.7,0.0,9.2
+CPU004,T0004,10.9,50.5,0.0,38.6
+CPU_ALL,T0004,4.5,79.0,0.0,16.5,,4
+MEM,T0004,15759.9,-0.0,-0.0,16231.0,9901.8,-0.0,-0.0,16231.0,-0.0,2761.4,2173.7,-1.0,405.2,0.0,2100.7
+VM,T0004,33,0,0,10581,398374,-1,2084,427520,0,0,54825,0,0,54465,0,0,0,0,0,0,0,0,0,55075,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0004,4,0,8713.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0004,0.0,0.2,0.0,0.0,0.1,0.0,
+NETPACKET,T0004,0.0,2.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0004,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,40.0,0.0,0.0
+DISKREAD,T0004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2082.2,0.0,2082.2,0.0,0.0
+DISKWRITE,T0004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,429945.0,0.0,429945.0,0.0,0.0
+DISKXFER,T0004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,870.2,0.0,870.2,0.0,0.0
+DISKBSIZE,T0004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,496.4,0.0,496.4,0.0,0.0
+ZZZZ,T0005,09:51:55,23-AUG-2018
+CPU001,T0005,13.9,45.5,0.0,40.6
+CPU002,T0005,1.0,99.0,0.0,0.0
+CPU003,T0005,0.0,100.0,0.0,0.0
+CPU004,T0005,10.9,62.4,0.0,26.7
+CPU_ALL,T0005,6.7,76.4,0.0,16.9,,4
+MEM,T0005,15759.9,-0.0,-0.0,16231.0,9894.9,-0.0,-0.0,16231.0,-0.0,2761.5,2174.2,-1.0,405.2,0.0,2100.8
+VM,T0005,33,0,0,10583,399888,-1,122,412546,0,0,54554,0,0,54199,0,0,0,0,0,0,0,0,0,56313,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0005,4,0,8047.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0005,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0005,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0005,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,52.0,0.0,52.0,0.0,0.0
+DISKREAD,T0005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,121.9,0.0,121.9,0.0,0.0
+DISKWRITE,T0005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,409107.9,0.0,409107.9,0.0,0.0
+DISKXFER,T0005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,869.2,0.0,869.2,0.0,0.0
+DISKBSIZE,T0005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,470.8,0.0,470.8,0.0,0.0
+ZZZZ,T0006,09:51:56,23-AUG-2018
+CPU001,T0006,0.0,91.9,0.0,8.1
+CPU002,T0006,5.9,18.8,0.0,75.2
+CPU003,T0006,2.0,92.2,0.0,5.9
+CPU004,T0006,1.0,99.0,0.0,0.0
+CPU_ALL,T0006,2.0,75.8,0.0,22.2,,4
+MEM,T0006,15759.9,-0.0,-0.0,16231.0,9894.8,-0.0,-0.0,16231.0,-0.0,2761.5,2174.3,-1.0,405.2,0.0,2100.8
+VM,T0006,33,0,0,10584,399912,-1,4,85916,0,0,11419,0,0,11220,0,0,0,0,0,0,0,0,0,11395,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0006,4,0,2550.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0006,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0006,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0006,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,78.9,0.0,83.9,0.0,0.0
+DISKREAD,T0006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,4.0,0.0,0.0
+DISKWRITE,T0006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,84054.5,0.0,84054.5,0.0,0.0
+DISKXFER,T0006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,135.9,0.0,135.9,0.0,0.0
+DISKBSIZE,T0006,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,618.6,0.0,618.6,0.0,0.0
+ZZZZ,T0007,09:51:57,23-AUG-2018
+CPU001,T0007,4.0,37.0,0.0,59.0
+CPU002,T0007,0.0,100.0,0.0,0.0
+CPU003,T0007,1.0,69.7,5.1,24.2
+CPU004,T0007,1.0,99.0,0.0,0.0
+CPU_ALL,T0007,1.8,76.0,1.2,21.0,,4
+MEM,T0007,15759.9,-0.0,-0.0,16231.0,9894.8,-0.0,-0.0,16231.0,-0.0,2761.5,2174.3,-1.0,405.2,0.0,2100.8
+VM,T0007,33,0,0,10584,399912,-1,4,111104,0,0,10630,0,0,10551,0,0,0,0,0,0,0,0,0,10692,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0007,4,1,3023.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0007,0.0,0.7,0.3,0.0,0.6,0.3,
+NETPACKET,T0007,0.0,5.0,4.0,0.0,5.0,4.0,
+JFSFILE,T0007,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,78.9,0.0,83.9,0.0,0.0
+DISKREAD,T0007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,4.0,0.0,0.0
+DISKWRITE,T0007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,112781.8,0.0,112781.8,0.0,0.0
+DISKXFER,T0007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,152.9,0.0,152.9,0.0,0.0
+DISKBSIZE,T0007,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,737.8,0.0,737.8,0.0,0.0
+ZZZZ,T0008,09:51:58,23-AUG-2018
+CPU001,T0008,4.1,5.2,0.0,90.7
+CPU002,T0008,0.0,100.0,0.0,0.0
+CPU003,T0008,1.0,95.0,4.0,0.0
+CPU004,T0008,0.0,100.0,0.0,0.0
+CPU_ALL,T0008,1.3,75.4,1.0,22.3,,4
+MEM,T0008,15759.9,-0.0,-0.0,16231.0,9894.6,-0.0,-0.0,16231.0,-0.0,2761.5,2174.4,-1.0,405.2,0.0,2100.8
+VM,T0008,33,0,0,10583,399912,-1,4,32000,0,0,2715,0,0,2681,0,0,0,0,0,0,0,0,0,2716,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0008,4,0,2917.3,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0008,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0008,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0008,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,96.9,0.0,96.9,0.0,0.0
+DISKREAD,T0008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,4.0,0.0,0.0
+DISKWRITE,T0008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,35044.0,0.0,35044.0,0.0,0.0
+DISKXFER,T0008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,68.9,0.0,68.9,0.0,0.0
+DISKBSIZE,T0008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,508.4,0.0,508.4,0.0,0.0
+ZZZZ,T0009,09:51:59,23-AUG-2018
+CPU001,T0009,17.0,73.0,0.0,10.0
+CPU002,T0009,15.0,48.0,0.0,37.0
+CPU003,T0009,6.0,90.0,0.0,4.0
+CPU004,T0009,1.0,98.0,0.0,1.0
+CPU_ALL,T0009,9.5,77.7,0.0,12.8,,4
+MEM,T0009,15759.9,-0.0,-0.0,16231.0,9892.8,-0.0,-0.0,16231.0,-0.0,2761.5,2176.3,-1.0,405.2,0.0,2100.8
+VM,T0009,42,0,0,10583,399920,-1,2095,444399,0,0,51764,0,0,51921,0,0,0,0,0,0,0,0,0,52252,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0009,4,0,8471.2,-1.0,-1.0,-1.0,3.0,-1.0,-1.0,-1.0
+NET,T0009,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0009,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0009,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,40.0,0.0,0.0
+DISKREAD,T0009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2093.1,0.0,2093.1,0.0,0.0
+DISKWRITE,T0009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,438771.3,0.0,438771.3,0.0,0.0
+DISKXFER,T0009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,902.2,0.0,902.2,0.0,0.0
+DISKBSIZE,T0009,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,488.7,0.0,488.7,0.0,0.0
+ZZZZ,T0010,09:52:00,23-AUG-2018
+CPU001,T0010,5.0,70.0,0.0,25.0
+CPU002,T0010,16.5,44.3,0.0,39.2
+CPU003,T0010,2.0,98.0,0.0,0.0
+CPU004,T0010,2.0,97.0,0.0,1.0
+CPU_ALL,T0010,6.6,77.5,0.0,15.9,,4
+MEM,T0010,15759.9,-0.0,-0.0,16231.0,9893.3,-0.0,-0.0,16231.0,-0.0,2761.5,2176.3,-1.0,405.2,0.0,2100.8
+VM,T0010,42,0,0,10583,399921,-1,298,402566,0,0,56245,0,0,55579,0,0,0,0,0,0,0,0,0,56222,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0010,6,0,9362.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0010,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0010,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0010,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0010,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,37.0,0.0,0.0
+DISKREAD,T0010,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,297.7,0.0,297.7,0.0,0.0
+DISKWRITE,T0010,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,405168.6,0.0,405168.6,0.0,0.0
+DISKXFER,T0010,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,942.2,0.0,942.2,0.0,0.0
+DISKBSIZE,T0010,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,430.4,0.0,430.4,0.0,0.0
+ZZZZ,T0011,09:52:01,23-AUG-2018
+CPU001,T0011,9.1,80.8,0.0,10.1
+CPU002,T0011,11.3,62.9,0.0,25.8
+CPU003,T0011,4.0,91.0,0.0,5.0
+CPU004,T0011,6.9,77.2,0.0,15.8
+CPU_ALL,T0011,7.8,77.9,0.0,14.3,,4
+MEM,T0011,15759.9,-0.0,-0.0,16231.0,9891.6,-0.0,-0.0,16231.0,-0.0,2761.8,2177.6,-1.0,405.2,0.0,2101.1
+VM,T0011,43,0,0,10583,399927,-1,58,435946,0,0,77334,0,0,78701,0,0,0,0,0,0,0,0,0,77780,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0011,5,0,9788.8,-1.0,-1.0,-1.0,51.0,-1.0,-1.0,-1.0
+NET,T0011,0.0,0.5,0.3,0.0,0.4,0.3,
+NETPACKET,T0011,0.0,4.0,4.0,0.0,3.0,4.0,
+JFSFILE,T0011,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,31.0,0.0,31.0,0.0,0.0
+DISKREAD,T0011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,57.9,0.0,57.9,0.0,0.0
+DISKWRITE,T0011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,436767.5,0.0,436767.5,0.0,0.0
+DISKXFER,T0011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1066.0,0.0,1066.0,0.0,0.0
+DISKBSIZE,T0011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,409.8,0.0,409.8,0.0,0.0
+ZZZZ,T0012,09:52:02,23-AUG-2018
+CPU001,T0012,0.0,100.0,0.0,0.0
+CPU002,T0012,4.0,91.0,0.0,5.0
+CPU003,T0012,13.1,53.5,0.0,33.3
+CPU004,T0012,7.0,74.0,0.0,19.0
+CPU_ALL,T0012,6.2,79.5,0.0,14.2,,4
+MEM,T0012,15759.9,-0.0,-0.0,16231.0,9892.5,-0.0,-0.0,16231.0,-0.0,2761.8,2176.8,-1.0,405.2,0.0,2101.1
+VM,T0012,43,0,0,10583,399930,-1,124,496756,0,0,85816,0,0,84887,0,0,0,0,0,0,0,0,0,85677,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0012,4,1,8233.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0012,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0012,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0012,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32.0,0.0,36.0,0.0,0.0
+DISKREAD,T0012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,123.9,0.0,123.9,0.0,0.0
+DISKWRITE,T0012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,491598.5,0.0,491598.5,0.0,0.0
+DISKXFER,T0012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1203.9,0.0,1203.9,0.0,0.0
+DISKBSIZE,T0012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,408.4,0.0,408.4,0.0,0.0
+ZZZZ,T0013,09:52:03,23-AUG-2018
+CPU001,T0013,6.9,77.5,0.0,15.7
+CPU002,T0013,2.0,98.0,0.0,0.0
+CPU003,T0013,1.0,91.9,0.0,7.1
+CPU004,T0013,11.9,43.6,0.0,44.6
+CPU_ALL,T0013,5.5,77.6,0.0,16.9,,4
+MEM,T0013,15759.9,-0.0,-0.0,16231.0,9893.3,-0.0,-0.0,16231.0,-0.0,2761.4,2176.3,-1.0,405.2,0.0,2100.8
+VM,T0013,48,0,0,10583,399929,-1,2869,358553,0,0,55288,0,0,54530,0,0,0,0,0,0,0,0,0,55020,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0013,5,0,6513.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0013,0.0,0.1,0.0,0.0,0.5,0.0,
+NETPACKET,T0013,0.0,1.0,0.0,0.0,3.0,0.0,
+JFSFILE,T0013,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,52.0,0.0,51.0,0.0,0.0
+DISKREAD,T0013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2866.4,0.0,2866.4,0.0,0.0
+DISKWRITE,T0013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,363962.6,0.0,363962.6,0.0,0.0
+DISKXFER,T0013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,714.4,0.0,714.4,0.0,0.0
+DISKBSIZE,T0013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,513.5,0.0,513.5,0.0,0.0
+ZZZZ,T0014,09:52:04,23-AUG-2018
+CPU001,T0014,1.0,98.0,0.0,1.0
+CPU002,T0014,2.0,91.9,0.0,6.1
+CPU003,T0014,21.8,27.7,0.0,50.5
+CPU004,T0014,1.0,98.0,0.0,1.0
+CPU_ALL,T0014,6.5,78.8,0.0,14.7,,4
+MEM,T0014,15759.9,-0.0,-0.0,16231.0,9893.0,-0.0,-0.0,16231.0,-0.0,2761.4,2176.3,-1.0,405.2,0.0,2100.8
+VM,T0014,48,0,0,10583,399929,-1,72,476724,0,0,64985,0,0,64477,0,0,0,0,0,0,0,0,0,65048,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0014,5,0,8539.7,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0014,0.0,0.2,0.0,0.0,0.0,0.0,
+NETPACKET,T0014,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0014,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKREAD,T0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,71.9,0.0,71.9,0.0,0.0
+DISKWRITE,T0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,476316.7,0.0,476316.7,0.0,0.0
+DISKXFER,T0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1064.1,0.0,1064.1,0.0,0.0
+DISKBSIZE,T0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,447.7,0.0,447.7,0.0,0.0
+ZZZZ,T0015,09:52:05,23-AUG-2018
+CPU001,T0015,5.1,78.6,0.0,16.3
+CPU002,T0015,3.0,96.0,0.0,1.0
+CPU003,T0015,20.2,40.4,0.0,39.4
+CPU004,T0015,0.0,100.0,0.0,0.0
+CPU_ALL,T0015,6.8,79.1,0.0,14.1,,4
+MEM,T0015,15759.9,-0.0,-0.0,16231.0,9891.6,-0.0,-0.0,16231.0,-0.0,2761.4,2177.4,-1.0,405.2,0.0,2100.8
+VM,T0015,48,0,0,10583,399929,-1,64,518492,0,0,68638,0,0,68246,0,0,0,0,0,0,0,0,0,68844,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0015,6,0,8627.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0015,0.0,0.4,0.3,0.0,0.2,0.3,
+NETPACKET,T0015,0.0,3.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0015,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,40.0,0.0,41.0,0.0,0.0
+DISKREAD,T0015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,63.9,0.0,63.9,0.0,0.0
+DISKWRITE,T0015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,518025.9,0.0,518025.9,0.0,0.0
+DISKXFER,T0015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1138.0,0.0,1138.0,0.0,0.0
+DISKBSIZE,T0015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,455.3,0.0,455.3,0.0,0.0
+ZZZZ,T0016,09:52:07,23-AUG-2018
+CPU001,T0016,13.0,36.0,24.0,27.0
+CPU002,T0016,5.0,80.0,0.0,15.0
+CPU003,T0016,0.0,99.0,0.0,1.0
+CPU004,T0016,0.0,100.0,0.0,0.0
+CPU_ALL,T0016,5.0,78.6,6.0,10.5,,4
+MEM,T0016,15759.9,-0.0,-0.0,16231.0,9890.7,-0.0,-0.0,16231.0,-0.0,2761.5,2178.2,-1.0,405.2,0.0,2100.8
+VM,T0016,55,0,0,10583,399929,-1,43,383767,0,0,61096,0,0,60908,0,0,0,0,0,0,0,0,0,61368,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0016,5,0,6819.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0016,0.0,0.6,0.0,0.0,0.9,0.0,
+NETPACKET,T0016,0.0,3.0,0.0,0.0,4.0,0.0,
+JFSFILE,T0016,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55.0,0.0,55.0,0.0,0.0
+DISKREAD,T0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,43.0,0.0,43.0,0.0,0.0
+DISKWRITE,T0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,383427.2,0.0,383427.2,0.0,0.0
+DISKXFER,T0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,857.2,0.0,857.2,0.0,0.0
+DISKBSIZE,T0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,447.3,0.0,447.3,0.0,0.0
+ZZZZ,T0017,09:52:08,23-AUG-2018
+CPU001,T0017,7.1,72.7,0.0,20.2
+CPU002,T0017,13.9,53.5,0.0,32.7
+CPU003,T0017,5.9,86.1,0.0,7.9
+CPU004,T0017,1.0,99.0,0.0,0.0
+CPU_ALL,T0017,6.5,78.1,0.0,15.5,,4
+MEM,T0017,15759.9,-0.0,-0.0,16231.0,9890.4,-0.0,-0.0,16231.0,-0.0,2761.5,2177.8,-1.0,405.2,0.0,2100.8
+VM,T0017,56,0,0,10583,399929,-1,37,457245,0,0,57503,0,0,56855,0,0,0,0,0,0,0,0,0,57362,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0017,5,0,8959.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0017,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0017,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0017,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,38.0,0.0,0.0
+DISKREAD,T0017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,37.0,0.0,0.0
+DISKWRITE,T0017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,448647.1,0.0,448647.1,0.0,0.0
+DISKXFER,T0017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,950.1,0.0,950.1,0.0,0.0
+DISKBSIZE,T0017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,472.2,0.0,472.2,0.0,0.0
+ZZZZ,T0018,09:52:09,23-AUG-2018
+CPU001,T0018,1.0,98.0,0.0,1.0
+CPU002,T0018,8.3,64.6,0.0,27.1
+CPU003,T0018,7.0,75.0,0.0,18.0
+CPU004,T0018,5.0,78.0,0.0,17.0
+CPU_ALL,T0018,5.3,79.2,0.0,15.4,,4
+MEM,T0018,15759.9,-0.0,-0.0,16231.0,9891.1,-0.0,-0.0,16231.0,-0.0,2761.5,2178.1,-1.0,405.2,0.0,2100.8
+VM,T0018,57,0,0,10583,399929,-1,477,446149,0,0,65574,0,0,65186,0,0,0,0,0,0,0,0,0,65715,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0018,5,0,9849.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0018,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0018,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0018,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,38.0,0.0,39.0,0.0,0.0
+DISKREAD,T0018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,476.7,0.0,476.7,0.0,0.0
+DISKWRITE,T0018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,454012.3,0.0,454012.3,0.0,0.0
+DISKXFER,T0018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1124.2,0.0,1124.2,0.0,0.0
+DISKBSIZE,T0018,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,404.3,0.0,404.3,0.0,0.0
+ZZZZ,T0019,09:52:10,23-AUG-2018
+CPU001,T0019,2.0,97.0,0.0,1.0
+CPU002,T0019,1.0,99.0,0.0,0.0
+CPU003,T0019,6.1,82.8,0.0,11.1
+CPU004,T0019,17.3,37.8,0.0,44.9
+CPU_ALL,T0019,6.8,79.2,0.0,14.0,,4
+MEM,T0019,15759.9,-0.0,-0.0,16231.0,9891.1,-0.0,-0.0,16231.0,-0.0,2761.5,2178.1,-1.0,405.2,0.0,2100.8
+VM,T0019,57,0,0,10583,399929,-1,2139,494727,0,0,80129,0,0,79297,0,0,0,0,0,0,0,0,0,80059,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0019,4,0,9335.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0019,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0019,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0019,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,29.0,0.0,0.0
+DISKREAD,T0019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2137.1,0.0,2137.1,0.0,0.0
+DISKWRITE,T0019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,494292.5,0.0,494292.5,0.0,0.0
+DISKXFER,T0019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1303.9,0.0,1303.9,0.0,0.0
+DISKBSIZE,T0019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,380.7,0.0,380.7,0.0,0.0
+ZZZZ,T0020,09:52:11,23-AUG-2018
+CPU001,T0020,3.0,92.9,0.0,4.0
+CPU002,T0020,21.2,41.4,0.0,37.4
+CPU003,T0020,3.0,96.0,0.0,1.0
+CPU004,T0020,5.1,82.7,0.0,12.2
+CPU_ALL,T0020,7.6,78.5,0.0,13.9,,4
+MEM,T0020,15759.9,-0.0,-0.0,16231.0,9891.6,-0.0,-0.0,16231.0,-0.0,2761.5,2178.1,-1.0,405.2,0.0,2100.8
+VM,T0020,12,0,0,10583,399929,-1,107,525515,0,0,78241,0,0,77673,0,0,0,0,0,0,0,0,0,78215,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0020,5,0,10193.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0020,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0020,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0020,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0020,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKREAD,T0020,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,106.9,0.0,106.9,0.0,0.0
+DISKWRITE,T0020,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,525042.4,0.0,525042.4,0.0,0.0
+DISKXFER,T0020,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1293.8,0.0,1293.8,0.0,0.0
+DISKBSIZE,T0020,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,405.9,0.0,405.9,0.0,0.0
+ZZZZ,T0021,09:52:12,23-AUG-2018
+CPU001,T0021,1.0,99.0,0.0,0.0
+CPU002,T0021,2.0,91.1,0.0,6.9
+CPU003,T0021,11.3,54.6,0.0,34.0
+CPU004,T0021,9.9,71.3,0.0,18.8
+CPU_ALL,T0021,6.0,78.9,0.3,14.8,,4
+MEM,T0021,15759.9,-0.0,-0.0,16231.0,9890.8,-0.0,-0.0,16231.0,-0.0,2761.4,2178.5,-1.0,405.2,0.0,2100.8
+VM,T0021,6,0,0,10583,399921,-1,70,461802,0,0,65952,0,0,65518,0,0,0,0,0,0,0,0,0,66093,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0021,5,0,8403.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0021,0.0,0.0,0.0,0.0,0.1,0.0,
+NETPACKET,T0021,0.0,0.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0021,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,28.0,0.0,0.0
+DISKREAD,T0021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,69.9,0.0,69.9,0.0,0.0
+DISKWRITE,T0021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,461364.6,0.0,461364.6,0.0,0.0
+DISKXFER,T0021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1048.0,0.0,1048.0,0.0,0.0
+DISKBSIZE,T0021,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,440.3,0.0,440.3,0.0,0.0
+ZZZZ,T0022,09:52:13,23-AUG-2018
+CPU001,T0022,1.0,99.0,0.0,0.0
+CPU002,T0022,1.0,99.0,0.0,0.0
+CPU003,T0022,9.0,51.0,0.0,40.0
+CPU004,T0022,10.1,60.6,0.0,29.3
+CPU_ALL,T0022,5.5,77.2,0.0,17.2,,4
+MEM,T0022,15759.9,-0.0,-0.0,16231.0,9889.9,-0.0,-0.0,16231.0,-0.0,2761.4,2178.5,-1.0,405.2,0.0,2100.8
+VM,T0022,27,0,0,10583,399921,-1,1142,408234,0,0,51127,0,0,50716,0,0,0,0,0,0,0,0,0,51084,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0022,4,0,6032.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0022,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0022,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0022,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,59.9,0.0,59.9,0.0,0.0
+DISKREAD,T0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1141.0,0.0,1141.0,0.0,0.0
+DISKWRITE,T0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,407864.5,0.0,407864.5,0.0,0.0
+DISKXFER,T0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,729.3,0.0,729.3,0.0,0.0
+DISKBSIZE,T0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,560.8,0.0,560.8,0.0,0.0
+ZZZZ,T0023,09:52:14,23-AUG-2018
+CPU001,T0023,13.7,58.8,0.0,27.5
+CPU002,T0023,4.0,88.0,0.0,8.0
+CPU003,T0023,5.0,84.0,0.0,11.0
+CPU004,T0023,4.1,83.7,0.0,12.2
+CPU_ALL,T0023,6.8,78.2,0.0,15.0,,4
+MEM,T0023,15759.9,-0.0,-0.0,16231.0,9890.2,-0.0,-0.0,16231.0,-0.0,2761.4,2178.5,-1.0,405.2,0.0,2100.8
+VM,T0023,27,0,0,10583,399921,-1,43,469863,0,0,64061,0,0,63521,0,0,0,0,0,0,0,0,0,64119,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0023,6,0,8127.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0023,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0023,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0023,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,38.0,0.0,39.0,0.0,0.0
+DISKREAD,T0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,43.0,0.0,43.0,0.0,0.0
+DISKWRITE,T0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,467472.8,0.0,467472.8,0.0,0.0
+DISKXFER,T0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,994.1,0.0,994.1,0.0,0.0
+DISKBSIZE,T0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,470.3,0.0,470.3,0.0,0.0
+ZZZZ,T0024,09:52:15,23-AUG-2018
+CPU001,T0024,12.4,45.4,0.0,42.3
+CPU002,T0024,0.0,99.0,0.0,1.0
+CPU003,T0024,6.9,81.2,0.0,11.9
+CPU004,T0024,5.0,86.1,0.0,8.9
+CPU_ALL,T0024,6.3,78.4,0.0,15.3,,4
+MEM,T0024,15759.9,-0.0,-0.0,16231.0,9889.7,-0.0,-0.0,16231.0,-0.0,2761.4,2179.0,-1.0,405.2,0.0,2100.8
+VM,T0024,29,0,0,10583,399921,-1,34,490954,0,0,60531,0,0,60141,0,0,0,0,0,0,0,0,0,60644,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0024,4,0,7694.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0024,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0024,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0024,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0024,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,41.0,0.0,0.0
+DISKREAD,T0024,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKWRITE,T0024,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,492484.9,0.0,492484.9,0.0,0.0
+DISKXFER,T0024,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,928.2,0.0,928.2,0.0,0.0
+DISKBSIZE,T0024,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,530.6,0.0,530.6,0.0,0.0
+ZZZZ,T0025,09:52:16,23-AUG-2018
+CPU001,T0025,13.0,54.0,0.0,33.0
+CPU002,T0025,7.1,79.8,0.0,13.1
+CPU003,T0025,0.0,99.0,0.0,1.0
+CPU004,T0025,4.0,87.0,0.0,9.0
+CPU_ALL,T0025,6.0,80.0,0.0,14.0,,4
+MEM,T0025,15759.9,-0.0,-0.0,16231.0,9890.9,-0.0,-0.0,16231.0,-0.0,2761.5,2177.7,-1.0,405.2,0.0,2100.8
+VM,T0025,31,0,0,10583,399921,-1,47,488099,0,0,80799,0,0,79833,0,0,0,0,0,0,0,0,0,80482,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0025,5,0,9769.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0025,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0025,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0025,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKREAD,T0025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,47.0,0.0,47.0,0.0,0.0
+DISKWRITE,T0025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,487664.0,0.0,487664.0,0.0,0.0
+DISKXFER,T0025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1111.0,0.0,1111.0,0.0,0.0
+DISKBSIZE,T0025,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,439.0,0.0,439.0,0.0,0.0
+ZZZZ,T0026,09:52:17,23-AUG-2018
+CPU001,T0026,3.0,94.0,0.0,3.0
+CPU002,T0026,2.0,96.0,0.0,2.0
+CPU003,T0026,16.2,45.5,0.0,38.4
+CPU004,T0026,9.0,81.0,0.0,10.0
+CPU_ALL,T0026,7.3,79.4,0.0,13.3,,4
+MEM,T0026,15759.9,-0.0,-0.0,16231.0,9888.9,-0.0,-0.0,16231.0,-0.0,2761.5,2179.7,-1.0,405.2,0.0,2100.8
+VM,T0026,31,0,0,10678,400019,-1,154,478986,0,0,78017,0,0,79495,0,0,0,0,0,0,0,0,0,78400,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0026,4,0,9853.5,-1.0,-1.0,-1.0,47.0,-1.0,-1.0,-1.0
+NET,T0026,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0026,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0026,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,25.0,0.0,25.0,0.0,0.0
+DISKREAD,T0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,153.9,0.0,153.9,0.0,0.0
+DISKWRITE,T0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,475174.9,0.0,475174.9,0.0,0.0
+DISKXFER,T0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1128.0,0.0,1128.0,0.0,0.0
+DISKBSIZE,T0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,421.4,0.0,421.4,0.0,0.0
+ZZZZ,T0027,09:52:18,23-AUG-2018
+CPU001,T0027,4.0,89.1,0.0,6.9
+CPU002,T0027,12.7,30.4,23.5,33.3
+CPU003,T0027,1.0,99.0,0.0,0.0
+CPU004,T0027,1.0,93.0,0.0,6.0
+CPU_ALL,T0027,4.7,77.6,6.0,11.7,,4
+MEM,T0027,15759.9,-0.0,-0.0,16231.0,9889.7,-0.0,-0.0,16231.0,-0.0,2761.4,2179.6,-1.0,405.2,0.0,2100.8
+VM,T0027,31,0,0,10583,399924,-1,806,323046,0,0,42722,0,0,42356,0,0,0,0,0,0,0,0,0,42746,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0027,4,0,6781.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0027,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0027,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0027,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,54.0,0.0,54.0,0.0,0.0
+DISKREAD,T0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,805.3,0.0,805.3,0.0,0.0
+DISKWRITE,T0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,326149.9,0.0,326149.9,0.0,0.0
+DISKXFER,T0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,727.3,0.0,727.3,0.0,0.0
+DISKBSIZE,T0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,449.5,0.0,449.5,0.0,0.0
+ZZZZ,T0028,09:52:19,23-AUG-2018
+CPU001,T0028,1.0,94.9,0.0,4.0
+CPU002,T0028,16.2,44.4,0.0,39.4
+CPU003,T0028,1.0,96.0,0.0,3.0
+CPU004,T0028,6.1,78.8,0.0,15.2
+CPU_ALL,T0028,6.3,78.6,0.0,15.1,,4
+MEM,T0028,15759.9,-0.0,-0.0,16231.0,9891.6,-0.0,-0.0,16231.0,-0.0,2761.4,2178.2,-1.0,405.2,0.0,2100.8
+VM,T0028,33,0,0,10583,399925,-1,101,422113,0,0,65059,0,0,64152,0,0,0,0,0,0,0,0,0,64722,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0028,5,0,8765.0,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0028,0.0,0.2,0.0,0.0,0.1,0.0,
+NETPACKET,T0028,0.0,2.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0028,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0028,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,35.0,0.0,36.0,0.0,0.0
+DISKREAD,T0028,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.9,0.0,100.9,0.0,0.0
+DISKWRITE,T0028,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,420704.9,0.0,420704.9,0.0,0.0
+DISKXFER,T0028,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,929.2,0.0,929.2,0.0,0.0
+DISKBSIZE,T0028,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,452.9,0.0,452.9,0.0,0.0
+ZZZZ,T0029,09:52:20,23-AUG-2018
+CPU001,T0029,20.4,19.4,0.0,60.2
+CPU002,T0029,1.0,99.0,0.0,0.0
+CPU003,T0029,1.0,99.0,0.0,0.0
+CPU004,T0029,1.0,99.0,0.0,0.0
+CPU_ALL,T0029,5.5,79.2,0.0,15.3,,4
+MEM,T0029,15759.9,-0.0,-0.0,16231.0,9889.3,-0.0,-0.0,16231.0,-0.0,2761.5,2180.3,-1.0,405.2,0.0,2100.8
+VM,T0029,34,0,0,10583,399925,-1,712,490952,0,0,58926,0,0,58913,0,0,0,0,0,0,0,0,0,59434,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0029,4,0,7337.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0029,0.0,0.7,0.3,0.0,0.6,0.3,
+NETPACKET,T0029,0.0,5.0,4.0,0.0,5.0,4.0,
+JFSFILE,T0029,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,48.0,0.0,47.0,0.0,0.0
+DISKREAD,T0029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,711.4,0.0,711.4,0.0,0.0
+DISKWRITE,T0029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,491558.7,0.0,491558.7,0.0,0.0
+DISKXFER,T0029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,952.2,0.0,952.2,0.0,0.0
+DISKBSIZE,T0029,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,517.0,0.0,517.0,0.0,0.0
+ZZZZ,T0030,09:52:21,23-AUG-2018
+CPU001,T0030,15.0,55.0,0.0,30.0
+CPU002,T0030,0.0,99.0,0.0,1.0
+CPU003,T0030,5.1,82.8,0.0,12.1
+CPU004,T0030,6.0,81.0,0.0,13.0
+CPU_ALL,T0030,6.7,79.3,0.0,14.0,,4
+MEM,T0030,15759.9,-0.0,-0.0,16231.0,9890.9,-0.0,-0.0,16231.0,-0.0,2761.5,2178.4,-1.0,405.2,0.0,2100.8
+VM,T0030,34,0,0,10584,399925,-1,39,522095,0,0,71217,0,0,70044,0,0,0,0,0,0,0,0,0,70730,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0030,4,0,9249.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0030,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0030,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0030,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0030,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,31.0,0.0,32.0,0.0,0.0
+DISKREAD,T0030,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,39.0,0.0,0.0
+DISKWRITE,T0030,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,521614.1,0.0,521614.1,0.0,0.0
+DISKXFER,T0030,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1049.0,0.0,1049.0,0.0,0.0
+DISKBSIZE,T0030,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,497.3,0.0,497.3,0.0,0.0
+ZZZZ,T0031,09:52:22,23-AUG-2018
+CPU001,T0031,2.0,94.0,0.0,4.0
+CPU002,T0031,12.2,49.0,0.0,38.8
+CPU003,T0031,3.0,93.1,0.0,4.0
+CPU004,T0031,3.0,85.9,0.0,11.1
+CPU_ALL,T0031,5.0,80.7,0.0,14.3,,4
+MEM,T0031,15759.9,-0.0,-0.0,16231.0,9889.6,-0.0,-0.0,16231.0,-0.0,2761.5,2179.9,-1.0,405.2,0.0,2100.8
+VM,T0031,34,0,0,10583,399925,-1,140,450844,0,0,73218,0,0,72985,0,0,0,0,0,0,0,0,0,73612,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0031,6,0,11263.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0031,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0031,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0031,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,27.0,0.0,27.0,0.0,0.0
+DISKREAD,T0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,139.9,0.0,139.9,0.0,0.0
+DISKWRITE,T0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,450715.6,0.0,450715.6,0.0,0.0
+DISKXFER,T0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1199.9,0.0,1199.9,0.0,0.0
+DISKBSIZE,T0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,375.7,0.0,375.7,0.0,0.0
+ZZZZ,T0032,09:52:23,23-AUG-2018
+CPU001,T0032,2.0,93.0,0.0,5.0
+CPU002,T0032,4.0,73.0,12.0,11.0
+CPU003,T0032,10.0,55.0,0.0,35.0
+CPU004,T0032,3.0,91.9,0.0,5.1
+CPU_ALL,T0032,4.5,78.4,3.0,14.1,,4
+MEM,T0032,15759.9,-0.0,-0.0,16231.0,9888.4,-0.0,-0.0,16231.0,-0.0,2761.4,2180.5,-1.0,405.2,0.0,2100.8
+VM,T0032,34,0,0,10583,399925,-1,25,366109,0,0,45924,0,0,45636,0,0,0,0,0,0,0,0,0,46106,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0032,4,0,7695.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0032,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0032,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0032,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,54.0,0.0,53.0,0.0,0.0
+DISKREAD,T0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,25.0,0.0,25.0,0.0,0.0
+DISKWRITE,T0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,363962.9,0.0,363962.9,0.0,0.0
+DISKXFER,T0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,691.4,0.0,691.4,0.0,0.0
+DISKBSIZE,T0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,526.4,0.0,526.4,0.0,0.0
+ZZZZ,T0033,09:52:24,23-AUG-2018
+CPU001,T0033,8.0,70.0,0.0,22.0
+CPU002,T0033,5.9,84.2,0.0,9.9
+CPU003,T0033,1.0,98.0,0.0,1.0
+CPU004,T0033,10.2,62.2,0.0,27.6
+CPU_ALL,T0033,6.3,78.9,0.0,14.8,,4
+MEM,T0033,15759.9,-0.0,-0.0,16231.0,9888.7,-0.0,-0.0,16231.0,-0.0,2761.5,2180.2,-1.0,405.2,0.0,2100.8
+VM,T0033,35,0,0,10583,399925,-1,1058,515090,0,0,58665,0,0,58186,0,0,0,0,0,0,0,0,0,58576,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0033,5,0,7266.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0033,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0033,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0033,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,48.0,0.0,49.0,0.0,0.0
+DISKREAD,T0033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1057.1,0.0,1057.1,0.0,0.0
+DISKWRITE,T0033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,510305.9,0.0,510305.9,0.0,0.0
+DISKXFER,T0033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,928.2,0.0,928.2,0.0,0.0
+DISKBSIZE,T0033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,550.9,0.0,550.9,0.0,0.0
+ZZZZ,T0034,09:52:25,23-AUG-2018
+CPU001,T0034,9.1,61.6,0.0,29.3
+CPU002,T0034,4.0,84.8,0.0,11.1
+CPU003,T0034,5.2,71.9,0.0,22.9
+CPU004,T0034,2.0,97.1,0.0,1.0
+CPU_ALL,T0034,5.0,79.1,0.0,15.9,,4
+MEM,T0034,15759.9,-0.0,-0.0,16231.0,9889.3,-0.0,-0.0,16231.0,-0.0,2761.5,2180.2,-1.0,405.2,0.0,2100.8
+VM,T0034,35,0,0,10583,399925,-1,1139,416103,0,0,65764,0,0,65215,0,0,0,0,0,0,0,0,0,65775,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0034,5,0,9287.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0034,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0034,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0034,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,41.0,0.0,41.0,0.0,0.0
+DISKREAD,T0034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1138.0,0.0,1138.0,0.0,0.0
+DISKWRITE,T0034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,420612.6,0.0,420612.6,0.0,0.0
+DISKXFER,T0034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1052.1,0.0,1052.1,0.0,0.0
+DISKBSIZE,T0034,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,400.9,0.0,400.9,0.0,0.0
+ZZZZ,T0035,09:52:26,23-AUG-2018
+CPU001,T0035,7.0,72.0,0.0,21.0
+CPU002,T0035,6.0,81.0,0.0,13.0
+CPU003,T0035,9.0,67.0,0.0,24.0
+CPU004,T0035,1.0,99.0,0.0,0.0
+CPU_ALL,T0035,5.8,79.6,0.0,14.6,,4
+MEM,T0035,15759.9,-0.0,-0.0,16231.0,9889.3,-0.0,-0.0,16231.0,-0.0,2761.5,2180.1,-1.0,405.2,0.0,2100.8
+VM,T0035,35,0,0,10583,399925,-1,37,493777,0,0,73037,0,0,72517,0,0,0,0,0,0,0,0,0,73063,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0035,3,0,9657.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0035,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0035,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0035,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0035,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32.0,0.0,32.0,0.0,0.0
+DISKREAD,T0035,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,37.0,0.0,0.0
+DISKWRITE,T0035,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,494378.3,0.0,494378.3,0.0,0.0
+DISKXFER,T0035,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1029.1,0.0,1029.1,0.0,0.0
+DISKBSIZE,T0035,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,480.4,0.0,480.4,0.0,0.0
+ZZZZ,T0036,09:52:27,23-AUG-2018
+CPU001,T0036,4.1,83.5,0.0,12.4
+CPU002,T0036,8.1,70.7,0.0,21.2
+CPU003,T0036,8.1,78.8,0.0,13.1
+CPU004,T0036,6.0,83.0,0.0,11.0
+CPU_ALL,T0036,6.8,78.8,0.0,14.4,,4
+MEM,T0036,15759.9,-0.0,-0.0,16231.0,9888.2,-0.0,-0.0,16231.0,-0.0,2761.5,2181.0,-1.0,405.2,0.0,2100.8
+VM,T0036,31,0,0,10583,399925,-1,64,505012,0,0,74207,0,0,73689,0,0,0,0,0,0,0,0,0,74389,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0036,4,0,10299.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0036,0.0,0.2,0.0,0.0,0.0,0.0,
+NETPACKET,T0036,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0036,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,28.0,0.0,0.0
+DISKREAD,T0036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,64.0,0.0,64.0,0.0,0.0
+DISKWRITE,T0036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,504673.9,0.0,504673.9,0.0,0.0
+DISKXFER,T0036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1164.2,0.0,1164.2,0.0,0.0
+DISKBSIZE,T0036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,433.5,0.0,433.5,0.0,0.0
+ZZZZ,T0037,09:52:28,23-AUG-2018
+CPU001,T0037,12.2,44.9,0.0,42.9
+CPU002,T0037,0.0,100.0,0.0,0.0
+CPU003,T0037,8.9,75.2,0.0,15.8
+CPU004,T0037,4.0,91.9,0.0,4.0
+CPU_ALL,T0037,6.3,77.8,0.0,15.9,,4
+MEM,T0037,15759.9,-0.0,-0.0,16231.0,9889.0,-0.0,-0.0,16231.0,-0.0,2761.5,2179.8,-1.0,405.2,0.0,2100.8
+VM,T0037,32,0,0,10583,399925,-1,622,420046,0,0,64001,0,0,63149,0,0,0,0,0,0,0,0,0,63628,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0037,4,0,7291.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0037,0.0,7.3,1.0,0.0,3.9,1.0,
+NETPACKET,T0037,0.0,13.0,8.0,0.0,14.0,8.0,
+JFSFILE,T0037,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,57.9,0.0,58.9,0.0,0.0
+DISKREAD,T0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,621.4,0.0,621.4,0.0,0.0
+DISKWRITE,T0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,418485.1,0.0,418485.1,0.0,0.0
+DISKXFER,T0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,795.2,0.0,795.2,0.0,0.0
+DISKBSIZE,T0037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,527.0,0.0,527.0,0.0,0.0
+ZZZZ,T0038,09:52:29,23-AUG-2018
+CPU001,T0038,6.1,85.9,0.0,8.1
+CPU002,T0038,11.9,67.3,0.0,20.8
+CPU003,T0038,5.0,84.0,1.0,10.0
+CPU004,T0038,8.0,75.0,0.0,17.0
+CPU_ALL,T0038,7.5,78.4,0.3,13.8,,4
+MEM,T0038,15759.9,-0.0,-0.0,16231.0,9888.1,-0.0,-0.0,16231.0,-0.0,2761.5,2179.9,-1.0,405.2,0.0,2100.8
+VM,T0038,36,0,0,10584,399925,-1,875,527231,0,0,76909,0,0,76495,0,0,0,0,0,0,0,0,0,77011,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0038,5,0,8008.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0038,0.0,0.1,0.0,0.0,0.1,0.0,
+NETPACKET,T0038,0.0,1.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0038,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,44.0,0.0,44.0,0.0,0.0
+DISKREAD,T0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,874.2,0.0,874.2,0.0,0.0
+DISKWRITE,T0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,527226.5,0.0,527226.5,0.0,0.0
+DISKXFER,T0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1065.0,0.0,1065.0,0.0,0.0
+DISKBSIZE,T0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,495.8,0.0,495.8,0.0,0.0
+ZZZZ,T0039,09:52:30,23-AUG-2018
+CPU001,T0039,4.0,88.0,0.0,8.0
+CPU002,T0039,8.0,70.0,0.0,22.0
+CPU003,T0039,10.0,72.0,0.0,18.0
+CPU004,T0039,3.0,88.0,0.0,9.0
+CPU_ALL,T0039,6.0,79.4,0.0,14.5,,4
+MEM,T0039,15759.9,-0.0,-0.0,16231.0,9889.9,-0.0,-0.0,16231.0,-0.0,2761.5,2180.1,-1.0,405.2,0.0,2100.8
+VM,T0039,36,0,0,10584,399925,-1,39,492555,0,0,71673,0,0,71074,0,0,0,0,0,0,0,0,0,71700,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0039,4,0,8966.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0039,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0039,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0039,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45.0,0.0,44.0,0.0,0.0
+DISKREAD,T0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,39.0,0.0,0.0
+DISKWRITE,T0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,492787.5,0.0,492787.5,0.0,0.0
+DISKXFER,T0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1038.1,0.0,1038.1,0.0,0.0
+DISKBSIZE,T0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,474.8,0.0,474.8,0.0,0.0
+ZZZZ,T0040,09:52:31,23-AUG-2018
+CPU001,T0040,2.0,89.0,0.0,9.0
+CPU002,T0040,1.0,96.0,0.0,3.0
+CPU003,T0040,18.0,36.0,0.0,46.0
+CPU004,T0040,4.0,95.0,0.0,1.0
+CPU_ALL,T0040,6.3,78.9,0.0,14.8,,4
+MEM,T0040,15759.9,-0.0,-0.0,16231.0,9888.2,-0.0,-0.0,16231.0,-0.0,2761.5,2180.8,-1.0,405.2,0.0,2100.8
+VM,T0040,36,0,0,10584,399925,-1,63,440615,0,0,76387,0,0,75759,0,0,0,0,0,0,0,0,0,76530,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0040,4,0,9176.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0040,0.0,0.2,0.0,0.0,0.2,0.0,
+NETPACKET,T0040,0.0,2.0,0.0,0.0,2.0,0.0,
+JFSFILE,T0040,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0040,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,24.0,0.0,25.0,0.0,0.0
+DISKREAD,T0040,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,62.9,0.0,62.9,0.0,0.0
+DISKWRITE,T0040,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,440218.8,0.0,440218.8,0.0,0.0
+DISKXFER,T0040,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1171.9,0.0,1171.9,0.0,0.0
+DISKBSIZE,T0040,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,375.7,0.0,375.7,0.0,0.0
+ZZZZ,T0041,09:52:32,23-AUG-2018
+CPU001,T0041,0.0,100.0,0.0,0.0
+CPU002,T0041,10.0,65.0,0.0,25.0
+CPU003,T0041,11.0,58.0,0.0,31.0
+CPU004,T0041,2.0,95.0,0.0,3.0
+CPU_ALL,T0041,6.0,79.4,0.0,14.5,,4
+MEM,T0041,15759.9,-0.0,-0.0,16231.0,9887.0,-0.0,-0.0,16231.0,-0.0,2761.5,2181.5,-1.0,405.2,0.0,2100.8
+VM,T0041,37,0,0,10585,399974,-1,31,465531,0,0,73671,0,0,74925,0,0,0,0,0,0,0,0,0,73716,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0041,3,0,9368.6,-1.0,-1.0,-1.0,49.0,-1.0,-1.0,-1.0
+NET,T0041,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0041,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0041,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,31.0,0.0,31.0,0.0,0.0
+DISKREAD,T0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,31.0,0.0,31.0,0.0,0.0
+DISKWRITE,T0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,465112.9,0.0,465112.9,0.0,0.0
+DISKXFER,T0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,916.2,0.0,916.2,0.0,0.0
+DISKBSIZE,T0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,507.7,0.0,507.7,0.0,0.0
+ZZZZ,T0042,09:52:33,23-AUG-2018
+CPU001,T0042,1.0,99.0,0.0,0.0
+CPU002,T0042,0.0,100.0,0.0,0.0
+CPU003,T0042,19.6,35.3,0.0,45.1
+CPU004,T0042,8.1,75.8,0.0,16.2
+CPU_ALL,T0042,6.8,77.8,0.0,15.5,,4
+MEM,T0042,15759.9,-0.0,-0.0,16231.0,9887.3,-0.0,-0.0,16231.0,-0.0,2761.5,2181.2,-1.0,405.2,0.0,2100.8
+VM,T0042,37,0,0,10584,399928,-1,278,449370,0,0,75091,0,0,74512,0,0,0,0,0,0,0,0,0,75103,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0042,5,0,8739.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0042,0.0,0.0,0.0,0.0,0.1,0.0,
+NETPACKET,T0042,0.0,0.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0042,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,27.0,0.0,0.0
+DISKREAD,T0042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,277.8,0.0,277.8,0.0,0.0
+DISKWRITE,T0042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,448972.1,0.0,448972.1,0.0,0.0
+DISKXFER,T0042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1136.0,0.0,1136.0,0.0,0.0
+DISKBSIZE,T0042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,395.5,0.0,395.5,0.0,0.0
+ZZZZ,T0043,09:52:34,23-AUG-2018
+CPU001,T0043,1.0,97.0,0.0,2.0
+CPU002,T0043,5.0,87.1,0.0,7.9
+CPU003,T0043,10.2,40.8,24.5,24.5
+CPU004,T0043,4.0,88.9,0.0,7.1
+CPU_ALL,T0043,5.0,78.4,6.0,10.5,,4
+MEM,T0043,15759.9,-0.0,-0.0,16231.0,9887.3,-0.0,-0.0,16231.0,-0.0,2761.5,2179.7,-1.0,405.2,0.0,2100.8
+VM,T0043,37,0,0,10584,400418,-1,18,393022,0,0,60093,0,0,59223,0,0,0,0,0,0,0,0,0,60229,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0043,5,0,6199.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0043,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0043,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0043,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,60.9,0.0,60.9,0.0,0.0
+DISKREAD,T0043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,18.0,0.0,18.0,0.0,0.0
+DISKWRITE,T0043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,392681.6,0.0,392681.6,0.0,0.0
+DISKXFER,T0043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,683.4,0.0,683.4,0.0,0.0
+DISKBSIZE,T0043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,574.6,0.0,574.6,0.0,0.0
+ZZZZ,T0044,09:52:35,23-AUG-2018
+CPU001,T0044,0.0,99.0,0.0,1.0
+CPU002,T0044,0.0,100.0,0.0,0.0
+CPU003,T0044,22.2,20.2,0.0,57.6
+CPU004,T0044,3.0,93.0,0.0,4.0
+CPU_ALL,T0044,6.5,78.2,0.0,15.3,,4
+MEM,T0044,15759.9,-0.0,-0.0,16231.0,9886.4,-0.0,-0.0,16231.0,-0.0,2761.5,2180.7,-1.0,405.2,0.0,2100.8
+VM,T0044,37,0,0,10585,400440,-1,74,470122,0,0,68178,0,0,67970,0,0,0,0,0,0,0,0,0,68458,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0044,5,0,7772.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0044,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0044,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0044,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKREAD,T0044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,73.9,0.0,73.9,0.0,0.0
+DISKWRITE,T0044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,468642.5,0.0,468642.5,0.0,0.0
+DISKXFER,T0044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,998.0,0.0,998.0,0.0,0.0
+DISKBSIZE,T0044,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,469.6,0.0,469.6,0.0,0.0
+ZZZZ,T0045,09:52:36,23-AUG-2018
+CPU001,T0045,0.0,100.0,0.0,0.0
+CPU002,T0045,1.0,97.0,0.0,2.0
+CPU003,T0045,8.1,67.7,0.0,24.2
+CPU004,T0045,12.4,51.5,0.0,36.1
+CPU_ALL,T0045,5.5,78.8,0.0,15.6,,4
+MEM,T0045,15759.9,-0.0,-0.0,16231.0,9886.3,-0.0,-0.0,16231.0,-0.0,2761.5,2181.8,-1.0,405.2,0.0,2100.8
+VM,T0045,38,0,0,10585,400440,-1,34,472366,0,0,51063,0,0,50790,0,0,0,0,0,0,0,0,0,51244,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0045,4,0,7118.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0045,0.0,0.4,0.0,0.0,0.0,0.0,
+NETPACKET,T0045,0.0,3.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0045,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,52.0,0.0,53.0,0.0,0.0
+DISKREAD,T0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKWRITE,T0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,465814.9,0.0,465814.9,0.0,0.0
+DISKXFER,T0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,859.2,0.0,859.2,0.0,0.0
+DISKBSIZE,T0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,542.2,0.0,542.2,0.0,0.0
+ZZZZ,T0046,09:52:37,23-AUG-2018
+CPU001,T0046,1.0,99.0,0.0,0.0
+CPU002,T0046,0.0,100.0,0.0,0.0
+CPU003,T0046,5.9,4.9,27.5,61.8
+CPU004,T0046,3.0,97.0,0.0,0.0
+CPU_ALL,T0046,2.2,75.1,7.0,15.7,,4
+MEM,T0046,15759.9,-0.0,-0.0,16231.0,9886.2,-0.0,-0.0,16231.0,-0.0,2761.5,2182.0,-1.0,405.3,0.0,2100.8
+VM,T0046,38,0,0,10585,400440,-1,3,51438,0,0,7498,0,0,7530,0,0,0,0,0,0,0,0,0,7589,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0046,4,1,2508.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0046,0.0,0.8,0.3,0.0,0.5,0.3,
+NETPACKET,T0046,0.0,5.0,4.0,0.0,4.0,4.0,
+JFSFILE,T0046,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,47.0,0.0,59.9,0.0,0.0
+DISKREAD,T0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2.0,0.0,2.0,0.0,0.0
+DISKWRITE,T0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,58551.2,0.0,58551.2,0.0,0.0
+DISKXFER,T0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,92.9,0.0,92.9,0.0,0.0
+DISKBSIZE,T0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,630.2,0.0,630.2,0.0,0.0
+ZZZZ,T0047,09:52:38,23-AUG-2018
+CPU001,T0047,1.0,99.0,0.0,0.0
+CPU002,T0047,1.0,99.0,0.0,0.0
+CPU003,T0047,2.0,3.0,95.0,0.0
+CPU004,T0047,1.0,99.0,0.0,0.0
+CPU_ALL,T0047,1.0,75.2,23.8,0.0,,4
+MEM,T0047,15759.9,-0.0,-0.0,16231.0,9886.1,-0.0,-0.0,16231.0,-0.0,2761.5,2182.1,-1.0,405.3,0.0,2100.8
+VM,T0047,39,0,0,10585,400440,-1,0,13,0,0,1,0,0,31,0,0,0,0,0,0,0,0,0,34,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0047,4,1,2519.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0047,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0047,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0047,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0047,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,64.9,0.0,0.0
+DISKREAD,T0047,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.0
+DISKWRITE,T0047,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,13.0,0.0,13.0,0.0,0.0
+DISKXFER,T0047,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,4.0,0.0,0.0
+DISKBSIZE,T0047,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.5,0.0,3.5,0.0,0.0
+ZZZZ,T0048,09:52:39,23-AUG-2018
+CPU001,T0048,0.0,100.0,0.0,0.0
+CPU002,T0048,0.0,100.0,0.0,0.0
+CPU003,T0048,6.0,1.0,93.0,0.0
+CPU004,T0048,1.0,99.0,0.0,0.0
+CPU_ALL,T0048,1.7,75.1,23.1,0.0,,4
+MEM,T0048,15759.9,-0.0,-0.0,16231.0,9885.6,-0.0,-0.0,16231.0,-0.0,2761.5,2182.2,-1.0,405.3,0.0,2100.8
+VM,T0048,39,0,0,10585,400440,-1,1,7233,0,0,830,0,0,848,0,0,0,0,0,0,0,0,0,849,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0048,4,1,2652.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0048,0.0,0.5,0.0,0.0,1.8,0.0,
+NETPACKET,T0048,0.0,2.0,0.0,0.0,3.0,0.0,
+JFSFILE,T0048,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,5.0,0.0,59.9,0.0,0.0
+DISKREAD,T0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.0
+DISKWRITE,T0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4157.2,0.0,4157.2,0.0,0.0
+DISKXFER,T0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,17.0,0.0,15.0,0.0,0.0
+DISKBSIZE,T0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,244.8,0.0,277.5,0.0,0.0
+ZZZZ,T0049,09:52:40,23-AUG-2018
+CPU001,T0049,7.0,75.0,0.0,18.0
+CPU002,T0049,0.0,99.0,0.0,1.0
+CPU003,T0049,10.0,34.0,38.0,18.0
+CPU004,T0049,2.0,98.0,0.0,0.0
+CPU_ALL,T0049,4.8,76.8,9.5,9.0,,4
+MEM,T0049,15759.9,-0.0,-0.0,16231.0,9885.1,-0.0,-0.0,16231.0,-0.0,2761.5,2182.4,-1.0,405.3,0.0,2100.8
+VM,T0049,42,0,0,10585,400440,-1,279,328323,0,0,33171,0,0,32973,0,0,0,0,0,0,0,0,0,33261,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0049,6,0,5309.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0049,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0049,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0049,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,74.9,0.0,74.9,0.0,0.0
+DISKREAD,T0049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,278.8,0.0,278.8,0.0,0.0
+DISKWRITE,T0049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,331107.3,0.0,331107.3,0.0,0.0
+DISKXFER,T0049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,533.5,0.0,533.5,0.0,0.0
+DISKBSIZE,T0049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,621.1,0.0,621.1,0.0,0.0
+ZZZZ,T0050,09:52:41,23-AUG-2018
+CPU001,T0050,21.4,21.4,0.0,57.1
+CPU002,T0050,0.0,100.0,0.0,0.0
+CPU003,T0050,0.0,100.0,0.0,0.0
+CPU004,T0050,0.0,99.0,0.0,1.0
+CPU_ALL,T0050,5.8,79.7,0.0,14.5,,4
+MEM,T0050,15759.9,-0.0,-0.0,16231.0,9885.1,-0.0,-0.0,16231.0,-0.0,2761.5,2183.0,-1.0,405.3,0.0,2100.8
+VM,T0050,3,0,0,10585,400440,-1,40,479172,0,0,68027,0,0,67566,0,0,0,0,0,0,0,0,0,68134,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0050,4,0,9322.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0050,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0050,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0050,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0050,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,44.0,0.0,44.0,0.0,0.0
+DISKREAD,T0050,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,40.0,0.0,40.0,0.0,0.0
+DISKWRITE,T0050,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,478740.7,0.0,478740.7,0.0,0.0
+DISKXFER,T0050,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1065.0,0.0,1065.0,0.0,0.0
+DISKBSIZE,T0050,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,449.5,0.0,449.5,0.0,0.0
+ZZZZ,T0051,09:52:42,23-AUG-2018
+CPU001,T0051,6.1,79.6,0.0,14.3
+CPU002,T0051,21.0,37.0,0.0,42.0
+CPU003,T0051,0.0,99.0,0.0,1.0
+CPU004,T0051,0.0,100.0,0.0,0.0
+CPU_ALL,T0051,6.5,79.1,0.0,14.3,,4
+MEM,T0051,15759.9,-0.0,-0.0,16231.0,9885.5,-0.0,-0.0,16231.0,-0.0,2761.5,2182.5,-1.0,405.3,0.0,2100.8
+VM,T0051,4,0,0,10585,400440,-1,70,441406,0,0,74202,0,0,73618,0,0,0,0,0,0,0,0,0,74137,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0051,5,0,8739.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0051,0.0,0.7,0.3,0.0,0.6,0.3,
+NETPACKET,T0051,0.0,5.0,4.0,0.0,5.0,4.0,
+JFSFILE,T0051,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,35.0,0.0,35.0,0.0,0.0
+DISKREAD,T0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,69.9,0.0,69.9,0.0,0.0
+DISKWRITE,T0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,438825.4,0.0,438825.4,0.0,0.0
+DISKXFER,T0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1147.9,0.0,1147.9,0.0,0.0
+DISKBSIZE,T0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,382.3,0.0,382.3,0.0,0.0
+ZZZZ,T0052,09:52:43,23-AUG-2018
+CPU001,T0052,2.0,97.1,0.0,1.0
+CPU002,T0052,3.0,89.0,0.0,8.0
+CPU003,T0052,10.8,72.5,0.0,16.7
+CPU004,T0052,12.0,56.0,0.0,32.0
+CPU_ALL,T0052,6.9,78.9,0.0,14.1,,4
+MEM,T0052,15759.9,-0.0,-0.0,16231.0,9885.0,-0.0,-0.0,16231.0,-0.0,2761.5,2181.7,-1.0,405.3,0.0,2100.8
+VM,T0052,4,0,0,10585,400440,-1,68,483148,0,0,89393,0,0,88606,0,0,0,0,0,0,0,0,0,89213,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0052,5,0,9407.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0052,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0052,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0052,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,26.0,0.0,26.0,0.0,0.0
+DISKREAD,T0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,67.9,0.0,67.9,0.0,0.0
+DISKWRITE,T0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,484896.8,0.0,484896.8,0.0,0.0
+DISKXFER,T0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1218.9,0.0,1218.9,0.0,0.0
+DISKBSIZE,T0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,397.9,0.0,397.9,0.0,0.0
+ZZZZ,T0053,09:52:44,23-AUG-2018
+CPU001,T0053,0.0,100.0,0.0,0.0
+CPU002,T0053,3.0,89.0,0.0,8.0
+CPU003,T0053,15.2,46.5,0.0,38.4
+CPU004,T0053,7.0,79.0,0.0,14.0
+CPU_ALL,T0053,6.5,78.4,0.0,15.0,,4
+MEM,T0053,15759.9,-0.0,-0.0,16231.0,9885.1,-0.0,-0.0,16231.0,-0.0,2761.5,2182.9,-1.0,405.3,0.0,2100.8
+VM,T0053,4,0,0,10585,400440,-1,116,464787,0,0,75237,0,0,75003,0,0,0,0,0,0,0,0,0,75506,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0053,4,0,9008.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0053,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0053,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0053,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,31.0,0.0,0.0
+DISKREAD,T0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,115.9,0.0,115.9,0.0,0.0
+DISKWRITE,T0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,464378.8,0.0,464378.8,0.0,0.0
+DISKXFER,T0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1235.9,0.0,1235.9,0.0,0.0
+DISKBSIZE,T0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,375.8,0.0,375.8,0.0,0.0
+ZZZZ,T0054,09:52:45,23-AUG-2018
+CPU001,T0054,8.9,65.3,0.0,25.7
+CPU002,T0054,0.0,100.0,0.0,0.0
+CPU003,T0054,3.0,92.0,0.0,5.0
+CPU004,T0054,8.1,54.5,0.0,37.4
+CPU_ALL,T0054,4.8,77.9,0.0,17.3,,4
+MEM,T0054,15759.9,-0.0,-0.0,16231.0,9884.8,-0.0,-0.0,16231.0,-0.0,2761.5,2183.3,-1.0,405.3,0.0,2100.8
+VM,T0054,16,0,0,10585,400437,-1,39,394532,0,0,46771,0,0,46419,0,0,0,0,0,0,0,0,0,46835,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0054,5,0,6736.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0054,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0054,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0054,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,58.9,0.0,57.9,0.0,0.0
+DISKREAD,T0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,39.0,0.0,0.0
+DISKWRITE,T0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,394161.8,0.0,394161.8,0.0,0.0
+DISKXFER,T0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,813.2,0.0,813.2,0.0,0.0
+DISKBSIZE,T0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,484.7,0.0,484.7,0.0,0.0
+ZZZZ,T0055,09:52:46,23-AUG-2018
+CPU001,T0055,15.5,37.1,0.0,47.4
+CPU002,T0055,4.0,80.8,0.0,15.2
+CPU003,T0055,2.0,98.0,0.0,0.0
+CPU004,T0055,0.0,100.0,0.0,0.0
+CPU_ALL,T0055,5.6,79.2,0.0,15.2,,4
+MEM,T0055,15759.9,-0.0,-0.0,16231.0,9884.5,-0.0,-0.0,16231.0,-0.0,2761.5,2183.1,-1.0,405.3,0.0,2100.8
+VM,T0055,16,0,0,10585,400438,-1,1148,416400,0,0,63007,0,0,62566,0,0,0,0,0,0,0,0,0,63052,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0055,4,0,9993.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0055,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0055,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0055,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,36.0,0.0,36.0,0.0,0.0
+DISKREAD,T0055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1147.0,0.0,1147.0,0.0,0.0
+DISKWRITE,T0055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,415406.0,0.0,415865.6,0.0,0.0
+DISKXFER,T0055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,986.1,0.0,986.1,0.0,0.0
+DISKBSIZE,T0055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,422.4,0.0,422.9,0.0,0.0
+ZZZZ,T0056,09:52:47,23-AUG-2018
+CPU001,T0056,8.0,82.0,0.0,10.0
+CPU002,T0056,5.0,88.0,0.0,7.0
+CPU003,T0056,11.7,63.1,0.0,25.2
+CPU004,T0056,7.9,78.2,0.0,13.9
+CPU_ALL,T0056,8.1,77.8,0.0,14.1,,4
+MEM,T0056,15759.9,-0.0,-0.0,16231.0,9880.3,-0.0,-0.0,16231.0,-0.0,2761.5,2185.3,-1.0,405.3,0.0,2100.8
+VM,T0056,16,0,0,10641,400629,-1,555,402531,0,0,73952,0,0,75490,0,0,0,0,0,0,0,0,0,74663,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0056,13,0,9638.6,-1.0,-1.0,-1.0,31.8,-1.0,-1.0,-1.0
+NET,T0056,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0056,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0056,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,26.9,0.0,27.9,0.0,0.0
+DISKREAD,T0056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,552.2,0.0,552.2,0.0,0.0
+DISKWRITE,T0056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,401101.8,0.0,400644.2,0.0,0.0
+DISKXFER,T0056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1050.6,0.0,1050.6,0.0,0.0
+DISKBSIZE,T0056,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,382.3,0.0,381.9,0.0,0.0
+ZZZZ,T0057,09:52:48,23-AUG-2018
+CPU001,T0057,0.0,100.0,0.0,0.0
+CPU002,T0057,8.1,61.6,0.0,30.3
+CPU003,T0057,14.4,48.5,0.0,37.1
+CPU004,T0057,1.0,99.0,0.0,0.0
+CPU_ALL,T0057,5.8,77.5,0.0,16.7,,4
+MEM,T0057,15759.9,-0.0,-0.0,16231.0,9882.4,-0.0,-0.0,16231.0,-0.0,2761.5,2184.2,-1.0,405.3,0.0,2100.8
+VM,T0057,16,0,0,10585,400440,-1,99,415911,0,0,69036,0,0,68566,0,0,0,0,0,0,0,0,0,68606,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0057,5,0,10118.5,-1.0,-1.0,-1.0,18.0,-1.0,-1.0,-1.0
+NET,T0057,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0057,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0057,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0057,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,27.0,0.0,0.0
+DISKREAD,T0057,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,98.9,0.0,98.9,0.0,0.0
+DISKWRITE,T0057,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,413659.9,0.0,413659.9,0.0,0.0
+DISKXFER,T0057,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1007.2,0.0,1007.2,0.0,0.0
+DISKBSIZE,T0057,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,410.8,0.0,410.8,0.0,0.0
+ZZZZ,T0058,09:52:49,23-AUG-2018
+CPU001,T0058,0.0,100.0,0.0,0.0
+CPU002,T0058,1.0,98.0,0.0,1.0
+CPU003,T0058,22.8,19.8,0.0,57.4
+CPU004,T0058,1.0,98.0,0.0,1.0
+CPU_ALL,T0058,6.2,78.8,0.0,15.0,,4
+MEM,T0058,15759.9,-0.0,-0.0,16231.0,9883.8,-0.0,-0.0,16231.0,-0.0,2761.5,2183.6,-1.0,405.3,0.0,2100.8
+VM,T0058,17,0,0,10585,400439,-1,59,462975,0,0,67461,0,0,66779,0,0,0,0,0,0,0,0,0,67431,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0058,5,0,9530.0,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0058,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0058,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0058,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,30.0,0.0,0.0
+DISKREAD,T0058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,59.0,0.0,59.0,0.0,0.0
+DISKWRITE,T0058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,463817.7,0.0,463817.7,0.0,0.0
+DISKXFER,T0058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1025.1,0.0,1025.1,0.0,0.0
+DISKBSIZE,T0058,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,452.5,0.0,452.5,0.0,0.0
+ZZZZ,T0059,09:52:50,23-AUG-2018
+CPU001,T0059,3.0,83.8,0.0,13.1
+CPU002,T0059,2.0,83.2,0.0,14.9
+CPU003,T0059,19.4,43.9,1.0,35.7
+CPU004,T0059,1.0,99.0,0.0,0.0
+CPU_ALL,T0059,6.3,77.4,0.3,16.0,,4
+MEM,T0059,15759.9,-0.0,-0.0,16231.0,9882.6,-0.0,-0.0,16231.0,-0.0,2761.5,2184.1,-1.0,405.3,0.0,2100.8
+VM,T0059,20,0,0,10586,400440,-1,42,386626,0,0,61646,0,0,61231,0,0,0,0,0,0,0,0,0,61691,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0059,4,0,7942.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0059,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0059,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0059,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,38.0,0.0,38.0,0.0,0.0
+DISKREAD,T0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKWRITE,T0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,386961.0,0.0,386961.0,0.0,0.0
+DISKXFER,T0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,861.2,0.0,861.2,0.0,0.0
+DISKBSIZE,T0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,449.4,0.0,449.4,0.0,0.0
+ZZZZ,T0060,09:52:51,23-AUG-2018
+CPU001,T0060,13.1,53.5,0.0,33.3
+CPU002,T0060,1.0,99.0,0.0,0.0
+CPU003,T0060,2.0,97.0,0.0,1.0
+CPU004,T0060,9.1,66.7,0.0,24.2
+CPU_ALL,T0060,6.3,79.2,0.0,14.5,,4
+MEM,T0060,15759.9,-0.0,-0.0,16231.0,9883.1,-0.0,-0.0,16231.0,-0.0,2761.5,2183.9,-1.0,405.3,0.0,2100.8
+VM,T0060,20,0,0,10586,400440,-1,126,445270,0,0,74383,0,0,73748,0,0,0,0,0,0,0,0,0,74303,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0060,4,0,8550.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0060,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0060,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0060,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0060,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,30.0,0.0,0.0
+DISKREAD,T0060,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,125.9,0.0,125.9,0.0,0.0
+DISKWRITE,T0060,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,444882.1,0.0,444882.1,0.0,0.0
+DISKXFER,T0060,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,997.1,0.0,997.1,0.0,0.0
+DISKBSIZE,T0060,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,446.3,0.0,446.3,0.0,0.0
+ZZZZ,T0061,09:52:52,23-AUG-2018
+CPU001,T0061,6.1,81.6,0.0,12.2
+CPU002,T0061,8.2,67.3,0.0,24.5
+CPU003,T0061,5.0,86.1,0.0,8.9
+CPU004,T0061,7.1,82.8,0.0,10.1
+CPU_ALL,T0061,6.3,79.7,0.0,13.9,,4
+MEM,T0061,15759.9,-0.0,-0.0,16231.0,9883.2,-0.0,-0.0,16231.0,-0.0,2761.5,2184.3,-1.0,405.3,0.0,2100.8
+VM,T0061,20,0,0,10586,400440,-1,407,482895,0,0,89407,0,0,88957,0,0,0,0,0,0,0,0,0,89588,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0061,4,0,9674.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0061,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0061,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0061,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32.0,0.0,33.0,0.0,0.0
+DISKREAD,T0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,407.6,0.0,407.6,0.0,0.0
+DISKWRITE,T0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,482457.0,0.0,482457.0,0.0,0.0
+DISKXFER,T0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1300.8,0.0,1300.8,0.0,0.0
+DISKBSIZE,T0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,371.2,0.0,371.2,0.0,0.0
+ZZZZ,T0062,09:52:53,23-AUG-2018
+CPU001,T0062,10.0,67.0,0.0,23.0
+CPU002,T0062,14.1,62.6,0.0,23.2
+CPU003,T0062,1.0,93.0,0.0,6.0
+CPU004,T0062,4.0,91.0,0.0,5.0
+CPU_ALL,T0062,7.3,78.3,0.0,14.4,,4
+MEM,T0062,15759.9,-0.0,-0.0,16231.0,9882.3,-0.0,-0.0,16231.0,-0.0,2761.5,2184.7,-1.0,405.3,0.0,2100.8
+VM,T0062,21,0,0,10586,400440,-1,108,474820,0,0,79827,0,0,79229,0,0,0,0,0,0,0,0,0,79839,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0062,4,0,9158.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0062,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0062,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0062,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,33.0,0.0,32.0,0.0,0.0
+DISKREAD,T0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,106.9,0.0,106.9,0.0,0.0
+DISKWRITE,T0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,473353.2,0.0,473353.2,0.0,0.0
+DISKXFER,T0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1213.9,0.0,1213.9,0.0,0.0
+DISKBSIZE,T0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,390.0,0.0,390.0,0.0,0.0
+ZZZZ,T0063,09:52:54,23-AUG-2018
+CPU001,T0063,2.0,92.0,0.0,6.0
+CPU002,T0063,11.1,63.6,0.0,25.3
+CPU003,T0063,6.0,82.0,0.0,12.0
+CPU004,T0063,5.0,84.2,0.0,10.9
+CPU_ALL,T0063,6.0,80.7,0.0,13.3,,4
+MEM,T0063,15759.9,-0.0,-0.0,16231.0,9883.3,-0.0,-0.0,16231.0,-0.0,2761.5,2184.3,-1.0,405.3,0.0,2100.8
+VM,T0063,21,0,0,10586,400440,-1,92,517868,0,0,88923,0,0,88150,0,0,0,0,0,0,0,0,0,88869,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0063,4,0,8882.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0063,0.0,0.1,0.0,0.0,0.1,0.0,
+NETPACKET,T0063,0.0,1.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0063,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,32.0,0.0,32.0,0.0,0.0
+DISKREAD,T0063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,91.9,0.0,91.9,0.0,0.0
+DISKWRITE,T0063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,518423.3,0.0,518423.3,0.0,0.0
+DISKXFER,T0063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1243.9,0.0,1243.9,0.0,0.0
+DISKBSIZE,T0063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,416.9,0.0,416.9,0.0,0.0
+ZZZZ,T0064,09:52:55,23-AUG-2018
+CPU001,T0064,14.3,39.8,8.2,37.8
+CPU002,T0064,1.0,97.0,0.0,2.0
+CPU003,T0064,1.0,99.0,0.0,0.0
+CPU004,T0064,8.2,78.6,0.0,13.3
+CPU_ALL,T0064,5.8,78.9,2.0,13.3,,4
+MEM,T0064,15759.9,-0.0,-0.0,16231.0,9883.9,-0.0,-0.0,16231.0,-0.0,2761.5,2183.0,-1.0,405.3,0.0,2100.8
+VM,T0064,22,0,0,10586,400440,-1,1164,432296,0,0,71920,0,0,71079,0,0,0,0,0,0,0,0,0,71572,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0064,5,0,8977.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0064,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0064,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0064,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,46.0,0.0,46.0,0.0,0.0
+DISKREAD,T0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1162.9,0.0,1162.9,0.0,0.0
+DISKWRITE,T0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,429270.0,0.0,429270.0,0.0,0.0
+DISKXFER,T0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1136.9,0.0,1136.9,0.0,0.0
+DISKBSIZE,T0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,378.6,0.0,378.6,0.0,0.0
+ZZZZ,T0065,09:52:56,23-AUG-2018
+CPU001,T0065,2.0,97.0,0.0,1.0
+CPU002,T0065,24.0,18.0,0.0,58.0
+CPU003,T0065,2.0,96.0,0.0,2.0
+CPU004,T0065,0.0,100.0,0.0,0.0
+CPU_ALL,T0065,7.0,78.0,0.0,15.0,,4
+MEM,T0065,15759.9,-0.0,-0.0,16231.0,9882.1,-0.0,-0.0,16231.0,-0.0,2761.5,2184.8,-1.0,405.3,0.0,2100.8
+VM,T0065,19,0,0,10586,400440,-1,80,489472,0,0,60498,0,0,60586,0,0,0,0,0,0,0,0,0,60997,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0065,4,0,7322.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0065,0.0,0.1,0.0,0.0,0.1,0.0,
+NETPACKET,T0065,0.0,1.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0065,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,48.0,0.0,48.0,0.0,0.0
+DISKREAD,T0065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,79.9,0.0,79.9,0.0,0.0
+DISKWRITE,T0065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,491632.3,0.0,491632.3,0.0,0.0
+DISKXFER,T0065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1033.0,0.0,1033.0,0.0,0.0
+DISKBSIZE,T0065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,476.0,0.0,476.0,0.0,0.0
+ZZZZ,T0066,09:52:57,23-AUG-2018
+CPU001,T0066,0.0,100.0,0.0,0.0
+CPU002,T0066,19.4,31.6,0.0,49.0
+CPU003,T0066,0.0,100.0,0.0,0.0
+CPU004,T0066,5.0,87.1,0.0,7.9
+CPU_ALL,T0066,6.2,79.5,0.0,14.2,,4
+MEM,T0066,15759.9,-0.0,-0.0,16231.0,9882.0,-0.0,-0.0,16231.0,-0.0,2761.5,2184.9,-1.0,405.3,0.0,2100.8
+VM,T0066,20,0,0,10586,400440,-1,75,516191,0,0,75610,0,0,75098,0,0,0,0,0,0,0,0,0,75595,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0066,4,0,8209.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0066,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0066,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0066,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0066,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKREAD,T0066,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,74.9,0.0,74.9,0.0,0.0
+DISKWRITE,T0066,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,515730.5,0.0,515730.5,0.0,0.0
+DISKXFER,T0066,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1292.8,0.0,1292.8,0.0,0.0
+DISKBSIZE,T0066,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,399.0,0.0,399.0,0.0,0.0
+ZZZZ,T0067,09:52:58,23-AUG-2018
+CPU001,T0067,0.0,100.0,0.0,0.0
+CPU002,T0067,11.8,64.7,0.0,23.5
+CPU003,T0067,13.7,52.9,0.0,33.3
+CPU004,T0067,2.0,97.0,0.0,1.0
+CPU_ALL,T0067,7.0,78.6,0.0,14.4,,4
+MEM,T0067,15759.9,-0.0,-0.0,16231.0,9882.2,-0.0,-0.0,16231.0,-0.0,2761.5,2185.1,-1.0,405.3,0.0,2100.8
+VM,T0067,20,0,0,10586,400441,-1,695,457339,0,0,79282,0,0,78686,0,0,0,0,0,0,0,0,0,79330,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0067,4,0,9187.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0067,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0067,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0067,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,30.0,0.0,0.0
+DISKREAD,T0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,694.4,0.0,694.4,0.0,0.0
+DISKWRITE,T0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,456937.3,0.0,456937.3,0.0,0.0
+DISKXFER,T0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1226.9,0.0,1226.9,0.0,0.0
+DISKBSIZE,T0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,373.0,0.0,373.0,0.0,0.0
+ZZZZ,T0068,09:52:59,23-AUG-2018
+CPU001,T0068,6.0,82.0,0.0,12.0
+CPU002,T0068,12.5,52.1,0.0,35.4
+CPU003,T0068,4.0,83.8,0.0,12.1
+CPU004,T0068,0.0,99.0,0.0,1.0
+CPU_ALL,T0068,5.6,79.0,0.0,15.4,,4
+MEM,T0068,15759.9,-0.0,-0.0,16231.0,9882.8,-0.0,-0.0,16231.0,-0.0,2761.5,2184.5,-1.0,405.3,0.0,2100.8
+VM,T0068,20,0,0,10586,400441,-1,941,440873,0,0,80586,0,0,79864,0,0,0,0,0,0,0,0,0,80442,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0068,4,0,9086.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0068,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0068,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0068,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,30.0,0.0,0.0
+DISKREAD,T0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,940.2,0.0,940.2,0.0,0.0
+DISKWRITE,T0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,440480.5,0.0,440480.5,0.0,0.0
+DISKXFER,T0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1210.9,0.0,1210.9,0.0,0.0
+DISKBSIZE,T0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,364.5,0.0,364.5,0.0,0.0
+ZZZZ,T0069,09:53:00,23-AUG-2018
+CPU001,T0069,1.0,93.0,0.0,6.0
+CPU002,T0069,14.1,36.4,0.0,49.5
+CPU003,T0069,2.0,96.0,0.0,2.0
+CPU004,T0069,4.0,86.1,0.0,9.9
+CPU_ALL,T0069,5.3,78.1,0.0,16.6,,4
+MEM,T0069,15759.9,-0.0,-0.0,16231.0,9881.8,-0.0,-0.0,16231.0,-0.0,2761.5,2184.8,-1.0,405.3,0.0,2100.8
+VM,T0069,20,0,0,10586,400441,-1,114,336334,0,0,52225,0,0,51672,0,0,0,0,0,0,0,0,0,52295,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0069,5,0,7517.5,-1.0,-1.0,-1.0,2.0,-1.0,-1.0,-1.0
+NET,T0069,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0069,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0069,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,28.0,0.0,0.0
+DISKREAD,T0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,113.9,0.0,113.9,0.0,0.0
+DISKWRITE,T0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,336042.3,0.0,336042.3,0.0,0.0
+DISKXFER,T0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,726.4,0.0,726.4,0.0,0.0
+DISKBSIZE,T0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,462.8,0.0,462.8,0.0,0.0
+ZZZZ,T0070,09:53:01,23-AUG-2018
+CPU001,T0070,4.0,87.9,0.0,8.1
+CPU002,T0070,17.0,38.0,0.0,45.0
+CPU003,T0070,0.0,95.0,0.0,5.0
+CPU004,T0070,1.0,96.0,0.0,3.0
+CPU_ALL,T0070,5.8,79.0,0.0,15.2,,4
+MEM,T0070,15759.9,-0.0,-0.0,16231.0,9881.0,-0.0,-0.0,16231.0,-0.0,2761.5,2185.8,-1.0,405.3,0.0,2100.8
+VM,T0070,24,0,0,10586,400446,-1,37,512113,0,0,59710,0,0,59530,0,0,0,0,0,0,0,0,0,59961,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0070,4,0,7901.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0070,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0070,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0070,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0070,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,50.0,0.0,50.0,0.0,0.0
+DISKREAD,T0070,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,37.0,0.0,0.0
+DISKWRITE,T0070,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,509255.0,0.0,509255.0,0.0,0.0
+DISKXFER,T0070,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,976.1,0.0,976.1,0.0,0.0
+DISKBSIZE,T0070,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,521.8,0.0,521.8,0.0,0.0
+ZZZZ,T0071,09:53:02,23-AUG-2018
+CPU001,T0071,8.2,64.3,0.0,27.6
+CPU002,T0071,10.8,70.6,0.0,18.6
+CPU003,T0071,2.0,98.0,0.0,0.0
+CPU004,T0071,6.1,81.8,0.0,12.1
+CPU_ALL,T0071,6.5,78.9,0.0,14.6,,4
+MEM,T0071,15759.9,-0.0,-0.0,16231.0,9881.4,-0.0,-0.0,16231.0,-0.0,2761.8,2184.7,-1.0,405.3,0.0,2101.1
+VM,T0071,24,0,0,10586,400447,-1,72,464664,0,0,72628,0,0,71743,0,0,0,0,0,0,0,0,0,72432,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0071,5,0,8064.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0071,0.0,0.5,0.0,0.0,0.4,0.0,
+NETPACKET,T0071,0.0,5.0,0.0,0.0,4.0,0.0,
+JFSFILE,T0071,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,40.0,0.0,39.0,0.0,0.0
+DISKREAD,T0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,71.9,0.0,71.9,0.0,0.0
+DISKWRITE,T0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,466639.5,0.0,466639.5,0.0,0.0
+DISKXFER,T0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1075.0,0.0,1075.0,0.0,0.0
+DISKBSIZE,T0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,434.1,0.0,434.1,0.0,0.0
+ZZZZ,T0072,09:53:03,23-AUG-2018
+CPU001,T0072,13.9,49.5,0.0,36.6
+CPU002,T0072,3.0,93.9,0.0,3.0
+CPU003,T0072,7.1,80.8,0.0,12.1
+CPU004,T0072,2.0,97.0,0.0,1.0
+CPU_ALL,T0072,6.8,80.0,0.0,13.2,,4
+MEM,T0072,15759.9,-0.0,-0.0,16231.0,9880.6,-0.0,-0.0,16231.0,-0.0,2761.8,2185.9,-1.0,405.3,0.0,2101.1
+VM,T0072,25,0,0,10586,400451,-1,61,476753,0,0,87926,0,0,89223,0,0,0,0,0,0,0,0,0,88225,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0072,4,0,10398.4,-1.0,-1.0,-1.0,48.0,-1.0,-1.0,-1.0
+NET,T0072,0.0,0.7,0.3,0.0,0.6,0.3,
+NETPACKET,T0072,0.0,5.0,4.0,0.0,5.0,4.0,
+JFSFILE,T0072,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,27.0,0.0,27.0,0.0,0.0
+DISKREAD,T0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,60.9,0.0,60.9,0.0,0.0
+DISKWRITE,T0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,474276.6,0.0,474276.6,0.0,0.0
+DISKXFER,T0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1159.9,0.0,1159.9,0.0,0.0
+DISKBSIZE,T0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,408.9,0.0,408.9,0.0,0.0
+ZZZZ,T0073,09:53:04,23-AUG-2018
+CPU001,T0073,3.0,87.0,0.0,10.0
+CPU002,T0073,10.2,66.3,0.0,23.5
+CPU003,T0073,12.0,63.0,0.0,25.0
+CPU004,T0073,0.0,99.0,0.0,1.0
+CPU_ALL,T0073,6.3,79.3,0.0,14.4,,4
+MEM,T0073,15759.9,-0.0,-0.0,16231.0,9880.1,-0.0,-0.0,16231.0,-0.0,2761.5,2186.4,-1.0,405.3,0.0,2100.8
+VM,T0073,25,0,0,10586,400448,-1,51,486175,0,0,78905,0,0,78264,0,0,0,0,0,0,0,0,0,78926,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0073,5,0,9309.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0073,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0073,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0073,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,29.0,0.0,0.0
+DISKREAD,T0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,51.0,0.0,51.0,0.0,0.0
+DISKWRITE,T0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,485910.5,0.0,485910.5,0.0,0.0
+DISKXFER,T0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1116.1,0.0,1116.1,0.0,0.0
+DISKBSIZE,T0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,435.4,0.0,435.4,0.0,0.0
+ZZZZ,T0074,09:53:05,23-AUG-2018
+CPU001,T0074,1.0,99.0,0.0,0.0
+CPU002,T0074,0.0,100.0,0.0,0.0
+CPU003,T0074,19.2,14.1,0.0,66.7
+CPU004,T0074,1.0,99.0,0.0,0.0
+CPU_ALL,T0074,5.0,78.0,0.0,17.0,,4
+MEM,T0074,15759.9,-0.0,-0.0,16231.0,9881.8,-0.0,-0.0,16231.0,-0.0,2761.5,2185.5,-1.0,405.3,0.0,2100.8
+VM,T0074,26,0,0,10586,400448,-1,1047,347519,0,0,60727,0,0,60088,0,0,0,0,0,0,0,0,0,60564,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0074,5,0,6144.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0074,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0074,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0074,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,57.9,0.0,57.9,0.0,0.0
+DISKREAD,T0074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1046.1,0.0,1046.1,0.0,0.0
+DISKWRITE,T0074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,349136.8,0.0,349136.8,0.0,0.0
+DISKXFER,T0074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,659.4,0.0,659.4,0.0,0.0
+DISKBSIZE,T0074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,531.0,0.0,531.0,0.0,0.0
+ZZZZ,T0075,09:53:06,23-AUG-2018
+CPU001,T0075,2.0,94.0,0.0,4.0
+CPU002,T0075,3.0,93.9,0.0,3.0
+CPU003,T0075,14.3,54.1,0.0,31.6
+CPU004,T0075,7.9,74.3,0.0,17.8
+CPU_ALL,T0075,7.0,78.7,0.0,14.3,,4
+MEM,T0075,15759.9,-0.0,-0.0,16231.0,9881.4,-0.0,-0.0,16231.0,-0.0,2761.5,2186.3,-1.0,405.3,0.0,2100.8
+VM,T0075,26,0,0,10586,400447,-1,114,494582,0,0,80314,0,0,79719,0,0,0,0,0,0,0,0,0,80480,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0075,4,0,8751.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0075,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0075,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0075,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,40.0,0.0,41.0,0.0,0.0
+DISKREAD,T0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,113.9,0.0,113.9,0.0,0.0
+DISKWRITE,T0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,494126.0,0.0,494126.0,0.0,0.0
+DISKXFER,T0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1104.0,0.0,1104.0,0.0,0.0
+DISKBSIZE,T0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,447.7,0.0,447.7,0.0,0.0
+ZZZZ,T0076,09:53:07,23-AUG-2018
+CPU001,T0076,10.8,58.8,0.0,30.4
+CPU002,T0076,1.0,99.0,0.0,0.0
+CPU003,T0076,3.0,97.0,0.0,0.0
+CPU004,T0076,8.1,59.6,0.0,32.3
+CPU_ALL,T0076,5.3,79.2,0.0,15.5,,4
+MEM,T0076,15759.9,-0.0,-0.0,16231.0,9882.1,-0.0,-0.0,16231.0,-0.0,2761.5,2184.8,-1.0,405.3,0.0,2100.8
+VM,T0076,26,0,0,10586,400448,-1,264,417720,0,0,66374,0,0,65487,0,0,0,0,0,0,0,0,0,65977,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0076,4,0,8576.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0076,0.0,0.2,0.0,0.0,0.1,0.0,
+NETPACKET,T0076,0.0,3.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0076,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,36.0,0.0,0.0
+DISKREAD,T0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,263.8,0.0,263.8,0.0,0.0
+DISKWRITE,T0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,417341.4,0.0,417341.4,0.0,0.0
+DISKXFER,T0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,900.2,0.0,900.2,0.0,0.0
+DISKBSIZE,T0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,463.9,0.0,463.9,0.0,0.0
+ZZZZ,T0077,09:53:08,23-AUG-2018
+CPU001,T0077,10.3,59.8,0.0,29.9
+CPU002,T0077,0.0,98.0,0.0,2.0
+CPU003,T0077,8.9,63.4,0.0,27.7
+CPU004,T0077,0.0,100.0,0.0,0.0
+CPU_ALL,T0077,5.0,80.4,0.0,14.6,,4
+MEM,T0077,15759.9,-0.0,-0.0,16231.0,9881.7,-0.0,-0.0,16231.0,-0.0,2761.5,2185.9,-1.0,405.3,0.0,2100.8
+VM,T0077,26,0,0,10586,400448,-1,198,421402,0,0,72718,0,0,72479,0,0,0,0,0,0,0,0,0,72983,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0077,4,0,9460.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0077,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0077,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0077,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0077,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,25.0,0.0,26.0,0.0,0.0
+DISKREAD,T0077,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,197.8,0.0,197.8,0.0,0.0
+DISKWRITE,T0077,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,421017.7,0.0,421017.7,0.0,0.0
+DISKXFER,T0077,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,999.1,0.0,999.1,0.0,0.0
+DISKBSIZE,T0077,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,421.6,0.0,421.6,0.0,0.0
+ZZZZ,T0078,09:53:09,23-AUG-2018
+CPU001,T0078,3.0,89.9,0.0,7.1
+CPU002,T0078,3.1,85.6,0.0,11.3
+CPU003,T0078,11.0,62.0,0.0,27.0
+CPU004,T0078,7.1,78.8,0.0,14.1
+CPU_ALL,T0078,6.0,78.8,0.0,15.1,,4
+MEM,T0078,15759.9,-0.0,-0.0,16231.0,9883.7,-0.0,-0.0,16231.0,-0.0,2761.5,2182.4,-1.0,405.3,0.0,2100.8
+VM,T0078,27,0,0,10586,400449,-1,42,450734,0,0,65944,0,0,64530,0,0,0,0,0,0,0,0,0,65072,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0078,4,0,9763.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0078,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0078,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0078,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,29.0,0.0,28.0,0.0,0.0
+DISKREAD,T0078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKWRITE,T0078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,450326.9,0.0,450326.9,0.0,0.0
+DISKXFER,T0078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,989.1,0.0,989.1,0.0,0.0
+DISKBSIZE,T0078,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,455.3,0.0,455.3,0.0,0.0
+ZZZZ,T0079,09:53:10,23-AUG-2018
+CPU001,T0079,4.0,89.1,0.0,6.9
+CPU002,T0079,0.0,100.0,0.0,0.0
+CPU003,T0079,14.1,29.3,27.3,29.3
+CPU004,T0079,1.0,96.0,0.0,3.0
+CPU_ALL,T0079,5.0,78.8,6.7,9.5,,4
+MEM,T0079,15759.9,-0.0,-0.0,16231.0,9880.3,-0.0,-0.0,16231.0,-0.0,2761.5,2185.9,-1.0,405.3,0.0,2100.8
+VM,T0079,30,0,0,10586,400449,-1,1796,373648,0,0,57341,0,0,57747,0,0,0,0,0,0,0,0,0,58196,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0079,4,0,6628.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0079,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0079,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0079,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55.0,0.0,55.0,0.0,0.0
+DISKREAD,T0079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1794.4,0.0,1794.4,0.0,0.0
+DISKWRITE,T0079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,371957.6,0.0,371957.6,0.0,0.0
+DISKXFER,T0079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,870.2,0.0,868.2,0.0,0.0
+DISKBSIZE,T0079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,429.5,0.0,430.5,0.0,0.0
+ZZZZ,T0080,09:53:11,23-AUG-2018
+CPU001,T0080,6.9,82.2,0.0,10.9
+CPU002,T0080,7.0,67.0,1.0,25.0
+CPU003,T0080,1.0,97.0,0.0,2.0
+CPU004,T0080,9.1,70.7,0.0,20.2
+CPU_ALL,T0080,5.5,79.6,0.0,14.8,,4
+MEM,T0080,15759.9,-0.0,-0.0,16231.0,9880.7,-0.0,-0.0,16231.0,-0.0,2761.5,2186.6,-1.0,405.3,0.0,2100.8
+VM,T0080,30,0,0,10586,400449,-1,1066,465494,0,0,68231,0,0,67901,0,0,0,0,0,0,0,0,0,68430,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0080,4,0,8568.4,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0080,0.0,0.4,0.0,0.0,0.0,0.0,
+NETPACKET,T0080,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0080,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0080,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKREAD,T0080,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1065.1,0.0,1065.1,0.0,0.0
+DISKWRITE,T0080,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,466448.2,0.0,466448.2,0.0,0.0
+DISKXFER,T0080,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,995.1,0.0,995.1,0.0,0.0
+DISKBSIZE,T0080,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,469.8,0.0,469.8,0.0,0.0
+ZZZZ,T0081,09:53:12,23-AUG-2018
+CPU001,T0081,3.1,88.8,0.0,8.2
+CPU002,T0081,8.1,68.7,0.0,23.2
+CPU003,T0081,2.0,90.0,0.0,8.0
+CPU004,T0081,9.1,70.7,0.0,20.2
+CPU_ALL,T0081,5.8,79.3,0.0,14.9,,4
+MEM,T0081,15759.9,-0.0,-0.0,16231.0,9880.5,-0.0,-0.0,16231.0,-0.0,2761.5,2186.4,-1.0,405.3,0.0,2100.8
+VM,T0081,1,0,0,10587,400449,-1,263,523803,0,0,74121,0,0,73494,0,0,0,0,0,0,0,0,0,74004,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0081,5,0,7908.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0081,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0081,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0081,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,42.0,0.0,42.0,0.0,0.0
+DISKREAD,T0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,262.8,0.0,262.8,0.0,0.0
+DISKWRITE,T0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,521630.5,0.0,521630.5,0.0,0.0
+DISKXFER,T0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1051.1,0.0,1051.1,0.0,0.0
+DISKBSIZE,T0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,496.5,0.0,496.5,0.0,0.0
+ZZZZ,T0082,09:53:13,23-AUG-2018
+CPU001,T0082,15.0,55.0,0.0,30.0
+CPU002,T0082,4.0,87.0,0.0,9.0
+CPU003,T0082,0.0,100.0,0.0,0.0
+CPU004,T0082,9.8,72.5,0.0,17.6
+CPU_ALL,T0082,7.0,78.9,0.0,14.0,,4
+MEM,T0082,15759.9,-0.0,-0.0,16231.0,9880.1,-0.0,-0.0,16231.0,-0.0,2761.5,2186.9,-1.0,405.3,0.0,2100.8
+VM,T0082,2,0,0,10587,400449,-1,1104,503320,0,0,78509,0,0,78142,0,0,0,0,0,0,0,0,0,78726,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0082,6,0,8267.5,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0082,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0082,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0082,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,35.0,0.0,0.0
+DISKREAD,T0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1103.0,0.0,1103.0,0.0,0.0
+DISKWRITE,T0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,502721.0,0.0,502721.0,0.0,0.0
+DISKXFER,T0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1145.0,0.0,1145.0,0.0,0.0
+DISKBSIZE,T0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,440.0,0.0,440.0,0.0,0.0
+ZZZZ,T0083,09:53:14,23-AUG-2018
+CPU001,T0083,14.4,54.6,0.0,30.9
+CPU002,T0083,3.9,91.2,0.0,4.9
+CPU003,T0083,5.0,75.0,0.0,20.0
+CPU004,T0083,2.0,98.0,0.0,0.0
+CPU_ALL,T0083,6.5,79.5,0.0,14.0,,4
+MEM,T0083,15759.9,-0.0,-0.0,16231.0,9879.9,-0.0,-0.0,16231.0,-0.0,2761.5,2187.3,-1.0,405.3,0.0,2100.8
+VM,T0083,4,0,0,10587,400449,-1,332,461140,0,0,82591,0,0,82038,0,0,0,0,0,0,0,0,0,82675,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0083,4,0,9432.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0083,0.0,0.4,0.0,0.0,0.0,0.0,
+NETPACKET,T0083,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0083,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,28.0,0.0,0.0
+DISKREAD,T0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,331.6,0.0,331.6,0.0,0.0
+DISKWRITE,T0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,462498.8,0.0,462498.8,0.0,0.0
+DISKXFER,T0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1235.7,0.0,1235.7,0.0,0.0
+DISKBSIZE,T0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,374.6,0.0,374.6,0.0,0.0
+ZZZZ,T0084,09:53:15,23-AUG-2018
+CPU001,T0084,0.0,100.0,0.0,0.0
+CPU002,T0084,0.0,100.0,0.0,0.0
+CPU003,T0084,16.7,15.7,23.5,44.1
+CPU004,T0084,2.0,97.0,0.0,1.0
+CPU_ALL,T0084,4.5,78.2,6.0,11.2,,4
+MEM,T0084,15759.9,-0.0,-0.0,16231.0,9881.0,-0.0,-0.0,16231.0,-0.0,2761.5,2185.7,-1.0,405.3,0.0,2100.8
+VM,T0084,12,0,0,10587,400449,-1,55,292419,0,0,59763,0,0,58933,0,0,0,0,0,0,0,0,0,59367,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0084,5,0,6716.0,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0084,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0084,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0084,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45.0,0.0,45.0,0.0,0.0
+DISKREAD,T0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55.0,0.0,55.0,0.0,0.0
+DISKWRITE,T0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,291133.0,0.0,291133.0,0.0,0.0
+DISKXFER,T0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,881.2,0.0,881.2,0.0,0.0
+DISKBSIZE,T0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,330.4,0.0,330.4,0.0,0.0
+ZZZZ,T0085,09:53:16,23-AUG-2018
+CPU001,T0085,0.0,99.0,0.0,1.0
+CPU002,T0085,2.0,98.0,0.0,0.0
+CPU003,T0085,5.1,80.8,0.0,14.1
+CPU004,T0085,15.5,39.2,0.0,45.4
+CPU_ALL,T0085,6.0,79.0,0.0,15.0,,4
+MEM,T0085,15759.9,-0.0,-0.0,16231.0,9880.5,-0.0,-0.0,16231.0,-0.0,2761.5,2186.9,-1.0,405.3,0.0,2100.8
+VM,T0085,12,0,0,10587,400449,-1,59,437707,0,0,69430,0,0,69215,0,0,0,0,0,0,0,0,0,69756,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0085,6,0,9398.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0085,0.0,0.0,0.0,0.0,0.1,0.0,
+NETPACKET,T0085,0.0,0.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0085,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,35.0,0.0,35.0,0.0,0.0
+DISKREAD,T0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,58.9,0.0,58.9,0.0,0.0
+DISKWRITE,T0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,435566.7,0.0,435566.7,0.0,0.0
+DISKXFER,T0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,891.1,0.0,891.1,0.0,0.0
+DISKBSIZE,T0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,488.9,0.0,488.9,0.0,0.0
+ZZZZ,T0086,09:53:17,23-AUG-2018
+CPU001,T0086,4.0,83.2,0.0,12.9
+CPU002,T0086,11.9,57.4,0.0,30.7
+CPU003,T0086,2.0,91.8,0.0,6.1
+CPU004,T0086,4.0,82.0,0.0,14.0
+CPU_ALL,T0086,5.0,79.1,0.0,15.8,,4
+MEM,T0086,15759.9,-0.0,-0.0,16231.0,9880.2,-0.0,-0.0,16231.0,-0.0,2761.5,2186.4,-1.0,405.3,0.0,2100.8
+VM,T0086,12,0,0,10587,400449,-1,664,489080,0,0,56558,0,0,55923,0,0,0,0,0,0,0,0,0,56400,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0086,5,0,8073.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0086,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0086,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0086,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0086,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45.0,0.0,44.0,0.0,0.0
+DISKREAD,T0086,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,663.4,0.0,663.4,0.0,0.0
+DISKWRITE,T0086,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,491364.7,0.0,491364.7,0.0,0.0
+DISKXFER,T0086,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,828.3,0.0,828.3,0.0,0.0
+DISKBSIZE,T0086,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,594.1,0.0,594.1,0.0,0.0
+ZZZZ,T0087,09:53:18,23-AUG-2018
+CPU001,T0087,2.0,98.0,0.0,0.0
+CPU002,T0087,5.1,80.8,0.0,14.1
+CPU003,T0087,2.9,94.1,0.0,2.9
+CPU004,T0087,19.6,43.3,0.0,37.1
+CPU_ALL,T0087,7.5,78.9,0.0,13.6,,4
+MEM,T0087,15759.9,-0.0,-0.0,16231.0,9880.4,-0.0,-0.0,16231.0,-0.0,2761.5,2186.6,-1.0,405.3,0.0,2100.8
+VM,T0087,13,0,0,10591,400491,-1,784,435200,0,0,74021,0,0,74979,0,0,0,0,0,0,0,0,0,74003,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0087,4,0,9520.8,-1.0,-1.0,-1.0,47.0,-1.0,-1.0,-1.0
+NET,T0087,0.0,0.3,0.0,0.0,0.0,0.0,
+NETPACKET,T0087,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0087,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,28.0,0.0,0.0
+DISKREAD,T0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,783.3,0.0,783.3,0.0,0.0
+DISKWRITE,T0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,434823.5,0.0,434823.5,0.0,0.0
+DISKXFER,T0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1071.1,0.0,1071.1,0.0,0.0
+DISKBSIZE,T0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,406.7,0.0,406.7,0.0,0.0
+ZZZZ,T0088,09:53:19,23-AUG-2018
+CPU001,T0088,7.9,67.3,0.0,24.8
+CPU002,T0088,9.2,66.3,0.0,24.5
+CPU003,T0088,3.0,93.0,0.0,4.0
+CPU004,T0088,2.0,93.0,0.0,5.0
+CPU_ALL,T0088,5.3,80.5,0.0,14.3,,4
+MEM,T0088,15759.9,-0.0,-0.0,16231.0,9880.7,-0.0,-0.0,16231.0,-0.0,2761.5,2186.8,-1.0,405.3,0.0,2100.8
+VM,T0088,13,0,0,10586,400451,-1,1090,468594,0,0,80067,0,0,79311,0,0,0,0,0,0,0,0,0,80087,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0088,4,0,8390.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0088,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0088,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0088,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,31.0,0.0,31.0,0.0,0.0
+DISKREAD,T0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1089.0,0.0,1089.0,0.0,0.0
+DISKWRITE,T0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,468177.8,0.0,468177.8,0.0,0.0
+DISKXFER,T0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1054.1,0.0,1054.1,0.0,0.0
+DISKBSIZE,T0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,445.2,0.0,445.2,0.0,0.0
+ZZZZ,T0089,09:53:20,23-AUG-2018
+CPU001,T0089,10.1,40.4,24.2,25.3
+CPU002,T0089,0.0,100.0,0.0,0.0
+CPU003,T0089,5.0,87.0,0.0,8.0
+CPU004,T0089,4.0,86.9,0.0,9.1
+CPU_ALL,T0089,5.0,78.2,6.0,10.8,,4
+MEM,T0089,15759.9,-0.0,-0.0,16231.0,9880.6,-0.0,-0.0,16231.0,-0.0,2761.5,2187.0,-1.0,405.4,0.0,2100.8
+VM,T0089,13,0,0,10587,400451,-1,2148,412012,0,0,54226,0,0,53777,0,0,0,0,0,0,0,0,0,54237,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0089,4,0,6678.2,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0089,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0089,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0089,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,55.0,0.0,55.0,0.0,0.0
+DISKREAD,T0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,2146.1,0.0,2146.1,0.0,0.0
+DISKWRITE,T0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,409084.5,0.0,409084.5,0.0,0.0
+DISKXFER,T0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,768.3,0.0,768.3,0.0,0.0
+DISKBSIZE,T0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,535.2,0.0,535.2,0.0,0.0
+ZZZZ,T0090,09:53:21,23-AUG-2018
+CPU001,T0090,3.1,86.7,0.0,10.2
+CPU002,T0090,9.3,61.9,0.0,28.9
+CPU003,T0090,5.0,82.0,0.0,13.0
+CPU004,T0090,5.0,84.0,0.0,11.0
+CPU_ALL,T0090,5.6,78.7,0.0,15.7,,4
+MEM,T0090,15759.9,-0.0,-0.0,16231.0,9883.0,-0.0,-0.0,16231.0,-0.0,2761.5,2185.3,-1.0,405.4,0.0,2100.8
+VM,T0090,13,0,0,10587,400451,-1,30,491978,0,0,56790,0,0,56010,0,0,0,0,0,0,0,0,0,56445,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0090,5,0,7677.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0090,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0090,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0090,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0090,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,44.0,0.0,44.0,0.0,0.0
+DISKREAD,T0090,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,30.0,0.0,0.0
+DISKWRITE,T0090,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,494083.2,0.0,494083.2,0.0,0.0
+DISKXFER,T0090,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,855.2,0.0,855.2,0.0,0.0
+DISKBSIZE,T0090,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,577.8,0.0,577.8,0.0,0.0
+ZZZZ,T0091,09:53:22,23-AUG-2018
+CPU001,T0091,6.9,74.3,0.0,18.8
+CPU002,T0091,9.8,66.7,0.0,23.5
+CPU003,T0091,5.1,83.7,0.0,11.2
+CPU004,T0091,1.0,95.9,0.0,3.1
+CPU_ALL,T0091,5.8,80.2,0.0,14.1,,4
+MEM,T0091,15759.9,-0.0,-0.0,16231.0,9880.8,-0.0,-0.0,16231.0,-0.0,2761.5,2187.1,-1.0,405.4,0.0,2100.8
+VM,T0091,14,0,0,10587,400451,-1,429,487897,0,0,70481,0,0,70133,0,0,0,0,0,0,0,0,0,70919,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0091,4,0,7825.8,-1.0,-1.0,-1.0,1.0,-1.0,-1.0,-1.0
+NET,T0091,0.0,0.1,0.0,0.0,0.0,0.0,
+NETPACKET,T0091,0.0,1.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0091,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,38.0,0.0,0.0
+DISKREAD,T0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,428.6,0.0,428.6,0.0,0.0
+DISKWRITE,T0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,485241.0,0.0,485241.0,0.0,0.0
+DISKXFER,T0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,984.1,0.0,984.1,0.0,0.0
+DISKBSIZE,T0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,493.5,0.0,493.5,0.0,0.0
+ZZZZ,T0092,09:53:23,23-AUG-2018
+CPU001,T0092,16.7,50.0,0.0,33.3
+CPU002,T0092,0.0,100.0,0.0,0.0
+CPU003,T0092,1.0,99.0,0.0,0.0
+CPU004,T0092,10.0,70.0,0.0,20.0
+CPU_ALL,T0092,6.9,79.4,0.0,13.6,,4
+MEM,T0092,15759.9,-0.0,-0.0,16231.0,9881.0,-0.0,-0.0,16231.0,-0.0,2761.5,2187.0,-1.0,405.4,0.0,2100.8
+VM,T0092,14,0,0,10587,400452,-1,168,506128,0,0,81390,0,0,80668,0,0,0,0,0,0,0,0,0,81338,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0092,4,0,8728.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0092,0.0,0.7,0.3,0.0,0.5,0.3,
+NETPACKET,T0092,0.0,5.0,4.0,0.0,5.0,4.0,
+JFSFILE,T0092,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0092,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,34.0,0.0,34.0,0.0,0.0
+DISKREAD,T0092,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,167.8,0.0,167.8,0.0,0.0
+DISKWRITE,T0092,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,507868.7,0.0,507868.7,0.0,0.0
+DISKXFER,T0092,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1200.9,0.0,1200.9,0.0,0.0
+DISKBSIZE,T0092,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,423.1,0.0,423.1,0.0,0.0
+ZZZZ,T0093,09:53:24,23-AUG-2018
+CPU001,T0093,10.9,75.2,0.0,13.9
+CPU002,T0093,8.9,79.2,0.0,11.9
+CPU003,T0093,5.9,77.2,0.0,16.8
+CPU004,T0093,3.0,84.8,0.0,12.1
+CPU_ALL,T0093,7.2,79.1,0.0,13.7,,4
+MEM,T0093,15759.9,-0.0,-0.0,16231.0,9880.8,-0.0,-0.0,16231.0,-0.0,2761.5,2186.2,-1.0,405.4,0.0,2100.8
+VM,T0093,14,0,0,10587,400452,-1,111,518459,0,0,88314,0,0,87387,0,0,0,0,0,0,0,0,0,88144,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0093,5,0,10047.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0093,0.0,0.1,0.0,0.0,0.1,0.0,
+NETPACKET,T0093,0.0,1.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0093,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0093,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,28.0,0.0,28.0,0.0,0.0
+DISKREAD,T0093,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,110.9,0.0,110.9,0.0,0.0
+DISKWRITE,T0093,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,516957.3,0.0,516957.3,0.0,0.0
+DISKXFER,T0093,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1291.8,0.0,1291.8,0.0,0.0
+DISKBSIZE,T0093,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,400.3,0.0,400.3,0.0,0.0
+ZZZZ,T0094,09:53:25,23-AUG-2018
+CPU001,T0094,2.0,89.9,6.1,2.0
+CPU002,T0094,4.1,67.3,0.0,28.6
+CPU003,T0094,1.0,98.0,0.0,1.0
+CPU004,T0094,13.1,57.6,0.0,29.3
+CPU_ALL,T0094,5.3,78.6,1.3,14.9,,4
+MEM,T0094,15759.9,-0.0,-0.0,16231.0,9880.1,-0.0,-0.0,16231.0,-0.0,2761.5,2188.0,-1.0,405.4,0.0,2100.8
+VM,T0094,14,0,0,10587,400452,-1,652,405800,0,0,65089,0,0,64915,0,0,0,0,0,0,0,0,0,65477,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0094,4,0,7781.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0094,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0094,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0094,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,51.0,0.0,51.0,0.0,0.0
+DISKREAD,T0094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,651.4,0.0,651.4,0.0,0.0
+DISKWRITE,T0094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,406475.6,0.0,406475.6,0.0,0.0
+DISKXFER,T0094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1082.1,0.0,1082.1,0.0,0.0
+DISKBSIZE,T0094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,376.2,0.0,376.2,0.0,0.0
+ZZZZ,T0095,09:53:26,23-AUG-2018
+CPU001,T0095,1.0,99.0,0.0,0.0
+CPU002,T0095,10.9,64.4,0.0,24.8
+CPU003,T0095,5.0,84.0,0.0,11.0
+CPU004,T0095,9.0,69.0,0.0,22.0
+CPU_ALL,T0095,6.2,79.1,0.0,14.7,,4
+MEM,T0095,15759.9,-0.0,-0.0,16231.0,9880.5,-0.0,-0.0,16231.0,-0.0,2761.5,2187.7,-1.0,405.4,0.0,2100.8
+VM,T0095,15,0,0,10587,400452,-1,1087,477275,0,0,77681,0,0,77019,0,0,0,0,0,0,0,0,0,77658,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0095,4,0,9353.7,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0095,0.0,0.4,0.0,0.0,0.2,0.0,
+NETPACKET,T0095,0.0,2.0,0.0,0.0,2.0,0.0,
+JFSFILE,T0095,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,43.0,0.0,44.0,0.0,0.0
+DISKREAD,T0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1086.0,0.0,1086.0,0.0,0.0
+DISKWRITE,T0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,475054.1,0.0,475054.1,0.0,0.0
+DISKXFER,T0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1039.1,0.0,1039.1,0.0,0.0
+DISKBSIZE,T0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,458.2,0.0,458.2,0.0,0.0
+ZZZZ,T0096,09:53:27,23-AUG-2018
+CPU001,T0096,11.9,52.5,0.0,35.6
+CPU002,T0096,0.0,100.0,0.0,0.0
+CPU003,T0096,2.0,97.0,0.0,1.0
+CPU004,T0096,7.2,73.2,0.0,19.6
+CPU_ALL,T0096,5.2,80.8,0.0,14.0,,4
+MEM,T0096,15759.9,-0.0,-0.0,16231.0,9880.1,-0.0,-0.0,16231.0,-0.0,2761.5,2187.5,-1.0,405.4,0.0,2100.9
+VM,T0096,4,0,0,10587,400452,-1,46,463490,0,0,79879,0,0,79070,0,0,0,0,0,0,0,0,0,79792,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0096,4,0,8767.9,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0096,0.0,0.2,0.0,0.0,0.0,0.0,
+NETPACKET,T0096,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0096,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,37.0,0.0,37.0,0.0,0.0
+DISKREAD,T0096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,46.0,0.0,46.0,0.0,0.0
+DISKWRITE,T0096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,464861.9,0.0,464861.9,0.0,0.0
+DISKXFER,T0096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1028.1,0.0,1028.1,0.0,0.0
+DISKBSIZE,T0096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,452.2,0.0,452.2,0.0,0.0
+ZZZZ,T0097,09:53:28,23-AUG-2018
+CPU001,T0097,2.0,94.0,0.0,4.0
+CPU002,T0097,16.8,49.5,0.0,33.7
+CPU003,T0097,1.0,99.0,0.0,0.0
+CPU004,T0097,8.8,72.5,0.0,18.6
+CPU_ALL,T0097,7.2,78.6,0.0,14.2,,4
+MEM,T0097,15759.9,-0.0,-0.0,16231.0,9879.1,-0.0,-0.0,16231.0,-0.0,2761.5,2187.8,-1.0,405.4,0.0,2100.9
+VM,T0097,4,0,0,10587,400452,-1,54,521062,0,0,86518,0,0,85955,0,0,0,0,0,0,0,0,0,86677,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0097,6,0,8665.3,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0097,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0097,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0097,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,33.0,0.0,34.0,0.0,0.0
+DISKREAD,T0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,54.0,0.0,54.0,0.0,0.0
+DISKWRITE,T0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,519574.1,0.0,519574.1,0.0,0.0
+DISKXFER,T0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1130.0,0.0,1130.0,0.0,0.0
+DISKBSIZE,T0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,459.9,0.0,459.9,0.0,0.0
+ZZZZ,T0098,09:53:29,23-AUG-2018
+CPU001,T0098,3.0,93.0,0.0,4.0
+CPU002,T0098,7.9,15.8,0.0,76.2
+CPU003,T0098,1.0,99.0,0.0,0.0
+CPU004,T0098,1.0,98.0,0.0,1.0
+CPU_ALL,T0098,3.2,76.3,0.0,20.4,,4
+MEM,T0098,15759.9,-0.0,-0.0,16231.0,9878.6,-0.0,-0.0,16231.0,-0.0,2761.5,2188.4,-1.0,405.4,0.0,2100.8
+VM,T0098,4,0,0,10587,400452,-1,9,173549,0,0,25673,0,0,25547,0,0,0,0,0,0,0,0,0,25746,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0098,4,0,3589.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0098,0.0,0.4,0.0,0.0,0.1,0.0,
+NETPACKET,T0098,0.0,5.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0098,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,79.9,0.0,79.9,0.0,0.0
+DISKREAD,T0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,9.0,0.0,9.0,0.0,0.0
+DISKWRITE,T0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,170315.0,0.0,170315.0,0.0,0.0
+DISKXFER,T0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,290.7,0.0,290.7,0.0,0.0
+DISKBSIZE,T0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,585.9,0.0,585.9,0.0,0.0
+ZZZZ,T0099,09:53:30,23-AUG-2018
+CPU001,T0099,1.0,99.0,0.0,0.0
+CPU002,T0099,4.9,4.9,75.5,14.7
+CPU003,T0099,0.0,100.0,0.0,0.0
+CPU004,T0099,0.0,100.0,0.0,0.0
+CPU_ALL,T0099,1.5,75.8,19.2,3.5,,4
+MEM,T0099,15759.9,-0.0,-0.0,16231.0,9877.1,-0.0,-0.0,16231.0,-0.0,2761.5,2187.6,-1.0,405.4,0.0,2100.8
+VM,T0099,5,0,0,10587,400942,-1,4,24264,0,0,3562,0,0,3242,0,0,0,0,0,0,0,0,0,3856,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0099,4,1,2657.6,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0099,0.0,0.3,0.0,0.0,0.1,0.0,
+NETPACKET,T0099,0.0,3.0,0.0,0.0,1.0,0.0,
+JFSFILE,T0099,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0099,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,30.0,0.0,94.9,0.0,0.0
+DISKREAD,T0099,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,4.0,0.0,0.0
+DISKWRITE,T0099,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,23886.6,0.0,23886.6,0.0,0.0
+DISKXFER,T0099,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,50.0,0.0,50.0,0.0,0.0
+DISKBSIZE,T0099,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,478.2,0.0,478.2,0.0,0.0
+ZZZZ,T0100,09:53:31,23-AUG-2018
+CPU001,T0100,0.0,100.0,0.0,0.0
+CPU002,T0100,7.1,6.1,27.3,59.6
+CPU003,T0100,0.0,100.0,0.0,0.0
+CPU004,T0100,0.0,97.0,0.0,3.0
+CPU_ALL,T0100,2.0,75.5,7.0,15.5,,4
+MEM,T0100,15759.9,-0.0,-0.0,16231.0,9876.3,-0.0,-0.0,16231.0,-0.0,2761.5,2188.1,-1.0,405.4,0.0,2100.8
+VM,T0100,12,0,0,10588,400964,-1,4,65979,0,0,5480,0,0,5564,0,0,0,0,0,0,0,0,0,5603,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0100,4,0,3361.1,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0100,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0100,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0100,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0100,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,90.9,0.0,90.9,0.0,0.0
+DISKREAD,T0100,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,3.0,0.0,3.0,0.0,0.0
+DISKWRITE,T0100,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,69347.1,0.0,69347.1,0.0,0.0
+DISKXFER,T0100,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,101.9,0.0,101.9,0.0,0.0
+DISKBSIZE,T0100,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,680.5,0.0,680.5,0.0,0.0
+ZZZZ,T0101,09:53:32,23-AUG-2018
+CPU001,T0101,1.0,97.0,0.0,2.0
+CPU002,T0101,13.3,24.5,0.0,62.2
+CPU003,T0101,0.0,100.0,0.0,0.0
+CPU004,T0101,4.0,88.9,0.0,7.1
+CPU_ALL,T0101,4.3,77.7,0.0,18.0,,4
+MEM,T0101,15759.9,-0.0,-0.0,16231.0,9876.0,-0.0,-0.0,16231.0,-0.0,2761.5,2188.3,-1.0,405.4,0.0,2100.8
+VM,T0101,12,0,0,10589,401476,-1,62,320579,0,0,43612,0,0,43395,0,0,0,0,0,0,0,0,0,44192,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0101,5,0,5656.8,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0101,0.0,0.0,0.0,0.0,0.0,0.0,
+NETPACKET,T0101,0.0,0.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0101,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0101,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,54.9,0.0,54.9,0.0,0.0
+DISKREAD,T0101,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,62.9,0.0,62.9,0.0,0.0
+DISKWRITE,T0101,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,321304.9,0.0,321304.9,0.0,0.0
+DISKXFER,T0101,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,573.5,0.0,573.5,0.0,0.0
+DISKBSIZE,T0101,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,560.4,0.0,560.4,0.0,0.0
+ZZZZ,T0102,09:53:33,23-AUG-2018
+CPU001,T0102,4.0,91.1,0.0,5.0
+CPU002,T0102,21.0,40.0,0.0,39.0
+CPU003,T0102,6.0,84.0,0.0,10.0
+CPU004,T0102,0.0,99.0,0.0,1.0
+CPU_ALL,T0102,7.8,79.0,0.0,13.2,,4
+MEM,T0102,15759.9,-0.0,-0.0,16231.0,9874.8,-0.0,-0.0,16231.0,-0.0,2761.5,2188.3,-1.0,405.4,0.0,2100.8
+VM,T0102,12,0,0,10611,401545,-1,91,514467,0,0,70639,0,0,71701,0,0,0,0,0,0,0,0,0,70679,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0102,4,0,7466.4,-1.0,-1.0,-1.0,50.0,-1.0,-1.0,-1.0
+NET,T0102,0.0,0.2,0.0,0.0,0.0,0.0,
+NETPACKET,T0102,0.0,2.0,0.0,0.0,0.0,0.0,
+JFSFILE,T0102,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0102,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,50.0,0.0,50.0,0.0,0.0
+DISKREAD,T0102,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,90.9,0.0,90.9,0.0,0.0
+DISKWRITE,T0102,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,512986.4,0.0,512986.4,0.0,0.0
+DISKXFER,T0102,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,932.2,0.0,932.2,0.0,0.0
+DISKBSIZE,T0102,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,550.4,0.0,550.4,0.0,0.0
+ZZZZ,T0103,09:53:34,23-AUG-2018
+CPU001,T0103,1.0,95.0,0.0,4.0
+CPU002,T0103,23.5,22.4,0.0,54.1
+CPU003,T0103,0.0,99.0,0.0,1.0
+CPU004,T0103,1.0,99.0,0.0,0.0
+CPU_ALL,T0103,6.3,79.2,0.0,14.5,,4
+MEM,T0103,15759.9,-0.0,-0.0,16231.0,9874.6,-0.0,-0.0,16231.0,-0.0,2761.5,2188.7,-1.0,405.4,0.0,2100.8
+VM,T0103,13,0,0,10589,401478,-1,1656,489208,0,0,62468,0,0,61942,0,0,0,0,0,0,0,0,0,62590,0,0,0,0,0,0,0,0,0,0,0,0,0
+PROC,T0103,6,0,7272.5,-1.0,-1.0,-1.0,0.0,-1.0,-1.0,-1.0
+NET,T0103,0.0,0.3,0.3,0.0,0.2,0.3,
+NETPACKET,T0103,0.0,2.0,4.0,0.0,2.0,4.0,
+JFSFILE,T0103,0.0,0.6,67.5,0.1,-nan,-nan,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,6.7,67.5,0.0
+DISKBUSY,T0103,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,39.0,0.0,39.0,0.0,0.0
+DISKREAD,T0103,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1654.5,0.0,1654.5,0.0,0.0
+DISKWRITE,T0103,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,489794.1,0.0,489794.1,0.0,0.0
+DISKXFER,T0103,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,908.2,0.0,908.2,0.0,0.0
+DISKBSIZE,T0103,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,541.1,0.0,541.1,0.0,0.0
