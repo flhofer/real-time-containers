@@ -201,6 +201,8 @@ function unshield_guest() {
 }
 
 function irq_affinity() {
+	## TODO: The value must nbe computed from the numa mask, otherwise risk of crash! 
+
 	echo "Setting IRQ affinity to "$1
 	for file in /proc/irq/*/; do
 	   echo $1 > $file/smp_affinity;
@@ -347,6 +349,7 @@ load_balancer 0
 loadNoLoad IsoNoBal
 
 echo "Start isolation tests adding IRQ affinity..."
+#WARNING! this value must be checked! risk of crash!
 irq_affinity 1
 restartCores
 # perform shielding again

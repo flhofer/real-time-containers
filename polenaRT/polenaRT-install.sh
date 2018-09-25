@@ -2,7 +2,7 @@
 
 set -e
 linux_ver="4.9.115"
-linux_patch="rt-93"
+linux_patch="rt93"
 balena_tag="17.06-rev1"
 balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
 

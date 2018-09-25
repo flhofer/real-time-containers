@@ -126,7 +126,7 @@ function set_cmds () {
 	# vary cpu tests depending on isolation setting
 	# usually -S = -t -a -n, instead, but this way we can have less threads than vCPUs
 	cyctest='cyclictest -t '$2' -n -a -m -q -p 99 -l 100000'
-	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M &'
+	scyctest='stress -d '$1' --hdd-bytes 20M -c '$1' -i '$1' -m '$1' --vm-bytes 15M'
 	scyctestend='killall stress'
 	cshield='cset shield --exec --threads -- '
 }
@@ -189,7 +189,7 @@ function loadNoLoad () {
 	cmd=${@:2}" "$cyctest
 	run_loop $1NoLoad
 
-	eval ${@:2}" "$scyctest
+	eval ${@:2}" "$scyctest" &"
 	run_loop $1Load
 	eval $scyctestend
 }
@@ -215,13 +215,17 @@ function restartCores () {
 		do 
 			echo "Setting CPU"$i" offline..."
 			$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+			sleep 1
 		done
+
+		sleep 1
 
 		# put them back online
 		for ((i=1;i<$prcs;i++))
 		do
 			echo "Putting CPU"$i" back online..."
 			$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+			sleep 1
 		done
 	else
 		#NAN
@@ -232,8 +236,11 @@ function restartCores () {
 			if [ $i -ne 0 ]; then
 				echo "Setting CPU"$i" offline..."
 				$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+				sleep 1
 			fi
 		done
+
+		sleep 1
 
 		# put them back online
 		for i in ${numa[0]//,/ }
@@ -241,6 +248,7 @@ function restartCores () {
 			if [ $i -ne 0 ]; then
 				echo "Putting CPU"$i" back online..."
 				$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+				sleep 1
 			fi
 		done
 	fi
@@ -275,6 +283,7 @@ load_balancer 0
 loadNoLoad IsoNoBal $cshield
 
 echo "Start isolation tests adding IRQ affinity..."
+#WARNING! this value must be checked! risk of crash!
 irq_affinity 1
 restartCores
 # perform shielding again
