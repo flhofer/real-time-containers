@@ -72,7 +72,7 @@ for (k in 1:length(tests)) {
 				dat <- rbind(dat,pt)
 
 			}
-			if (! nrow(dat)==datacnt ) {
+			if ( nrow(dat)<datacnt ) {
 				cat ("Error data: ", label[p], "-", tests[k], ", count", nrow(dat), "\n")
 			}
 

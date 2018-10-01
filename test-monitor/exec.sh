@@ -383,6 +383,12 @@ echo "Start isolation tests hlb Ni no load balancer..."
 irq_affinity $( echo "obase=16;" $((((1<<prcs))-1)) | bc )
 loadNoLoad IsoLbnNiNoBalG $cshield
 
+echo "Start isolation tests hlb Ni load balancer..."
+irq_affinity $( echo "obase=16;" $((((1<<prcs))-1)) | bc )
+guest_load_balancer 1
+guest_irq_affinity f
+loadNoLoad IsoLbnNiIsoG $cshield
+
 echo "Resetting guest..."
 guest_load_balancer 1
 guest_irq_affinity $((((1<<$novcpu))-1))
