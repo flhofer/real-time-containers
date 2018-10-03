@@ -12,7 +12,7 @@
 %opening
 \title{Testing real-time containers for the cloud}
 \author{Florian Hofer}
-\date{}
+\date{Updated 10/03/18}
 
 \begin{document}
 
@@ -694,6 +694,7 @@ This means that for Xenomai to work properly, \textbf{all real-time code must be
 Unfortunately this means, that all tests up-to now have been executed as soft-realtime Linux applications using the standard Linux kernel functions and not in the Xenomai space.
 
 The following must be included before compiling again the files in the rt-test repository: in line 5 of the \textit{Makefile} add
+\footnote{Update: In a discussion thread I found that in the source code of cyclictest for Xenomai, the \texttt{sched\_setsched} invocation to update the priority of a thread has to be replaced with  \texttt{pthread\_setschedparam} to properly set it for RT-tasks. The paper test have been updated accordingly}
 
 \begin{verbatim}
 	XENO_CONFIG := /usr/xenomai/bin/xeno-config

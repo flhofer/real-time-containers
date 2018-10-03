@@ -8,7 +8,6 @@ loadData <- function(fName) {
 	#Function, load data from text file into a data frame, only min, avg and max
 
 	# Read text into R
-	fName <- paste0(fName, "-res.txt")
 	#cat (fName, "\n")
 
 	if (!file.exists(fName)) {
@@ -35,7 +34,7 @@ loadData <- function(fName) {
 machines <- c("LT", "BM" , "T3", "C5")
 types <- c("Std", "Xen", "Prt")
 
-tests <- c("NoIsoNoLoad", "NoIsoLoad", "IsoNoLoad", "IsoLoad", "IsoNoBalNoLoad", "IsoNoBalLoad", "IsoNoBalIRQNoLoad", "IsoNoBalIRQLoad","IsoGNoLoad", "IsoGLoad", "IsoNoBalGNoLoad", "IsoNoBalGLoad", "IsoNoBalIRQGNoLoad", "IsoNoBalIRQGLoad", "IsoLbnNiNoBalGNoLoad", "IsoLbnNiNoBalGLoad", "IsoLbNoBalGNoLoad", "IsoLbNoBalGLoad")
+tests <- c("NoIsoNoLoad", "NoIsoLoad", "IsoNoLoad", "IsoLoad", "IsoNoBalNoLoad", "IsoNoBalLoad", "IsoNoBalIRQNoLoad", "IsoNoBalIRQLoad","IsoGNoLoad", "IsoGLoad", "IsoNoBalGNoLoad", "IsoNoBalGLoad", "IsoNoBalIRQGNoLoad", "IsoNoBalIRQGLoad", "IsoLbnNiNoBalGNoLoad", "IsoLbnNiNoBalGLoad", "IsoLbNoBalGNoLoad", "IsoLbNoBalGLoad", "IsoLbnNiIsoGNoLoad", "IsoLbnNiIsoGLoad")
 #tests <- c("NoIsoNoLoad", "NoIsoLoad", "IsoNoLoad", "IsoLoad", "IsoNoBalNoLoad", "IsoNoBalLoad", "IsoNoBalIRQNoLoad", "IsoNoBalIRQLoad")
 #lttests <- c("IsoGNoLoad", "IsoGLoad", "IsoNoBalGNoLoad", "IsoNoBalGLoad", "IsoNoBalIRQGNoLoad", "IsoNoBalIRQGLoad", "IsoLbnNiNoBalGNoLoad", "IsoLbnNiNoBalGLoad", "IsoLbNoBalGNoLoad", "IsoLbNoBalGLoad")
 
@@ -66,7 +65,7 @@ for (k in 1:length(tests)) {
 			dat <- data.frame(Min=numeric(), Avg=numeric(), Max=numeric())
 			for (d in seq(along=dirs)){
 
-				fName <- paste0(dirs[d], "/", tests[k])
+				fName <- paste0(dirs[d], "/", tests[k], "-res.txt")
 				#cat (fName, "\n")
 				pt <- loadData(fName)
 				dat <- rbind(dat,pt)
@@ -89,4 +88,10 @@ for (k in 1:length(tests)) {
 	cat("\n")
 }
 
+dat <- loadData("C5-Prt-Cont")
+results[[k+1]] <- data.frame ("Container", min(dat$Min), mean(dat$Avg), sqrt(var(dat$Avg)), max(dat$Max))
+print(results[[k+1]])
 
+dat <- loadData("C5-Prt-Cont-load")
+results[[k+2]] <- data.frame ("Container", min(dat$Min), mean(dat$Avg), sqrt(var(dat$Avg)), max(dat$Max))
+print(results[[k+2]])
