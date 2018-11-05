@@ -1,0 +1,77 @@
+\documentclass[]{scrartcl}
+
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{float}
+
+%opening
+\title{Comparison of Kubernetes with the proposed orchestration approach}
+\author{Florian Hofer}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Kubernetes}
+
+Kubernetes is a well-known container management platform developed by Google. It is able manage multiple containers also distributed on various hosts. The advantage is for sure a centralized control portal. 
+
+the resource management is performed via container configuration. Similar to docker-compose, the resources such as memory and cpu-limit can be specified in a JSON based configuration file. The configuration file describes the requirements for a set of containers, also called a Pod. The requirements of a Pod are actually the amount required for the run of the collection, thus the sum of resources. All requirements of the pod must be fulfilled for the containers to be deployed.
+
+
+\url{https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/}
+
+
+\section{Orchestration engine}
+
+The orchestration engine, different from kubernetes, is a management tool that works directly on the scheduling level. The application code will run in a container like all the other real-time applications. This will help to augment the flexibility of the solution. A downside of the solution might be that the engine can operate just on local level.
+
+In the previous example, the configuration of the resources has been done by limits. The orchestration engine instead will work on task data and their real-time properties. 
+Thus, the input parameters are start-time, runtime, period and eventually deadline in addition to the regular task priority.
+All the tasks will still be threatened separately, giving the tool little more flexibility in local deployment of cpu-time.
+
+
+\section{Comparison}
+
+Table \ref{tab:approach} gives a quick overview of the technologies in comparison.
+The advantages of Kubernetes for sure are the centralized management of containers. The limits can be set and the groups then downloaded to the hosts. The disadvantage here is that the limits must be set big enought to manage eventual overshoots. Thus the cpu-time must be set to the maximum expected in any case, or an overshoot will never be recovered again. One might also set the correct time per container, but the must foresee a buffer for additional needs.
+Kubernetes has not forseen to manage such situations as it is not direcly acting on the scheduler.
+
+The orchestration engine on the other hand, knows the tasks to be run their properties and deadlines. In the dynamic version it will also be able to shift tasks to other computation units when needed. The advantage here is that a overload of resouces might be avoided.
+The compelsity of this approach is for sure higher. While kubernetes might simply set control group limits on the container tasks, the orchestrator has to continuously monitor the exectuon of the tasks.
+On the other hand, this brings the advantage that the application always knows status and limits of the system. Tbus, it is possible to manage resources in a drastically more efficient manner, having task deadlines as upper bound and task runtimes als lower. This permits to achieve, e.g. in the table, more then 3x the tasks running on the same amount of cores.
+
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{l c c c}
+		Property & Kubernetes & \multicolumn{2}{c}{Orchestrator} \\
+		& & static & dynamic \\
+		\toprule
+		Action range & Cluster & Local & Local \\
+		Configuration & Json & Task & Task \\
+		\midrule
+		Upper limits & expected max & Config & Deadline \\
+		Overshoots & Critical & Critical & Managed \\
+		Real-time & not eval & considered & evaluated \\
+		\midrule
+		Memory & Limited & Unlimited & Unlimited \\s
+		Groups & Pods* & N/A & N/A\\
+		\midrule
+		\shortstack{Tasks per CPU w/ 10\% run,\\
+		 dl 20\% + 300\% overshoots} & 3 & 3 & 5-10\\		
+		\bottomrule
+	\end{tabular}
+	\caption{Comparison table of the different management approaches}
+	\label{tab:approach}
+\end{table}
+
+But the advantages are not finished here: 
+The table clearly shows that the two approaches are different and not concurrent. If CPU limitation and affinity is not applied, the two solutions together can exploit advantages on both sides. 
+
+
+
+\end{document}
