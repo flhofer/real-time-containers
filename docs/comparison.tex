@@ -1,6 +1,6 @@
 \documentclass[]{scrartcl}
 
-\usepackage{url}
+\usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{float}
 
@@ -12,20 +12,25 @@
 
 \maketitle
 
-\begin{abstract}
-
-\end{abstract}
-
 \section{Kubernetes}
 
-Kubernetes is a well-known container management platform developed by Google. It is able manage multiple containers also distributed on various hosts. The advantage is for sure a centralized control portal. 
+Kubernetes is a well-known container management platform developed by Google. It is able manage multiple containers also distributed on various hosts. The advantage is for sure the offered centralized control portal. 
 
-the resource management is performed via container configuration. Similar to docker-compose, the resources such as memory and CPU-limit can be specified in a JSON based configuration file. The configuration file describes the requirements for a set of containers, also called a Pod. The requirements of a Pod are actually the amount required for the run of the collection, thus the sum of resources. All requirements of the pod must be fulfilled for the containers to be deployed.
-
+In Kubernetes the resource management is performed previous to container deployment. Similar to docker-compose, the resources such as memory and CPU-limit can be specified in a JSON based configuration file. The configuration file describes the resource requests and upper limits for a set of containers, also called a Pod. 
+For these settings there are three combinations, fitting into three Quality of Service classes\footnote{https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/resource-qos.md}:
 % ADd information about QoS management of extras, and overshoots, margin can be set by observaton.
+\begin{itemize}
+	\item Best-effort: limits and requests are not set, thus all the pods and containers are run in a best effort manner. These are also the lowest priority and the first pods to be killed when a system runs low of memory.
+	\item Burst: for some containers, requests and optionally limits are set greater than 0 and not equal for one or more resources. Here a minimum of resources are guaranteed, which can top up until they reach the configuration or system limit. Once threre are no more best-effort pods available, these are the most likely pods to be killed in system memory distress.
+	\item Guaranteed: limits and optionally requests are set greater than 0 and equal for all resources and containers, the pod is said to be guaranteed. These pods run top priority and are not to be killed until either they exceed their memory limits or there are no lower priority pods to be depleted. 
+\end{itemize}
+In all cases, if CPU-time can not be met, the process will be throttled down and not killed.
+
+The required resources of a Pod are actually the request amount for the run of the whole container collection, thus the sum of resources. All resource requests of the pod must be fulfilled for the containers to be deployed.
+
 
 The information about Kubernetes has been taken from:
-\url{https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/}
+\href{https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/}{Kubernetes Documentation}.
 
 
 \section{Orchestration engine}
