@@ -56,57 +56,87 @@ In addition, the continuous monitoring and interaction with the system scheduler
 Table \ref{tab:approach} gives a quick overview of the technologies in comparison.
 The advantage of Kubernetes is the centralized management of containers. 
 The limits for each container can be set in a group configuration and then downloaded to the hosts. 
-The disadvantage here is that the limits must be set big enough to manage eventual overshoots. 
+The disadvantage here are two: a) the limits must be set big enough to manage eventual overshoot and b) the settings must be defined offline before deployment.
 Thus, the CPU-time must be set to the maximum expected and/or measures or an overload caused by a overshoot will never be recovered again.
-Kubernetes can not manage such situations as it is not directly acting on the scheduler but only on the offline configuration. 
+Kubernetes can not manage such situations as it is not directly acting on the scheduler but considers only the offline configuration. 
 An overshooting thread will be throttled down, an undesirable state in any realtime system.
 Thus, in the event of doubt, the CPU-time limits should be set on the higher end of a monitored maximum runtime.
 
 The orchestration engine on the other hand, knows the tasks to be run, their properties and deadlines.
 In the dynamic version it will also be able to shift tasks to other computation units and relocate resources when needed.
 The advantage here is that a critical situation sourcing from a container's task overload might be avoided.
-The complexity of this approach is for sure higher and while Kubernetes might simply set control group limits on the container tasks, the orchestrator has to continuously monitor the exectuon of the tasks.
-On the other hand, this monitoring brings the advantage that the engine always knows status and limits of the system. 
-Hence, it is possible to manage resources in a drastically more efficient manner. The computation resource bounds can be set more agressively with %task deadlines as upper bound and 
-task runtimes as lower bound. 
-The resulting resource allocation might thus be manifold.
+The complexity of this approach is for sure higher and while Kubernetes might simply set control group limits on the container tasks, the orchestrator has to continuously monitor the execution of the tasks.
+On the other hand, this monitoring brings the advantage that the engine knows status and limits of the system. 
+Hence, it is possible to manage resources in a more efficient manner. The computation resource bounds can be set more aggressively with task deadlines as upper bound and task runtimes as lower bound. 
+The resulting resource allocation improvement might thus be manifold.
+
+\begin{table}[ht]
+	\centering
+	\begin{tabular}{l l c c c}
+		\toprule
+		\multirow{2}{*}{Target}&\multirow{2}{*}{Property} & \multirow{2}{*}{Kubernetes} & \multicolumn{2}{c}{Orchestrator} \\
+		&& & static & dynamic \\
+		\midrule
+		\multirow{3}{*}{System}& Action range & Cluster & Local* & Local* \\
+		& Configuration & JSON & Task + file (opt) & Task + file (opt) \\
+		& Interface & CLI + WebUI & CLI & CLI \\
+		\midrule
+		\multirow{4}{*}{\shortstack[l]{Resource\\management}} & Resources & CPU, memory & CPU, memory* & CPU, memory*\\
+		& Ctrl. type & static & static & dynamic\\
+		& Groups & Pods & CGroups & CGroups \\
+		& Realtime aware & no & yes & yes\\
+		\midrule
+		\multirow{2}{*}{CPU} & Upper limit & expected max & Configuration & Deadline\\
+		& Overshoots & Critical & Critical/Contained & Managed\\
+		\midrule
+		\multirow{2}{*}{Memory} & Upper limit & System & Configured & Configured\\
+		& Overshoots & Critical-OOM & Contained* & Contained*\\
+		\bottomrule
+\end{tabular}
+\caption{Comparison table of the different management approaches}
+\label{tab:approach}
+\end{table}
+
+
+Table \ref{tab:taskex} describes possible configurations for an extreme case, a sample task of 10m runtime, 20m deadline and an expected 300m overshoots and random intervals. 
+The first row shows the maximum tasks allowable per CPU. Considering peaks of 300m and that we don't want task to be throttled, a maximum of three containers can run on one CPU for a Kubernetes configuration. 
+The actual behavior has to be verified as Kubernetes is not aware of realtime priorities and scheduling and thus it might be possible that realtime-classified containers are not throttled down.
+
+The static orchestration engine has the same setup, but is actively monitoring the realtime tasks. 
+Depending on how aggressive we want to schedule our resource allocation, from as low as the safe three container configuration we can reach up to a maximum of 35 scheduled tasks. The monitoring of active tasks can also help to predict overshoot probability for each container and thus schedule (statically) on up-start of a new container depending on the assumed contemporaneity factor. Upto 35 scheduled tasks, for the example of Table \ref{tab:taskex}, one overshoot per 1000m can be safely managed.
+The main difference to Kubernetes is that tasks are actively scheduled as realtime and are not throttled. Thus, we are not bound to the max value, but can instead refer to deadline values.
+Overshoots in a static setting are critical, which means that, exceeding 35 scheduled tasks, every overshoot will cause additional costs by delaying also other containers. Thus, in the latter case, a dynamic rescheduling is needed to reallocate resources in order to meet container deadlines. 
+A dynamic reallocation is more flexible and might exploit reference values instead, permitting a total 100 containers.
+
+It is clear that the values are ideal. They do not consider the engines background operation, and we might need to allocate some extra CPU-time for system tasks.
+The values in Table \ref{tab:taskex} are an extreme example. However, a dynamic orchestration is able to work on request time instead of deadline or max for scheduling. Thus, overshoots can be manged using resource reallocation and thus sharing the requirements peak through all the available processing resources.
+
 
 \begin{table}[ht]
 	\centering
 	\begin{tabular}{l c c c}
-		 \multirow{2}{*}{Property} & \multirow{2}{*}{Kubernetes} & \multicolumn{2}{c}{Orchestrator} \\
-		& & static & dynamic \\
 		\toprule
-		Action range & Cluster & Local* & Local* \\
-		Configuration & JSON & Task + file (opt) & Task + file (opt) \\
-		Interface & CLI + WebUI & CLI & CLI \\
+		\multirow{2}{*}{Property} & \multirow{2}{*}{Kubernetes} & \multicolumn{2}{c}{Orchestrator} \\
+		& & static & dynamic \\
 		\midrule
-		Controls & CPU, memory & CPU, memory & CPU, memory\\
-		Ctrl. type & static & static & dynamic\\
-		Groups & Pods & cgroups & cgroups \\
-		Realtime aware & no & yes & yes\\
-		\midrule
-		Upper limits & expected max & Config & Deadline \\
-		Overshoots & Critical & Critical/Contained & Managed \\
-		\midrule
-		Tasks per CPU & 3 & 3-50* & 50-100*\\
-		Configured limit & 300ml & 300ml & 10-20ml\\
-		Configuted request & 10 ml & 10 ml & 10 ml \\
-		Resource buffer CPU-time & 970ml & 970ml & 500-0ml*\\
+		Tasks per CPU & 3 & 3-35* & $\le100$\\
+		Config. limit & 300m & 300m & 10-20m\\
+		Config. request & 10m & 10m & 10m \\
+		Spare CPU-time & 970m & 970-300m* & 500-0m\\
 		\bottomrule
 	\end{tabular}
-	\caption{Comparison table of the different management approaches. A sample task of 10ml runtime,
-		20ml deadline and 300\% overshoots is considered for the last group}
-	\label{tab:approach}
+	\caption{Task grouping example and values. CPU-Time values in mills}
+	\label{tab:taskex}
 \end{table}
 
 But the advantages are not finished here: 
-The table clearly shows that the two approaches are different and not concurrent. If CPU limitation and affinity is not applied, the two solutions together can exploit advantages on both sides. While it might be true that also the orchestrator could, with the help of Cgrpups. add also memory management including numa node management, the cooperation of the remote management tool and the integration of the orchestratior with the kubelet agent might tbe easiest and most profitable solution. 
+the two approaches are different and not concurrent and can exploit advantages on both sides.
+While it might be true that also the orchestrator could, with the help of CGroups, add also memory management including NUMA node management, the cooperation of the remote management tool and the integration of the orchestrator with the \texttt{kubelet} agent might be the most profitable solution. 
 
 \section{Conclusions}
 
-The two solutions are different in kind. While a static approach would get very similar results, the dynamic orchestrator could reach higher resource economy by allocating a higher number of tasks on the same resources.
-The feasibility of a combined approach and the actual performance of the orchestrator are still to be determined, anyway, the data seems promising.
+The two solutions are different in kind. While a static orchestrator approach would get very similar results to Kubernetes, the dynamic version could reach higher resource economy by allocating way more tasks on the same resources.
+The feasibility of a combined approach and the actual performance of the orchestrator are still to be determined. Anyway, the data seems promising.
 
 
 \end{document}
