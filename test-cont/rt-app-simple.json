@@ -1,19 +1,18 @@
 {
-	"task" : {
+	"tasks" : {
 		"thread1" : {
+			"cpus" : [0,1,2,3], 
+			"policy" : "SCHED_FIFO",
+			"priority" : 10,
+			"dl-runtime" : 10,
+			"dl-period" : 100,
+			"dl-deadline" : 150,
 			"phases" : {
 				"phase1" : {
 					"run" : 10,
 					"sleep" : 10
 				}
 			}
-		}
-	},
-
-	"task" : {
-		"thread1" : {
-			"run" : 10,
-			"sleep" : 10
 		}
 	},
 
@@ -28,7 +27,7 @@
 		"log_basename" : "rt-app",
 		"ftrace" : false,
 		"gnuplot" : false,
-		"io_device" : "/dev/null"
+		"io_device" : "/dev/null",
 		"mem_buffer_size" : 4194304,
 		"cumulative_slack" : false
 	}
