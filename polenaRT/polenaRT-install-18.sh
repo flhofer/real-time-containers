@@ -1,7 +1,7 @@
 #!/bin/sh
 
 set -e
-linux_ver="4.18-rc8"
+linux_ver="4.19"
 #balena_tag="17.06-rev1"
 #balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
 
@@ -30,13 +30,13 @@ tar xf linux-${linux_ver}.tar.gz
 
 echo
 echo "## Downloading RT patch"
-wget http://cdn.kernel.org/pub/linux/kernel/projects/rt/4.18//patch-${linux_ver}-rt1.patch.xz
+wget http://cdn.kernel.org/pub/linux/kernel/projects/rt/4.19/patch-${linux_ver}.1-rt3.patch.xz
 
 
 echo
 echo "## Patching Linux Kernel"
 cd linux-${linux_ver}
-xzcat ../patch-${linux_ver}-rt1.patch.xz | patch -p1
+xzcat ../patch-${linux_ver}.1-rt3.patch.xz | patch -p1
 
 echo
 echo "## Compiling kernel"
