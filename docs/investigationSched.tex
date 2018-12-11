@@ -18,8 +18,17 @@ Containers are run, started either by runc or dockerrun, and initialized if conf
 The new container has a different pid space and userspace
 separate mount points for volumes. docker we can specify --pid=host to set to a shared userspace.
 
+\subsection{POSIX Standard}
 
-\section{Pid namespaces}
+The IEEE Std 1003.1 defines the interface every compliant operating system must have. The standard also forsees, in addition to the main process management features, an optional X/Open System Interfaces XSI conformace.
+The constants that define the presence and function of such interfaces might be found in the <unistd.h> header file. 
+The values can be directly interrogated by verifying the constant as described in the standard.
+XSI defines in particular three option groups: encryption, realtime (threads) and advanced realtime (threads). 
+
+as verified, only a few of the advanced realtime features are available. 
+The conditional compiler flags might be used in the sourcecode for a more detailed outputs. 
+
+\section{PID namespaces}
 
 Before considering option of sharing PID space with host, see if we can access from a privileged container nonetheless the namespace isolation. 
 Posix defines functions ioctrl\_ns to determine the parent namespace of the actual one. can help getting the inode of a parent namespace and read information. 
@@ -29,17 +38,17 @@ what information can be read out from the pid is still to be investigated.
 
 Manuals say that a parent can read child namespaces but not vice-versa. All enquiries of pared pid in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
 
-\section{Pid information}
+\section{PID information}
 
 While in UNIX the PID table and information is part of the kernel memory, in linux the only way to access the process information is by parsing virtual files. 
-If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc file readout and once via sysctrl calls to read kernel memory.
+If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc pipe readout and once via sysctrl calls to read kernel memory.
 
 It is highly likely that the same is true for the other resources, such as memory or connectivity. 
 
-The an example code has been tested which gives the pid's of all matching process names. 
+An example code has been tested which gives the PID's of all matching process names. 
 It might therefore be possible to poll once and verify cyclically for unbound containers. 
 
-In a second moment a hook-like structrue might bes more convenient.
+In a second moment a hook-like structure might be more convenient.
 
 
 \section{Other considerations}
