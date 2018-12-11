@@ -126,6 +126,13 @@ struct sched\_attr {
 	__u64 sched\_period;
 };
 
+       int sched_setattr(pid_t pid, struct sched_attr *attr,
+unsigned int flags);
+
+int sched_getattr(pid_t pid, struct sched_attr *attr,
+unsigned int size, unsigned int flags);
+
+
 This structure is in addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
 
 \section{Other considerations}
