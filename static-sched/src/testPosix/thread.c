@@ -11,11 +11,138 @@
 
 #define MAX_PIDS 64
 
-struct sched_pid {
+typedef struct sched_pid {
 	pid_t pid;
 	struct sched_attr attr;
-} pid_pars [MAX_PIDS];
+	struct sched_pid * next;
+} node_t;
 
+node_t * head = NULL;
+
+void push_t(node_t * head, pid_t pid) {
+    node_t * current = head;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+
+    /* now we can add a new variable */
+    current->next = malloc(sizeof(node_t));
+    current->next->pid = pid;
+    current->next->next = NULL;
+}
+
+struct sched_attr * push(node_t ** head, pid_t pid) {
+    node_t * new_node;
+    new_node = malloc(sizeof(node_t));
+
+    new_node->pid = pid;
+    new_node->next = *head;
+    *head = new_node;
+	return &new_node->attr;
+}
+
+pid_t pop(node_t ** head) {
+    pid_t retval = -1;
+    node_t * next_node = NULL;
+
+    if (*head == NULL) {
+        return -1;
+    }
+
+    next_node = (*head)->next;
+    retval = (*head)->pid;
+    free(*head);
+    *head = next_node;
+
+    return retval;
+}
+
+pid_t remove_last(node_t * head) {
+    pid_t retval = 0;
+    /* if there is only one item in the list, remove it */
+    if (head->next == NULL) {
+        retval = head->pid;
+        free(head);
+        return retval;
+    }
+
+    /* get to the second to last node in the list */
+    node_t * current = head;
+    while (current->next->next != NULL) {
+        current = current->next;
+    }
+
+    /* now current points to the second to last item of the list, so let's remove current->next */
+    retval = current->next->pid;
+    free(current->next);
+    current->next = NULL;
+    return retval;
+
+}
+
+pid_t remove_by_index(node_t ** head, int n) {
+    int i = 0;
+    pid_t retval = -1;
+    node_t * current = *head;
+    node_t * temp_node = NULL;
+
+    if (n == 0) {
+        return pop(head);
+    }
+
+    for (i = 0; i < n-1; i++) {
+        if (current->next == NULL) {
+            return -1;
+        }
+        current = current->next;
+    }
+
+    temp_node = current->next;
+    retval = temp_node->pid;
+    current->next = temp_node->next;
+    free(temp_node);
+
+    return retval;
+}
+
+int remove_by_value(node_t ** head, pid_t pid) {
+    node_t *previous, *current;
+
+    if (*head == NULL) {
+        return -1;
+    }
+
+    if ((*head)->pid == pid) {
+        return pop(head);
+    }
+
+    previous = current = (*head)->next;
+    while (current) {
+        if (current->pid == pid) {
+            previous->next = current->next;
+            free(current);
+            return pid;
+        }
+
+        previous = current;
+        current  = current->next;
+    }
+    return -1;
+}
+
+// scroll trrough array
+struct sched_attr * get_next(node_t ** act) {
+
+    if (*act == NULL) {
+        return NULL;
+    }
+
+    *act = (*act)->next;
+    if (*act == NULL) {
+        return NULL;
+    }
+    return &(*act)->attr;
+}
 
 /* Available standard calls */
 
@@ -31,6 +158,8 @@ struct sched_pid {
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
+// mutex to avoid read while updater fills or empties existing threads
+pthread_mutex_t dataMutex;
 
 // interrupt handler for infinite while loop
 void inthand ( int signum ) {
@@ -42,12 +171,13 @@ void *print_message_function( void *ptr );
 void *thread_update (void *arg); // thread that scans peridically for new entry pids
 void *thread_manage (void *arg); // thread that verifies status and allocates new threads
 
-int getpids (pid_t* pidno, size_t cnt, char * tag)
+int getpids (pid_t *pidno, size_t cnt, char * tag)
 {
 	char pidline[1024];
 	char req[20];
 	char *pid;
 	int i =0;
+	pid_t * pd1 = pidno;
 	sprintf (req,  "pidof %s", tag);
 	FILE *fp = popen(req,"r");
 	fgets(pidline,1024,fp);
@@ -57,9 +187,8 @@ int getpids (pid_t* pidno, size_t cnt, char * tag)
 	pid = strtok (pidline," ");
 	while(pid != NULL && i < cnt)
 		    {
-
 		            *pidno = atoi(pid);
-//		            printf("%d\n",*pidno);
+		            printf("%d %ld\n",*pidno, (long)pidno );
 		            pid = strtok (NULL , " ");
 					pidno += sizeof(pid_t);
 		            i++;
@@ -71,8 +200,13 @@ int getpids (pid_t* pidno, size_t cnt, char * tag)
 
 void getinfo() {
 	// get PIDs 
-	pid_t pidno[MAX_PIDS];
+	long pidno[MAX_PIDS];
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
+
+	for (int i=0; i<cnt; i++){
+		printf("Result pid %ld\n", pidno[i]);		
+	}
+	
 
 	pid_t pt = getpid();
 	printf("Running PID: %d\n", pt);
@@ -80,13 +214,16 @@ void getinfo() {
 	struct timespec tt;
 	unsigned int flags = 0;
 	int ret;
-	for (int i=0; i<cnt; i++){
-		pid_pars[i].pid = pidno[i];
-		ret = sched_rr_get_interval( pidno[i], &tt);
-		printf("Result: %d %ld\n", ret, tt.tv_nsec);
+	struct sched_attr * pp;
+	for (int i=0; i<cnt+1; i++){
+		printf("Result pid %ld\n", pidno[i]);		
+		pp = push (&head, pidno[i]);
 
-		ret = sched_getattr (pidno[i], &pid_pars[i].attr, sizeof(pid_pars[0]), flags);
-		printf("Result: %d %d\n", ret, pid_pars[i].attr.size);
+		ret = sched_rr_get_interval(pidno[i], &tt);
+		printf("Result pid %ld %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
+
+		ret = sched_getattr (pidno[i], pp, sizeof(node_t), flags);
+		printf("Result: %d %d\n", ret, (*pp).size);
 	}
 }
 
@@ -113,7 +250,11 @@ void *thread_update (void *arg)
    }
 }
 
-/* Thread to manage pid updates */
+/* Thread to manage thread scheduling */
+
+//  pthread_mutex_lock(&dataMutex);
+//  
+//  pthread_mutex_unlock(&dataMutex);
 
 void *thread_manage (void *arg)
 {
@@ -152,6 +293,7 @@ int main(int argc, char **argv)
 
 	signal(SIGINT, inthand);
 
+	stop = 1;
 	while (!stop) {
 		sleep (1);
 	}
