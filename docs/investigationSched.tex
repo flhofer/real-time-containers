@@ -1,0 +1,52 @@
+\documentclass[]{scrartcl}
+
+%opening
+\title{Investigation on possibilities of scheduling manipulation}
+\author{Florian Hofer}
+
+\begin{document}
+
+\maketitle
+
+%\begin{abstract}
+%
+%\end{abstract}
+
+\section{Environment}
+
+Containers are run, started either by runc or dockerrun, and initialized if configured with an init thread as process 1. 
+The new container has a different pid space and userspace
+separate mount points for volumes. docker we can specify --pid=host to set to a shared userspace.
+
+
+\section{Pid namespaces}
+
+Before considering option of sharing PID space with host, see if we can access from a privileged container nonetheless the namespace isolation. 
+Posix defines functions ioctrl\_ns to determine the parent namespace of the actual one. can help getting the inode of a parent namespace and read information. 
+if pids can also be read is a matter of investigation. maybe mount as \/procext?
+
+what information can be read out from the pid is still to be investigated.
+
+Manuals say that a parent can read child namespaces but not vice-versa. All enquiries of pared pid in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
+
+\section{Pid information}
+
+While in UNIX the PID table and information is part of the kernel memory, in linux the only way to access the process information is by parsing virtual files. 
+If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc file readout and once via sysctrl calls to read kernel memory.
+
+It is highly likely that the same is true for the other resources, such as memory or connectivity. 
+
+The an example code has been tested which gives the pid's of all matching process names. 
+It might therefore be possible to poll once and verify cyclically for unbound containers. 
+
+In a second moment a hook-like structrue might bes more convenient.
+
+
+\section{Other considerations}
+
+During the exploration of the namespace and pid function, some features to be implemented in future where discovered. 
+The PID 1 inside the container is parent of all the namespace. If it dies, all the children are orphaned and will be killed. As parent, it is also target of sigs without implicit binding, thus it must manually handle incoming signals such as sig\_int.
+The userspace in the container can be mapped. To avoid root as well as other acesses from to.. a proper map should be set up and incorporated in all the containers at load.
+
+
+\end{document}
