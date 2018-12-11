@@ -2,7 +2,7 @@ VERSION = 1.0
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 
-sources = shedstat.c
+sources = schedstat.c
 
 TARGETS = $(sources:.c=)
 LIBS	= -lrt -lpthread
