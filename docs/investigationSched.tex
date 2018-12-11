@@ -28,7 +28,20 @@ XSI defines in particular three option groups: encryption, realtime (threads) an
 as verified, only a few of the advanced realtime features are available. 
 The conditional compiler flags might be used in the sourcecode for a more detailed outputs. 
 
-\section{PID namespaces}
+\subsection{Non standardized extensions}
+
+Interestingly, the posix standard does not define other scheduling types than other, fifo and RR. 
+There is no mentioning of deadline, iso, or batch. 
+At the same time, the standard foresees a structure defining the scheduler's parameters, but it contains only one parameter, the absolute scheduling priority.
+
+This might be taken into consideration when trying to run the orchestrator in a non Linux environment.
+
+\section{Manipulating processes}
+
+In this part we are mainly interested in manipulating process priorities and scheduling behavior. 
+The POSIX calls and standards are investigated to verify possibilities.
+
+\subsection{PID namespaces}
 
 Before considering option of sharing PID space with host, see if we can access from a privileged container nonetheless the namespace isolation. 
 Posix defines functions ioctrl\_ns to determine the parent namespace of the actual one. can help getting the inode of a parent namespace and read information. 
@@ -38,7 +51,7 @@ what information can be read out from the pid is still to be investigated.
 
 Manuals say that a parent can read child namespaces but not vice-versa. All enquiries of pared pid in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
 
-\section{PID information}
+\subsection{PID information}
 
 While in UNIX the PID table and information is part of the kernel memory, in linux the only way to access the process information is by parsing virtual files. 
 If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc pipe readout and once via sysctrl calls to read kernel memory.
@@ -50,6 +63,70 @@ It might therefore be possible to poll once and verify cyclically for unbound co
 
 In a second moment a hook-like structure might be more convenient.
 
+\subsection{Scheduling of processes}
+
+As default there is only limited access to the scheduling activities of a process.
+In the POSIX documentation we find the following functions:
+
+\begin{itemize}
+	\item \textbf{sched\_get\_priority\_max(int)}
+		gets the max priority of the specified scheduling policy. On Linux, it is 0 for SCHED\_OTHER and 1 for everything else. 
+	
+	\item \textbf{sched\_get\_priority\_min(int)}
+		gets the min priority of the specified scheduling policy. On Linux, it is 0 for SCHED\_OTHER and 99 for everything else. 
+		
+	\item \textbf{sched\_getparam(pid\_t, struct sched\_param *)}
+		gets the scheduling parameters of a specified process ID
+	
+	\item \textbf{sched\_getscheduler(pid\_t)}
+		gets the set scheduling policy for a PID
+	
+	\item \textbf{sched\_rr\_get\_interval(pid\_t, struct timespec *)}
+		gets the length of the quantum used when using the round robin scheduling approach for realtime.
+		With a Linux kernel, the round robin time slice is always 150 microseconds, and pid need not even be a real pid. At least that is what the manuals say. Interrestingly a test has shown that there are also 8000 or 16000 $\mu s$ sometimes returned when querying the value.
+	
+	\item \textbf{sched\_setparam(pid\_t, const struct sched\_param *)}
+		sets the parameters for a specified process ID
+	
+	\item \textbf{sched\_setscheduler(pid\_t, int, const struct sched\_param *)}
+		sets the scheduling policy for a PID
+	
+	\item \textbf{sched\_yield(void)}
+		return the control to the scheduler (leave the execution state).
+\end{itemize}
+
+In addition, if the scheduling is set to traditional, i.e. SCHED\_OTHER, the niceness value for the complete fair scheduler can be adjusted with additional functions. 
+
+Posix as said, implements only three scheduling policies.
+Linux in addition has now:
+
+#define SCHED\_BATCH		3
+/* SCHED\_ISO: reserved but not implemented yet */
+#define SCHED\_IDLE		5
+#define SCHED\_DEADLINE		6
+
+
+In addition, scheduling attributes are now extended as:
+
+struct sched\_attr {
+	__u32 size;
+	
+	__u32 sched\_policy;
+	__u64 sched\_flags;
+	
+	/* SCHED\_NORMAL, SCHED\_BATCH */
+	__s32 sched\_nice;
+	
+	/* SCHED\_FIFO, SCHED\_RR */
+	__u32 sched_priority;
+	
+	/* SCHED\_DEADLINE */
+	__u64 sched\_runtime;
+	__u64 sched\_deadline;
+	__u64 sched\_period;
+};
+
+This structure is in addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
 
 \section{Other considerations}
 
