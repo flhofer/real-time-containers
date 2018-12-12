@@ -41,7 +41,7 @@ struct sched_attr * push(node_t ** head, pid_t pid) {
 	return &new_node->attr;
 }
 
-pid_t pop(node_t ** head) {
+/*pid_t pop(node_t ** head) {
     pid_t retval = -1;
     node_t * next_node = NULL;
 
@@ -60,20 +60,20 @@ pid_t pop(node_t ** head) {
 pid_t remove_last(node_t * head) {
     pid_t retval = 0;
     /* if there is only one item in the list, remove it */
-    if (head->next == NULL) {
+/*    if (head->next == NULL) {
         retval = head->pid;
         free(head);
         return retval;
     }
 
     /* get to the second to last node in the list */
-    node_t * current = head;
+/*    node_t * current = head;
     while (current->next->next != NULL) {
         current = current->next;
     }
 
     /* now current points to the second to last item of the list, so let's remove current->next */
-    retval = current->next->pid;
+/*    retval = current->next->pid;
     free(current->next);
     current->next = NULL;
     return retval;
@@ -128,7 +128,7 @@ int remove_by_value(node_t ** head, pid_t pid) {
         current  = current->next;
     }
     return -1;
-}
+} */
 
 // scroll trrough array
 struct sched_attr * get_next(node_t ** act) {
@@ -200,11 +200,13 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 
 void getinfo() {
 	// get PIDs 
-	long pidno[MAX_PIDS];
+	pid_t pidno[MAX_PIDS];
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 
+	printf ("Size %ld", sizeof(pidno));
+
 	for (int i=0; i<cnt; i++){
-		printf("Result pid %ld\n", pidno[i]);		
+		printf("Result pid %d\n", pidno[i]);		
 	}
 	
 
@@ -216,11 +218,11 @@ void getinfo() {
 	int ret;
 	struct sched_attr * pp;
 	for (int i=0; i<cnt+1; i++){
-		printf("Result pid %ld\n", pidno[i]);		
+		printf("Result pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
 
 		ret = sched_rr_get_interval(pidno[i], &tt);
-		printf("Result pid %ld %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
+		printf("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
 
 		ret = sched_getattr (pidno[i], pp, sizeof(node_t), flags);
 		printf("Result: %d %d\n", ret, (*pp).size);
