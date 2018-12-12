@@ -41,20 +41,20 @@ struct sched_attr * push(node_t ** head, pid_t pid) {
 	return &new_node->attr;
 }
 
-struct sched_attr * insert_after(node_t ** node, pid_t pid) {
-	if (node == NULL) {
-		return push (node, pid);
+struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid) {
+	if (*prev == NULL) {
+		return push (head, pid);
 	}
    	node_t * new_node;
     new_node = malloc(sizeof(node_t));
 
     new_node->pid = pid;
-    new_node->next = (*node)->next;
-    (*node)->next = new_node;
+    new_node->next = (*prev)->next;
+    (*prev)->next = new_node;
 	return &new_node->attr;
 }
 
-/*pid_t pop(node_t ** head) {
+pid_t pop(node_t ** head) {
     pid_t retval = -1;
     node_t * next_node = NULL;
 
@@ -70,6 +70,26 @@ struct sched_attr * insert_after(node_t ** node, pid_t pid) {
     return retval;
 }
 
+pid_t drop_after(node_t ** head, node_t ** prev) {
+	// special case, drop head, has no prec
+	if (*prev == NULL) {
+		return pop (head);
+	}
+
+    pid_t retval = -1;
+    node_t * next_node = NULL;
+
+	// next node is the node to be dropped
+    next_node = (*prev)->next;
+    (*prev)->next = next_node->next;
+    retval = (*prev)->pid;
+    free(next_node);
+    *prev = next_node;
+
+    return retval;
+}
+
+/*
 pid_t remove_last(node_t * head) {
     pid_t retval = 0;
     /* if there is only one item in the list, remove it */
@@ -233,13 +253,22 @@ void scanNew () {
 	while (act != NULL && attr != NULL && i < cnt) {
 		// insert a missing item		
 		if (pidno[i] < ((*act).pid)) {
-			attr = insert_after(&prev, pidno[i]);
+			attr = insert_after(&head, &prev, pidno[i]);
+			// sig here to other thread?
+			i++;
+		} 
+		else		
+		// insert a missing item		
+		if (pidno[i] > ((*act).pid)) {
+			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
-
-		prev = act; // update prev 
-		attr =  get_next(&act);
-		i++;
+		// ok, skip to next
+		else {
+			i++;
+			prev = act; // update prev 
+			attr =  get_next(&act);
+		}
 	}
 
 }
@@ -280,9 +309,9 @@ void *thread_update (void *arg)
       switch( *pthread_state )
       {
       case 0: // normal thread loop
-		pthread_mutex_lock(&dataMutex);
+		pthread_mutex_lock(&dataMutex); // move to position once done
 		scanNew();
-		pthread_mutex_unlock(&dataMutex);
+		pthread_mutex_unlock(&dataMutex); // move to position once done
         break;
       case -1:
         // tidy or whatever is necessary
