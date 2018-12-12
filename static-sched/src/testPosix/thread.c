@@ -1,13 +1,13 @@
-#include <sched.h>
-#include <linux/types.h>
-#include <signal.h> // for SIGs
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // used for string parsing
 #include <pthread.h>// used for thread management
 #include <unistd.h> // used for POSIX XOPEN constants
-#include "rt_wrapper.h"
+#include "rt_wrapper.h" // temporary as libc does not include new sched yet
+
+#include <sched.h>
+#include <linux/types.h>
+#include <signal.h> // for SIGs
 
 #define MAX_PIDS 64
 
@@ -38,6 +38,19 @@ struct sched_attr * push(node_t ** head, pid_t pid) {
     new_node->pid = pid;
     new_node->next = *head;
     *head = new_node;
+	return &new_node->attr;
+}
+
+struct sched_attr * insert_after(node_t ** node, pid_t pid) {
+	if (node == NULL) {
+		return push (node, pid);
+	}
+   	node_t * new_node;
+    new_node = malloc(sizeof(node_t));
+
+    new_node->pid = pid;
+    new_node->next = (*node)->next;
+    (*node)->next = new_node;
 	return &new_node->attr;
 }
 
@@ -131,6 +144,16 @@ int remove_by_value(node_t ** head, pid_t pid) {
 } */
 
 // scroll trrough array
+
+struct sched_attr * get_node(node_t * act) {
+
+    if (act == NULL) {
+        return NULL;
+    }
+
+    return &act->attr;
+}
+
 struct sched_attr * get_next(node_t ** act) {
 
     if (*act == NULL) {
@@ -141,7 +164,7 @@ struct sched_attr * get_next(node_t ** act) {
     if (*act == NULL) {
         return NULL;
     }
-    return &(*act)->attr;
+    return get_node(*act);
 }
 
 /* Available standard calls */
@@ -166,8 +189,6 @@ void inthand ( int signum ) {
 	stop = 1;
 }
 
-
-void *print_message_function( void *ptr );
 void *thread_update (void *arg); // thread that scans peridically for new entry pids
 void *thread_manage (void *arg); // thread that verifies status and allocates new threads
 
@@ -177,7 +198,6 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	char req[20];
 	char *pid;
 	int i =0;
-	pid_t * pd1 = pidno;
 	sprintf (req,  "pidof %s", tag);
 	FILE *fp = popen(req,"r");
 	fgets(pidline,1024,fp);
@@ -188,9 +208,9 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	while(pid != NULL && i < cnt)
 		    {
 		            *pidno = atoi(pid);
-		            printf("%d %ld\n",*pidno, (long)pidno );
+//		            printf("%d\n",*pidno);
 		            pid = strtok (NULL , " ");
-					pidno += sizeof(pid_t);
+					pidno++;
 		            i++;
 		    }
 
@@ -198,26 +218,47 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	return i;
 }
 
+void scanNew () {
+	// get PIDs 
+	pid_t pidno[MAX_PIDS];
+
+	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
+	for (int i=0; i<cnt; i++){
+		printf("Result pid %d\n", pidno[i]);		
+	}
+
+	node_t *act = head, *prev = NULL;
+	struct sched_attr * attr = get_node (head);
+	int i = 0;
+	while (act != NULL && attr != NULL && i < cnt) {
+		// insert a missing item		
+		if (pidno[i] < ((*act).pid)) {
+			attr = insert_after(&prev, pidno[i]);
+			// sig here to other thread?
+		} 
+
+		prev = act; // update prev 
+		attr =  get_next(&act);
+		i++;
+	}
+
+}
+
 void getinfo() {
 	// get PIDs 
 	pid_t pidno[MAX_PIDS];
-	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 
-	printf ("Size %ld", sizeof(pidno));
+	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 
 	for (int i=0; i<cnt; i++){
 		printf("Result pid %d\n", pidno[i]);		
 	}
 	
-
-	pid_t pt = getpid();
-	printf("Running PID: %d\n", pt);
-
 	struct timespec tt;
 	unsigned int flags = 0;
 	int ret;
 	struct sched_attr * pp;
-	for (int i=0; i<cnt+1; i++){
+	for (int i=0; i<cnt; i++){
 		printf("Result pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
 
@@ -239,14 +280,17 @@ void *thread_update (void *arg)
       switch( *pthread_state )
       {
       case 0: // normal thread loop
-         break;
+		pthread_mutex_lock(&dataMutex);
+		scanNew();
+		pthread_mutex_unlock(&dataMutex);
+        break;
       case -1:
-         // tidy or whatever is necessary
-         pthread_exit(0); // exit the thread signalling normal return
-         break;
+        // tidy or whatever is necessary
+        pthread_exit(0); // exit the thread signalling normal return
+        break;
       case 1: //
-         // do something special
-         break;
+        // do something special
+        break;
       }
 	sleep(1);
    }
@@ -267,14 +311,15 @@ void *thread_manage (void *arg)
       switch( *pthread_state )
       {
       case 0: // normal thread loop
-         break;
+        break;
       case -1:
-         // tidy or whatever is necessary
-         pthread_exit(0); // exit the thread signalling normal return
-         break;
+        // tidy or whatever is necessary
+        pthread_exit(0); // exit the thread signalling normal return
+        break;
       case 1: //
-         // do something special
-         break;
+        // do something special
+		
+        break;
       }
    }
 }
@@ -282,17 +327,21 @@ void *thread_manage (void *arg)
 // main program.. setup threads and keep loop
 int main(int argc, char **argv)
 {
+	printf("Starting main PID: %d\n", getpid());
+
+	// gather actual information at startup
+	getinfo();
+
 	pthread_t thread1, thread2;
-	int t_stat2 = 0; // we control thread status
-	int t_stat1 = 0; 
+	int t_stat1 = 1; // we control thread status
+	int t_stat2 = 1; 
 	int  iret1, iret2;
 
 	/* Create independent threads each of which will execute function */
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_manage, (void*) &t_stat2);
 
-	getinfo();
-
+	// set interrupt sig hand
 	signal(SIGINT, inthand);
 
 	stop = 1;
@@ -300,6 +349,7 @@ int main(int argc, char **argv)
 		sleep (1);
 	}
 
+	// signal shutdown to threads
 	t_stat1 = -1;
 	t_stat2 = -1;
 
@@ -310,13 +360,6 @@ int main(int argc, char **argv)
     printf("exiting safely\n");
     system("pause");
     return 0;
-}
-
-void *print_message_function( void *ptr )
-{
-	char *message;
-	message = (char *) ptr;
-	printf("%s \n", message);
 }
 
 
