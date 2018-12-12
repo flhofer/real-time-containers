@@ -32,6 +32,7 @@ struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid) {
     new_node->pid = pid;
     new_node->next = (*prev)->next;
     (*prev)->next = new_node;
+	*prev = (*prev)->next;
 	return &new_node->attr;
 }
 

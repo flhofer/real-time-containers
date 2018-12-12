@@ -71,33 +71,57 @@ void scanNew () {
 
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
-		printf("Result pid %d\n", pidno[i]);		
+		printf("Result update pid %d\n", pidno[i]);		
 	}
 
 	node_t *act = head, *prev = NULL;
 	struct sched_attr * attr = get_node (head);
-	int i = 0;
-	while (act != NULL && attr != NULL && i < cnt) {
+	int i = cnt-1;
+
+	printf("Entering node update\n");		
+	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
 		if (pidno[i] < ((*act).pid)) {
+			printf("Insert\n");		
+			// insert, prev is upddated to the new element
 			attr = insert_after(&head, &prev, pidno[i]);
 			// sig here to other thread?
-			i++;
+			i--;
 		} 
 		else		
 		// insert a missing item		
 		if (pidno[i] > ((*act).pid)) {
+			printf("Delete\n");		
+			attr = get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			i++;
+			printf("No change\n");		
+			i--;
 			prev = act; // update prev 
-			attr =  get_next(&act);
+			attr = get_next(&act);
 		}
 	}
 
+	while (i >= 0) {
+		printf("Insert at end\n");		
+		attr = insert_after(&head, &prev, pidno[i]);
+		// sig here to other thread?
+		i--;
+	}
+
+	while ( (act != NULL) && (attr != NULL)) {
+		// drop missing items
+		printf("Delete\n");		
+		// get next item, then drop old
+		attr = get_next(&act);
+		int ret = drop_after(&head, &prev);
+		// sig here to other thread?
+	}
+
+	printf("Exiting node update\n");	
 }
 
 void getinfo() {
@@ -105,17 +129,13 @@ void getinfo() {
 	pid_t pidno[MAX_PIDS];
 
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
-
-	for (int i=0; i<cnt; i++){
-		printf("Result pid %d\n", pidno[i]);		
-	}
 	
 	struct timespec tt;
 	unsigned int flags = 0;
 	int ret;
 	struct sched_attr * pp;
 	for (int i=0; i<cnt; i++){
-		printf("Result pid %d\n", pidno[i]);		
+		printf("Result first scan pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
 
 		ret = sched_rr_get_interval(pidno[i], &tt);
@@ -129,27 +149,27 @@ void getinfo() {
 /* Thread to manage pid updates */
 void *thread_update (void *arg)
 {
-   int* pthread_state = arg;
-   // initialize the thread locals
-   while(1)
-   {
-      switch( *pthread_state )
-      {
-      case 0: // normal thread loop
+	int* pthread_state = arg;
+	// initialize the thread locals
+	while(1)
+	{
+	  switch( *pthread_state )
+	  {
+	  case 0: // normal thread loop
 		pthread_mutex_lock(&dataMutex); // move to position once done
 		scanNew();
 		pthread_mutex_unlock(&dataMutex); // move to position once done
-        break;
-      case -1:
-        // tidy or whatever is necessary
-        pthread_exit(0); // exit the thread signalling normal return
-        break;
-      case 1: //
-        // do something special
-        break;
-      }
-	sleep(1);
-   }
+		break;
+	  case -1:
+		// tidy or whatever is necessary
+		pthread_exit(0); // exit the thread signalling normal return
+		break;
+	  case 1: //
+		// do something special
+		break;
+	  }
+	  sleep(1);
+	}
 }
 
 /* Thread to manage thread scheduling */
@@ -160,24 +180,25 @@ void *thread_update (void *arg)
 
 void *thread_manage (void *arg)
 {
-   int* pthread_state = arg;
-   // initialize the thread locals
-   while(1)
-   {
-      switch( *pthread_state )
-      {
-      case 0: // normal thread loop
-        break;
-      case -1:
-        // tidy or whatever is necessary
-        pthread_exit(0); // exit the thread signalling normal return
-        break;
-      case 1: //
-        // do something special
+	int* pthread_state = arg;
+	// initialize the thread locals
+	while(1)
+	{
+	  switch( *pthread_state )
+	  {
+	  case 0: // normal thread loop
+		break;
+	  case -1:
+		// tidy or whatever is necessary
+		pthread_exit(0); // exit the thread signalling normal return
+		break;
+	  case 1: //
+		// do something special
 		
-        break;
-      }
-   }
+		break;
+	  }
+	  sleep(1);
+	}
 }
 
 // main program.. setup threads and keep loop
@@ -189,8 +210,8 @@ int main(int argc, char **argv)
 	getinfo();
 
 	pthread_t thread1, thread2;
-	int t_stat1 = 1; // we control thread status
-	int t_stat2 = 1; 
+	int t_stat1 = 0; // we control thread status
+	int t_stat2 = 0; 
 	int  iret1, iret2;
 
 	/* Create independent threads each of which will execute function */
@@ -200,7 +221,6 @@ int main(int argc, char **argv)
 	// set interrupt sig hand
 	signal(SIGINT, inthand);
 
-	stop = 1;
 	while (!stop) {
 		sleep (1);
 	}
@@ -214,7 +234,6 @@ int main(int argc, char **argv)
 	pthread_join( thread2, NULL); 
 
     printf("exiting safely\n");
-    system("pause");
     return 0;
 }
 
