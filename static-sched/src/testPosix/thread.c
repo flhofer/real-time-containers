@@ -10,6 +10,15 @@
 #include <signal.h> // for SIGs
 
 #define MAX_PIDS 64
+#define DBG
+
+/* Debug printing to console or buffer ?? */
+#ifdef DBG
+#define debprint printf
+
+#else
+#define debprint //
+#endif
 
 /* Available standard calls */
 
@@ -21,7 +30,6 @@
 //sched_setparam(pid_t, const struct sched_param *);
 //sched_setscheduler(pid_t, int, const struct sched_param *);
 //sched_yield(void)
-
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
@@ -44,18 +52,18 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	char pidline[1024];
 	char req[20];
 	char *pid;
-	int i =0;
+	int i =0  ;
 	sprintf (req,  "pidof %s", tag);
 	FILE *fp = popen(req,"r");
 	fgets(pidline,1024,fp);
 	pclose(fp);
 
-//	printf("Pid string return %s", pidline);
+	debprint("Pid string return %s", pidline);
 	pid = strtok (pidline," ");
 	while(pid != NULL && i < cnt)
 		    {
 		            *pidno = atoi(pid);
-//		            printf("%d\n",*pidno);
+		            debprint("%d\n",*pidno);
 		            pid = strtok (NULL , " ");
 					pidno++;
 		            i++;
@@ -71,18 +79,18 @@ void scanNew () {
 
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
-		printf("Result update pid %d\n", pidno[i]);		
+		debprint("Result update pid %d\n", pidno[i]);		
 	}
 
 	node_t *act = head, *prev = NULL;
 	struct sched_attr * attr = get_node (head);
 	int i = cnt-1;
 
-	printf("Entering node update\n");		
+	debprint("Entering node update\n");		
 	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
 		if (pidno[i] < ((*act).pid)) {
-			printf("Insert\n");		
+			debprint("Insert\n");		
 			// insert, prev is upddated to the new element
 			attr = insert_after(&head, &prev, pidno[i]);
 			// sig here to other thread?
@@ -91,14 +99,14 @@ void scanNew () {
 		else		
 		// insert a missing item		
 		if (pidno[i] > ((*act).pid)) {
-			printf("Delete\n");		
+			debprint("Delete\n");		
 			attr = get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			printf("No change\n");		
+			debprint("No change\n");		
 			i--;
 			prev = act; // update prev 
 			attr = get_next(&act);
@@ -106,7 +114,7 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		printf("Insert at end\n");		
+		debprint("Insert at end\n");		
 		attr = insert_after(&head, &prev, pidno[i]);
 		// sig here to other thread?
 		i--;
@@ -114,14 +122,14 @@ void scanNew () {
 
 	while ( (act != NULL) && (attr != NULL)) {
 		// drop missing items
-		printf("Delete\n");		
+		debprint("Delete\n");		
 		// get next item, then drop old
 		attr = get_next(&act);
 		int ret = drop_after(&head, &prev);
 		// sig here to other thread?
 	}
 
-	printf("Exiting node update\n");	
+	debprint("Exiting node update\n");	
 }
 
 void getinfo() {
@@ -135,14 +143,14 @@ void getinfo() {
 	int ret;
 	struct sched_attr * pp;
 	for (int i=0; i<cnt; i++){
-		printf("Result first scan pid %d\n", pidno[i]);		
+		debprint("Result first scan pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
 
 		ret = sched_rr_get_interval(pidno[i], &tt);
-		printf("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
+		debprint("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
 
 		ret = sched_getattr (pidno[i], pp, sizeof(node_t), flags);
-		printf("Result: %d %d\n", ret, (*pp).size);
+		debprint("Result: %d %d\n", ret, (*pp).size);
 	}
 }
 
@@ -204,7 +212,7 @@ void *thread_manage (void *arg)
 // main program.. setup threads and keep loop
 int main(int argc, char **argv)
 {
-	printf("Starting main PID: %d\n", getpid());
+	debprint("Starting main PID: %d\n", getpid());
 
 	// gather actual information at startup
 	getinfo();
@@ -233,7 +241,7 @@ int main(int argc, char **argv)
 	pthread_join( thread1, NULL);
 	pthread_join( thread2, NULL); 
 
-    printf("exiting safely\n");
+    debprint("exiting safely\n");
     return 0;
 }
 
