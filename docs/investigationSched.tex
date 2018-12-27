@@ -1,4 +1,5 @@
 \documentclass[]{scrartcl}
+\usepackage{hyperref}
 
 %opening
 \title{Investigation on possibilities of scheduling manipulation}
@@ -20,7 +21,7 @@ separate mount points for volumes. docker we can specify --pid=host to set to a 
 
 \subsection{POSIX Standard}
 
-The IEEE Std 1003.1 defines the interface every compliant operating system must have. The standard also forsees, in addition to the main process management features, an optional X/Open System Interfaces XSI conformace.
+The IEEE Std 1003.1 defines the interface every compliant operating system must have. The standard also foresees, in addition to the main process management features, an optional X/Open System Interfaces XSI conformance.
 The constants that define the presence and function of such interfaces might be found in the <unistd.h> header file. 
 The values can be directly interrogated by verifying the constant as described in the standard.
 XSI defines in particular three option groups: encryption, realtime (threads) and advanced realtime (threads). 
@@ -52,6 +53,7 @@ what information can be read out from the pid is still to be investigated.
 Manuals say that a parent can read child namespaces but not vice-versa. All enquiries of pared pid in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
 
 \subsection{PID information}
+\label{sub:pidinf}
 
 While in UNIX the PID table and information is part of the kernel memory, in linux the only way to access the process information is by parsing virtual files. 
 If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc pipe readout and once via sysctrl calls to read kernel memory.
@@ -61,7 +63,7 @@ It is highly likely that the same is true for the other resources, such as memor
 An example code has been tested which gives the PID's of all matching process names. 
 It might therefore be possible to poll once and verify cyclically for unbound containers. 
 
-In a second moment a hook-like structure might be more convenient.
+A hook-like structure might be more convenient. Such modification would require a kernel change and is therefore considered only in a second moment.
 
 \subsection{Scheduling of processes}
 
@@ -156,6 +158,33 @@ The userspace in the container can be mapped. To avoid root as well as other acc
 
 \section{Test implementation}
 
+The orchestrator will have to interact with the scheduler while monitoring the tasks. 
+Ideally, the interaction is mutual. Unfortunately, no hint has been found suggesting that there is a way to ``register'' to the scheduler to get scheduling and process updates. 
+Thus, apart from the system calls for getting and setting a process's scheduling attributes, there is no direct communication with the kernel. 
+This means that the PIDs of all the processes must be queried manually, cyclically, considering time trends and thus the orchestrator must keep PID history. 
+
+\subsection{PID search}
+
+In a first implementation test, we verify therefore the poll quality and speed of pid queries.
+As described in Section \ref{sub:pidinf}, there are two ways of polling the prcess table. 
+In our testing environment we use Linux, and are therefore running for a virtual filesystems parsing. 
+To ease the parsing, we can use the integrated tool ``pidof'' via a pipe opened throught the call of \texttt{popen}.
+\texttt{popen} is a POSIX standard call that opens a one-way pipe to indicated  purposely process called via shell.
+
+As soon as the orchestrator is up and running, it scans for target processes which might be  defined in a configuration file (\textit{cmdfile}).
+The PID list is parsed and verified. 
+The whole process takes a fraction of a ms and does not put load on the cpu. With unlimited loop the {CPU}-load is below 3\%.
+
+An option to optimize process verification might be that the environment controlling the containers informs the orchestrator about containers entering or leaving the scheduler.
+This way, an orchestrator does not have to scan for new PID all the time.
+Kubernetes, for example, foresees the use of postStart and preStop handlers when installing a pod. 
+The handlers can be specified in the yaml configuration file of the POD for each container. A Typical use for this might be the shutting down or preparation for a service such as a web server. 
+In our case we could use it to signal a process start or stop.
+More details about this configuration can be \href{{https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/}}{found here}.
+The Docker API on the other hand does not implement a pre- or post execution handler for container start or stop. 
+Only the container configuration itself could contain a run command as part of the container to be executed upon startup. This might be also a standard configuration setting, signaling the orchestrator the presence of a new container process.
+
+ 
 
 
 
