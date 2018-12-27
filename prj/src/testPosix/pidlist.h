@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "rt_wrapper.h" // temporary as libc does not include new sched yet
+#include "rt-sched.h" // temporary as libc does not include new sched yet
 
 #ifndef __PIDLIST_
 #define __PIDLIST_

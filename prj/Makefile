@@ -2,10 +2,14 @@ VERSION = 1.0
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 
-sources = schedstat.c
+OBJDIR = build
+
+sources = schedstat.c \
+			thread.c
 
 TARGETS = $(sources:.c=)
-LIBS	= -lrt -lpthread
+# rem -lpthread
+LIBS	= -lrt 
 RTTESTLIB = -lrttest -L$(OBJDIR)
 EXTRA_LIBS ?= -ldl	# for get_cpu
 DESTDIR	?=
@@ -14,12 +18,12 @@ bindir  ?= $(prefix)/bin
 mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
-CFLAGS ?= -Wall -Wno-nonnull
+#added prthread
+CFLAGS ?= -Wall -Wno-nonnull -pthread
 CPPFLAGS += -D_GNU_SOURCE -Isrc/include
 LDFLAGS ?=
 
-PYLIB  ?= $(shell python -c 'import distutils.sysconfig;  print distutils.sysconfig.get_python_lib()')
-
+# If debug is defined, disable optimization level
 ifndef DEBUG
 	CFLAGS	+= -O2
 else
@@ -42,7 +46,7 @@ machinetype := $(shell echo $(dumpmachine)| \
 # compile with
 # make NUMA=0
 ifneq ($(filter x86_64 i386 ia64 mips powerpc,$(machinetype)),)
-NUMA 	:= 1
+NUMA := 1
 endif
 
 # The default is to assume that you have numa_parse_cpustring_all
@@ -58,9 +62,10 @@ ifeq ($(NUMA),1)
 	endif
 endif
 
-include src/arch/android/Makefile
+#include src/arch/android/Makefile
 
-VPATH	= src/shedstat:
+VPATH	= src/schedstat:
+VPATH	+= src/testPosix:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
@@ -79,9 +84,14 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-shedstat: $(OBJDIR)/shedstat.o $(OBJDIR)/librttest.a
+schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/librttest.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
+testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
+	$(CC) $(CFLAGS) $(LDFLAGS)  pidlist.c -o pidlist.o $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+
+# lib containing include lib in one binary file
 LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
