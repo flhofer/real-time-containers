@@ -100,14 +100,17 @@ In addition, if the scheduling is set to traditional, i.e. SCHED\_OTHER, the nic
 Posix as said, implements only three scheduling policies.
 Linux in addition has now:
 
+\begin{verbatim}
 #define SCHED\_BATCH		3
 /* SCHED\_ISO: reserved but not implemented yet */
 #define SCHED\_IDLE		5
 #define SCHED\_DEADLINE		6
+\end{verbatim}
 
 
 In addition, scheduling attributes are now extended as:
 
+\begin{verbatim}
 struct sched\_attr {
 	__u32 size;
 	
@@ -125,21 +128,35 @@ struct sched\_attr {
 	__u64 sched\_deadline;
 	__u64 sched\_period;
 };
+\end{verbatim}
 
-       int sched_setattr(pid_t pid, struct sched_attr *attr,
-unsigned int flags);
+and might be read and written as follows:
+
+
+\begin{verbatim}
+int sched_setattr(pid_t pid, struct sched_attr *attr,
+	unsigned int flags);
 
 int sched_getattr(pid_t pid, struct sched_attr *attr,
-unsigned int size, unsigned int flags);
-
+	unsigned int size, unsigned int flags);
+\end{verbatim}
 
 This structure is in addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
 
-\section{Other considerations}
+The commented scheduling mode in the list, i.e. SCHED\_ISO, is a scheduler intended for isochronous (burst-like) tasks and has not been implemented yet. 
+The brainfuck scheduler (BFS) developed by Con Kolivas is anltered version witch actually supports the ISO scheduling mode, with priority between RT and Normal/Other tasks.
+For further details see "A complete guide to Linux process scheduling"  by Nikita Ishkov.
+
+
+\subsection{Other considerations}
 
 During the exploration of the namespace and pid function, some features to be implemented in future where discovered. 
 The PID 1 inside the container is parent of all the namespace. If it dies, all the children are orphaned and will be killed. As parent, it is also target of sigs without implicit binding, thus it must manually handle incoming signals such as sig\_int.
-The userspace in the container can be mapped. To avoid root as well as other acesses from to.. a proper map should be set up and incorporated in all the containers at load.
+The userspace in the container can be mapped. To avoid root as well as other accesses from a container, a proper map should be set up and incorporated in all the containers at load.
+
+\section{Test implementation}
+
+
 
 
 \end{document}

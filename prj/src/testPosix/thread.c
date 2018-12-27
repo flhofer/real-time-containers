@@ -8,16 +8,19 @@
 #include <sched.h>
 #include <linux/types.h>
 #include <signal.h> // for SIGs
+//#include <stdarg.h> __VA_ARGS__ does not work??
 
+#define PRGNAME "DC static orchestrator"
+#define VERSION 0.1
 #define MAX_PIDS 64
 #define DBG
 
 /* Debug printing to console or buffer ?? */
 #ifdef DBG
-#define debprint printf
+#define printDbg printf
 
 #else
-#define debprint //
+#define printDbg //
 #endif
 
 /* Available standard calls */
@@ -58,12 +61,12 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	fgets(pidline,1024,fp);
 	pclose(fp);
 
-	debprint("Pid string return %s", pidline);
+	printDbg("Pid string return %s", pidline);
 	pid = strtok (pidline," ");
 	while(pid != NULL && i < cnt)
 		    {
 		            *pidno = atoi(pid);
-		            debprint("%d\n",*pidno);
+		            printDbg("%d\n",*pidno);
 		            pid = strtok (NULL , " ");
 					pidno++;
 		            i++;
@@ -79,18 +82,18 @@ void scanNew () {
 
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
-		debprint("Result update pid %d\n", pidno[i]);		
+		printDbg("Result update pid %d\n", pidno[i]);		
 	}
 
 	node_t *act = head, *prev = NULL;
 	struct sched_attr * attr = get_node (head);
 	int i = cnt-1;
 
-	debprint("Entering node update\n");		
+	printDbg("Entering node update\n");		
 	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
 		if (pidno[i] < ((*act).pid)) {
-			debprint("Insert\n");		
+			printDbg("Insert\n");		
 			// insert, prev is upddated to the new element
 			attr = insert_after(&head, &prev, pidno[i]);
 			// sig here to other thread?
@@ -99,14 +102,14 @@ void scanNew () {
 		else		
 		// insert a missing item		
 		if (pidno[i] > ((*act).pid)) {
-			debprint("Delete\n");		
+			printDbg("Delete\n");		
 			attr = get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			debprint("No change\n");		
+			printDbg("No change\n");		
 			i--;
 			prev = act; // update prev 
 			attr = get_next(&act);
@@ -114,7 +117,7 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		debprint("Insert at end\n");		
+		printDbg("Insert at end\n");		
 		attr = insert_after(&head, &prev, pidno[i]);
 		// sig here to other thread?
 		i--;
@@ -122,14 +125,14 @@ void scanNew () {
 
 	while ( (act != NULL) && (attr != NULL)) {
 		// drop missing items
-		debprint("Delete\n");		
+		printDbg("Delete\n");		
 		// get next item, then drop old
 		attr = get_next(&act);
 		int ret = drop_after(&head, &prev);
 		// sig here to other thread?
 	}
 
-	debprint("Exiting node update\n");	
+	printDbg("Exiting node update\n");	
 }
 
 void getinfo() {
@@ -143,14 +146,14 @@ void getinfo() {
 	int ret;
 	struct sched_attr * pp;
 	for (int i=0; i<cnt; i++){
-		debprint("Result first scan pid %d\n", pidno[i]);		
+		printDbg("Result first scan pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
 
 		ret = sched_rr_get_interval(pidno[i], &tt);
-		debprint("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
+		printDbg("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
 
 		ret = sched_getattr (pidno[i], pp, sizeof(node_t), flags);
-		debprint("Result: %d %d\n", ret, (*pp).size);
+		printDbg("Result: %d %d\n", ret, (*pp).size);
 	}
 }
 
@@ -212,10 +215,20 @@ void *thread_manage (void *arg)
 // main program.. setup threads and keep loop
 int main(int argc, char **argv)
 {
-	debprint("Starting main PID: %d\n", getpid());
+	
+	printDbg("Starting main PID: %d\n", getpid());
+	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
+	printDbg("Source compilation date: %s\n\n", __DATE__);
+
+	// TODO: ADD check for SYS_NICE
+	// TODO: ADD check for task prio
+
 
 	// gather actual information at startup
 	getinfo();
+
+	// TODO: set all non concerning tasks to background resources	
+
 
 	pthread_t thread1, thread2;
 	int t_stat1 = 0; // we control thread status
@@ -225,6 +238,7 @@ int main(int argc, char **argv)
 	/* Create independent threads each of which will execute function */
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_manage, (void*) &t_stat2);
+	// TODO: set thread prio and sched to RR -> maybe 
 
 	// set interrupt sig hand
 	signal(SIGINT, inthand);
@@ -241,7 +255,7 @@ int main(int argc, char **argv)
 	pthread_join( thread1, NULL);
 	pthread_join( thread2, NULL); 
 
-    debprint("exiting safely\n");
+    printDbg("exiting safely\n");
     return 0;
 }
 
