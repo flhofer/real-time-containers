@@ -9,9 +9,10 @@
 
 \maketitle
 
-%\begin{abstract}
-%
-%\end{abstract}
+\begin{abstract}
+In this document, a exploratory step by step investigation on process management and scheduling techniques are discussed.
+After some inituial 
+\end{abstract}
 
 \section{Environment}
 
@@ -36,6 +37,8 @@ There is no mentioning of deadline, iso, or batch.
 At the same time, the standard foresees a structure defining the scheduler's parameters, but it contains only one parameter, the absolute scheduling priority.
 
 This might be taken into consideration when trying to run the orchestrator in a non Linux environment.
+
+%TODO: add subsection additional for LINUX, ie pidof??
 
 \section{Manipulating processes}
 
@@ -99,7 +102,7 @@ In the POSIX documentation we find the following functions:
 
 In addition, if the scheduling is set to traditional, i.e. SCHED\_OTHER, the niceness value for the complete fair scheduler can be adjusted with additional functions. 
 
-Posix as said, implements only three scheduling policies.
+POSIX as said, implements only three scheduling policies.
 Linux in addition has now:
 
 \begin{verbatim}
@@ -165,16 +168,19 @@ This means that the PIDs of all the processes must be queried manually, cyclical
 
 \subsection{PID search}
 
+%% how
 In a first implementation test, we verify therefore the poll quality and speed of pid queries.
 As described in Section \ref{sub:pidinf}, there are two ways of polling the prcess table. 
 In our testing environment we use Linux, and are therefore running for a virtual filesystems parsing. 
-To ease the parsing, we can use the integrated tool ``pidof'' via a pipe opened throught the call of \texttt{popen}.
+To ease the parsing, we can use the integrated tool ``pidof'' via a pipe opened through the call of \texttt{popen}.
 \texttt{popen} is a POSIX standard call that opens a one-way pipe to indicated  purposely process called via shell.
 
+%% in the programm
 As soon as the orchestrator is up and running, it scans for target processes which might be  defined in a configuration file (\textit{cmdfile}).
 The PID list is parsed and verified. 
-The whole process takes a fraction of a ms and does not put load on the cpu. With unlimited loop the {CPU}-load is below 3\%.
+The whole process takes a fraction of a ms and does not put load on the {CPU}. With unlimited loop the {CPU}-load is below 3\%.
 
+%% Consequences and results>>
 An option to optimize process verification might be that the environment controlling the containers informs the orchestrator about containers entering or leaving the scheduler.
 This way, an orchestrator does not have to scan for new PID all the time.
 Kubernetes, for example, foresees the use of postStart and preStop handlers when installing a pod. 
@@ -183,9 +189,57 @@ In our case we could use it to signal a process start or stop.
 More details about this configuration can be \href{{https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/}}{found here}.
 The Docker API on the other hand does not implement a pre- or post execution handler for container start or stop. 
 Only the container configuration itself could contain a run command as part of the container to be executed upon startup. This might be also a standard configuration setting, signaling the orchestrator the presence of a new container process.
+Anyway, this will be a feature to be implemented in a second moment.
 
+The test development is stored in git under {src/testPosix/thread.c}.
+
+\subsection{PID list}
+
+%% how
+Once the PIDs have been acquired, the orchestrator has to maintain a list of active processes. 
+For this purpose, and in order to match PIDs with scheduling information, a dynamic memory structure may be used.
+In order to store the information, the sorted resulting PID number array is sequentially used to fill a dynamic structure with scheduling data. 
+Cyclically, the memory structure will be compared with the updated PIDs. New processes will be inserted in orded in the structure, removed PIDs will be dropped.
+The actual type of dynamic data structure is irrelevant. Possible structures are linked lists, double linked lists, as well as sorted trees of any kind.
+
+%% In the program
+To test an implementation, a simple linked list has been implemented as a separate source file {src/testPosix/pidlist.c}.
+The test program structure has been rewritten. Now two threads are launched to keep track of the running processes. 
+
+Thread 1 will keep track of pids, add and remove list elements. The resulting PID array of a periodic scan is compared to the list's content.
+Insertion and deletion signals the presence of a new or removed process to the other thread.
+Thread 2, implemented in a second step, will take care of the distribution of resources among the listed PIDs. 
+
+%% Considerations.
+Thread 1 implementation works fluently. For the final implementation, Kernel list based structures should be considered. 
+The implementation uses predefined macros for add and delete in the list. Differently from the managed list, this implementation does not cover the memory management of the structure. Memory allocation and freeing must still be done by the programmer.
+
+\subsection{PID scheduling}
  
+%% how
+As a final step for the basic PID scheduling, we gather the information of a target process and set the new attributes. 
+Resources, initially only {CPU}-affinity, are distributed according to configured settings, i.e. max values for resource occupation. 
+This is for example a 80\% boundary for each computation unit ({CPU}). 
+The daemon and other system tasks should be mapped to separate resources. Even though real-time tasks have higher priority, a separate cpu might be needed to keep enough boundary for new entries and the system responsive.
 
+%% In the programm
+A CPU has a standard cyclic computation monitoring unit of 1 ms, separating it into 1000000 ticks. The different runtimes, deadlines and periods of the periodic tasks will be used to find a common denominator on a 1ms basis. 
+In the end, e.g. 80\% of {CPU} are filled cyclically. 
+The different distribution strategies, i.e. round robin etc., might be implemented in the final product.
 
+%% Considerations
+Thread 2 with be responsible for this task. Cyclically, and in a second moment by trigger, the new PIDs are configured to associate with specific resources.
+As this might introduce some resource peak, the reallocation must happen as soon as possible. 
+The new process entry might use any of the resouces and thus add some unwanted peak load. 
+If possible, the daemon and consequently the new created container processes should be bound to a reserved {CPU}, where all the system tasks are also allocated.
+
+\section{RT-app}
+
+During the tests, rt-app will be used as a test application, simulating real-time containers. 
+To monitor the app, the interaction with Icinga is foreseen.
+To gather proper information, the output of the application should be parsed and sent to the monitoring server.
+A plugin has to be written to interact with the Icinga daemon.
+Based on an existing plugin source code, a template for the new plugin has been created. 
+The instructions for a \hyperref{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}{Nagions plugin} are used to create the proper plugin output.
 
 \end{document}
