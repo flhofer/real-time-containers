@@ -7,6 +7,7 @@
 
 typedef struct sched_pid {
 	pid_t pid;
+	int affinity;
 	struct sched_attr attr;
 	struct sched_pid * next;
 } node_t;

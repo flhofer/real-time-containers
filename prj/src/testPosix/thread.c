@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // used for string parsing
@@ -13,6 +14,8 @@
 #define PRGNAME "DC static orchestrator"
 #define VERSION 0.1
 #define MAX_PIDS 64
+#define MAX_CPUS 8
+
 #define DBG
 
 /* Debug printing to console or buffer ?? */
@@ -25,14 +28,7 @@
 
 /* Available standard calls */
 
-//sched_get_priority_max(int);
-//sched_get_priority_min(int);
-//sched_getparam(pid_t, struct sched_param *);
-//sched_getscheduler(pid_t);
-//sched_rr_get_interval(pid_t, struct timespec *);
-//sched_setparam(pid_t, const struct sched_param *);
-//sched_setscheduler(pid_t, int, const struct sched_param *);
-//sched_yield(void)
+//sched_get_priority_max(int);//sched_get_priority_min(int);//sched_getparam(pid_t, struct sched_param *);//sched_getscheduler(pid_t);//sched_rr_get_interval(pid_t, struct timespec *);//sched_setparam(pid_t, const struct sched_param *);//sched_setscheduler(pid_t, int, const struct sched_param *);//sched_yield(void)
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
@@ -55,25 +51,6 @@ void inthand ( int signum ) {
 void *thread_update (void *arg); // thread that scans peridically for new entry pids
 void *thread_manage (void *arg); // thread that verifies status and allocates new threads
 
-/// schedulePID(): schedule a pid in the static limits
-//
-/// Arguments: - node to get info for
-///
-/// Return value: (void)
-///
-void schedulePID (node_t * node){
-
-	if (node->attr.size == 0) {
-		struct timespec tt;
-		
-		int ret = sched_rr_get_interval(node->pid, &tt);
-		printDbg("Schedule pid %d: %d %ld\n", node->pid, ret, tt.tv_nsec);
-
-		ret = sched_getattr (node->pid, &(node->attr), sizeof(node_t), 0U);
-		printDbg("Attr: %d %d\n", ret, node->attr.sched_policy);
-	}
-}
-
 /// updateSched(): main function called to verify running schedule
 //
 /// Arguments: 
@@ -81,15 +58,44 @@ void schedulePID (node_t * node){
 /// Return value: N/D
 ///
 int updateSched(){
+	uint64_t cputimes[MAX_CPUS] = {}; 
+	uint64_t cpuperiod[MAX_CPUS] = {}; 
+	cpu_set_t cset;
+
+	// zero cpu-set, static size set
+	CPU_ZERO(&cset);
+	CPU_SET(0, &cset);
+
 	pthread_mutex_lock(&dataMutex);
+
     node_t * current = head;
 	while (current != NULL) {
+		// get schedule of new pids
 		if (current->attr.size == 0) {
-			schedulePID(current);
+			struct timespec tt;
+			
+			int ret = sched_rr_get_interval(current->pid, &tt);
+			printDbg("Schedule pid %d: %d %ld\n", current->pid, ret, tt.tv_nsec);
+
+			ret = sched_getattr (current->pid, &(current->attr), sizeof(node_t), 0U);
+			printDbg("Attr: %d %d\n", ret, current->attr.sched_policy);
+
+			ret = sched_setaffinity(current->pid, sizeof(cset), &cset );
+			if (ret == 0)
+				printDbg("Pid %d reassigned to CPU0\n", current->pid);
+
+			// TODO: ret value evaluation 
 		}
+
+		// affinity not set?? default is 0, affinity of system stuff
+
+		// sum of cpu-times, affinity is only 1 cpu here
+		cputimes[current->affinity] += current->attr.sched_deadline;
+		cpuperiod[current->affinity] += current->attr.sched_deadline;
 
         current = current->next;
     }
+
 
 	pthread_mutex_unlock(&dataMutex);
 }
@@ -215,17 +221,11 @@ void prepareEnvironment() {
 
 	// TODO: set all non concerning tasks to background resources	
 	
-	struct timespec tt;
-	unsigned int flags = 0;
-	int ret;
-	struct sched_attr * pp;
 	// push into linked list
 	for (int i=0; i<cnt; i++){
 		printDbg("Result first scan pid %d\n", pidno[i]);		
-		pp = push (&head, pidno[i]);
+		(void)push (&head, pidno[i]);
 	}
-
-
 }
 
 /// thread_manage(): thread function call to manage and update present pids list
@@ -299,7 +299,6 @@ int main(int argc, char **argv)
 
 	// TODO: ADD check for SYS_NICE
 	// TODO: ADD check for task prio
-
 
 	// gather actual information at startup, prepare environment
 	prepareEnvironment();
