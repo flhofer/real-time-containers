@@ -7,14 +7,14 @@ void push_t(node_t * head, pid_t pid) {
     }
 
     /* now we can add a new variable */
-    current->next = malloc(sizeof(node_t));
+    current->next = calloc(sizeof(node_t), 1);
     current->next->pid = pid;
     current->next->next = NULL;
 }
 
 struct sched_attr * push(node_t ** head, pid_t pid) {
     node_t * new_node;
-    new_node = malloc(sizeof(node_t));
+    new_node = calloc(sizeof(node_t), 1);
 
     new_node->pid = pid;
     new_node->next = *head;
@@ -27,7 +27,7 @@ struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid) {
 		return push (head, pid);
 	}
    	node_t * new_node;
-    new_node = malloc(sizeof(node_t));
+    new_node = calloc(sizeof(node_t), 1);
 
     new_node->pid = pid;
     new_node->next = (*prev)->next;

@@ -233,6 +233,17 @@ As this might introduce some resource peak, the reallocation must happen as soon
 The new process entry might use any of the resouces and thus add some unwanted peak load. 
 If possible, the daemon and consequently the new created container processes should be bound to a reserved {CPU}, where all the system tasks are also allocated.
 
+\subsubitem{Thread communication}
+
+pipe, 
+signals
+sockets
+= usual IPC for processes
+threads advantage share memory so can use locks and memory allocations, lock count??
+to verify
+fifo buffer shared thread
+
+
 \section{RT-app}
 
 During the tests, rt-app will be used as a test application, simulating real-time containers. 

@@ -17,7 +17,7 @@
 
 /* Debug printing to console or buffer ?? */
 #ifdef DBG
-#define printDbg printf
+#define printDbg (void)printf
 
 #else
 #define printDbg //
@@ -42,7 +42,12 @@ pthread_mutex_t dataMutex;
 // head of pidlist
 node_t * head = NULL;
 
-// interrupt handler for infinite while loop
+/// inthand(): interrupt handler for infinite while loop, help 
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: 
+///
 void inthand ( int signum ) {
 	stop = 1;
 }
@@ -50,12 +55,59 @@ void inthand ( int signum ) {
 void *thread_update (void *arg); // thread that scans peridically for new entry pids
 void *thread_manage (void *arg); // thread that verifies status and allocates new threads
 
+/// schedulePID(): schedule a pid in the static limits
+//
+/// Arguments: - node to get info for
+///
+/// Return value: (void)
+///
+void schedulePID (node_t * node){
+
+	if (node->attr.size == 0) {
+		struct timespec tt;
+		
+		int ret = sched_rr_get_interval(node->pid, &tt);
+		printDbg("Schedule pid %d: %d %ld\n", node->pid, ret, tt.tv_nsec);
+
+		ret = sched_getattr (node->pid, &(node->attr), sizeof(node_t), 0U);
+		printDbg("Attr: %d %d\n", ret, node->attr.sched_policy);
+	}
+}
+
+/// updateSched(): main function called to verify running schedule
+//
+/// Arguments: 
+///
+/// Return value: N/D
+///
+int updateSched(){
+	pthread_mutex_lock(&dataMutex);
+    node_t * current = head;
+	while (current != NULL) {
+		if (current->attr.size == 0) {
+			schedulePID(current);
+		}
+
+        current = current->next;
+    }
+
+	pthread_mutex_unlock(&dataMutex);
+}
+
+/// getpids(): utility function to get PID list of interrest
+/// Arguments: - pointer to array of PID
+///			   - size in elements of array of PID
+///			   - tag string containing the 
+///
+/// Return value: number of PIDs found (total)
+///
 int getpids (pid_t *pidno, size_t cnt, char * tag)
 {
 	char pidline[1024];
 	char req[20];
 	char *pid;
 	int i =0  ;
+	// prepare literal and open pipe request
 	sprintf (req,  "pidof %s", tag);
 	FILE *fp = popen(req,"r");
 	fgets(pidline,1024,fp);
@@ -63,6 +115,7 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 
 	printDbg("Pid string return %s", pidline);
 	pid = strtok (pidline," ");
+	// Scan through string and put in array
 	while(pid != NULL && i < cnt)
 		    {
 		            *pidno = atoi(pid);
@@ -76,6 +129,13 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	return i;
 }
 
+/// scanNew(): main function for thread_update, scans for pids and inserts
+/// or drops the PID list
+///
+/// Arguments: 
+///
+/// Return value: 
+///
 void scanNew () {
 	// get PIDs 
 	pid_t pidno[MAX_PIDS];
@@ -90,6 +150,8 @@ void scanNew () {
 	int i = cnt-1;
 
 	printDbg("Entering node update\n");		
+	// lock data to avoid inconsistency
+	pthread_mutex_lock(&dataMutex);
 	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
 		if (pidno[i] < ((*act).pid)) {
@@ -131,33 +193,46 @@ void scanNew () {
 		int ret = drop_after(&head, &prev);
 		// sig here to other thread?
 	}
+	// unlock data thread
+	pthread_mutex_unlock(&dataMutex);
 
 	printDbg("Exiting node update\n");	
 }
 
-void getinfo() {
+/// prepareEnvironment(): gets the list of active pids at startup, sets up
+/// a CPU-shield if not present, and populates initial state of pid list
+///
+/// Arguments: 
+///
+/// Return value: 
+///
+void prepareEnvironment() {
 	// get PIDs 
 	pid_t pidno[MAX_PIDS];
 
+	// here the other threads are not started yet.. no lock needed
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
+
+	// TODO: set all non concerning tasks to background resources	
 	
 	struct timespec tt;
 	unsigned int flags = 0;
 	int ret;
 	struct sched_attr * pp;
+	// push into linked list
 	for (int i=0; i<cnt; i++){
 		printDbg("Result first scan pid %d\n", pidno[i]);		
 		pp = push (&head, pidno[i]);
-
-		ret = sched_rr_get_interval(pidno[i], &tt);
-		printDbg("Result pid %d %ld: %d %ld\n", pidno[i], (long)&pidno[i], ret, tt.tv_nsec);
-
-		ret = sched_getattr (pidno[i], pp, sizeof(node_t), flags);
-		printDbg("Result: %d %d\n", ret, (*pp).size);
 	}
+
+
 }
 
-/* Thread to manage pid updates */
+/// thread_manage(): thread function call to manage and update present pids list
+///
+/// Arguments: - thread state/state machine, passed on to allow main thread stop
+///
+/// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_update (void *arg)
 {
 	int* pthread_state = arg;
@@ -167,9 +242,7 @@ void *thread_update (void *arg)
 	  switch( *pthread_state )
 	  {
 	  case 0: // normal thread loop
-		pthread_mutex_lock(&dataMutex); // move to position once done
 		scanNew();
-		pthread_mutex_unlock(&dataMutex); // move to position once done
 		break;
 	  case -1:
 		// tidy or whatever is necessary
@@ -179,16 +252,15 @@ void *thread_update (void *arg)
 		// do something special
 		break;
 	  }
-	  sleep(1);
+	  usleep(1000000);
 	}
 }
 
-/* Thread to manage thread scheduling */
-
-//  pthread_mutex_lock(&dataMutex);
-//  
-//  pthread_mutex_unlock(&dataMutex);
-
+/// thread_manage(): thread function call to manage and update schedule list
+///
+/// Arguments: - thread state/state machine, passed on to allow main thread stop
+///
+/// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_manage (void *arg)
 {
 	int* pthread_state = arg;
@@ -198,6 +270,7 @@ void *thread_manage (void *arg)
 	  switch( *pthread_state )
 	  {
 	  case 0: // normal thread loop
+		updateSched();
 		break;
 	  case -1:
 		// tidy or whatever is necessary
@@ -212,7 +285,11 @@ void *thread_manage (void *arg)
 	}
 }
 
-// main program.. setup threads and keep loop
+/// main(): mein program.. setup threads and keep loop for user/system break
+///
+/// Arguments: - Argument values not defined yet
+///
+/// Return value: Exit code - 0 for no error - EXIT_SUCCESS
 int main(int argc, char **argv)
 {
 	
@@ -224,11 +301,8 @@ int main(int argc, char **argv)
 	// TODO: ADD check for task prio
 
 
-	// gather actual information at startup
-	getinfo();
-
-	// TODO: set all non concerning tasks to background resources	
-
+	// gather actual information at startup, prepare environment
+	prepareEnvironment();
 
 	pthread_t thread1, thread2;
 	int t_stat1 = 0; // we control thread status
