@@ -235,24 +235,61 @@ If possible, the daemon and consequently the new created container processes sho
 
 \subsubitem{Thread communication}
 
-pipe, 
-signals
-sockets
-= usual IPC for processes
-threads advantage share memory so can use locks and memory allocations, lock count??
-to verify
-fifo buffer shared thread
+%% How
+The communication between the running threads can be performed in different ways:
+
+\begin{enumerate}
+	\item we might use the usual IPC, as it is done between processes via
+	\begin{enumerate}
+		\item pipe - a connection between in and out, therefore not easily doable as the threads by default share the same stdin and stdout;
+		\item signals - such as \textit{INT} or \textit{HUP} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself;
+		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information;
+	\end{enumerate}
+	\item shared memory - probably the easiest type. The advantage of threads is that they 
+	share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
+\end{enumerate}
+The easiest approach therefore is to use shared variables and a semaphore/mutex.
+
+%% In the programm
+In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
+This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
+The program changes are minimal and thus the code remains as readable as before.
+
+%% Considerations
+The two threads can manage the list independently as before. On every execution the actual thread has exclusive access to the list.
+This way, thread one can drop any removed item simply from the list and add new PIDs once discovered. 
+Thread two has to scan the PID list anyway.
+If new empty items are found, the settings are populated and resources allocated and scheduled.
+The important part here is to assure that the critical section and the new task default resources are not part of the managed spectrum.
+Any new entry has to be reallocated as soon as possible, but at the same time, there must be found a way to allocate new containers by default to specific resources.
+
+\subsection{Affinity selection}
+
+%% How
+Affinity selection can be done via the commands \texttt{sched\_setaffinity} and \texttt{sched\_getaffinity}.
+A variety of auxiliary commands are available. 
+The macro commands starting with \texttt{CPU\_*} are used to create and modify CPU-Set masks.
+Those masks are then needed to change a process's affinity.
+
+%% In the programm
+In the programm the new entries found by thread two will be checked for affinity and resources.
+Once the task information has been gathered, the updated values will be set according to the actual configuration.
+The distribution and cap of resources might be defined as round robin or alike.
+During this phase, thread two will also read actual values and monitor the execution cap of tasks.
+
+%% Considerations
+This is the last active section of the test implementation and probably the most complicated as well.
+The ideal resource management is hard to guarantee.
+The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
+If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
+If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
+Such algorithms must surely be reevaluated for the dynamic scheduling version.
+
+\subsection{Parameters and configuration}
 
 
 
-%%%% more notes
- sched_setaffinity,  sched_getaffinity
- 
- CPU_SET,  CPU_CLR,  CPU_ISSET,  CPU_ZERO, CPU_COUNT, CPU_AND, CPU_OR,
- CPU_XOR, CPU_EQUAL, CPU_ALLOC, CPU_ALLOC_SIZE,  CPU_FREE,  CPU_SET_S,
- CPU_CLR_S, CPU_ISSET_S, CPU_ZERO_S, CPU_COUNT_S, CPU_AND_S, CPU_OR_S,
- CPU_XOR_S, CPU_EQUAL_S - macros for manipulating CPU sets
- 
+
 
 \section{RT-app}
 
@@ -261,6 +298,6 @@ To monitor the app, the interaction with Icinga is foreseen.
 To gather proper information, the output of the application should be parsed and sent to the monitoring server.
 A plugin has to be written to interact with the Icinga daemon.
 Based on an existing plugin source code, a template for the new plugin has been created. 
-The instructions for a \hyperref{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}{Nagions plugin} are used to create the proper plugin output.
+The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
 
 \end{document}
