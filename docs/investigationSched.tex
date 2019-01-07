@@ -11,7 +11,7 @@
 
 \begin{abstract}
 In this document, a exploratory step by step investigation on process management and scheduling techniques are discussed.
-After some inituial 
+%TODO: abstract? //  After some inituial 
 \end{abstract}
 
 \section{Environment}
@@ -250,7 +250,7 @@ The communication between the running threads can be performed in different ways
 \end{enumerate}
 The easiest approach therefore is to use shared variables and a semaphore/mutex.
 
-%% In the programm
+%% In the program
 In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
 This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
 The program changes are minimal and thus the code remains as readable as before.
@@ -271,8 +271,8 @@ A variety of auxiliary commands are available.
 The macro commands starting with \texttt{CPU\_*} are used to create and modify CPU-Set masks.
 Those masks are then needed to change a process's affinity.
 
-%% In the programm
-In the programm the new entries found by thread two will be checked for affinity and resources.
+%% In the program
+In the program the new entries found by thread two will be checked for affinity and resources.
 Once the task information has been gathered, the updated values will be set according to the actual configuration.
 The distribution and cap of resources might be defined as round robin or alike.
 During this phase, thread two will also read actual values and monitor the execution cap of tasks.
@@ -287,9 +287,20 @@ Such algorithms must surely be reevaluated for the dynamic scheduling version.
 
 \subsection{Parameters and configuration}
 
+%% How
+Parameter configuration can be done in multiple ways. The two major options taken into consideration are parameter file and command line parameters.
+The latter might work for a test phase, but might get to be a burden once the system and configurable parameters grow in size.
+A combination of both might be the ideal solution.
 
+%% In the program
+For some first tests, command line parameters will be used to set thresholds and limits. Those will later be moved into a configuration file.
+The parameters include Ulimit, CPU masks of reserved computing units, memory maps and I/O resources that might be configured. 
+For the implementation, the posix getopt parsing function will be used.
+To parse the configuration file, a pre-defined library will be used where possible.
 
-
+%% Considerations
+When working with strings and buffers, such as configuration files, particular attention must be given to the possibility of buffer overflows and alike.
+Finally, the combination of configuration file containing all process details and the command arguments, needed for example to select configuration file and set verbosity, might be the best option.
 
 \section{RT-app}
 
