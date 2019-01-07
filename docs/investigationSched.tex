@@ -2,7 +2,7 @@
 \usepackage{hyperref}
 
 %opening
-\title{Investigation on possibilities of scheduling manipulation}
+\title{\textit{(Notes to..) } Investigation on possibilities of scheduling manipulation}
 \author{Florian Hofer}
 
 \begin{document}
@@ -310,5 +310,47 @@ To gather proper information, the output of the application should be parsed and
 A plugin has to be written to interact with the Icinga daemon.
 Based on an existing plugin source code, a template for the new plugin has been created. 
 The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
+
+
+\subsection{Configuration}
+
+%% How
+The configuration of RT-app is done via a JSON file. The file specifies the amount, type and duration of the computing simulation tasks.
+
+%% In the program
+For the purpose of out project, each container will have only one task. 
+Thus, the configuration will contain only one entry for thread and a global configuration.
+Times defined in the configuration are in $\mu s$.
+
+%% Considerations
+The configuration sample can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
+
+\subsection{Logging}
+
+%% How
+RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
+This thus does not allow to use the default logging function for continuous monitoring purposes.
+If a ring-buffer is set in the configuration settings, the buffer is written to file only once the test is finished or interrupted. 
+Thus, an adaptation of the logging function might be needed to allow readout of the task's performance.
+The source code is available and written in C. Changes should therefore be no major problem.
+
+%% In the program
+Some minor changes to the logging function have been successfully tested. Insertion of the ring-buffer dump every time it's capacity has been reached and overwriting of the log-file works as expected.
+Issues that might be encountered are the high load to disk I/O if a small disks buffer size forces to write to file, and consequently induces delays.
+
+%% Considerations
+An option to consider might be the writing to the stdout and piping the process to the Icinga plugin. 
+
+
+\subsection{Icinga plugin}
+
+%% How
+
+
+%% In the program
+
+
+%% Considerations
+
 
 \end{document}
