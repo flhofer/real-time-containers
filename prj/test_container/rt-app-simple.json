@@ -1,8 +1,7 @@
 {
 	"tasks" : {
 		"thread1" : {
-			"cpus" : [0,1,2,3], 
-			"policy" : "SCHED_FIFO",
+			"policy" : "SCHED_DEADLINE",
 			"priority" : 10,
 			"dl-runtime" : 1000,
 			"dl-period" : 10000,
@@ -17,9 +16,9 @@
 	},
 
 	"global" : {
-		"duration" : 60,
+		"duration" : -1,
 		"calibration" : "CPU0",
-		"default_policy" : "SCHED_FIFO",
+		"default_policy" : "SCHED_DEADLINE",
 		"pi_enabled" : false,
 		"lock_pages" : false,
 		"logdir" : "./",
