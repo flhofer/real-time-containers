@@ -3,19 +3,19 @@ library(tidyr)
 library(ggplot2)
 library(reshape2)
 
-myDataC<-read.csv("stats.csv", sep=";")[1:10000,1:9]
+myDataC<-read.csv("stats.csv", sep=";")[1:10000,1:12]
 
-myData<-gather(myDataC, "mtype", value, "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
+myData<-gather(myDataC, "mtype", value, "BM.Std", "BM.Xen", "BM.Prt", "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
 myData<-myData[!(myData$value==0),]
 
-oversh<-read.csv("stats.csv", sep=";")[10005:10005,1:9]
-total<-read.csv("stats.csv", sep=";")[10001:10001,1:9]
+oversh<-read.csv("stats.csv", sep=";")[10005:10005,1:12]
+total<-read.csv("stats.csv", sep=";")[10001:10001,1:12]
 oversh <- oversh / total * 100
-oversh<-gather(oversh, "mtype", value, "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
+oversh<-gather(oversh, "mtype", value, "BM.Std", "BM.Xen", "BM.Prt",  "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
 oversh<-oversh[!(oversh$value==0),]
 
-means<-read.csv("stats.csv", sep=";")[10003:10003,1:9]
-means<-gather(means, "mtype", value, "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
+means<-read.csv("stats.csv", sep=";")[10003:10003,1:12]
+means<-gather(means, "mtype", value, "BM.Std", "BM.Xen", "BM.Prt", "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
 
 ggplot(myData, aes(x=mtype, y=Time)) + 
     geom_boxplot(fill="slateblue", alpha=0.2) +
