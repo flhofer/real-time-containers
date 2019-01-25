@@ -24,4 +24,6 @@ ggplot(myData, aes(x=mtype, y=Time)) +
     labs(x="Machine type", y= "Start time uS", size=">10 ms in\n% of set")+
 	scale_y_continuous(trans='log10') +
     geom_hline(yintercept = 100, colour="#990000", linetype="dashed") +
-    geom_hline(yintercept = 10000, colour="#990000", linetype="dashed")
+    geom_hline(yintercept = 10000, colour="#990000", linetype="dashed") +
+	theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
