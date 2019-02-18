@@ -14,6 +14,104 @@ In this document, a exploratory step by step investigation on process management
 %TODO: abstract? //  After some inituial 
 \end{abstract}
 
+\section{Introduction}
+
+
+%What is the state - Background, historical, terms and definitions
+Emerging technologies such as the Internet of Things and Cloud Computing are re-shaping the structure and control of industrial processes radically. 
+The extent of these innovations, which allow the creation of highly flexible production systems, is so wide that today we talk about a fourth industrial revolution.
+Key enabling technologies such as distributed sensing, big-data analysis and cloud storage are taking the center stage in developing new industrial control systems.
+
+With the emerging needs of a more distributed system, the requirements for running control tasks change as well.
+Different from before, the new software architectures foresee a distributed deployment of single functionalities, requiring the nodes to work together all in sync for a production process to work properly. 
+%
+The control of industrial processes, however, has not changed much over the last few decades, and there are reasons for it.
+For instance, typical control applications found in industrial processes have to respond to changes in the physical world within predefined time limits.
+Moving the execution of control tasks from devices physically co-located with the controlled process to cloud or fog computing platforms requires dealing with network delays that are difficult to predict.
+Moreover, while bare-metal solutions lend the control design full authority over the environment in which its software will run, it is not straightforward to determine under what conditions the software can be executed on cloud computing platforms due to resource virtualization properties.
+Yet, we believe that the principles of Industry 4.0 present a unique opportunity to explore complementing traditional automation components by a novel control architecture \cite{Tascietal2018}.
+
+We believe that modern virtualization techniques such as application containerization \cite{Mogaetal2016,Tascietal2018,GoldschmidtHauck-Stattelmann2016} are key for adequate utilization of cloud computing resources in industrial control systems.
+The use of containerized control applications would yield the same advantages that traditional containerized microservices present: light and easily distributable control applications would be able to, for instance, run on any system and at the same time, be easily maintained and updated. 
+Thus, enhanced scalability, portability, updatability and availability can be achieved \cite{Fazioetal2016}.
+%New -> Industry 4.0 relatedness..
+Beyond the migration and resource savings, parallel operation of containers on devices such as PLCs and, in small amounts, on sensing and actuating field devices, is possible. 
+This will increase reliability and robustness, while enabling further exploitation of Self-* properties including Self-awareness and Self-compare.
+% same container on multiple devices = redundancy and reliability
+% Ease maintenance, one system still up -> changes etc see Goldschmidtetal2018
+
+Hardrealtimecionstraints to insert here
+The new setup also puts systmesm and architects in fromt of new develomment reqirements. softeae modules are now to be excnaged and updates ind a distrubuted manner as the functionality itself is not located in as igle place anymre 
+thus requires for a change in controlling and management of these software modules, at the cost to increase mainatainabilty and ease of use of such systems
+Lately the trend to imoment the single sorfteare modules into containers, isolated threads tunning in paralel on shared softeare. this has the advantage of a abstracting the software modle from its host, making maintangenca and redundancy quite easy to achieve % rerfenrec to paper redundancy migration
+However, these containers are not made to run with hard realtime constraint s by default. therefore some changes at the operating system level as well as some orchestration has to be performed in order to guarantee the exeution of fhte sof with deadlines.
+The containers may be orchestrated in a static wauy, knowing hte actual execution tume and peruods, and all tasks thata are present, or in a dynamic way, as tge tasks enter and leave, new schedules are computed on deamand.
+however, if the maximum execcton tme of the task is not known, the schedule of containers is uncedcideable. the dmanic scheduling will dtheregore be dine at best.
+
+for simplicity, we suppose that the tasks are all inependend. the tasks are considered to be black boxes, so we donta have access to the surcecode. 
+Quasi static and similar approaches opt to improve schedulaility at compiletime are therefore not applicable.
+the tasks may exceed the deadline, but in low pprobaility and contemporanetiy
+we haveto consider to define those values in order to obtain boundaries and milins. might aslo be expermimental valies optained from the running containers in siemens bm farm
+
+
+%Setup of the paper
+The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:bgnd} introduces the background motivating this analysis. 
+We next discuss methodology and design of experiments and review containerization frameworks in Section~\ref{sec:contfram}, and compare candidate host operating systems to run the container engine in Section~\ref{sec:ostest}. 
+Finally, we document the tests performed in Section~\ref{sec:virtsust} and conclude in Section~\ref{sec:conclusion}.
+
+\section{Related work}
+\label{sec:relwork}
+
+%Let's start with approaches containers for control applications
+Containerizing control applications has been discussed in recent literature. 
+Morga et al. \cite{Mogaetal2016}, for instance, presented the concept of containerization of full control applications as a means to decouple the hardware and software life-cycles of an industrial automation system.
+Due to the performance overhead in hardware virtualization, the authors state that OS-level virtualization is a suitable technique to cope with automation system timing demands.
+The authors propose two approaches to migrate a control application into containers on top of a patched real-time Linux-based operating system: 
+\begin{itemize}
+	\item A given system is decomposed into subsystems, where a set of sub-units performs a localized computation, which then is actuated through a global decision maker. 
+	\item Devices are defined, where each component is an isolated standalone solution with a shared communication stack.
+	Based on this, systems are further divided into modules, allowing a granular development and update strategy. 
+\end{itemize}
+The authors demonstrate the feasibility of real-time applications in conjunction with containerization, even though they express concern on the maturity of the technical solution presented.
+
+In related work, Goldschmidt and Hauk-Stattelmann \cite{GoldschmidtHauck-Stattelmann2016} presented a similar solution.
+They perform benchmark tests on modularized industrial Programmable Logic Controller (PLC) applications to analyze the impact of container-based virtualization on real-time constraints.
+As there is no solution for legacy code migration of PLCs to this point, the migration to application containers could extend a system's lifetime beyond the physical device's limits.
+Even though tests showed worst-case latencies of the order of 15ms on Intel-based hosts (this may prevent direct application), the authors argue that the container engines may be stripped down and optimized for real-time execution.
+In a follow-up work of Goldschmidt et al. \cite{Goldschmidtetal2018}, a possible multi-purpose architecture has been detailed and the proposal tested in a real-world use case.
+The results show worst case latencies in the range of 1ms for a Raspberry PI single board computer, making the solution viable for cycle times in the range of 100ms to 1s.
+The authors state that topics like memory overhead, containers' restricted access and problems due to technology immaturity are still to be investigated.
+
+Tasci et al. \cite{Tascietal2018} address architectural details not discussed in \cite{GoldschmidtHauck-Stattelmann2016} and \cite{Goldschmidtetal2018}, such as the definite run-time environment and how deterministic communication of containers and field devices may be achieved in a novel container-based architecture. 
+They propose a Linux-based solution as host operating system, including both the single kernel preemption-focused PREEMPT-RT patch and the co-kernel oriented Xenomai. 
+With the latter patch, this approach shows better predictability, although it suffers from security constraints. For this reason, they suggest to limit its application for safety-critical code execution. 
+They analyze and discuss in detail inter-process messaging, focusing on the specific properties needed in real-time applications.
+Finally, they implement an orchestration run-time managing intra-container communication and show that task times of $500\mu s$ are possible.
+
+%What about containers in the cloud?
+The three solutions discussed above share one common property: they where based on bare-metal configurations. 
+The solutions took into consideration real-time constraints, but limited to execution on physical hardware.
+Nonetheless, current trends in industry favor the flexibility of resource sharing through cloud computing.
+Thus, there is reason to investigate whether real-time control applications may also be ran on a shared infrastructure, their capabilities and limitations.
+
+In 2014, Garcia-Vallas et al. \cite{Garcia-Vallsetal2014} analyzed challenges for predictable and deterministic cloud computing.
+Even though the focus of their paper is on soft real-time applications, certain aspects and limits can be applied to any real-time systems.
+Merging cloud computing with real-time requirements is a challenging task; the authors state that the guest OS has only limited access to physical hardware and thus suffers from unpredictability of non-hierarchical scheduling, and thick stack communications. 
+While there exist real-time enabled hypervisors, such as the paravirtualized RT-Xen with direct access to hardware, the shared resources still suffer from latencies that may make real-time execution impossible.
+Felter et al. in \cite{Felteretal2015} focused on identifying the performance of instances based on hardware virtualization via Kernel-based Virtual Machines (KVMs) and container OS-virtualization using Docker. 
+The benchmarks confirm that Docker results in equal or better performance than KVMs in almost all cases.
+Arango et al. \cite{Arangoetal2017} analyzed three containerization techniques for use in cloud computing. 
+The paper compares LXC, Docker and Singularity, an engine developed by Lawrence Berkeley National Laboratory, to a bare-metal application. 
+In many aspects, the Singularity containers performed better, sometimes even better than the bare-metal implementation, but this is largely due to the blended approach of the engine; Singularity is an incomplete virtualization solution in that it virtualizes only to a minimal degree, granting access to I/O operations without context changes.
+%Additional information: They say depending on app and configuration to select the proper os
+
+
+%But there is noone investigating the combination
+So far, we have seen that containerization techniques have been tested with early positive results in a variety of contexts.
+However, a combination of containers executed on cloud resources and control application containerization has not yet been examined in the literature. 
+In this paper, we assess the feasibility of such approaches.
+
+
 \section{Environment}
 
 Containers are run, started either by runc or dockerrun, and initialized if configured with an init thread as process 1. 
@@ -345,12 +443,20 @@ An option to consider might be the writing to the stdout and piping the process 
 \subsection{Icinga plugin}
 
 %% How
+Icinga plugin running in paralel to the orchestrator. We need data about the tasks and the network performance. In the end we dont watn to create too much overhead for the system, therefore it would be ideal if the orchestratior might be able to exchng the task data obtained from the system scheduler with the plugin.
+Other data that can be read is the network throughput. although it might influence the performance , in particular if we want to implement time sensitive networks.
+The overhead of the virtual internal network could push on the actual performance. we should check if there is a way of reading io of the network withouth having to create a virtual subnet.
+Also possible might be to read disk I/o of a container. even though it could be that it is not necessary. 
+IS there an icinga plugin made for docker containers already available that can be adapted?
+
+
 
 %% In the program
 
+
 %% Considerations
 
-%% Communication
+
 % Time syncronous network (TSN) maybe necessary
 
 Heuristic bound, wc has to be satisfied
@@ -374,7 +480,6 @@ Reduce the load of the operating system -> quasi static system, decision, compil
 paper alberto -> scheduling integer linear,
 -> forward 
 ballarin, 
-
 
 
 
