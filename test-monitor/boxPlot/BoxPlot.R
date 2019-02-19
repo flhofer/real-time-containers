@@ -22,7 +22,7 @@ ggplot(myData, aes(x=mtype, y=Time)) +
     geom_boxplot(fill="slateblue", alpha=0.2) +
     geom_point(data = oversh, aes(x = mtype, y = 11500, size=value), shape=17, , color="red", fill="red") +
     geom_point(data = means, aes(x = mtype, y = value), shape=20, size=5, color="blue", fill="blue") +
-    labs(x="Machine type", y= expression(paste("Start time  ", mu, "sec")), size=">10 ms in\n% of set")+
+    labs(x="Machine type", y= expression(paste("Start time  (values are in ", mu, "s)")), size=">10 ms in\n% of set")+
     geom_hline(yintercept = 100, colour="#990000", linetype="dashed") +
     geom_hline(yintercept = 10000, colour="#990000", linetype="dashed") +
 	theme(axis.text.x = element_text(angle = 90, hjust = 1))
