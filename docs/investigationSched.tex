@@ -2,7 +2,7 @@
 \usepackage{hyperref}
 
 %opening
-\title{\textit{(Notes to..) } Investigation on possibilities of scheduling manipulation}
+\title{Orchestrating real-time containers:\\ on the possibilities of schedule manipulation}
 \author{Florian Hofer}
 
 \begin{document}
@@ -10,7 +10,7 @@
 \maketitle
 
 \begin{abstract}
-In this document, a exploratory step by step investigation on process management and scheduling techniques are discussed.
+In this document, an exploratory step by step investigation on process management and scheduling techniques are discussed.
 %TODO: abstract? //  After some inituial 
 \end{abstract}
 
@@ -22,9 +22,6 @@ Emerging technologies such as the Internet of Things and Cloud Computing are re-
 The extent of these innovations, which allow the creation of highly flexible production systems, is so wide that today we talk about a fourth industrial revolution.
 Key enabling technologies such as distributed sensing, big-data analysis and cloud storage are taking the center stage in developing new industrial control systems.
 
-With the emerging needs of a more distributed system, the requirements for running control tasks change as well.
-Different from before, the new software architectures foresee a distributed deployment of single functionalities, requiring the nodes to work together all in sync for a production process to work properly. 
-%
 The control of industrial processes, however, has not changed much over the last few decades, and there are reasons for it.
 For instance, typical control applications found in industrial processes have to respond to changes in the physical world within predefined time limits.
 Moving the execution of control tasks from devices physically co-located with the controlled process to cloud or fog computing platforms requires dealing with network delays that are difficult to predict.
@@ -40,27 +37,32 @@ This will increase reliability and robustness, while enabling further exploitati
 % same container on multiple devices = redundancy and reliability
 % Ease maintenance, one system still up -> changes etc see Goldschmidtetal2018
 
-Hardrealtimecionstraints to insert here
-The new setup also puts systmesm and architects in fromt of new develomment reqirements. softeae modules are now to be excnaged and updates ind a distrubuted manner as the functionality itself is not located in as igle place anymre 
-thus requires for a change in controlling and management of these software modules, at the cost to increase mainatainabilty and ease of use of such systems
-Lately the trend to imoment the single sorfteare modules into containers, isolated threads tunning in paralel on shared softeare. this has the advantage of a abstracting the software modle from its host, making maintangenca and redundancy quite easy to achieve % rerfenrec to paper redundancy migration
-However, these containers are not made to run with hard realtime constraint s by default. therefore some changes at the operating system level as well as some orchestration has to be performed in order to guarantee the exeution of fhte sof with deadlines.
-The containers may be orchestrated in a static wauy, knowing hte actual execution tume and peruods, and all tasks thata are present, or in a dynamic way, as tge tasks enter and leave, new schedules are computed on deamand.
-however, if the maximum execcton tme of the task is not known, the schedule of containers is uncedcideable. the dmanic scheduling will dtheregore be dine at best.
+% what do we do about it
+In this paper, we explore the feasibility of managing real-time control applications running on a shared resource environment.
+The contributions of this paper are: 
+\begin{itemize}
+	\item Evaluation of access and control techniques to vary a container's run parameters and constraints, including scheduling information;
+	
+	\item Exploration of implementation techniques of a task, which takes charge of automating those settings and constraints, further called orchestrator;
+	
+	\item Evaluation of monitoring and implementation of a monitoring interface;
+	
+	\item Static scheduling of application containers as real-time tasks;
 
-for simplicity, we suppose that the tasks are all inependend. the tasks are considered to be black boxes, so we donta have access to the surcecode. 
-Quasi static and similar approaches opt to improve schedulaility at compiletime are therefore not applicable.
-the tasks may exceed the deadline, but in low pprobaility and contemporanetiy
-we haveto consider to define those values in order to obtain boundaries and milins. might aslo be expermimental valies optained from the running containers in siemens bm farm
-
+	\item Latency and determinism tests to confirm parameters and configurations enabling static and (quasi) dynamic container management;
+		
+	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
+\end{itemize}
 
 %Setup of the paper
+%TODO: repass the structure
 The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:bgnd} introduces the background motivating this analysis. 
 We next discuss methodology and design of experiments and review containerization frameworks in Section~\ref{sec:contfram}, and compare candidate host operating systems to run the container engine in Section~\ref{sec:ostest}. 
 Finally, we document the tests performed in Section~\ref{sec:virtsust} and conclude in Section~\ref{sec:conclusion}.
 
 \section{Related work}
 \label{sec:relwork}
+%TODO: redo!
 
 %Let's start with approaches containers for control applications
 Containerizing control applications has been discussed in recent literature. 
@@ -112,7 +114,26 @@ However, a combination of containers executed on cloud resources and control app
 In this paper, we assess the feasibility of such approaches.
 
 
-\section{Environment}
+\section{Context and problem}
+
+With the rising needs of a more distributed system, the requirements for a running control tasks change as well.
+Different from before, the new software architectures foresee a distributed deployment of single functionalities, requiring the nodes to work together all in sync for a production process to work properly. 
+%As discussed previously, those systems incur in timing requirements, wic
+%Hardrealtimecionstraints to insert here
+The new setup also puts systems and architectures in front of new development requirements. Software modules are now to be exchanged and updates in a distributed manner as the functionality itself is not located in as single place anymore. 
+Thus, requires for a change in controlling and management of these software modules, at the cost to increase maintainability and ease of use of such systems.
+
+Lately the trend to implement the single software modules into containers, isolated threads running in parallel on shared software. This has the advantage of abstracting the software model from its host, making maintenance and redundancy quite easy to achieve % rerfenrec to paper redundancy migration
+However, these containers are not made to run with hard real-time constraint by default. Therefore, some changes at the operating system level as well as some orchestration has to be performed in order to guarantee the execution of the software within defined deadlines.
+The containers may be orchestrated statically, knowing the actual execution time and periods, and all tasks that are present, or dynamically, as the tasks enter and leave, new schedules are computed on demand.
+However, if the maximum peak execution time of a task is not known, the schedule of containers is undecidable. 
+
+The dynamic scheduling will therefore be done at best using the following considerations.
+for simplicity, we suppose that the tasks are all inependend. the tasks are considered to be black boxes, so we donta have access to the surcecode. 
+Quasi static and similar approaches opt to improve schedulaility at compiletime are therefore not applicable.
+the tasks may exceed the deadline, but in low pprobaility and contemporanetiy
+we haveto consider to define those values in order to obtain boundaries and milins. might aslo be expermimental valies optained from the running containers in siemens bm farm
+
 
 Containers are run, started either by runc or dockerrun, and initialized if configured with an init thread as process 1. 
 The new container has a different pid space and userspace
@@ -481,6 +502,6 @@ paper alberto -> scheduling integer linear,
 -> forward 
 ballarin, 
 
-
+\bibliography{IEEEabrv,bibliography}
 
 \end{document}
