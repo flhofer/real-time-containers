@@ -1,5 +1,6 @@
 \documentclass[]{scrartcl}
 \usepackage{hyperref}
+\usepackage{lipsum}
 
 %opening
 \title{Orchestrating real-time containers:\\ on the possibilities of schedule manipulation}
@@ -11,11 +12,10 @@
 
 \begin{abstract}
 In this document, an exploratory step by step investigation on process management and scheduling techniques are discussed.
-%TODO: abstract? //  After some inituial 
+%TODO: abstract? //  After some initial 
 \end{abstract}
 
 \section{Introduction}
-
 
 %What is the state - Background, historical, terms and definitions
 Emerging technologies such as the Internet of Things and Cloud Computing are re-shaping the structure and control of industrial processes radically. 
@@ -55,14 +55,13 @@ The contributions of this paper are:
 \end{itemize}
 
 %Setup of the paper
-%TODO: repass the structure
-The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:bgnd} introduces the background motivating this analysis. 
-We next discuss methodology and design of experiments and review containerization frameworks in Section~\ref{sec:contfram}, and compare candidate host operating systems to run the container engine in Section~\ref{sec:ostest}. 
-Finally, we document the tests performed in Section~\ref{sec:virtsust} and conclude in Section~\ref{sec:conclusion}.
+The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:context} introduces the problem and the environment.
+We next investigate how an orchestration and resource management might be performed analyzing a variety of options in Section~\ref{sec:mgmttest}, and perform a test implementation of the chosen method in Section~\ref{sec:testimp}.
+Finally, we document the performed performance tests in Section~\ref{sec:perftest} and conclude in Section~\ref{sec:conclusion}.
 
 \section{Related work}
 \label{sec:relwork}
-%TODO: redo!
+%TODO: redo, view paper notes of the first edition
 
 %Let's start with approaches containers for control applications
 Containerizing control applications has been discussed in recent literature. 
@@ -100,68 +99,55 @@ In 2014, Garcia-Vallas et al. \cite{Garcia-Vallsetal2014} analyzed challenges fo
 Even though the focus of their paper is on soft real-time applications, certain aspects and limits can be applied to any real-time systems.
 Merging cloud computing with real-time requirements is a challenging task; the authors state that the guest OS has only limited access to physical hardware and thus suffers from unpredictability of non-hierarchical scheduling, and thick stack communications. 
 
-% From here on focuses too much on containers, less on scheduling
-%While there exist real-time enabled hypervisors, such as the paravirtualized RT-Xen with direct access to hardware, the shared resources still suffer from latencies that may make real-time execution impossible.
-%Felter et al. in \cite{Felteretal2015} focused on identifying the performance of instances based on hardware virtualization via Kernel-based Virtual Machines (KVMs) and container OS-virtualization using Docker. 
-%The benchmarks confirm that Docker results in equal or better performance than KVMs in almost all cases.
-%Arango et al. \cite{Arangoetal2017} analyzed three containerization techniques for use in cloud computing. 
-%The paper compares LXC, Docker and Singularity, an engine developed by Lawrence Berkeley National Laboratory, to a bare-metal application. 
-%In many aspects, the Singularity containers performed better, sometimes even better than the bare-metal implementation, but this is largely due to the blended approach of the engine; Singularity is an incomplete virtualization solution in that it virtualizes only to a minimal degree, granting access to I/O operations without context changes.
-%Additional information: They say depending on app and configuration to select the proper os
-
+%TODO: missing work about scheduling of rt-tasks
 
 %But there is noone investigating the combination
+%TODO: add reference to ICAC paper if accepted
 So far, we have seen that containerization techniques have been tested with early positive results in a variety of contexts.
-However, a combination of containers executed on cloud resources and control application containerization has not yet been examined in the literature. 
-In this paper, we assess the feasibility of such approaches.
+However, a combination of containers executed on cloud resources and control application containerization has not yet been examined in the literature, left alone the management and orchestration of the latter. 
+In this paper, we assess the feasibility of a centralized resource orchestrator for a static set of real-time enabled containers.
 
 
 \section{Context and problem}
+\label{sec:context}
 
 With the rising needs of a more distributed system, the requirements for a running control tasks change as well.
 Different from before, the new software architectures foresee a distributed deployment of single functionalities, requiring the nodes to work together all in sync for a production process to work properly. 
 %As discussed previously, those systems incur in timing requirements, wic
 %Hardrealtimecionstraints to insert here
 The new setup also puts systems and architectures in front of new development requirements. Software modules are now to be exchanged and updates in a distributed manner as the functionality itself is not located in as single place anymore. 
-Thus, requires for a change in controlling and management of these software modules, at the cost to increase maintainability and ease of use of such systems.
+Thus, requires for a change in controlling and management of these software modules, at the cost of additional complexity to increase maintainability and ease of use of such systems.
 
-Lately the trend to implement the single software modules into containers, isolated threads running in parallel on shared software. This has the advantage of abstracting the software model from its host, making maintenance and redundancy quite easy to achieve % rerfenrec to paper redundancy migration
-However, these containers are not made to run with hard real-time constraint by default. Therefore, some changes at the operating system level as well as some orchestration has to be performed in order to guarantee the execution of the software within defined deadlines.
-The containers may be orchestrated statically, knowing the actual execution time and periods, and all tasks that are present, or dynamically, as the tasks enter and leave, new schedules are computed on demand.
-However, if the maximum peak execution time of a task is not known, the schedule of containers is undecidable. 
+The trend to implement the single software modules into containers as isolated threads running in parallel on shared resource, reduces the hardware cost and increases software lifetime. 
+This has the advantage of abstracting the controller implementation from its hardware host, making maintenance and redundancy quite easy to achieve. % rerfenrec to paper redundancy migration
+However, these containers are not made to run with hard real-time constraints by default. Therefore, some changes at the operating system level as well as some additional orchestration have to be performed in order to reduce latencies and augment the level of obtained determinism.
+The running containers may then be orchestrated statically, knowing all task, their actual execution time and periods, or dynamically where, as the tasks enter and leave, new schedules are computed on demand.
+However, if the maximum peak execution time of one task is not known, the schedule of containers is undecidable. 
 
-The dynamic scheduling will therefore be done at best using the following considerations.
-For simplicity, we suppose that the tasks are all independent. The tasks are considered to be black boxes, so we don't have access to the source code. 
-Quasi static and similar approaches opt to improve schedulability at compile-time are therefore not applicable.
-The tasks may exceed the deadline, but in low probability and contemporaneity
-we have to consider to define those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
+The containers are run using Docker this time and are started either by \texttt{runc} or docker's own \texttt{run}. 
+If an \texttt{init} binary is specified, it will run as process number 1 allowing to capture and forward signals.
+Each container has a different PID space and userspace than the parent system.
+The mount points are separate and virtualized.
+If we need to share the host's PID space, e.g. for the orchestrator, we can specify the flag \texttt{--pid=host}.
 
-
-Containers are run, started either by runc or docker-run, and initialized if configured with an init thread as process 1. 
-The new container has a different pid space and userspace
-separate mount points for volumes. Docker we can specify --pid=host to set to a shared user-space.
-
-\subsection{POSIX Standard}
-
-The IEEE Std 1003.1 defines the interface every compliant operating system must have. The standard also foresees, in addition to the main process management features, an optional X/Open System Interfaces XSI conformance.
+%POSIX Standard
+The IEEE Std 1003.1 defines the interface every compliant operating system must have.
+The standard also foresees, in addition to the main process management features, an optional X/Open System Interfaces XSI conformance.
 The constants that define the presence and function of such interfaces might be found in the <unistd.h> header file. 
 The values can be directly interrogated by verifying the constant as described in the standard.
 XSI defines in particular three option groups: encryption, realtime (threads) and advanced realtime (threads). 
-
-as verified, only a few of the advanced realtime features are available. 
-The conditional compiler flags might be used in the sourcecode for a more detailed outputs. 
-
-\subsection{Non standardized extensions}
-
-Interestingly, the posix standard does not define other scheduling types than other, fifo and RR. 
-There is no mentioning of deadline, iso, or batch. 
+As verified, only a few of the advanced realtime features are available in a standard Linux System. 
+Some conditional compiler flags may be used in the source code for a more detailed output of versions and capabilities. 
+%Non standardized extensions
+Interestingly, the POSIX standard does not define other scheduling types than \texttt{other}, \texttt{fifo} and \texttt{RR}. 
+There is no mentioning of \texttt{deadline}(EDF), \texttt{iso}, or \texttt{batch}. 
 At the same time, the standard foresees a structure defining the scheduler's parameters, but it contains only one parameter, the absolute scheduling priority.
+This might need to be taken into consideration when trying to run the orchestrator in a non Linux environment.
 
-This might be taken into consideration when trying to run the orchestrator in a non Linux environment.
-
-%TODO: add subsection additional for LINUX, ie pidof??
+%NOTE: add subsection additional for LINUX, ie pidof??
 
 \section{Manipulating processes}
+\label{sec:mgmttest}
 
 In this part we are mainly interested in manipulating process priorities and scheduling behavior. 
 The POSIX calls and standards are investigated to verify possibilities.
@@ -170,23 +156,19 @@ The POSIX calls and standards are investigated to verify possibilities.
 
 Before considering option of sharing PID space with host, see if we can access from a privileged container nonetheless the namespace isolation. 
 Posix defines functions ioctrl\_ns to determine the parent namespace of the actual one. can help getting the inode of a parent namespace and read information. 
-if pids can also be read is a matter of investigation. maybe mount as \/procext?
+If PIDs can also be read is a matter of investigation. Maybe it can be mount as \/procext?
+What information can be read out from the pid is still to be investigated.
 
-what information can be read out from the pid is still to be investigated.
-
-Manuals say that a parent can read child namespaces but not vice-versa. All enquiries of pared pid in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
+Manuals say that a parent can read child namespaces but not vice-versa. All inquiries of parent PID in fact once reached pid 1 (must not be 1 for a container) end up with a 0 response.
 
 \subsection{PID information}
 \label{sub:pidinf}
 
 While in UNIX the PID table and information is part of the kernel memory, in linux the only way to access the process information is by parsing virtual files. 
 If the orchestrator has to run on both systems, the PID retrieval must thus be implemented twice. Once via /proc pipe readout and once via sysctrl calls to read kernel memory.
-
 It is highly likely that the same is true for the other resources, such as memory or connectivity. 
-
 An example code has been tested which gives the PID's of all matching process names. 
 It might therefore be possible to poll once and verify cyclically for unbound containers. 
-
 A hook-like structure might be more convenient. Such modification would require a kernel change and is therefore considered only in a second moment.
 
 \subsection{Scheduling of processes}
@@ -222,15 +204,14 @@ In the POSIX documentation we find the following functions:
 \end{itemize}
 
 In addition, if the scheduling is set to traditional, i.e. SCHED\_OTHER, the niceness value for the complete fair scheduler can be adjusted with additional functions. 
-
 POSIX as said, implements only three scheduling policies.
 Linux in addition has now:
 
 \begin{verbatim}
-#define SCHED\_BATCH		3
-/* SCHED\_ISO: reserved but not implemented yet */
-#define SCHED\_IDLE		5
-#define SCHED\_DEADLINE		6
+    #define SCHED\_BATCH		3
+    /* SCHED\_ISO: reserved but not implemented yet */
+    #define SCHED\_IDLE		5
+    #define SCHED\_DEADLINE		6
 \end{verbatim}
 
 
@@ -238,41 +219,40 @@ In addition, scheduling attributes are now extended as:
 
 \begin{verbatim}
 struct sched\_attr {
-	__u32 size;
-	
-	__u32 sched\_policy;
-	__u64 sched\_flags;
-	
-	/* SCHED\_NORMAL, SCHED\_BATCH */
-	__s32 sched\_nice;
-	
-	/* SCHED\_FIFO, SCHED\_RR */
-	__u32 sched_priority;
-	
-	/* SCHED\_DEADLINE */
-	__u64 sched\_runtime;
-	__u64 sched\_deadline;
-	__u64 sched\_period;
+    __u32 size;
+    
+    __u32 sched\_policy;
+    __u64 sched\_flags;
+    
+    /* SCHED\_NORMAL, SCHED\_BATCH */
+    __s32 sched\_nice;
+    
+    /* SCHED\_FIFO, SCHED\_RR */
+    __u32 sched_priority;
+    
+    /* SCHED\_DEADLINE */
+    __u64 sched\_runtime;
+    __u64 sched\_deadline;
+    __u64 sched\_period;
 };
 \end{verbatim}
 
-and might be read and written as follows:
+And might be read and written as follows:
 
 
 \begin{verbatim}
 int sched_setattr(pid_t pid, struct sched_attr *attr,
-	unsigned int flags);
+    unsigned int flags);
 
 int sched_getattr(pid_t pid, struct sched_attr *attr,
-	unsigned int size, unsigned int flags);
+    unsigned int size, unsigned int flags);
 \end{verbatim}
 
 This structure is in addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
 
 The commented scheduling mode in the list, i.e. SCHED\_ISO, is a scheduler intended for isochronous (burst-like) tasks and has not been implemented yet. 
-The brainfuck scheduler (BFS) developed by Con Kolivas is anltered version witch actually supports the ISO scheduling mode, with priority between RT and Normal/Other tasks.
+The brainfuck scheduler (BFS) developed by Con Kolivas is altered version witch actually supports the ISO scheduling mode, with priority between RT and Normal/Other tasks.
 For further details see "A complete guide to Linux process scheduling"  by Nikita Ishkov.
-
 
 \subsection{Other considerations}
 
@@ -281,6 +261,7 @@ The PID 1 inside the container is parent of all the namespace. If it dies, all t
 The userspace in the container can be mapped. To avoid root as well as other accesses from a container, a proper map should be set up and incorporated in all the containers at load.
 
 \section{Test implementation}
+\label{sec:testimp}
 
 The orchestrator will have to interact with the scheduler while monitoring the tasks. 
 Ideally, the interaction is mutual. Unfortunately, no hint has been found suggesting that there is a way to ``register'' to the scheduler to get scheduling and process updates. 
@@ -294,7 +275,7 @@ In a first implementation test, we verify therefore the poll quality and speed o
 As described in Section \ref{sub:pidinf}, there are two ways of polling the prcess table. 
 In our testing environment we use Linux, and are therefore running for a virtual filesystems parsing. 
 To ease the parsing, we can use the integrated tool ``pidof'' via a pipe opened through the call of \texttt{popen}.
-\texttt{popen} is a POSIX standard call that opens a one-way pipe to indicated  purposely process called via shell.
+\texttt{popen} is a POSIX standard call that opens a one-way pipe to indicated purposely process called via shell.
 
 %% in the programm
 As soon as the orchestrator is up and running, it scans for target processes which might be  defined in a configuration file (\textit{cmdfile}).
@@ -320,14 +301,13 @@ The test development is stored in git under {src/testPosix/thread.c}.
 Once the PIDs have been acquired, the orchestrator has to maintain a list of active processes. 
 For this purpose, and in order to match PIDs with scheduling information, a dynamic memory structure may be used.
 In order to store the information, the sorted resulting PID number array is sequentially used to fill a dynamic structure with scheduling data. 
-Cyclically, the memory structure will be compared with the updated PIDs. New processes will be inserted in orded in the structure, removed PIDs will be dropped.
+Cyclically, the memory structure will be compared with the updated PIDs. New processes will be inserted in order in the structure, removed PIDs will be dropped.
 The actual type of dynamic data structure is irrelevant. Possible structures are linked lists, double linked lists, as well as sorted trees of any kind.
 
 %% In the program
-To test an implementation, a simple linked list has been implemented as a separate source file {src/testPosix/pidlist.c}.
+To test an implementation, a simple linked list data structure has been implemented as a separate source file {src/testPosix/pidlist.c}.
 The test program structure has been rewritten. Now two threads are launched to keep track of the running processes. 
-
-Thread 1 will keep track of pids, add and remove list elements. The resulting PID array of a periodic scan is compared to the list's content.
+Thread 1 will keep track of PIDs, add and remove list elements. The resulting PIDs array of a periodic scan is compared to the list's content.
 Insertion and deletion signals the presence of a new or removed process to the other thread.
 Thread 2, implemented in a second step, will take care of the distribution of resources among the listed PIDs. 
 
@@ -341,48 +321,20 @@ The implementation uses predefined macros for add and delete in the list. Differ
 As a final step for the basic PID scheduling, we gather the information of a target process and set the new attributes. 
 Resources, initially only {CPU}-affinity, are distributed according to configured settings, i.e. max values for resource occupation. 
 This is for example a 80\% boundary for each computation unit ({CPU}). 
-The daemon and other system tasks should be mapped to separate resources. Even though real-time tasks have higher priority, a separate cpu might be needed to keep enough boundary for new entries and the system responsive.
+The daemon and other system tasks should be mapped to separate resources. Even though real-time tasks have higher priority, a separate CPU might be needed to keep enough boundary for new entries and maintain the system responsive.
 
 %% In the programm
-A CPU has a standard cyclic computation monitoring unit of 1 ms, separating it into 1000000 ticks. The different runtimes, deadlines and periods of the periodic tasks will be used to find a common denominator on a 1ms basis. 
-In the end, e.g. 80\% of {CPU} are filled cyclically. 
-The different distribution strategies, i.e. round robin etc., might be implemented in the final product.
+A CPU has a standard cyclic computation monitoring unit of 1 ms, separating it into 1000000 ticks. 
+The different run-times, deadlines and periods of the periodic tasks will be used to find a common denominator on a 1ms basis to create a proper configuration file. 
+The program will then inspect entering and leaving processes and bind them to the specified resources.
+%In the end, e.g. 80\% of {CPU} are filled cyclically. 
+%The different distribution strategies, i.e. round robin etc., might be implemented in the final product.
 
 %% Considerations
 Thread 2 with be responsible for this task. Cyclically, and in a second moment by trigger, the new PIDs are configured to associate with specific resources.
 As this might introduce some resource peak, the reallocation must happen as soon as possible. 
 The new process entry might use any of the resouces and thus add some unwanted peak load. 
 If possible, the daemon and consequently the new created container processes should be bound to a reserved {CPU}, where all the system tasks are also allocated.
-
-\subsubitem{Thread communication}
-
-%% How
-The communication between the running threads can be performed in different ways:
-
-\begin{enumerate}
-	\item we might use the usual IPC, as it is done between processes via
-	\begin{enumerate}
-		\item pipe - a connection between in and out, therefore not easily doable as the threads by default share the same stdin and stdout;
-		\item signals - such as \textit{INT} or \textit{HUP} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself;
-		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information;
-	\end{enumerate}
-	\item shared memory - probably the easiest type. The advantage of threads is that they 
-	share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
-\end{enumerate}
-The easiest approach therefore is to use shared variables and a semaphore/mutex.
-
-%% In the program
-In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
-This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
-The program changes are minimal and thus the code remains as readable as before.
-
-%% Considerations
-The two threads can manage the list independently as before. On every execution the actual thread has exclusive access to the list.
-This way, thread one can drop any removed item simply from the list and add new PIDs once discovered. 
-Thread two has to scan the PID list anyway.
-If new empty items are found, the settings are populated and resources allocated and scheduled.
-The important part here is to assure that the critical section and the new task default resources are not part of the managed spectrum.
-Any new entry has to be reallocated as soon as possible, but at the same time, there must be found a way to allocate new containers by default to specific resources.
 
 \subsection{Affinity selection}
 
@@ -395,16 +347,17 @@ Those masks are then needed to change a process's affinity.
 %% In the program
 In the program the new entries found by thread two will be checked for affinity and resources.
 Once the task information has been gathered, the updated values will be set according to the actual configuration.
-The distribution and cap of resources might be defined as round robin or alike.
+%The distribution and cap of resources might be defined as round robin or alike.
 During this phase, thread two will also read actual values and monitor the execution cap of tasks.
 
 %% Considerations
-This is the last active section of the test implementation and probably the most complicated as well.
-The ideal resource management is hard to guarantee.
-The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
-If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
-If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
-Such algorithms must surely be reevaluated for the dynamic scheduling version.
+% Considerations wrong for the static version of the scheduler
+%This is the last active section of the test implementation and probably the most complicated as well.
+%The ideal resource management is hard to guarantee.
+%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
+%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
+%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
+%Such algorithms must surely be reevaluated for the dynamic scheduling version.
 
 \subsection{Parameters and configuration}
 
@@ -423,7 +376,7 @@ To parse the configuration file, a pre-defined library will be used where possib
 When working with strings and buffers, such as configuration files, particular attention must be given to the possibility of buffer overflows and alike.
 Finally, the combination of configuration file containing all process details and the command arguments, needed for example to select configuration file and set verbosity, might be the best option.
 
-\section{RT-app}
+\subsection{RT-app}
 
 During the tests, rt-app will be used as a test application, simulating real-time containers. 
 To monitor the app, the interaction with Icinga is foreseen.
@@ -432,8 +385,7 @@ A plugin has to be written to interact with the Icinga daemon.
 Based on an existing plugin source code, a template for the new plugin has been created. 
 The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
 
-
-\subsection{Configuration}
+%\subsection{Configuration}
 
 %% How
 The configuration of RT-app is done via a JSON file. The file specifies the amount, type and duration of the computing simulation tasks.
@@ -446,7 +398,7 @@ Times defined in the configuration are in $\mu s$.
 %% Considerations
 The configuration sample can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
 
-\subsection{Logging}
+\subsection{Logging and internal monitoring}
 
 %% How
 RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
@@ -482,27 +434,80 @@ IS there an icinga plugin made for docker containers already available that can 
 
 % Time syncronous network (TSN) maybe necessary
 
-Heuristic bound, wc has to be satisfied
-do on the go within boundaries, otherwise is undecideable
-need to get the bounds
-Scheduling algorithm with known bounds
-rendezvous mechanism to go 
-way of achieving hard 
--> constraints into a cost function
+\subsection{Thread and process communication}
+
+%% How
+The communication between the running threads can be performed in different ways:
+
+\begin{enumerate}
+	\item we might use the usual IPC, as it is done between processes via
+	\begin{enumerate}
+		\item pipe - a connection between in and out, therefore not easily doable as the threads by default share the same stdin and stdout;
+		\item signals - such as \textit{INT} or \textit{HUP} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself;
+		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information;
+	\end{enumerate}
+	\item shared memory - probably the easiest type. The advantage of threads is that they 
+	share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
+\end{enumerate}
+The easiest approach therefore is to use shared variables and a semaphore/mutex.
+
+%% In the program
+In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
+This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
+The program changes are minimal and thus the code remains as readable as before.
+
+%% Considerations
+The two threads can manage the list independently as before. On every execution the actual thread has exclusive access to the list.
+This way, thread one can drop any removed item simply from the list and add new PIDs once discovered. 
+Thread two has to scan the PID list anyway.
+If new empty items are found, the settings are populated and resources allocated and scheduled.
+The important part here is to assure that the critical section and the new task default resources are not part of the managed spectrum.
+Any new entry has to be reallocated as soon as possible, but at the same time, there must be found a way to allocate new containers by default to specific resources.
 
 
-Sophisticate -> eplsylon out of bound is added cost -> calculate alg
+%GENERAL NOTES 
+%Heuristic bound, wc has to be satisfied
+%do on the go within boundaries, otherwise is undecideable
+%need to get the bounds
+%Scheduling algorithm with known bounds
+%rendezvous mechanism to go 
+%way of achieving hard 
+%-> constraints into a cost function
+%
+%
+%Sophisticate -> eplsylon out of bound is added cost -> calculate alg
+%
+%Container
+%Crap -> container - run test
+%
+%C -> binary code can be linked to the final binary to increase the efficiency of the whole thing
+%
+%Reduce the load of the operating system -> quasi static system, decision, compile policy together with the thing.
+%
+%paper alberto -> scheduling integer linear,
+%-> forward 
+%ballarin, 
 
-Container
-Crap -> container - run test
+\section{Performance tests}
+\label{sec:perftest}
 
-C -> binary code can be linked to the final binary to increase the efficiency of the whole thing
+%TESTS STATIC AND DYNAMIC
 
-Reduce the load of the operating system -> quasi static system, decision, compile policy together with the thing.
+The dynamic scheduling will therefore be done at best using the following considerations.
+For simplicity, we suppose that the real-time software running in the various containers is all independent. 
+The processes will be considered as black boxes where we do neither have specifications, nor  source code. 
+There exist quasi static approaches to improve the schedulability but they suffer from an openness constraint.
+This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
+The tasks may exceed the deadline, but in low probability and contemporaneity
+we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
 
-paper alberto -> scheduling integer linear,
--> forward 
-ballarin, 
+
+\lipsum[3]
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+\lipsum[1]
 
 \bibliography{IEEEabrv,bibliography}
 
