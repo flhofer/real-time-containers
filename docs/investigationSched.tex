@@ -129,6 +129,14 @@ If an \texttt{init} binary is specified, it will run as process number 1 allowin
 Each container has a different PID space and userspace than the parent system.
 The mount points are separate and virtualized.
 If we need to share the host's PID space, e.g. for the orchestrator, we can specify the flag \texttt{--pid=host}.
+Until a real application image and data is available, the all-purpose software \texttt{rt-app} will be used to simulate the behavior of a set of real real-time containers. 
+The configuration of RT-app is done via a JSON file. The file enables the specification of execution phases, including amount, type and duration of the computing simulation tasks.
+%% In the program
+For the purpose of out project, each container will have only one task. 
+Thus, the configuration will contain only one entry for thread and a global configuration.
+Times defined in the configuration are in $\mu s$.
+%% Considerations
+The configuration sample can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
 
 %POSIX Standard
 The IEEE Std 1003.1 defines the interface every compliant operating system must have.
@@ -322,6 +330,9 @@ As a final step for the basic PID scheduling, we gather the information of a tar
 Resources, initially only {CPU}-affinity, are distributed according to configured settings, i.e. max values for resource occupation. 
 This is for example a 80\% boundary for each computation unit ({CPU}). 
 The daemon and other system tasks should be mapped to separate resources. Even though real-time tasks have higher priority, a separate CPU might be needed to keep enough boundary for new entries and maintain the system responsive.
+Affinity selection can be done via the functions \texttt{sched\_setaffinity} and \texttt{sched\_getaffinity}.
+In addition, a variety of auxiliary functions are also available to manage those. 
+The macro commands starting with \texttt{CPU\_*} may be used to create and modify CPU-Set masks, needed to change a process's affinity.
 
 %% In the programm
 A CPU has a standard cyclic computation monitoring unit of 1 ms, separating it into 1000000 ticks. 
@@ -329,6 +340,10 @@ The different run-times, deadlines and periods of the periodic tasks will be use
 The program will then inspect entering and leaving processes and bind them to the specified resources.
 %In the end, e.g. 80\% of {CPU} are filled cyclically. 
 %The different distribution strategies, i.e. round robin etc., might be implemented in the final product.
+In the program the new entries found by thread two will be checked for affinity and resources.
+Once the task information has been gathered, the updated values will be set according to the actual configuration.
+%The distribution and cap of resources might be defined as round robin or alike.
+During this phase, thread two will also read actual values and monitor the execution cap of tasks.
 
 %% Considerations
 Thread 2 with be responsible for this task. Cyclically, and in a second moment by trigger, the new PIDs are configured to associate with specific resources.
@@ -336,100 +351,58 @@ As this might introduce some resource peak, the reallocation must happen as soon
 The new process entry might use any of the resouces and thus add some unwanted peak load. 
 If possible, the daemon and consequently the new created container processes should be bound to a reserved {CPU}, where all the system tasks are also allocated.
 
-\subsection{Affinity selection}
-
-%% How
-Affinity selection can be done via the commands \texttt{sched\_setaffinity} and \texttt{sched\_getaffinity}.
-A variety of auxiliary commands are available. 
-The macro commands starting with \texttt{CPU\_*} are used to create and modify CPU-Set masks.
-Those masks are then needed to change a process's affinity.
-
-%% In the program
-In the program the new entries found by thread two will be checked for affinity and resources.
-Once the task information has been gathered, the updated values will be set according to the actual configuration.
-%The distribution and cap of resources might be defined as round robin or alike.
-During this phase, thread two will also read actual values and monitor the execution cap of tasks.
-
-%% Considerations
-% Considerations wrong for the static version of the scheduler
-%This is the last active section of the test implementation and probably the most complicated as well.
-%The ideal resource management is hard to guarantee.
-%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
-%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
-%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
-%Such algorithms must surely be reevaluated for the dynamic scheduling version.
-
 \subsection{Parameters and configuration}
 
 %% How
 Parameter configuration can be done in multiple ways. The two major options taken into consideration are parameter file and command line parameters.
 The latter might work for a test phase, but might get to be a burden once the system and configurable parameters grow in size.
-A combination of both might be the ideal solution.
+%A combination of both might be the ideal solution for the final product, allowing resource configuration via file, but at the same time, execution parametrization.
 
 %% In the program
-For some first tests, command line parameters will be used to set thresholds and limits. Those will later be moved into a configuration file.
+For some first tests, command line parameters will be used to set PIDs, their affinity, global thresholds and limits.
+Those will later be moved into a configuration file.
 The parameters include Ulimit, CPU masks of reserved computing units, memory maps and I/O resources that might be configured. 
-For the implementation, the posix getopt parsing function will be used.
-To parse the configuration file, a pre-defined library will be used where possible.
+For the implementation, the posix \texttt{getopt} parsing function will be used.
+To parse the configuration file, a predefined library will be used where possible.
 
 %% Considerations
 When working with strings and buffers, such as configuration files, particular attention must be given to the possibility of buffer overflows and alike.
+This is a general weakness as documented in the CWE database. % add here reference to CWE
 Finally, the combination of configuration file containing all process details and the command arguments, needed for example to select configuration file and set verbosity, might be the best option.
 
-\subsection{RT-app}
-
-During the tests, rt-app will be used as a test application, simulating real-time containers. 
-To monitor the app, the interaction with Icinga is foreseen.
-To gather proper information, the output of the application should be parsed and sent to the monitoring server.
-A plugin has to be written to interact with the Icinga daemon.
-Based on an existing plugin source code, a template for the new plugin has been created. 
-The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
-
-%\subsection{Configuration}
-
-%% How
-The configuration of RT-app is done via a JSON file. The file specifies the amount, type and duration of the computing simulation tasks.
-
-%% In the program
-For the purpose of out project, each container will have only one task. 
-Thus, the configuration will contain only one entry for thread and a global configuration.
-Times defined in the configuration are in $\mu s$.
-
-%% Considerations
-The configuration sample can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
-
-\subsection{Logging and internal monitoring}
-
-%% How
-RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
-This thus does not allow to use the default logging function for continuous monitoring purposes.
-If a ring-buffer is set in the configuration settings, the buffer is written to file only once the test is finished or interrupted. 
-Thus, an adaptation of the logging function might be needed to allow readout of the task's performance.
-The source code is available and written in C. Changes should therefore be no major problem.
-
-%% In the program
-Some minor changes to the logging function have been successfully tested. Insertion of the ring-buffer dump every time it's capacity has been reached and overwriting of the log-file works as expected.
-Issues that might be encountered are the high load to disk I/O if a small disks buffer size forces to write to file, and consequently induces delays.
-
-%% Considerations
-An option to consider might be the writing to the stdout and piping the process to the Icinga plugin. 
-
+%\subsection{Logging and internal monitoring}
+% No sense anymore.. :?<>
+%%% How
+%RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
+%This thus does not allow to use the default logging function for continuous monitoring purposes.
+%If a ring-buffer is set in the configuration settings, the buffer is written to file only once the test is finished or interrupted. 
+%Thus, an adaptation of the logging function might be needed to allow readout of the task's performance.
+%The source code is available and written in C. Changes should therefore be no major problem.
+%
+%%% In the program
+%Some minor changes to the logging function have been successfully tested. Insertion of the ring-buffer dump every time it's capacity has been reached and overwriting of the log-file works as expected.
+%Issues that might be encountered are the high load to disk I/O if a small disks buffer size forces to write to file, and consequently induces delays.
+%
+%%% Considerations
+%An option to consider might be the writing to the stdout and piping the process to the Icinga plugin. 
 
 \subsection{Icinga plugin}
 
 %% How
-Icinga plugin running in paralel to the orchestrator. We need data about the tasks and the network performance. In the end we dont watn to create too much overhead for the system, therefore it would be ideal if the orchestratior might be able to exchng the task data obtained from the system scheduler with the plugin.
-Other data that can be read is the network throughput. although it might influence the performance , in particular if we want to implement time sensitive networks.
-The overhead of the virtual internal network could push on the actual performance. we should check if there is a way of reading io of the network withouth having to create a virtual subnet.
-Also possible might be to read disk I/o of a container. even though it could be that it is not necessary. 
-IS there an icinga plugin made for docker containers already available that can be adapted?
-
-
-
+To monitor the app, the interaction of orchestrator and the monitoring software Icinga is foreseen.
+Icinga is a host-client system and relies on daemons and plugins on-site to exchange data. 
+To reduce the overhead for the system, the orchestrator will share the obtained process details from the scheduler with the plugin running on our real-time host.
+In addition, Docker creates CGroups for the running containers, giving the monitoring process access to useful network and memory information.
+%Other data that can be read is the network throughput. Although it might influence the performance , in particular if we want to implement time sensitive networks.
+%The overhead of the virtual internal network could push on the actual performance. 
+%We should check if there is a way of reading io of the network without having to create a virtual subnet.
+Also, possible might be to read disk I/O of a container, even though it could be that it is not necessary. 
+%TODO: NOTE Is there an Icinga plugin made for docker containers already available that can be adapted?
+%
 %% In the program
-
-
+%
 %% Considerations
+The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
 
 
 % Time syncronous network (TSN) maybe necessary
@@ -437,7 +410,8 @@ IS there an icinga plugin made for docker containers already available that can 
 \subsection{Thread and process communication}
 
 %% How
-The communication between the running threads can be performed in different ways:
+Finally, we have to specify how threads and tasks may communicate.
+The communication between the running software can be performed in different ways:
 
 \begin{enumerate}
 	\item we might use the usual IPC, as it is done between processes via
@@ -446,23 +420,28 @@ The communication between the running threads can be performed in different ways
 		\item signals - such as \textit{INT} or \textit{HUP} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself;
 		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information;
 	\end{enumerate}
-	\item shared memory - probably the easiest type. The advantage of threads is that they 
+	\item shared memory - probably the easiest type. The advantage in case of threads is that they 
 	share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
 \end{enumerate}
-The easiest approach therefore is to use shared variables and a semaphore/mutex.
+The easiest approach for the orchestrator's threads is to use shared variables and a semaphore/mutex. 
+On the other hand, the most flexible is via sockets which will be used for the communication of orchestrator and monitoring plugin.
 
 %% In the program
 In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
 This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
 The program changes are minimal and thus the code remains as readable as before.
+%TODO: socket implementation description
+Implementation details for sockets have still to be investigated.
 
 %% Considerations
 The two threads can manage the list independently as before. On every execution the actual thread has exclusive access to the list.
 This way, thread one can drop any removed item simply from the list and add new PIDs once discovered. 
-Thread two has to scan the PID list anyway.
+Thread two has to scan the PID list anyway.on the other hand
 If new empty items are found, the settings are populated and resources allocated and scheduled.
 The important part here is to assure that the critical section and the new task default resources are not part of the managed spectrum.
 Any new entry has to be reallocated as soon as possible, but at the same time, there must be found a way to allocate new containers by default to specific resources.
+%TODO: socket implementation description
+Considerations for a socket implementation have still to be taken.
 
 
 %GENERAL NOTES 
@@ -500,6 +479,17 @@ There exist quasi static approaches to improve the schedulability but they suffe
 This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
 The tasks may exceed the deadline, but in low probability and contemporaneity
 we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
+
+
+
+%% Considerations
+% Considerations wrong for the static version of the scheduler
+%This is the last active section of the test implementation and probably the most complicated as well.
+%The ideal resource management is hard to guarantee.
+%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
+%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
+%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
+%Such algorithms must surely be reevaluated for the dynamic scheduling version.
 
 
 \lipsum[3]
