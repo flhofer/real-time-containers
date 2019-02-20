@@ -86,12 +86,12 @@ The authors state that topics like memory overhead, containers' restricted acces
 
 Tasci et al. \cite{Tascietal2018} address architectural details not discussed in \cite{GoldschmidtHauck-Stattelmann2016} and \cite{Goldschmidtetal2018}, such as the definite run-time environment and how deterministic communication of containers and field devices may be achieved in a novel container-based architecture. 
 They propose a Linux-based solution as host operating system, including both the single kernel preemption-focused PREEMPT-RT patch and the co-kernel oriented Xenomai. 
-With the latter patch, this approach shows better predictability, although it suffers from security constraints. For this reason, they suggest to limit its application for safety-critical code execution. 
+With the latter patch, this approach shows better predictability, although it suffers from security constraints. For this reason, they suggest limiting its application for safety-critical code execution. 
 They analyze and discuss in detail inter-process messaging, focusing on the specific properties needed in real-time applications.
 Finally, they implement an orchestration run-time managing intra-container communication and show that task times of $500\mu s$ are possible.
 
 %What about containers in the cloud?
-The three solutions discussed above share one common property: they where based on bare-metal configurations. 
+The three solutions discussed above share one common property: they were based on bare-metal configurations. 
 The solutions took into consideration real-time constraints, but limited to execution on physical hardware.
 Nonetheless, current trends in industry favor the flexibility of resource sharing through cloud computing.
 Thus, there is reason to investigate whether real-time control applications may also be ran on a shared infrastructure, their capabilities and limitations.
@@ -99,12 +99,14 @@ Thus, there is reason to investigate whether real-time control applications may 
 In 2014, Garcia-Vallas et al. \cite{Garcia-Vallsetal2014} analyzed challenges for predictable and deterministic cloud computing.
 Even though the focus of their paper is on soft real-time applications, certain aspects and limits can be applied to any real-time systems.
 Merging cloud computing with real-time requirements is a challenging task; the authors state that the guest OS has only limited access to physical hardware and thus suffers from unpredictability of non-hierarchical scheduling, and thick stack communications. 
-While there exist real-time enabled hypervisors, such as the paravirtualized RT-Xen with direct access to hardware, the shared resources still suffer from latencies that may make real-time execution impossible.
-Felter et al. in \cite{Felteretal2015} focused on identifying the performance of instances based on hardware virtualization via Kernel-based Virtual Machines (KVMs) and container OS-virtualization using Docker. 
-The benchmarks confirm that Docker results in equal or better performance than KVMs in almost all cases.
-Arango et al. \cite{Arangoetal2017} analyzed three containerization techniques for use in cloud computing. 
-The paper compares LXC, Docker and Singularity, an engine developed by Lawrence Berkeley National Laboratory, to a bare-metal application. 
-In many aspects, the Singularity containers performed better, sometimes even better than the bare-metal implementation, but this is largely due to the blended approach of the engine; Singularity is an incomplete virtualization solution in that it virtualizes only to a minimal degree, granting access to I/O operations without context changes.
+
+% From here on focuses too much on containers, less on scheduling
+%While there exist real-time enabled hypervisors, such as the paravirtualized RT-Xen with direct access to hardware, the shared resources still suffer from latencies that may make real-time execution impossible.
+%Felter et al. in \cite{Felteretal2015} focused on identifying the performance of instances based on hardware virtualization via Kernel-based Virtual Machines (KVMs) and container OS-virtualization using Docker. 
+%The benchmarks confirm that Docker results in equal or better performance than KVMs in almost all cases.
+%Arango et al. \cite{Arangoetal2017} analyzed three containerization techniques for use in cloud computing. 
+%The paper compares LXC, Docker and Singularity, an engine developed by Lawrence Berkeley National Laboratory, to a bare-metal application. 
+%In many aspects, the Singularity containers performed better, sometimes even better than the bare-metal implementation, but this is largely due to the blended approach of the engine; Singularity is an incomplete virtualization solution in that it virtualizes only to a minimal degree, granting access to I/O operations without context changes.
 %Additional information: They say depending on app and configuration to select the proper os
 
 
@@ -129,15 +131,15 @@ The containers may be orchestrated statically, knowing the actual execution time
 However, if the maximum peak execution time of a task is not known, the schedule of containers is undecidable. 
 
 The dynamic scheduling will therefore be done at best using the following considerations.
-for simplicity, we suppose that the tasks are all inependend. the tasks are considered to be black boxes, so we donta have access to the surcecode. 
-Quasi static and similar approaches opt to improve schedulaility at compiletime are therefore not applicable.
-the tasks may exceed the deadline, but in low pprobaility and contemporanetiy
-we haveto consider to define those values in order to obtain boundaries and milins. might aslo be expermimental valies optained from the running containers in siemens bm farm
+For simplicity, we suppose that the tasks are all independent. The tasks are considered to be black boxes, so we don't have access to the source code. 
+Quasi static and similar approaches opt to improve schedulability at compile-time are therefore not applicable.
+The tasks may exceed the deadline, but in low probability and contemporaneity
+we have to consider to define those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
 
 
-Containers are run, started either by runc or dockerrun, and initialized if configured with an init thread as process 1. 
+Containers are run, started either by runc or docker-run, and initialized if configured with an init thread as process 1. 
 The new container has a different pid space and userspace
-separate mount points for volumes. docker we can specify --pid=host to set to a shared userspace.
+separate mount points for volumes. Docker we can specify --pid=host to set to a shared user-space.
 
 \subsection{POSIX Standard}
 
