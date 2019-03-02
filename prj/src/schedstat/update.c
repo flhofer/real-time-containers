@@ -17,8 +17,8 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	char *pid;
 	int i =0  ;
 	// prepare literal and open pipe request
-	//sprintf (req,  "pidof %s", tag);
-	sprintf (req,  "ps  %s", tag);
+	sprintf (req,  "pidof %s", tag);
+	//sprintf (req,  "ps  %s", tag);
 	FILE *fp = popen(req,"r");
 	fgets(pidline,1024,fp);
 	pclose(fp);
@@ -139,7 +139,7 @@ void prepareEnvironment() {
 /// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_update (void *arg)
 {
-	int* pthread_state = arg;
+	int32_t* pthread_state = arg;
 	// initialize the thread locals
 	while(1)
 	{

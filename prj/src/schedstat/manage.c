@@ -58,20 +58,22 @@ int manageSched(){
 /// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_manage (void *arg)
 {
-	int* pthread_state = arg;
+	int32_t* pthread_state = arg;
 	// initialize the thread locals
 	while(1)
 	{
 	  switch( *pthread_state )
 	  {
-	  case 0: // normal thread loop
+	  case 0: // setup thread
+
+	  case 1: // normal thread loop
 		manageSched();
 		break;
 	  case -1:
 		// tidy or whatever is necessary
 		pthread_exit(0); // exit the thread signalling normal return
 		break;
-	  case 1: //
+	  case 2: //
 		// do something special
 		
 		break;
