@@ -3,6 +3,7 @@
 #define __MANAGE_H_
 
 #include "jsmn.h"
+#include "errno.h"
 
 
 extern pthread_mutex_t dataMutex;

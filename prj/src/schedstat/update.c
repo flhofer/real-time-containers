@@ -145,7 +145,7 @@ void *thread_update (void *arg)
 	{
 	  switch( *pthread_state )
 	  {
-	  case 0: // normal thread loop
+	  case 2: // normal thread loop
 		scanNew();
 		break;
 	  case -1:
