@@ -1,5 +1,12 @@
 #include "schedstat.h"
 #include "manage.h"
+#include "pidparm.h"
+
+// parameter tree linked list head
+parm_t* phead;
+
+// working item now
+parm_t* now;
 
 /* Function realloc_it() is a wrapper function for standard realloc()
  * with one difference - it frees old memory pointer in case of realloc
@@ -16,7 +23,10 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 	return p;
 }
 
-static int dump(const char *js, jsmntok_t *t, size_t count, int indent) {
+
+const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period"};
+
+static int dump(const char *js, jsmntok_t *t, size_t count, int indent, int key) {
 	int i, j, k;
 	if (count == 0) {
 		return 0;
@@ -25,19 +35,39 @@ static int dump(const char *js, jsmntok_t *t, size_t count, int indent) {
 		printf("%.*s", t->end - t->start, js+t->start);
 		return 1;
 	} else if (t->type == JSMN_STRING) {
+		
+		// a key has been identified
+		if (key){
+			char c[50]; // buffer size for tem
+			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
+			
+			if (!strcasecmp(c, keys[0])){
+				// new object
+				fprintf(stdout, "\aBeep!\n" );
+			}
+			if (strcasecmp(c, keys[1])){
+				// parameter settings for new item reached.
+			
+			}
+		}
+		// all string values end up here
 		printf("'%.*s'", t->end - t->start, js+t->start);
 		return 1;
 	} else if (t->type == JSMN_OBJECT) {
 
-
-
+		// printout 
 		printf("\n");
 		j = 0;
 		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < indent; k++) printf("  ");
-			j += dump(js, t+1+j, count-j, indent+1);
-			printf(": ");
-			j += dump(js, t+1+j, count-j, indent+1);
+			for (k = 0; k < indent; k++) printf("  "); // print indent
+
+			j += dump(js, t+1+j, count-j, indent+1, 1);   // key evaluation
+
+			printf(": ");  // separator
+			key = 0;
+
+			j += dump(js, t+1+j, count-j, indent+1, 0); // value evaluation
+			// if value is an object, it will contain again keys..
 			printf("\n");
 		}
 		return j+1;
@@ -49,13 +79,14 @@ static int dump(const char *js, jsmntok_t *t, size_t count, int indent) {
 		for (i = 0; i < t->size; i++) {
 			for (k = 0; k < indent-1; k++) printf("  ");
 			printf("   - ");
-			j += dump(js, t+1+j, count-j, indent+1);
+			j += dump(js, t+1+j, count-j, indent+1, 0);
 			printf("\n");
 		}
 		return j+1;
 	}
 	return 0;
 }
+
 
 /// readParams(): Read parameters from json file, for static params
 ///
@@ -122,12 +153,12 @@ again:
 				goto again;
 			}
 		} else {
-			dump(js, tok, p.toknext, 0);
+			dump(js, tok, p.toknext, 0, 0);
 			eof_expected = 1;
 		}
 	}}
 	else{
-		printf("Dada\n");
+		printf("\n");
 	}
 
 	fclose (f);
@@ -191,16 +222,17 @@ int manageSched(){
 /// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_manage (void *arg)
 {
-	int32_t* pthread_state = arg;
+	// be explicit!
+	int32_t* pthread_state = (int32_t *)arg;
 	// initialize the thread locals
 	while(1)
 	{
 	  switch( *pthread_state )
 	  {
 	  case 0: // setup thread
-		if (readParams() == 99)
-			pthread_state++;
-
+		if (readParams() == 0)
+			*pthread_state=-1;
+		break;
 	  case 1: // normal thread loop
 		manageSched();
 		break;

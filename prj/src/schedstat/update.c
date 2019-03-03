@@ -139,14 +139,15 @@ void prepareEnvironment() {
 /// Return value: Exit Code - o for no error - EXIT_SUCCESS
 void *thread_update (void *arg)
 {
-	int32_t* pthread_state = arg;
+	int32_t* pthread_state = (int32_t *)arg;
 	// initialize the thread locals
 	while(1)
 	{
 	  switch( *pthread_state )
 	  {
-	  case 2: // normal thread loop
+	  case 0: // normal thread loop
 		scanNew();
+		*pthread_state=-1;
 		break;
 	  case -1:
 		// tidy or whatever is necessary

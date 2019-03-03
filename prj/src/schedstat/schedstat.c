@@ -44,8 +44,8 @@ int main(int argc, char **argv)
 	prepareEnvironment();
 
 	pthread_t thread1, thread2;
-	int t_stat1 = 0; // we control thread status
-	int t_stat2 = 0; 
+	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
+	int32_t t_stat2 = 0; 
 	int  iret1, iret2;
 
 	/* Create independent threads each of which will execute function */
@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 	// set interrupt sig hand
 	signal(SIGINT, inthand);
 
-	while (!stop) {
+	while (!stop && (t_stat1 != -1 || t_stat2 != -1)) {
 		sleep (1);
 	}
 
