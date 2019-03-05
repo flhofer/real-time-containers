@@ -1,27 +1,14 @@
 #include "pidparm.h" // memory structure to store parameter settings
 
-void ppush_t(parm_t * head, pid_t pid) {
-    parm_t * current = head;
-    while (current->next != NULL) {
-        current = current->next;
-    }
+// maybe changed in a second moment to kernel linked lists
 
-    /* now we can add a new variable */
-    current->next = calloc(sizeof(parm_t), 1);
-//    current->next->pid = pid;
-    current->next->next = NULL;
-}
-
-struct sched_attr * ppush(parm_t ** head, pid_t pid) {
+void ppush(parm_t ** head) {
     parm_t * new_node;
     new_node = calloc(sizeof(parm_t), 1);
 
-//    new_node->pid = pid;
     new_node->next = *head;
     *head = new_node;
-	return &new_node->attr;
 }
-
 
 struct sched_attr * pget_node(parm_t * act) {
 

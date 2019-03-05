@@ -5,10 +5,6 @@
 // parameter tree linked list head
 parm_t * phead;
 
-// working item now
-parm_t * now;
-int kno=0; // key number
-
 static int handlepolicy(char *polname)
 {
 	if (strncasecmp(polname, "other", 5) == 0)
@@ -68,83 +64,142 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 
 const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period"};
 
-static int dump(const char *js, jsmntok_t *t, size_t count, int indent, int key) {
+static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, int key) {
 	int i, j, k;
+
+
+	// TODO: len check and case not matching type, also key > than values
+
+	// base case, no elements in the object
 	if (count == 0) {
 		return 0;
 	}
+
+	// check key!!
+/*	if (key<-1 || key > length(keys)) {
+		// faulty data! 
+		printDbg("JSON: faulty key selection data!");
+		return 0; // 0 or 1? or count? check?
+	}*/
+
+	// setting value, primitive
 	if (t->type == JSMN_PRIMITIVE) {
-		char c[50]; // buffer size for tem
-		if (now)
-			switch (key) {
-			
-			case 0: sprintf(now->psig, "%.*s", t->end - t->start, js+t->start);
-					break;
-			case 2: sprintf(c, "%.*s", t->end - t->start, js+t->start);
-					now->attr.sched_policy = handlepolicy(c);
-//					break;
-			}
+		// enter here if a primitive value (int?) has been identified
 
+		if (key == -1) { // no key value yet
+			printDbg("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
+			return 1; // 0 or 1? or count? check?
+		}
 
-		printf("%.*s", t->end - t->start, js+t->start);
+		// here len must be shorter than SIG_LEN 
+		char c[SIG_LEN]; // buffer size for tem
+		if (!phead) {
+			printDbg("JSON: no element! %.*s", t->end - t->start, js+t->start);
+			return 1;
+		}
+
+		switch (key) {
+
+		case 2: // schedule policy 
+				sprintf(c, "%.*s", t->end - t->start, js+t->start);
+				phead->attr.sched_policy = handlepolicy(c);
+				printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+				break;
+		}
+
+		printDbg("%.*s", t->end - t->start, js+t->start);
 		return 1;
+	
+	// setting value or label
 	} else if (t->type == JSMN_STRING) {
-		
+		// here len must be shorter than SIG_LEN
 		// a key has been identified
-		if (key){
-			char c[50]; // buffer size for tem
+		if (key < 0){
+			char c[SIG_LEN]; // buffer size for tem
+			size_t len = sizeof(keys)/sizeof(c[0]); // count of keys
+
+			// copy key to temp string buffer
 			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
 			
-			for (int i=0; i<10; i++) 
+			for (i=0; i<len; i++) 
 				if (!strcasecmp(c, keys[i])){
-					// new object
-					kno=i;
+					// key match.. find value for it
+					printDbg("'%.*s': ", t->end - t->start, js+t->start);
+					j = 0;					
+					j += extractJSON(js, t+1+j, count-j, indent+1, i);   // key evaluation
+					return j+1;
 					break;
 				}
+			// if it get's here, key has not been found in list
+			printDbg("NOT FOUND '%.*s'", t->end - t->start, js+t->start);
+			return 1;
 		}
 		else
 		{
-			if (now)
-				switch (key) {
-				
-				case 0: sprintf(now->psig, "%.*s", t->end - t->start, js+t->start);
-						printf("-: ");  // separator
-						break;
-//				case 2: sprintf(now->attr.sched_policy, "%.*s", t->end - t->start, js+t->start);
-	//					break;
-				}
+
+			if (!phead) { // !! no object defined !!!
+				printDbg("JSON: no element! '%.*s'", t->end - t->start, js+t->start);
+				return 1;
+			}
+
+			switch (key) {
+			
+			case 0: // process/command signature found
+					sprintf(phead->psig, "%.*s", t->end - t->start, js+t->start);
+					printDbg("JSON: setting cmd to '%s'", phead->psig);
+					break;
+
+			case 2: ; // schedule policy 
+					char c[SIG_LEN]; // buffer size for tem
+					sprintf(c, "%.*s", t->end - t->start, js+t->start);
+					phead->attr.sched_policy = handlepolicy(c);
+					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+					break;
+
+			}
+
+			// all string values end up here
+			printDbg("'%.*s'", t->end - t->start, js+t->start);
+
+			return 1;
 		}
-		// all string values end up here
-		printf("'%.*s'", t->end - t->start, js+t->start);
-		return 1;
+
+	// Process composed objects ( {} }
 	} else if (t->type == JSMN_OBJECT) {
 
+		// add a new head
+		if (indent == 2) {
+			printDbg("Adding new item:\n");
+			ppush (&phead);
+		}
+		
+
 		// printout 
-		printf("\n");
+		printDbg("\n");
 		j = 0;
 		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < indent; k++) printf("  "); // print indent
+			for (k = 0; k < indent; k++) printDbg("  "); // print indent
 
-			j += dump(js, t+1+j, count-j, indent+1, 1);   // key evaluation
+			// we evaluate only the key here, value is taken in cascade
+			j += extractJSON(js, t+1+j, count-j, indent+1, -1);   // key evaluation
 
-//			printf(": ");  // separator
-//			key = 0;
+			// printDbg(": ");  // separator
 
-//			j += dump(js, t+1+j, count-j, indent+1, 0); // value evaluation
-			// if value is an object, it will contain again keys..
-//			printf("\n");
+			//j += extractJSON(js, t+1+j, count-j, indent+1, -1); // value evaluation
+			// if value is an object, it will contain aga`in keys..
+			printDbg("\n");
 		}
 		return j+1;
 
-
+	// process arrays ( [] )
 	} else if (t->type == JSMN_ARRAY) {
 		j = 0;
-		printf("\n");
+		printDbg("\n");
 		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < indent-1; k++) printf("  ");
-			printf("   - ");
-			j += dump(js, t+1+j, count-j, indent+1, 0);
-			printf("\n");
+			for (k = 0; k < indent-1; k++) printDbg("  ");
+			printDbg("   - ");
+			j += extractJSON(js, t+1+j, count-j, indent+1, -1);
+			printDbg("\n");
 		}
 		return j+1;
 	}
@@ -217,18 +272,21 @@ again:
 				goto again;
 			}
 		} else {
-			dump(js, tok, p.toknext, 0, 0);
+			extractJSON(js, tok, p.toknext, 0, -1);
 			eof_expected = 1;
 		}
 	}}
 	else{
-		printf("\n");
+		printDbg("\n");
 	}
 
 	fclose (f);
 
 	return 0;
 }
+
+// working item now
+parm_t * now;
 
 /// updateSched(): main function called to verify running schedule
 //

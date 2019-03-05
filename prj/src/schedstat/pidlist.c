@@ -1,5 +1,7 @@
 #include "pidlist.h" // memory structure to store information
 
+// maybe changed in a second moment to kernel linked lists
+
 void push_t(node_t * head, pid_t pid) {
     node_t * current = head;
     while (current->next != NULL) {

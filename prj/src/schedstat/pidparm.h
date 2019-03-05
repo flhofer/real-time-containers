@@ -5,14 +5,15 @@
 #ifndef __PIDPARM_
 #define __PIDPARM_
 
+#define SIG_LEN 50
+
 typedef struct pid_parm {
-	char psig[50]; 
+	char psig[SIG_LEN]; 
 	struct sched_attr attr;
 	struct pid_parm* next;
 } parm_t;
 
-void ppush_t(parm_t * head, pid_t pid);
-struct sched_attr * ppush(parm_t ** head, pid_t pid);
+void ppush(parm_t ** head);
 struct sched_attr * pget_node(parm_t * act);
 struct sched_attr * pget_next(parm_t ** act);
 
