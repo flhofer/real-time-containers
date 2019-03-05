@@ -6,7 +6,7 @@
 #define __PIDPARM_
 
 typedef struct pid_parm {
-	char*  psig; 
+	char psig[50]; 
 	struct sched_attr attr;
 	struct pid_parm* next;
 } parm_t;

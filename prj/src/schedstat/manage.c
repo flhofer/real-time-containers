@@ -3,10 +3,52 @@
 #include "pidparm.h"
 
 // parameter tree linked list head
-parm_t* phead;
+parm_t * phead;
 
 // working item now
-parm_t* now;
+parm_t * now;
+int kno=0; // key number
+
+static int handlepolicy(char *polname)
+{
+	if (strncasecmp(polname, "other", 5) == 0)
+		return SCHED_OTHER;
+	else if (strncasecmp(polname, "batch", 5) == 0)
+		return SCHED_BATCH;
+	else if (strncasecmp(polname, "idle", 4) == 0)
+		return SCHED_IDLE;
+	else if (strncasecmp(polname, "fifo", 4) == 0)
+		return SCHED_FIFO;
+	else if (strncasecmp(polname, "rr", 2) == 0)
+		return SCHED_RR;
+	else	/* default policy if we don't recognize the request */
+		return SCHED_OTHER;
+}
+
+static char *policyname(int policy)
+{
+	char *policystr = "";
+
+	switch(policy) {
+	case SCHED_OTHER:
+		policystr = "other";
+		break;
+	case SCHED_FIFO:
+		policystr = "fifo";
+		break;
+	case SCHED_RR:
+		policystr = "rr";
+		break;
+	case SCHED_BATCH:
+		policystr = "batch";
+		break;
+	case SCHED_IDLE:
+		policystr = "idle";
+		break;
+	}
+	return policystr;
+}
+
 
 /* Function realloc_it() is a wrapper function for standard realloc()
  * with one difference - it frees old memory pointer in case of realloc
@@ -32,6 +74,18 @@ static int dump(const char *js, jsmntok_t *t, size_t count, int indent, int key)
 		return 0;
 	}
 	if (t->type == JSMN_PRIMITIVE) {
+		char c[50]; // buffer size for tem
+		if (now)
+			switch (key) {
+			
+			case 0: sprintf(now->psig, "%.*s", t->end - t->start, js+t->start);
+					break;
+			case 2: sprintf(c, "%.*s", t->end - t->start, js+t->start);
+					now->attr.sched_policy = handlepolicy(c);
+//					break;
+			}
+
+
 		printf("%.*s", t->end - t->start, js+t->start);
 		return 1;
 	} else if (t->type == JSMN_STRING) {
@@ -41,14 +95,24 @@ static int dump(const char *js, jsmntok_t *t, size_t count, int indent, int key)
 			char c[50]; // buffer size for tem
 			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
 			
-			if (!strcasecmp(c, keys[0])){
-				// new object
-				fprintf(stdout, "\aBeep!\n" );
-			}
-			if (strcasecmp(c, keys[1])){
-				// parameter settings for new item reached.
-			
-			}
+			for (int i=0; i<10; i++) 
+				if (!strcasecmp(c, keys[i])){
+					// new object
+					kno=i;
+					break;
+				}
+		}
+		else
+		{
+			if (now)
+				switch (key) {
+				
+				case 0: sprintf(now->psig, "%.*s", t->end - t->start, js+t->start);
+						printf("-: ");  // separator
+						break;
+//				case 2: sprintf(now->attr.sched_policy, "%.*s", t->end - t->start, js+t->start);
+	//					break;
+				}
 		}
 		// all string values end up here
 		printf("'%.*s'", t->end - t->start, js+t->start);
@@ -63,12 +127,12 @@ static int dump(const char *js, jsmntok_t *t, size_t count, int indent, int key)
 
 			j += dump(js, t+1+j, count-j, indent+1, 1);   // key evaluation
 
-			printf(": ");  // separator
-			key = 0;
+//			printf(": ");  // separator
+//			key = 0;
 
-			j += dump(js, t+1+j, count-j, indent+1, 0); // value evaluation
+//			j += dump(js, t+1+j, count-j, indent+1, 0); // value evaluation
 			// if value is an object, it will contain again keys..
-			printf("\n");
+//			printf("\n");
 		}
 		return j+1;
 
