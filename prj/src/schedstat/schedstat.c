@@ -35,7 +35,8 @@ int main(int argc, char **argv)
 	
 	printDbg("Starting main PID: %d\n", getpid());
 	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
-	printDbg("Source compilation date: %s\n\n", __DATE__);
+	printDbg("Source compilation date: %s\n", __DATE__);
+	printDbg("This software comes with no waranty. Please be careful\n\n");
 
 	// TODO: ADD check for SYS_NICE
 	// TODO: ADD check for task prio

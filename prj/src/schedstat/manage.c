@@ -5,7 +5,12 @@
 // parameter tree linked list head
 parm_t * phead;
 
-static int handlepolicy(char *polname)
+/// handlepolicy(): Get the scheduling type number 
+///
+/// Arguments: string of scheduling name
+///
+/// Return value: Code of scheduling type
+static uint32_t handlepolicy(char *polname)
 {
 	if (strncasecmp(polname, "other", 5) == 0)
 		return SCHED_OTHER;
@@ -23,7 +28,12 @@ static int handlepolicy(char *polname)
 		return SCHED_OTHER;
 }
 
-static char *policyname(int policy)
+/// policyname(): get the policy string from policy type
+///
+/// Arguments: policy type (kernel constant)
+///
+/// Return value: character pointer to text 
+static char *policyname(uint32_t policy)
 {
 	char *policystr = "";
 
@@ -69,7 +79,13 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 
 const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period"};
 
-static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, int key) {
+/// extractJSON(): extract parameter values from JSON tokens
+///
+/// Arguments: js - input token string, t token position, count token count (object)
+/// 			depth (mostly for printout only), key - identifies key the parsed value belongs to 
+///
+/// Return value: number of tokens parsed
+static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, int key) {
 	int i, j, k;
 
 
@@ -77,21 +93,15 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 
 	// base case, no elements in the object
 	if (count == 0) {
+		printDbg("JSON: faulty object data! No element count in this object");
 		return 0;
 	}
-
-	// check key!!
-/*	if (key<-1 || key > length(keys)) {
-		// faulty data! 
-		printDbg("JSON: faulty key selection data!");
-		return 0; // 0 or 1? or count? check?
-	}*/
 
 	// setting value, primitive
 	if (t->type == JSMN_PRIMITIVE) {
 		// enter here if a primitive value (int?) has been identified
 
-		if (key == -1) { // no key value yet
+		if (key == -1 || (t->end - t->start) > SIG_LEN) { // no key value yet or value too long
 			printDbg("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
@@ -143,20 +153,27 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 	// setting value or label
 	} else if (t->type == JSMN_STRING) {
 		// here len must be shorter than SIG_LEN
+		if ((t->end - t->start) > SIG_LEN){
+			printDbg("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
+			return 1; // 0 or 1? or count? check?
+		}
+
 		// a key has been identified
 		if (key < 0){
-			char c[SIG_LEN]; // buffer size for tem
+			char c[SIG_LEN]; // buffer size for temp storage
 			size_t len = sizeof(keys)/sizeof(c[0]); // count of keys
 
 			// copy key to temp string buffer
 			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
+
+			// TODO: strcasecmp vs strncasecmp
 			
 			for (i=0; i<len; i++) 
 				if (!strcasecmp(c, keys[i])){
 					// key match.. find value for it
 					printDbg("'%.*s': ", t->end - t->start, js+t->start);
 					j = 0;					
-					j += extractJSON(js, t+1+j, count-j, indent+1, i);   // key evaluation
+					j += extractJSON(js, t+1+j, count-j, depth+1, i);   // key evaluation
 					return j+1;
 					break;
 				}
@@ -197,25 +214,25 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 	// Process composed objects ( {} }
 	} else if (t->type == JSMN_OBJECT) {
 
-		// add a new head
-		if (indent == 2) {
+		// add a new settings item at head
+		// TODO: fix it to be depth independent
+		if (depth == 2) {
 			printDbg("Adding new item:\n");
 			ppush (&phead);
 		}
-		
 
 		// printout 
 		printDbg("\n");
 		j = 0;
 		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < indent; k++) printDbg("  "); // print indent
+			for (k = 0; k < depth; k++) printDbg("  "); // print depth
 
 			// we evaluate only the key here, value is taken in cascade
-			j += extractJSON(js, t+1+j, count-j, indent+1, -1);   // key evaluation
+			j += extractJSON(js, t+1+j, count-j, depth+1, -1);   // key evaluation
 
 			// printDbg(": ");  // separator
 
-			//j += extractJSON(js, t+1+j, count-j, indent+1, -1); // value evaluation
+			//j += extractJSON(js, t+1+j, count-j, depth+1, -1); // value evaluation
 			// if value is an object, it will contain aga`in keys..
 			printDbg("\n");
 		}
@@ -226,9 +243,9 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 		j = 0;
 		printDbg("\n");
 		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < indent-1; k++) printDbg("  ");
+			for (k = 0; k < depth-1; k++) printDbg("  ");
 			printDbg("   - ");
-			j += extractJSON(js, t+1+j, count-j, indent+1, -1);
+			j += extractJSON(js, t+1+j, count-j, depth+1, -1);
 			printDbg("\n");
 		}
 		return j+1;
@@ -242,7 +259,6 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 /// Arguments: - 
 ///
 /// Return value: Code - o for no error - EXIT_SUCCESS
-/// thing is 
 int readParams() {
 	int r;
 	int eof_expected = 0; // ok to have end of file

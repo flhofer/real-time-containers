@@ -17,7 +17,7 @@
 	#define __SCHEDSTAT_H_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.1
+	#define VERSION 0.15
 	#define MAX_PIDS 64
 	#define MAX_CPUS 8
 
