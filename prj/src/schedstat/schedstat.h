@@ -13,8 +13,8 @@
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include "rt-sched.h" // temporary as libc does not include new sched yet
 
-#ifndef __SCHEDSTAT_H_
-	#define __SCHEDSTAT_H_
+#ifndef __SCHEDSTAT_
+	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
 	#define VERSION 0.15

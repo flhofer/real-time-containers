@@ -1,3 +1,4 @@
+#include "pidparm.h"
 
 extern pthread_mutex_t dataMutex;
 extern node_t * head;

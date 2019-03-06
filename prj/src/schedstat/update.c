@@ -1,6 +1,7 @@
 #include "schedstat.h"
 #include "update.h"
 
+
 // Thread managing pid list update
 
 /// getpids(): utility function to get PID list of interrest
@@ -10,7 +11,7 @@
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getpids (pid_t *pidno, size_t cnt, char * tag)
+int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[1024];
 	char req[40];
@@ -18,18 +19,23 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 	int i =0  ;
 	// prepare literal and open pipe request
 	//sprintf (req,  "pidof %s", tag);
-	sprintf (req,  "ps h -o pid,command -C %s", tag);
+	(void)sprintf (req,  "ps h -o pid,command -C %s", tag);
 	FILE *fp = popen(req,"r");
 
 	// Scan through string and put in array
 	while(fgets(pidline,1024,fp) && i < cnt) {
 		//printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
-        *pidno = atoi(pid);
-        printDbg("%d",*pidno);
+        pidlst->pid = atoi(pid);
+        (void)printDbg("%d",pidlst->pid);
+
+		// find command string and copy to new allocation
         pid = strtok (NULL, ""); // end of line?
-        printDbg(" cmd: %s\n",pid);
-		pidno++;
+        (void)printDbg(" cmd: %s\n",pid);
+		// TODO: what if len = max, null terminator?
+		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
+			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
+		pidlst++;
         i++;
     }
 
@@ -47,41 +53,41 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 ///
 void scanNew () {
 	// get PIDs 
-	pid_t pidno[MAX_PIDS];
+	pidinfo_t pidlst[MAX_PIDS];
 	char * pidsig = "hello"; // TODO: fix filename list 
 
-	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
+	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
-		printDbg("Result update pid %d\n", pidno[i]);		
+		(void)printDbg("Result update pid %d\n", (pidlst+i)->pid);		
 	}
 
 	node_t *act = head, *prev = NULL;
 	struct sched_attr * attr = get_node (head);
 	int i = cnt-1;
 
-	printDbg("Entering node update\n");		
+	(void)printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
-	pthread_mutex_lock(&dataMutex);
+	(void)pthread_mutex_lock(&dataMutex);
 	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
-		if (pidno[i] < ((*act).pid)) {
-			printDbg("Insert\n");		
+		if ((pidlst +i)->pid < ((*act).pid)) {
+			(void)printDbg("Insert\n");		
 			// insert, prev is upddated to the new element
-			attr = insert_after(&head, &prev, pidno[i], pidsig);
+			attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 			// sig here to other thread?
 			i--;
 		} 
 		else		
 		// delete a dopped item
-		if (pidno[i] > ((*act).pid)) {
-			printDbg("Delete\n");		
+		if ((pidlst +i)->pid > ((*act).pid)) {
+			(void)printDbg("Delete\n");		
 			attr = get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			printDbg("No change\n");		
+			(void)printDbg("No change\n");		
 			i--;
 			prev = act; // update prev 
 			attr = get_next(&act);
@@ -89,24 +95,24 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		printDbg("Insert at end\n");		
-		attr = insert_after(&head, &prev, pidno[i], pidsig);
+		(void)printDbg("Insert at end\n");		
+		attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 		// sig here to other thread?
 		i--;
 	}
 
 	while ( (act != NULL) && (attr != NULL)) {
 		// drop missing items
-		printDbg("Delete\n");		
+		(void)printDbg("Delete\n");		
 		// get next item, then drop old
 		attr = get_next(&act);
 		int ret = drop_after(&head, &prev);
 		// sig here to other thread?
 	}
 	// unlock data thread
-	pthread_mutex_unlock(&dataMutex);
+	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("Exiting node update\n");	
+	(void)printDbg("Exiting node update\n");	
 }
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
@@ -118,18 +124,18 @@ void scanNew () {
 ///
 void prepareEnvironment() {
 	// get PIDs 
-	pid_t pidno[MAX_PIDS];
+	pidinfo_t pidlst[MAX_PIDS];
 	char * pidsig = "hello"; // TODO: fix filename list 
 
 	// here the other threads are not started yet.. no lock needed
-	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
+	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
 
 	// TODO: set all non concerning tasks to background resources	
 	
 	// push into linked list
 	for (int i=0; i<cnt; i++){
-		printDbg("Result first scan pid %d\n", pidno[i]);		
-		(void)push (&head, pidno[i], pidsig);
+		(void)printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
+		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
 	}
 }
 

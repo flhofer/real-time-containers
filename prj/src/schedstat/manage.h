@@ -11,4 +11,6 @@ extern node_t * head;
 
 void *thread_manage (void *arg); // thread that scans peridically for new entry pids
 
+#define JSMN_STRICT // force json conformance when parsing
+
 #endif
