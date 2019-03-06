@@ -17,6 +17,8 @@ static int handlepolicy(char *polname)
 		return SCHED_FIFO;
 	else if (strncasecmp(polname, "rr", 2) == 0)
 		return SCHED_RR;
+	else if (strncasecmp(polname, "deadline", 8) == 0)
+		return SCHED_DEADLINE;
 	else	/* default policy if we don't recognize the request */
 		return SCHED_OTHER;
 }
@@ -34,6 +36,9 @@ static char *policyname(int policy)
 		break;
 	case SCHED_RR:
 		policystr = "rr";
+		break;
+	case SCHED_DEADLINE:
+		policystr = "deadline";
 		break;
 	case SCHED_BATCH:
 		policystr = "batch";
@@ -91,19 +96,44 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int indent, i
 			return 1; // 0 or 1? or count? check?
 		}
 
-		// here len must be shorter than SIG_LEN 
-		char c[SIG_LEN]; // buffer size for tem
 		if (!phead) {
 			printDbg("JSON: no element! %.*s", t->end - t->start, js+t->start);
 			return 1;
 		}
 
+		// here len must be shorter than SIG_LEN 
+		char c[SIG_LEN]; // buffer size for tem
+		sprintf(c, "%.*s", t->end - t->start, js+t->start);
+
 		switch (key) {
 
-		case 2: // schedule policy 
-				sprintf(c, "%.*s", t->end - t->start, js+t->start);
-				phead->attr.sched_policy = handlepolicy(c);
-				printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+		case 3: // schedule flags
+				phead->attr.sched_flags = strtol(c,NULL,10);
+				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
+				break;
+
+		case 4: // schedule niceness
+				phead->attr.sched_nice = (uint32_t)strtol(c,NULL,10);
+				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);
+				break;
+
+		case 5: // schedule rt priority
+				phead->attr.sched_priority = (uint32_t)strtol(c,NULL,10);
+				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
+				break;
+		case 6: // schedule rt runtime
+				phead->attr.sched_runtime = strtol(c,NULL,10);
+				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
+				break;
+		
+		case 7: // schedule rt deadline
+				phead->attr.sched_deadline = strtol(c,NULL,10);
+				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
+				break;
+
+		case 8: // schedule rt period
+				phead->attr.sched_period = strtol(c,NULL,10);
+				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
 				break;
 		}
 
@@ -242,9 +272,11 @@ int readParams() {
 		r = fread(buf, 1, sizeof(buf), f);
 		if (r < 0) {
 			fprintf(stderr, "fread(): %d, errno=%d\n", r, errno);
+			fclose (f);
 			return 1;
 		}
 		if (r == 0) {
+			fclose (f);
 			if (eof_expected != 0) {
 				return 0;
 			} else {
@@ -255,6 +287,7 @@ int readParams() {
 
 		js = realloc_it(js, jslen + r + 1);
 		if (js == NULL) {
+			fclose (f);
 			return 3;
 		}
 		strncpy(js + jslen, buf, r);
@@ -267,6 +300,7 @@ again:
 				tokcount = tokcount * 2;
 				tok = realloc_it(tok, sizeof(*tok) * tokcount);
 				if (tok == NULL) {
+					fclose (f);
 					return 3;
 				}
 				goto again;
@@ -281,7 +315,6 @@ again:
 	}
 
 	fclose (f);
-
 	return 0;
 }
 
