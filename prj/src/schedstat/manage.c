@@ -363,7 +363,9 @@ int manageSched(){
 			int ret = sched_rr_get_interval(current->pid, &tt);
 			printDbg("Schedule pid %d: %d %ld\n", current->pid, ret, tt.tv_nsec);
 
-			ret = sched_getattr (current->pid, &(current->attr), sizeof(node_t), 0U);
+			int flags;
+			// TODO: fix memory allignment, pointer inside structure is given!
+			ret = sched_getattr (current->pid, &(current->attr), sizeof(node_t), flags); // was 0U
 			printDbg("Attr: %d %d\n", ret, current->attr.sched_policy);
 
 			ret = sched_setaffinity(current->pid, sizeof(cset), &cset );

@@ -1,6 +1,7 @@
 #include "schedstat.h"
 #include "update.h"
 
+#include <errno.h> // TODO: fix as general
 
 // Thread managing pid list update
 
@@ -134,8 +135,18 @@ void prepareEnvironment() {
 	
 	// push into linked list
 	for (int i=0; i<cnt; i++){
+		int flags;
 		(void)printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
+		// insert new item to list!		
 		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
+		// update actual parameters, gather from process
+		// TODO: fix memory allignment, pointer inside structure is given!
+		if (sched_getattr (head->pid, &(head->attr), sizeof(node_t), flags) != 0)
+			(void)printDbg("Warn! Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
+		
+		if (flags != head->attr.sched_flags)
+			// TODO: strangely there is a type mismatch
+			(void)printDbg("Warn! Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
 	}
 }
 
