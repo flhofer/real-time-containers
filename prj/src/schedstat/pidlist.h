@@ -7,6 +7,7 @@
 
 typedef struct sched_pid {
 	pid_t pid;
+	char * psig; 
 	int affinity;
 	struct sched_attr attr;
 	struct sched_pid * next;
@@ -14,9 +15,9 @@ typedef struct sched_pid {
 
 extern node_t * head;
 
-void push_t(node_t * head, pid_t pid);
-struct sched_attr * push(node_t ** head, pid_t pid);
-struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid);
+void push_t(node_t * head, pid_t pid, char * psig);
+struct sched_attr * push(node_t ** head, pid_t pid, char * psig);
+struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig);
 pid_t pop(node_t ** head);
 pid_t drop_after(node_t ** head, node_t ** prev);
 //pid_t remove_last(node_t * head);

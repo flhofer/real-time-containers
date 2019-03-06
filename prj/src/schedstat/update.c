@@ -13,28 +13,27 @@
 int getpids (pid_t *pidno, size_t cnt, char * tag)
 {
 	char pidline[1024];
-	char req[20];
+	char req[40];
 	char *pid;
 	int i =0  ;
 	// prepare literal and open pipe request
-	sprintf (req,  "pidof %s", tag);
-	//sprintf (req,  "ps  %s", tag);
+	//sprintf (req,  "pidof %s", tag);
+	sprintf (req,  "ps h -o pid,command -C %s", tag);
 	FILE *fp = popen(req,"r");
-	fgets(pidline,1024,fp);
-	pclose(fp);
 
-	printDbg("Pid string return %s", pidline);
-	pid = strtok (pidline," ");
 	// Scan through string and put in array
-	while(pid != NULL && i < cnt)
-		    {
-		            *pidno = atoi(pid);
-		            printDbg("%d\n",*pidno);
-		            pid = strtok (NULL , " ");
-					pidno++;
-		            i++;
-		    }
+	while(fgets(pidline,1024,fp) && i < cnt) {
+		//printDbg("Pid string return %s\n", pidline);
+		pid = strtok (pidline," ");					
+        *pidno = atoi(pid);
+        printDbg("%d",*pidno);
+        pid = strtok (NULL, ""); // end of line?
+        printDbg(" cmd: %s\n",pid);
+		pidno++;
+        i++;
+    }
 
+	pclose(fp);
 	// return number of elements found
 	return i;
 }
@@ -49,6 +48,7 @@ int getpids (pid_t *pidno, size_t cnt, char * tag)
 void scanNew () {
 	// get PIDs 
 	pid_t pidno[MAX_PIDS];
+	char * pidsig = "hello"; // TODO: fix filename list 
 
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
@@ -67,12 +67,12 @@ void scanNew () {
 		if (pidno[i] < ((*act).pid)) {
 			printDbg("Insert\n");		
 			// insert, prev is upddated to the new element
-			attr = insert_after(&head, &prev, pidno[i]);
+			attr = insert_after(&head, &prev, pidno[i], pidsig);
 			// sig here to other thread?
 			i--;
 		} 
 		else		
-		// insert a missing item		
+		// delete a dopped item
 		if (pidno[i] > ((*act).pid)) {
 			printDbg("Delete\n");		
 			attr = get_next(&act);
@@ -90,7 +90,7 @@ void scanNew () {
 
 	while (i >= 0) {
 		printDbg("Insert at end\n");		
-		attr = insert_after(&head, &prev, pidno[i]);
+		attr = insert_after(&head, &prev, pidno[i], pidsig);
 		// sig here to other thread?
 		i--;
 	}
@@ -119,6 +119,7 @@ void scanNew () {
 void prepareEnvironment() {
 	// get PIDs 
 	pid_t pidno[MAX_PIDS];
+	char * pidsig = "hello"; // TODO: fix filename list 
 
 	// here the other threads are not started yet.. no lock needed
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
@@ -128,7 +129,7 @@ void prepareEnvironment() {
 	// push into linked list
 	for (int i=0; i<cnt; i++){
 		printDbg("Result first scan pid %d\n", pidno[i]);		
-		(void)push (&head, pidno[i]);
+		(void)push (&head, pidno[i], pidsig);
 	}
 }
 
