@@ -5,6 +5,37 @@
 
 // Thread managing pid list update
 
+/// updateStats(): update the real time statistics for all scheduled threads
+/// -- used for monitoring purposes ---
+///
+/// Arguments: - 
+///
+/// Return value: number of PIDs found (total)
+///
+int updateStats ()
+{
+	// init head
+	node_t * item = head;
+	int flags;
+
+	printDbg("Entering node stats update\n");		
+	
+	// for now does only a simple update
+	while (item != NULL) {
+		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0)
+			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+
+		if (flags != item->attr.sched_flags)
+		// TODO: strangely there is a type mismatch
+			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, item->attr.sched_flags);		
+
+		item=item->next; 
+	}
+
+	printDbg("Exiting node stats update\n");		
+
+}
+
 /// getpids(): utility function to get PID list of interrest
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
@@ -28,11 +59,11 @@ int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
 		//printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
         pidlst->pid = atoi(pid);
-        (void)printDbg("%d",pidlst->pid);
+        printDbg("%d",pidlst->pid);
 
 		// find command string and copy to new allocation
         pid = strtok (NULL, ""); // end of line?
-        (void)printDbg(" cmd: %s\n",pid);
+        printDbg(" cmd: %s\n",pid);
 		// TODO: what if len = max, null terminator?
 		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
@@ -55,24 +86,23 @@ int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
 void scanNew () {
 	// get PIDs 
 	pidinfo_t pidlst[MAX_PIDS];
-	char * pidsig = "hello"; // TODO: fix filename list 
 
 	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
 	for (int i=0; i<cnt; i++){
-		(void)printDbg("Result update pid %d\n", (pidlst+i)->pid);		
+		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
 	}
 
 	node_t *act = head, *prev = NULL;
 	struct sched_attr * attr = get_node (head);
 	int i = cnt-1;
 
-	(void)printDbg("Entering node update\n");		
+	printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
+	pthread_mutex_lock(&dataMutex);
 	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
 		// insert a missing item		
 		if ((pidlst +i)->pid < ((*act).pid)) {
-			(void)printDbg("Insert\n");		
+			printDbg("Insert\n");		
 			// insert, prev is upddated to the new element
 			attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 			// sig here to other thread?
@@ -81,14 +111,14 @@ void scanNew () {
 		else		
 		// delete a dopped item
 		if ((pidlst +i)->pid > ((*act).pid)) {
-			(void)printDbg("Delete\n");		
+			printDbg("Delete\n");		
 			attr = get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			(void)printDbg("No change\n");		
+			printDbg("No change\n");		
 			i--;
 			prev = act; // update prev 
 			attr = get_next(&act);
@@ -96,7 +126,7 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		(void)printDbg("Insert at end\n");		
+		printDbg("Insert at end\n");		
 		attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 		// sig here to other thread?
 		i--;
@@ -104,7 +134,7 @@ void scanNew () {
 
 	while ( (act != NULL) && (attr != NULL)) {
 		// drop missing items
-		(void)printDbg("Delete\n");		
+		printDbg("Delete\n");		
 		// get next item, then drop old
 		attr = get_next(&act);
 		int ret = drop_after(&head, &prev);
@@ -113,7 +143,7 @@ void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	(void)printDbg("Exiting node update\n");	
+	printDbg("Exiting node update\n");	
 }
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
@@ -126,7 +156,7 @@ void scanNew () {
 void prepareEnvironment() {
 	// get PIDs 
 	pidinfo_t pidlst[MAX_PIDS];
-	char * pidsig = "hello"; // TODO: fix filename list 
+	int flags;
 
 	// here the other threads are not started yet.. no lock needed
 	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
@@ -135,22 +165,22 @@ void prepareEnvironment() {
 	
 	// push into linked list
 	for (int i=0; i<cnt; i++){
-		int flags;
-		(void)printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
+		printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
 		// insert new item to list!		
 		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
 		// update actual parameters, gather from process
-		// TODO: fix memory allignment, pointer inside structure is given!
-		if (sched_getattr (head->pid, &(head->attr), sizeof(node_t), flags) != 0)
-			(void)printDbg("Warn! Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
+		// TODO: seems to need a bit of time when inserted, strange		
+		usleep(10000);
+		if (sched_getattr (head->pid, &(head->attr), sizeof(struct sched_attr), flags) != 0)
+			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
 		
 		if (flags != head->attr.sched_flags)
 			// TODO: strangely there is a type mismatch
-			(void)printDbg("Warn! Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
+			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
 	}
 }
 
-/// thread_manage(): thread function call to manage and update present pids list
+/// thread_update(): thread function call to manage and update present pids list
 ///
 /// Arguments: - thread state/state machine, passed on to allow main thread stop
 ///
@@ -158,24 +188,29 @@ void prepareEnvironment() {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
+	int cc;
 	// initialize the thread locals
-	while(1)
-	{
-	  switch( *pthread_state )
-	  {
-	  case 0: // normal thread loop
-		scanNew();
-		*pthread_state=-1;
-		break;
-	  case -1:
-		// tidy or whatever is necessary
-		pthread_exit(0); // exit the thread signalling normal return
-		break;
-	  case 1: //
-		// do something special
-		break;
-	  }
-	  usleep(1000000);
+	while(1) {
+	
+		switch( *pthread_state )
+		{
+		case 0: 
+			// startup-refresh: this should be executed only once every td
+			scanNew(); 
+			*pthread_state=1;
+		case 1: // normal thread loop
+			updateStats();
+			if (!cc) 
+				*pthread_state=0;
+			break;
+		case -1:
+			// tidy or whatever is necessary
+			pthread_exit(0); // exit the thread signalling normal return
+			break;
+		}
+		usleep(1000000);
+		cc++;
+		cc%=10;
 	}
 }
 

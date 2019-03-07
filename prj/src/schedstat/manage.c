@@ -403,9 +403,12 @@ void *thread_manage (void *arg)
 	  switch( *pthread_state )
 	  {
 	  case 0: // setup thread
-		if (readParams() == 0)
+		if (readParams() != 0){
+			printDbg("JSON: configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
 			*pthread_state=-1;
-		break;
+			break;
+		}
+		*pthread_state=-1;
 	  case 1: // normal thread loop
 		manageSched();
 		break;

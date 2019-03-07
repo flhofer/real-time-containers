@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rt-sched.h" // temporary as libc does not include new sched yet
+#include "pidparm.h"
 
 #ifndef __PIDLIST_
 #define __PIDLIST_
@@ -10,6 +11,7 @@ typedef struct sched_pid {
 	char * psig; 
 	int affinity;
 	struct sched_attr attr;
+	parm_t * param;
 	struct sched_pid * next;
 } node_t;
 
