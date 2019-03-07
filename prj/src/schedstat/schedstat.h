@@ -40,4 +40,8 @@
 	#define KMAG  "\x1B[35m"
 	#define KCYN  "\x1B[36m"
 	#define KWHT  "\x1B[37m"
+
+	// here, as it will be changed with cli later
+	#define TSCAN 1000000 // scan time of updates
+	#define TDETM 10	// x*TSCAN, time check new containers
 #endif

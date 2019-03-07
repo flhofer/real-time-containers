@@ -6,12 +6,19 @@
 #ifndef __PIDLIST_
 #define __PIDLIST_
 
-typedef struct sched_pid {
+struct sched_mon { // actual values for monitoring
+	uint64_t rt_min;
+	uint64_t rt_avg;
+	uint64_t rt_max;
+};
+
+typedef struct sched_pid { // pid mamagement and monitoring info
 	pid_t pid;
-	char * psig; 
+	char * psig;			// temp char, then moves to entry in pidparam
 	int affinity;
 	struct sched_attr attr;
-	parm_t * param;
+	struct sched_mon mon;
+	parm_t * param;			// points to entry in pidparam, mutliple pid-same param
 	struct sched_pid * next;
 } node_t;
 

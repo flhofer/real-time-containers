@@ -29,6 +29,9 @@ int updateStats ()
 		// TODO: strangely there is a type mismatch
 			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, item->attr.sched_flags);		
 
+		// exponentially weighted moving average
+
+
 		item=item->next; 
 	}
 
@@ -208,9 +211,9 @@ void *thread_update (void *arg)
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-		usleep(1000000);
+		usleep(TSCAN);
 		cc++;
-		cc%=10;
+		cc%=TDETM;
 	}
 }
 
