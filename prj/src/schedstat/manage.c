@@ -394,7 +394,13 @@ int updateSched() {
 					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
 
 				CPU_ZERO(&cset);
-				CPU_SET(current->param->rscs.affinity, &cset);
+				if (0 <= current->param->rscs.affinity) {
+					// cpu affinity defined to one cpu?
+					CPU_SET(current->param->rscs.affinity, &cset);
+				}
+				else {
+					// cpu affinity to all
+				}
 
 				if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 					printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));

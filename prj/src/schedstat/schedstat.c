@@ -3,6 +3,8 @@
 #include "update.h"
 #include "manage.h"
 
+#include <fcntl.h> 
+#include <sys/utsname.h>
 
 // Global variables for all the threads and programms
 
@@ -24,39 +26,169 @@ void inthand ( int signum ) {
 	stop = 1;
 }
 
+
+/// Kernel variable management (ct extract)
+
+#define KVARS			32
+#define KVARNAMELEN		32
+#define KVALUELEN		32
+
+static int kernelversion;
+
+static char *procfileprefix = "/proc/sys/kernel/";
+static char *fileprefix;
+
+/* Backup of kernel variables that we modify */
+static struct kvars {
+	char name[KVARNAMELEN];
+	char value[KVALUELEN];
+} kv[KVARS];
+
+enum kernelversion {
+	KV_NOT_SUPPORTED,
+	KV_26_LT18,
+	KV_26_LT24,
+	KV_26_33,
+	KV_30
+};
+
+
+static int check_kernel(void)
+{
+	struct utsname kname;
+	int maj, min, sub, kv, ret;
+
+	ret = uname(&kname);
+	if (ret) {
+		printDbg(KRED "Error!" KNRM " uname failed: %s. Assuming not 2.6\n",
+				strerror(errno));
+		return KV_NOT_SUPPORTED;
+	}
+	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
+	if (maj == 2 && min == 6) {
+		if (sub < 18)
+			kv = KV_26_LT18;
+			// toto if 
+		else if (sub < 24)
+			kv = KV_26_LT24;
+			// toto if 
+		else if (sub < 28) {
+			kv = KV_26_33;
+			// toto if 
+		} else {
+			kv = KV_26_33;
+			// toto if 
+		}
+	} else if (maj >= 3) {
+		kv = KV_30;
+		// toto if 
+
+	} else
+		kv = KV_NOT_SUPPORTED;
+
+	return kv;
+}
+
+static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
+{
+	char filename[128];
+	int retval = 1;
+	int path;
+	size_t len_prefix = strlen(fileprefix), len_name = strlen(name);
+
+	if (len_prefix + len_name + 1 > sizeof(filename)) {
+		errno = ENOMEM;
+		return 1;
+	}
+
+	memcpy(filename, fileprefix, len_prefix);
+	memcpy(filename + len_prefix, name, len_name + 1);
+
+	path = open(filename, mode);
+	if (path >= 0) {
+		if (mode == O_RDONLY) {
+			int got;
+			if ((got = read(path, value, sizeofvalue)) > 0) {
+				retval = 0;
+				value[got-1] = '\0';
+			}
+		} else if (mode == O_WRONLY) {
+			if (write(path, value, sizeofvalue) == sizeofvalue)
+				retval = 0;
+		}
+		close(path);
+	}
+	return retval;
+}
+
+static void setkernvar(const char *name, char *value)
+{
+	int i;
+	char oldvalue[KVALUELEN];
+
+	if (kernelversion < KV_26_33) {
+		if (kernvar(O_RDONLY, name, oldvalue, sizeof(oldvalue)))
+			printDbg(KRED "Error!" KNRM " could not retrieve %s\n", name);
+		else {
+			for (i = 0; i < KVARS; i++) {
+				if (!strcmp(kv[i].name, name))
+					break;
+				if (kv[i].name[0] == '\0') {
+					strncpy(kv[i].name, name,
+						sizeof(kv[i].name));
+					strncpy(kv[i].value, oldvalue,
+					    sizeof(kv[i].value));
+					break;
+				}
+			}
+			if (i == KVARS)
+				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n",
+					name, oldvalue);
+		}
+	}
+	if (kernvar(O_WRONLY, name, value, strlen(value)))
+		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
+
+}
+
+static void restorekernvars(void)
+{
+	int i;
+
+	for (i = 0; i < KVARS; i++) {
+		if (kv[i].name[0] != '\0') {
+			if (kernvar(O_WRONLY, kv[i].name, kv[i].value,
+			    strlen(kv[i].value)))
+				printDbg(KRED "Error!" KNRM " could not restore %s to %s\n",
+					kv[i].name, kv[i].value);
+		}
+	}
+}
+
+/// Kernel variable management - end (ct extract)
+
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
-/// a CPU-shield if not present, and populates initial state of pid list
+/// a CPU-shield if not present, prepares kernel settings for DL operation
+/// and populates initial state of pid list
 ///
 /// Arguments: 
 ///
 /// Return value: 
 ///
 void prepareEnvironment() {
-	// get PIDs 
-	// TODO: this will be changed
-/*	pidinfo_t pidlst[MAX_PIDS];
-	int flags;
 
-	// here the other threads are not started yet.. no lock needed
-	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
-
-	// TODO: set all non concerning tasks to background resources	
 	
-	// push into linked list
-	for (int i=0; i<cnt; i++){
-		printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
-		// insert new item to list!		
-		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
-		// update actual parameters, gather from process
-		// TODO: seems to need a bit of time when inserted, strange		
-		usleep(10000);
-		if (sched_getattr (head->pid, &(head->attr), sizeof(struct sched_attr), flags) != 0)
-			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
-		
-		if (flags != head->attr.sched_flags)
-			// TODO: strangely there is a type mismatch
-			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
-	}*/
+	kernelversion = check_kernel();
+	fileprefix = procfileprefix; // set working prefix for vfs
+
+	if (kernelversion == KV_NOT_SUPPORTED)
+		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\n");
+
+	// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
+
+	// disable bandwidth control and realtime throttle
+	setkernvar("sched_rt_runtime_us", "-1");
+
 }
 
 
@@ -105,5 +237,7 @@ int main(int argc, char **argv)
 	pthread_join( thread2, NULL); 
 
     printDbg("exiting safely\n");
+
+	restorekernvars(); // restore previous variables
     return 0;
 }
