@@ -77,7 +77,7 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 }
 
 
-const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period"};
+const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity"};
 
 /// extractJSON(): extract parameter values from JSON tokens
 ///
@@ -147,6 +147,11 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 				phead->attr.sched_period = strtol(c,NULL,10);
 				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
 				break;
+
+		case 10: // task affinity
+				phead->rscs.affinity = strtol(c,NULL,10);
+				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
+				break;
 		}
 
 		printDbg("%.*s", t->end - t->start, js+t->start);
@@ -163,7 +168,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		// a key has been identified
 		if (key < 0){
 			char c[SIG_LEN]; // buffer size for temp storage
-			size_t len = sizeof(keys)/sizeof(c[0]); // count of keys
+			size_t len = sizeof(keys)/sizeof(keys[0]); // count of keys
 
 			// copy key to temp string buffer
 			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
@@ -202,6 +207,8 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					char c[SIG_LEN]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
 					phead->attr.sched_policy = handlepolicy(c);
+					// TODO: fix size elements
+					phead->attr.size=48; // has to be set
 					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
 					break;
 
@@ -336,7 +343,29 @@ again:
 	return 0;
 }
 
-/// updateSched(): main function called to verify running schedule
+
+/// findParams(): returns the matching parameter set for a function
+//
+/// Arguments: 
+///
+/// Return value: pointer to parameters
+///
+
+parm_t* findParams(node_t* node){
+
+	parm_t * curr = phead;
+
+	while (NULL != curr) {
+		if(!strcmp(curr->psig, node->psig))
+			return curr;
+		curr = curr->next; 
+	}
+
+	return NULL;
+
+}
+
+/// updateSched(): main function called to verify status of threads
 //
 /// Arguments: 
 ///
@@ -344,11 +373,45 @@ again:
 ///
 int updateSched() {
 
+    node_t * current = head;
+	cpu_set_t cset;
+
+	(void)pthread_mutex_lock(&dataMutex);
+
+	while (NULL != current) {
+		
+		if (NULL == current->param) {
+			// params unassigned
+			current->param = findParams(current);
+			if (NULL != current->param) { 
+				// only if successful
+				free (current->psig);
+				current->psig = current->param->psig;
+
+				printDbg("Setting Scheduler to pid: %d %d\n", current->pid, current->param->attr.sched_policy);
+				int flags = current->attr.sched_flags;
+				if (sched_setattr (current->pid, &current->param->attr, flags))
+					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+
+				CPU_ZERO(&cset);
+				CPU_SET(current->param->rscs.affinity, &cset);
+
+				if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+					printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+					// not possible with sched_deadline
+				else
+					printDbg("Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
+
+				
+			}
+		}
+
+		current = current->next;
+
+	}
+	(void)pthread_mutex_unlock(&dataMutex);
 	return 0;
 }
-
-
-
 
 // working item now
 parm_t * now;
@@ -368,9 +431,10 @@ int manageSched(){
 	CPU_ZERO(&cset);
 	CPU_SET(0, &cset);
 
-	pthread_mutex_lock(&dataMutex);
-
     node_t * current = head;
+
+	(void)pthread_mutex_lock(&dataMutex);
+
 	while (current != NULL) {
 		// get schedule of new pids
 		if (current->attr.size == 0) {
@@ -401,7 +465,7 @@ int manageSched(){
     }
 
 
-	pthread_mutex_unlock(&dataMutex);
+	(void)pthread_mutex_unlock(&dataMutex);
 }
 
 /// thread_manage(): thread function call to manage schedule list

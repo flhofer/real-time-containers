@@ -224,7 +224,7 @@ int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
         printDbg("%d",pidlst->pid);
 
 		// find command string and copy to new allocation
-        pid = strtok (NULL, ""); // end of line?
+        pid = strtok (NULL, "\n"); // end of line?
         printDbg(" cmd: %s\n",pid);
 		// TODO: what if len = max, null terminator?
 		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
