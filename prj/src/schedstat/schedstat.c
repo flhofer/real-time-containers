@@ -24,6 +24,41 @@ void inthand ( int signum ) {
 	stop = 1;
 }
 
+/// prepareEnvironment(): gets the list of active pids at startup, sets up
+/// a CPU-shield if not present, and populates initial state of pid list
+///
+/// Arguments: 
+///
+/// Return value: 
+///
+void prepareEnvironment() {
+	// get PIDs 
+	// TODO: this will be changed
+/*	pidinfo_t pidlst[MAX_PIDS];
+	int flags;
+
+	// here the other threads are not started yet.. no lock needed
+	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
+
+	// TODO: set all non concerning tasks to background resources	
+	
+	// push into linked list
+	for (int i=0; i<cnt; i++){
+		printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
+		// insert new item to list!		
+		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
+		// update actual parameters, gather from process
+		// TODO: seems to need a bit of time when inserted, strange		
+		usleep(10000);
+		if (sched_getattr (head->pid, &(head->attr), sizeof(struct sched_attr), flags) != 0)
+			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
+		
+		if (flags != head->attr.sched_flags)
+			// TODO: strangely there is a type mismatch
+			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
+	}*/
+}
+
 
 /// main(): mein program.. setup threads and keep loop for user/system break
 ///

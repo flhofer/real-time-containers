@@ -1,7 +1,141 @@
 #include "schedstat.h"
 #include "update.h"
 
+// test added
+#include <limits.h>
+#include <sys/stat.h>
+
 #include <errno.h> // TODO: fix as general
+
+// test added 
+typedef struct statstruct_proc {
+  int           pid;                      /** The process id. **/
+  char          exName [_POSIX_PATH_MAX]; /** The filename of the executable **/
+  char          state; /** 1 **/          /** R is running, S is sleeping, 
+			   D is sleeping in an uninterruptible wait,
+			   Z is zombie, T is traced or stopped **/
+  unsigned      euid,                      /** effective user id **/
+                egid;                      /** effective group id */					     
+  int           ppid;                     /** The pid of the parent. **/
+  int           pgrp;                     /** The pgrp of the process. **/
+  int           session;                  /** The session id of the process. **/
+  int           tty;                      /** The tty the process uses **/
+  int           tpgid;                    /** (too long) **/
+  unsigned int	flags;                    /** The flags of the process. **/
+  unsigned int	minflt;                   /** The number of minor faults **/
+  unsigned int	cminflt;                  /** The number of minor faults with childs **/
+  unsigned int	majflt;                   /** The number of major faults **/
+  unsigned int  cmajflt;                  /** The number of major faults with childs **/
+  int           utime;                    /** user mode jiffies **/
+  int           stime;                    /** kernel mode jiffies **/
+  int		cutime;                   /** user mode jiffies with childs **/
+  int           cstime;                   /** kernel mode jiffies with childs **/
+  int           counter;                  /** process's next timeslice **/
+  int           priority;                 /** the standard nice value, plus fifteen **/
+  unsigned int  timeout;                  /** The time in jiffies of the next timeout **/
+  unsigned int  itrealvalue;              /** The time before the next SIGALRM is sent to the process **/
+  int           starttime; /** 20 **/     /** Time the process started after system boot **/
+  unsigned int  vsize;                    /** Virtual memory size **/
+  unsigned int  rss;                      /** Resident Set Size **/
+  unsigned int  rlim;                     /** Current limit in bytes on the rss **/
+  unsigned int  startcode;                /** The address above which program text can run **/
+  unsigned int	endcode;                  /** The address below which program text can run **/
+  unsigned int  startstack;               /** The address of the start of the stack **/
+  unsigned int  kstkesp;                  /** The current value of ESP **/
+  unsigned int  kstkeip;                 /** The current value of EIP **/
+  int			signal;                   /** The bitmap of pending signals **/
+  int           blocked; /** 30 **/       /** The bitmap of blocked signals **/
+  int           sigignore;                /** The bitmap of ignored signals **/
+  int           sigcatch;                 /** The bitmap of catched signals **/
+  unsigned int  wchan;  /** 33 **/        /** (too long) **/
+  int			sched, 		  /** scheduler **/
+                sched_priority;		  /** scheduler priority **/
+		
+} procinfo;
+
+int get_proc_info(pid_t pid, procinfo * pinfo)
+{
+  char szFileName [_POSIX_PATH_MAX],
+    szStatStr [2048],
+    *s, *t;
+  FILE *fp;
+  struct stat st;
+  
+  if (NULL == pinfo) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  sprintf (szFileName, "/proc/%u/stat", (unsigned) pid);
+  
+  if (-1 == access (szFileName, R_OK)) {
+    return (pinfo->pid = -1);
+  } /** if **/
+
+  if (-1 != stat (szFileName, &st)) {
+  	pinfo->euid = st.st_uid;
+  	pinfo->egid = st.st_gid;
+  } else {
+  	pinfo->euid = pinfo->egid = -1;
+  }
+  
+  
+  if ((fp = fopen (szFileName, "r")) == NULL) {
+    return (pinfo->pid = -1);
+  } /** IF_NULL **/
+  
+  if ((s = fgets (szStatStr, 2048, fp)) == NULL) {
+    fclose (fp);
+    return (pinfo->pid = -1);
+  }
+
+  /** pid **/
+  sscanf (szStatStr, "%u", &(pinfo->pid));
+  s = strchr (szStatStr, '(') + 1;
+  t = strchr (szStatStr, ')');
+  strncpy (pinfo->exName, s, t - s);
+  pinfo->exName [t - s] = '\0';
+  
+  sscanf (t + 2, "%c %d %d %d %d %d %u %u %u %u %u %d %d %d %d %d %d %u %u %d %u %u %u %u %u %u %u %u %d %d %d %d %u",
+	  /*       1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33*/
+	  &(pinfo->state),
+	  &(pinfo->ppid),
+	  &(pinfo->pgrp),
+	  &(pinfo->session),
+	  &(pinfo->tty),
+	  &(pinfo->tpgid),
+	  &(pinfo->flags),
+	  &(pinfo->minflt),
+	  &(pinfo->cminflt),
+	  &(pinfo->majflt),
+	  &(pinfo->cmajflt),
+	  &(pinfo->utime),
+	  &(pinfo->stime),
+	  &(pinfo->cutime),
+	  &(pinfo->cstime),
+	  &(pinfo->counter),
+	  &(pinfo->priority),
+	  &(pinfo->timeout),
+	  &(pinfo->itrealvalue),
+	  &(pinfo->starttime),
+	  &(pinfo->vsize),
+	  &(pinfo->rss),
+	  &(pinfo->rlim),
+	  &(pinfo->startcode),
+	  &(pinfo->endcode),
+	  &(pinfo->startstack),
+	  &(pinfo->kstkesp),
+	  &(pinfo->kstkeip),
+	  &(pinfo->signal),
+	  &(pinfo->blocked),
+	  &(pinfo->sigignore),
+	  &(pinfo->sigcatch),
+	  &(pinfo->wchan));
+  fclose (fp);
+  return 0;
+}
+
+// until here
 
 // Thread managing pid list update
 
@@ -17,6 +151,7 @@ int updateStats ()
 	// init head
 	node_t * item = head;
 	int flags;
+	procinfo * procinf = calloc(1, sizeof(procinfo));
 
 	printDbg("Entering node stats update\n");		
 	
@@ -29,7 +164,31 @@ int updateStats ()
 		// TODO: strangely there is a type mismatch
 			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, item->attr.sched_flags);		
 
+
+		// get runtime value
+		//char path[256],buffer[256]; 
+		//int status,read_length;
+        //sprintf(path,"/proc/%i/status",item->pid);
+
+		/*if (!get_proc_info(item->pid, procinf)) {
+			printf ("Hello: %d\n", procinf->utime);
+			}  -> use function*/ 
+		/*
+        FILE *fd=fopen(path,"r");
+        if(fd!=0){
+            read_length=fread(buffer,1,255,fd);
+            printf("Read: %s\n",buffer);
+            fclose(fd);
+        }
+		*/
+
+
 		// exponentially weighted moving average
+		
+
+		//item->mon.rt_avg = item->mon.rt_avg * 0.9 + item.attr;
+
+
 
 
 		item=item->next; 
@@ -96,18 +255,18 @@ void scanNew () {
 	}
 
 	node_t *act = head, *prev = NULL;
-	struct sched_attr * attr = get_node (head);
 	int i = cnt-1;
 
 	printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
 	pthread_mutex_lock(&dataMutex);
-	while ( (act != NULL) && (attr != NULL) && (i >= 0)) {
+	while ( (act != NULL) && (i >= 0)) {
+		
 		// insert a missing item		
 		if ((pidlst +i)->pid < ((*act).pid)) {
 			printDbg("Insert\n");		
 			// insert, prev is upddated to the new element
-			attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
+			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 			// sig here to other thread?
 			i--;
 		} 
@@ -115,7 +274,7 @@ void scanNew () {
 		// delete a dopped item
 		if ((pidlst +i)->pid > ((*act).pid)) {
 			printDbg("Delete\n");		
-			attr = get_next(&act);
+			get_next(&act);
 			int ret = drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
@@ -124,22 +283,22 @@ void scanNew () {
 			printDbg("No change\n");		
 			i--;
 			prev = act; // update prev 
-			attr = get_next(&act);
+			get_next(&act);
 		}
 	}
 
 	while (i >= 0) {
 		printDbg("Insert at end\n");		
-		attr = insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
+		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 		// sig here to other thread?
 		i--;
 	}
 
-	while ( (act != NULL) && (attr != NULL)) {
+	while (act != NULL) {
 		// drop missing items
 		printDbg("Delete\n");		
 		// get next item, then drop old
-		attr = get_next(&act);
+		get_next(&act);
 		int ret = drop_after(&head, &prev);
 		// sig here to other thread?
 	}
@@ -147,40 +306,6 @@ void scanNew () {
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	printDbg("Exiting node update\n");	
-}
-
-/// prepareEnvironment(): gets the list of active pids at startup, sets up
-/// a CPU-shield if not present, and populates initial state of pid list
-///
-/// Arguments: 
-///
-/// Return value: 
-///
-void prepareEnvironment() {
-	// get PIDs 
-	pidinfo_t pidlst[MAX_PIDS];
-	int flags;
-
-	// here the other threads are not started yet.. no lock needed
-	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
-
-	// TODO: set all non concerning tasks to background resources	
-	
-	// push into linked list
-	for (int i=0; i<cnt; i++){
-		printDbg("Result first scan pid %d\n", (pidlst +i)->pid);		
-		// insert new item to list!		
-		push (&head, (pidlst +i)->pid, (pidlst +i)->psig);
-		// update actual parameters, gather from process
-		// TODO: seems to need a bit of time when inserted, strange		
-		usleep(10000);
-		if (sched_getattr (head->pid, &(head->attr), sizeof(struct sched_attr), flags) != 0)
-			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", head->pid, strerror(errno));		
-		
-		if (flags != head->attr.sched_flags)
-			// TODO: strangely there is a type mismatch
-			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, head->attr.sched_flags);		
-	}
 }
 
 /// thread_update(): thread function call to manage and update present pids list

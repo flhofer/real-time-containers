@@ -91,6 +91,8 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 
 	// TODO: len check and case not matching type, also key > than values
 
+	// extend with limits http://man7.org/linux/man-pages/man2/getrlimit.2.html
+
 	// base case, no elements in the object
 	if (count == 0) {
 		printDbg("JSON: faulty object data! No element count in this object");
@@ -334,10 +336,24 @@ again:
 	return 0;
 }
 
+/// updateSched(): main function called to verify running schedule
+//
+/// Arguments: 
+///
+/// Return value: N/D
+///
+int updateSched() {
+
+
+}
+
+
+
+
 // working item now
 parm_t * now;
 
-/// updateSched(): main function called to verify running schedule
+/// manageSched(): main function called to reassign resources
 //
 /// Arguments: 
 ///
@@ -378,8 +394,8 @@ int manageSched(){
 		// affinity not set?? default is 0, affinity of system stuff
 
 		// sum of cpu-times, affinity is only 1 cpu here
-		cputimes[current->affinity] += current->attr.sched_deadline;
-		cpuperiod[current->affinity] += current->attr.sched_deadline;
+		cputimes[current->param->rscs.affinity] += current->attr.sched_deadline;
+		cpuperiod[current->param->rscs.affinity] += current->attr.sched_deadline;
 
         current = current->next;
     }
@@ -408,17 +424,19 @@ void *thread_manage (void *arg)
 			*pthread_state=-1;
 			break;
 		}
-		*pthread_state=-1;
-	  case 1: // normal thread loop
-		manageSched();
+		*pthread_state=1;
+	  case 1: // normal thread loop, check and update data
+		(void)updateSched();
 		break;
+
+	  case 2: //
+		// update resources
+		(void)manageSched();
+		break;
+
 	  case -1:
 		// tidy or whatever is necessary
 		pthread_exit(0); // exit the thread signalling normal return
-		break;
-	  case 2: //
-		// do something special
-		
 		break;
 	  }
 	  sleep(1);

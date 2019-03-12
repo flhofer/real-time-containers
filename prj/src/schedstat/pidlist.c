@@ -15,7 +15,7 @@ void push_t(node_t * head, pid_t pid, char * psig) {
     current->next->next = NULL;
 }
 
-struct sched_attr * push(node_t ** head, pid_t pid, char * psig) {
+void push(node_t ** head, pid_t pid, char * psig) {
     node_t * new_node;
     new_node = calloc(sizeof(node_t), 1);
 
@@ -23,12 +23,14 @@ struct sched_attr * push(node_t ** head, pid_t pid, char * psig) {
     new_node->psig = psig;
     new_node->next = *head;
     *head = new_node;
-	return &new_node->attr;
+	//return &new_node->attr;
 }
 
-struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig) {
+void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig) {
 	if (*prev == NULL) {
-		return push (head, pid, psig);
+		push (head, pid, psig);
+		*prev = *head;
+		return;
 	}
    	node_t * new_node;
     new_node = calloc(sizeof(node_t), 1);
@@ -38,7 +40,7 @@ struct sched_attr * insert_after(node_t ** head, node_t ** prev, pid_t pid, char
     new_node->next = (*prev)->next;
     (*prev)->next = new_node;
 	*prev = (*prev)->next;
-	return &new_node->attr;
+	//return &new_node->attr;
 }
 
 pid_t pop(node_t ** head) {
@@ -161,16 +163,16 @@ struct sched_attr * get_node(node_t * act) {
     return &act->attr;
 }
 
-struct sched_attr * get_next(node_t ** act) {
+void get_next(node_t ** act) {
 
-    if (*act == NULL) {
-        return NULL;
+    if (*act != NULL) {
+	    *act = (*act)->next;
+//        return NULL;
     }
 
-    *act = (*act)->next;
-    if (*act == NULL) {
+ /*   if (*act == NULL) {
         return NULL;
     }
-    return get_node(*act);
+    return get_node(*act);*/
 }
 

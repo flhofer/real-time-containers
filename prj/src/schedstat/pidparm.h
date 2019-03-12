@@ -7,9 +7,16 @@
 
 #define SIG_LEN 50
 
+
+struct sched_rscs { // resources 
+	int affinity; // exclusive cpu-num
+	// TODO: fill with other values, i.e. memory bounds ecc
+};
+
 typedef struct pid_parm {
-	char psig[SIG_LEN]; 
-	struct sched_attr attr;
+	char psig[SIG_LEN]; 	// matching signatures -> target pids
+	struct sched_attr attr; // standard linux pid attributes
+	struct sched_rscs rscs;   // additional resource settings 
 	struct pid_parm* next;
 } parm_t;
 
