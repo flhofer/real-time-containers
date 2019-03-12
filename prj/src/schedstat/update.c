@@ -275,7 +275,7 @@ void scanNew () {
 		if ((pidlst +i)->pid > ((*act).pid)) {
 			printDbg("Delete\n");		
 			get_next(&act);
-			int ret = drop_after(&head, &prev);
+			(void)drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
@@ -299,7 +299,7 @@ void scanNew () {
 		printDbg("Delete\n");		
 		// get next item, then drop old
 		get_next(&act);
-		int ret = drop_after(&head, &prev);
+		(void)drop_after(&head, &prev);
 		// sig here to other thread?
 	}
 	// unlock data thread

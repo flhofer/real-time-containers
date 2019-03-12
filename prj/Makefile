@@ -5,7 +5,12 @@ AR?=$(CROSS_COMPILE)ar
 OBJDIR = build
 
 sources = schedstat.c \
-			thread.c
+#			thread.c\
+			manage.c\
+			update.c\
+			pidlist.c\
+			pidparm.c\
+			jsmn.c
 
 TARGETS = $(sources:.c=)
 # rem -lpthread
@@ -21,7 +26,7 @@ srcdir	?= $(prefix)/src
 #added prthread
 CFLAGS ?= -Wall -Wno-nonnull -pthread
 CPPFLAGS += -D_GNU_SOURCE -Isrc/include
-LDFLAGS ?=
+LDFLAGS ?= -pthread 
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
@@ -76,7 +81,8 @@ $(OBJDIR)/%.d: %.c | $(OBJDIR)
 	@$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< | sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' > $@ || rm -f $@
 
 .PHONY: all
-all: $(TARGETS) hwlatdetect | $(OBJDIR)
+all: $(TARGETS) 
+#hwlatdetect | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir $(OBJDIR)
@@ -84,11 +90,10 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/librttest.a
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/pidlist.o $(OBJDIR)/pidparm.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o $(OBJDIR)/librttest.a
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJDIR)/pidlist.o $(OBJDIR)/pidparm.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
-	$(CC) $(CFLAGS) $(LDFLAGS)  pidlist.c -o pidlist.o $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 # lib containing include lib in one binary file
