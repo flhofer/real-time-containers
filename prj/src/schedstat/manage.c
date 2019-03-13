@@ -388,6 +388,7 @@ int updateSched() {
 				free (current->psig);
 				current->psig = current->param->psig;
 
+				// TODO: track failed scheduling update?
 				printDbg("Setting Scheduler to pid: %d %d\n", current->pid, current->param->attr.sched_policy);
 				int flags = current->attr.sched_flags;
 				if (sched_setattr (current->pid, &current->param->attr, flags))

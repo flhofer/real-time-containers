@@ -5,6 +5,8 @@
 
 #include <fcntl.h> 
 #include <sys/utsname.h>
+#include <sys/capability.h>
+
 
 // Global variables for all the threads and programms
 
@@ -136,7 +138,7 @@ static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
 	return retval;
 }
 
-static void setkernvar(const char *name, char *value)
+static int setkernvar(const char *name, char *value)
 {
 	int i;
 	char oldvalue[KVALUELEN];
@@ -161,8 +163,12 @@ static void setkernvar(const char *name, char *value)
 					name, oldvalue);
 		}
 	}
-	if (kernvar(O_WRONLY, name, value, strlen(value)))
+	if (kernvar(O_WRONLY, name, value, strlen(value))){
 		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
+		return -1;
+	}
+	
+	return 0;
 
 }
 
@@ -188,22 +194,65 @@ static void restorekernvars(void)
 ///
 /// Arguments: 
 ///
-/// Return value: 
+/// Return value: error code if present
 ///
-void prepareEnvironment() {
+int prepareEnvironment() {
 
-	
+	/// prerequisites
+
+	/// --------------------
+	/// verify executable permissions	
+	// TODO: upgrade to libcap-ng
+	printDbg( "Info: Verifying for process capabilities..\n");
+	cap_t cap = cap_get_proc(); // get capability map of proc
+	if (!cap) {
+		printDbg( KRED "Error!" KNRM " Can not get capability map!\n");
+		return errno;
+	}
+	cap_flag_value_t v = 0; // flag to store return value
+	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) {// check for effective NICE cap
+		printDbg( KRED "Error!" KNRM " Capability test failed!\n");
+		return errno;
+	}
+
+	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
+		printDbg( KRED "Error!" KNRM " SYS_NICE capability mandatory to operate properly!\n");
+		return errno;
+	}
+
+	/// --------------------
+	/// Kernel variables, disable bandwidth management and RT-throttle
+	/// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	kernelversion = check_kernel();
 	fileprefix = procfileprefix; // set working prefix for vfs
 
 	if (kernelversion == KV_NOT_SUPPORTED)
-		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\n");
+		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\nTrying generic configuration..");
 
-	// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
-
+	printDbg( "Info: Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
-	setkernvar("sched_rt_runtime_us", "-1");
+	if (setkernvar("sched_rt_runtime_us", "-1")){
+		printDbg( KMAG "Warn!" KNRM " RT-throttle still enabled. Limitations apply.\n");
+	}
 
+	/// running settings for scheduler
+
+
+	return 0;
+}
+
+/// configureThreads(): configures running parameters for orchestrator's threads
+///
+/// Arguments: thread to manage
+///
+/// Return value: errors
+///
+int configureThreads(pthread_t * thread) {
+
+
+	// for now, keep em standard free-run, inherited from main process 
+	
+	return 0;
 }
 
 
@@ -220,11 +269,11 @@ int main(int argc, char **argv)
 	printDbg("Source compilation date: %s\n", __DATE__);
 	printDbg("This software comes with no waranty. Please be careful\n\n");
 
-	// TODO: ADD check for SYS_NICE
-	// TODO: ADD check for task prio
-
 	// gather actual information at startup, prepare environment
-	prepareEnvironment();
+	if (prepareEnvironment()) {
+		printDbg("Hard HALT.\n");
+		exit(EXIT_FAILURE);
+	}
 
 	pthread_t thread1, thread2;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
@@ -234,7 +283,10 @@ int main(int argc, char **argv)
 	/* Create independent threads each of which will execute function */
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2);
+
 	// TODO: set thread prio and sched to RR -> maybe 
+	(void) configureThreads (&thread1);
+	(void) configureThreads (&thread2);
 
 	// set interrupt sig hand
 	signal(SIGINT, inthand);
