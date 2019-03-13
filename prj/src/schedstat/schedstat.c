@@ -49,17 +49,19 @@ enum kernelversion {
 	KV_26_LT18,
 	KV_26_LT24,
 	KV_26_33,
-	KV_30
+	KV_30,
+	KV_40,
+	KV_413,	// includes full EDF for the first time
+	KV_416	// includes full EDF with GRUB-PA for ARM
 };
 
 
 static int check_kernel(void)
 {
 	struct utsname kname;
-	int maj, min, sub, kv, ret;
+	int maj, min, sub, kv;
 
-	ret = uname(&kname);
-	if (ret) {
+	if (uname(&kname)) {
 		printDbg(KRED "Error!" KNRM " uname failed: %s. Assuming not 2.6\n",
 				strerror(errno));
 		return KV_NOT_SUPPORTED;
@@ -72,16 +74,29 @@ static int check_kernel(void)
 		else if (sub < 24)
 			kv = KV_26_LT24;
 			// toto if 
-		else if (sub < 28) {
+		else if (sub < 28) 
 			kv = KV_26_33;
 			// toto if 
-		} else {
+		else 
 			kv = KV_26_33;
 			// toto if 
-		}
-	} else if (maj >= 3) {
+		
+	} else if (maj == 3) {
+		// kernel 3.x standard LT kernel for embedded
 		kv = KV_30;
 		// toto if 
+	} else if (maj == 4) { // fil
+
+		// kernel 4.x introduces Deadline scheduling
+		if (sub < 13)
+			// standard
+			kv = KV_40;
+		else if (sub < 16)
+			// full EDF
+			kv = KV_413;
+		else 
+			// full EDF -PA
+			kv = KV_416;
 
 	} else
 		kv = KV_NOT_SUPPORTED;
