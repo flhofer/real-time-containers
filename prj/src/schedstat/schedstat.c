@@ -6,6 +6,7 @@
 #include <fcntl.h> 
 #include <sys/utsname.h>
 #include <sys/capability.h>
+#include <sys/sysinfo.h>
 
 
 // Global variables for all the threads and programms
@@ -196,9 +197,12 @@ static void restorekernvars(void)
 ///
 /// Return value: error code if present
 ///
-int prepareEnvironment() {
+static int prepareEnvironment() {
 
 	/// prerequisites
+	printf("Info: This system has %d processors configured and "
+        "%d processors available.\n",
+        get_nprocs_conf(), get_nprocs());
 
 	/// --------------------
 	/// verify executable permissions	
@@ -217,7 +221,7 @@ int prepareEnvironment() {
 
 	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
 		printDbg( KRED "Error!" KNRM " SYS_NICE capability mandatory to operate properly!\n");
-		return errno;
+		return -1;
 	}
 
 	/// --------------------
@@ -227,7 +231,7 @@ int prepareEnvironment() {
 	fileprefix = procfileprefix; // set working prefix for vfs
 
 	if (kernelversion == KV_NOT_SUPPORTED)
-		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\nTrying generic configuration..");
+		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
 
 	printDbg( "Info: Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
@@ -235,7 +239,34 @@ int prepareEnvironment() {
 		printDbg( KMAG "Warn!" KNRM " RT-throttle still enabled. Limitations apply.\n");
 	}
 
+	/// --------------------
 	/// running settings for scheduler
+	struct sched_attr attr; 
+	int flags = 0U; // must be initialized?
+	pid_t mpid = getpid();
+	if (sched_getattr (mpid, &attr, sizeof(attr), flags))
+		printDbg(KRED "Error!" KNRM " reading attributes: %s\n", strerror(errno));
+
+	printDbg( "Info: orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
+
+
+	printDbg( "Info: promoting process and setting affinity..\n");
+
+	if (sched_setattr (mpid, &attr, flags))
+		printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+
+	cpu_set_t cset;
+	CPU_ZERO(&cset);
+	CPU_SET(0, &cset); // set process to CPU zero
+
+	if (sched_setaffinity(mpid, sizeof(cset), &cset ))
+		printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+		// not possible with sched_deadline
+	else
+		printDbg("Pid %d reassigned to CPU%d\n", mpid, 0);
+
+
+	/// TODO: setup cgroup -> may conflict with container groups?
 
 
 	return 0;
@@ -247,9 +278,9 @@ int prepareEnvironment() {
 ///
 /// Return value: errors
 ///
-int configureThreads(pthread_t * thread) {
+static int configureThreads(pthread_t * thread) {
 
-
+	// TODO: add thread configuration, RR <= 1ms? 
 	// for now, keep em standard free-run, inherited from main process 
 	
 	return 0;
@@ -264,7 +295,7 @@ int configureThreads(pthread_t * thread) {
 int main(int argc, char **argv)
 {
 	
-	printDbg("Starting main PID: %d\n", getpid());
+	printDbg("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
 	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
 	printDbg("Source compilation date: %s\n", __DATE__);
 	printDbg("This software comes with no waranty. Please be careful\n\n");

@@ -33,7 +33,7 @@ static uint32_t handlepolicy(char *polname)
 /// Arguments: policy type (kernel constant)
 ///
 /// Return value: character pointer to text 
-static char *policyname(uint32_t policy)
+char *policyname(uint32_t policy)
 {
 	char *policystr = "";
 
@@ -375,6 +375,10 @@ int updateSched() {
 
     node_t * current = head;
 	cpu_set_t cset;
+	cpu_set_t cset_full;
+
+	// TODO: fix for one time query
+	for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -389,18 +393,19 @@ int updateSched() {
 				current->psig = current->param->psig;
 
 				// TODO: track failed scheduling update?
-				printDbg("Setting Scheduler to pid: %d %d\n", current->pid, current->param->attr.sched_policy);
+				printDbg("Setting Scheduler of pid %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
 				int flags = current->attr.sched_flags;
 				if (sched_setattr (current->pid, &current->param->attr, flags))
 					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
 
-				CPU_ZERO(&cset);
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
+					CPU_ZERO(&cset);
 					CPU_SET(current->param->rscs.affinity, &cset);
 				}
 				else {
 					// cpu affinity to all
+					cset = cset_full;
 				}
 
 				if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
@@ -430,6 +435,9 @@ parm_t * now;
 /// Return value: N/D
 ///
 int manageSched(){
+
+	// this is for the dynamic scheduler only. Not up to date
+	/*
 	uint64_t cputimes[MAX_CPUS] = {}; 
 	uint64_t cpuperiod[MAX_CPUS] = {}; 
 	cpu_set_t cset;
@@ -472,7 +480,7 @@ int manageSched(){
     }
 
 
-	(void)pthread_mutex_unlock(&dataMutex);
+	(void)pthread_mutex_unlock(&dataMutex); */
 }
 
 /// thread_manage(): thread function call to manage schedule list
