@@ -4,8 +4,13 @@
 // test added
 #include <limits.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 
 #include <errno.h> // TODO: fix as general
+
+extern int use_cgroup; // identify processes via cgroup, written before startup of thread
+static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker";
+
 
 // test added 
 typedef struct statstruct_proc {

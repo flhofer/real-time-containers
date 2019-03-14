@@ -7,6 +7,8 @@
 #include <sys/utsname.h>
 #include <sys/capability.h>
 #include <sys/sysinfo.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 
 // Global variables for all the threads and programms
@@ -18,6 +20,8 @@ pthread_mutex_t dataMutex;
 
 // head of pidlist
 node_t * head = NULL;
+
+int use_cgroup = 0; // identify processes via cgroup
 
 /// inthand(): interrupt handler for infinite while loop, help 
 /// this function is called from outside, interrupt handling routine
@@ -39,6 +43,7 @@ void inthand ( int signum ) {
 static int kernelversion;
 
 static char *procfileprefix = "/proc/sys/kernel/";
+static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 static char *fileprefix;
 
 /* Backup of kernel variables that we modify */
@@ -268,6 +273,56 @@ static int prepareEnvironment() {
 
 	/// TODO: setup cgroup -> may conflict with container groups?
 
+	/// --------------------
+	/// checkout cgroup cpuset for docker instances
+	struct stat s;
+
+	if((fileprefix = malloc(strlen(cpusetfileprefix)+strlen("docker/")+1)) != NULL){
+		// create string
+		fileprefix[0] = '\0';   // ensures the memory is an empty string
+		strcat(fileprefix,cpusetfileprefix);
+		strcat(fileprefix,"docker/");
+	} else {
+		printDbg(KRED "Error!" KNRM " : %s\n", strerror(errno));
+		// exit?
+	}
+
+	int err = stat(fileprefix, &s);
+	if(-1 == err) {
+		if(ENOENT == errno) {
+		    printDbg(KMAG "Warn!" KNRM " : cgroup %s does not exist. Is it running?\n", "docker/");
+		} else {
+		    perror("stat");
+		}
+		use_cgroup = 0;
+	} else {
+		if(S_ISDIR(s.st_mode)) {
+		    /* it's a dir */
+			printDbg( "Info: using Cgroups to detect processes..\n");
+			use_cgroup = 1;
+		} else {
+		    /* exists but is no dir */
+			use_cgroup = 0;
+		}
+	}
+
+	/// --------------------
+	/// cgroup present, fix cpu-sets of running containers
+	if (use_cgroup) {
+
+		 DIR *d;
+		  struct dirent *dir;
+		  d = opendir(".");
+		  if (d) {
+			while ((dir = readdir(d)) != NULL) {
+			  printf("%s\n", dir->d_name);
+			}
+			closedir(d);
+		  }
+
+	}
+
+	free (fileprefix);
 
 	return 0;
 }
