@@ -218,12 +218,14 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	// no memory has been allocated yet
 	fileprefix = cpusetdfileprefix; // set to docker directory
 
-	DIR *d;
 	struct dirent *dir;
-	d = opendir(fileprefix);// -> pointing to global
-	fileprefix = NULL; // clear pointer again
-	char * nfileprefix = NULL;
+	DIR *d = opendir(fileprefix);// -> pointing to global
 	if (d) {
+		fileprefix = NULL; // clear pointer again
+		char * nfileprefix = NULL;
+		char pidline[1024];
+		char *pid;
+		int i =0;
 
 		while ((dir = readdir(d)) != NULL) {
 		// scan trough docker cgroups, find them?
@@ -236,15 +238,12 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 				printDbg( "... Container detection!\n");
 
-				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("tasks")+1))) {
+				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("/tasks")+1))) {
 					nfileprefix[0] = '\0';   // ensures the memory is an empty string
 					// copy to new prefix
 					strcat(nfileprefix,fileprefix);
-					strcat(nfileprefix,"tasks");
+					strcat(nfileprefix,"/tasks");
 
-					char pidline[1024];
-					char *pid;
-					int i =0  ;
 					// prepare literal and open pipe request
 					int path = open(nfileprefix,O_RDONLY);
 
@@ -255,7 +254,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 						while (pid != NULL) {
 							// pid found
 							pidlst->pid = atoi(pid);
-							printDbg("%d",pidlst->pid);
+//							printDbg("%d\n",pidlst->pid);
 
 							// find command string and copy to new allocation
 							// TODO: what if len = max, null terminator?
@@ -284,6 +283,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 		if (nfileprefix)
 			free (nfileprefix);
 
+		return i;
 	}
 	else {
 		printDbg( KMAG "Warn!" KNRM " Can not open Docker CGroups - is the daemon still running?\n");

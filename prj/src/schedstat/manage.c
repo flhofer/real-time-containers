@@ -358,6 +358,9 @@ parm_t* findParams(node_t* node){
 	while (NULL != curr) {
 		if(!strcmp(curr->psig, node->psig))
 			return curr;
+		if(!strncmp(curr->psig, node->psig, 12)) // TODO: temp, exact signature match?
+			return curr;
+
 		curr = curr->next; 
 	}
 
