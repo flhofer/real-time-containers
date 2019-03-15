@@ -8,8 +8,8 @@
 
 #include <errno.h> // TODO: fix as general
 
-extern int use_cgroup; // identify processes via cgroup, written before startup of thread
-static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker";
+//TODO: unify constants
+extern int use_cgroup; // processes identificatiom mode, written before startup of thread
 
 
 // test added 

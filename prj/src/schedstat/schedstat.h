@@ -44,4 +44,19 @@
 	// here, as it will be changed with cli later
 	#define TSCAN 1000000 // scan time of updates
 	#define TDETM 10	// x*TSCAN, time check new containers
+	#define CONT_PPID "docker-containerd-shim"
+
+	#define SYSCPUS 1 // 0-> count reserved for orchestrator and system
+
+	static char *procfileprefix = "/proc/sys/kernel/";
+	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
+	static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker/";
+
+
+	enum det_mode {
+		DM_CMDLINE,	// use command line signature for detection
+		DM_CNTPID,	// use container skim instances to detect pids
+		DM_CGRP		// USe cgroup to detect PIDs of processes
+	};
+
 #endif

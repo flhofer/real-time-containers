@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 
-
 // Global variables for all the threads and programms
 
 // signal to keep status of triggers ext SIG
@@ -21,7 +20,8 @@ pthread_mutex_t dataMutex;
 // head of pidlist
 node_t * head = NULL;
 
-int use_cgroup = 0; // identify processes via cgroup
+int use_cgroup = DM_CMDLINE; // identify processes via cgroup
+
 
 /// inthand(): interrupt handler for infinite while loop, help 
 /// this function is called from outside, interrupt handling routine
@@ -42,8 +42,6 @@ void inthand ( int signum ) {
 
 static int kernelversion;
 
-static char *procfileprefix = "/proc/sys/kernel/";
-static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 static char *fileprefix;
 
 /* Backup of kernel variables that we modify */
@@ -238,7 +236,7 @@ static int prepareEnvironment() {
 	if (kernelversion == KV_NOT_SUPPORTED)
 		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
 
-	printDbg( "Info: Set realtime bandwith limit to (unconstrained)..\n");
+	printDbg( "... Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
 	if (setkernvar("sched_rt_runtime_us", "-1")){
 		printDbg( KMAG "Warn!" KNRM " RT-throttle still enabled. Limitations apply.\n");
@@ -252,10 +250,10 @@ static int prepareEnvironment() {
 	if (sched_getattr (mpid, &attr, sizeof(attr), flags))
 		printDbg(KRED "Error!" KNRM " reading attributes: %s\n", strerror(errno));
 
-	printDbg( "Info: orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
+	printDbg( "... orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
 
 
-	printDbg( "Info: promoting process and setting affinity..\n");
+	printDbg( "... promoting process and setting affinity..\n");
 
 	if (sched_setattr (mpid, &attr, flags))
 		printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
@@ -268,7 +266,7 @@ static int prepareEnvironment() {
 		printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
 		// not possible with sched_deadline
 	else
-		printDbg("Pid %d reassigned to CPU%d\n", mpid, 0);
+		printDbg("... Pid %d reassigned to CPU%d\n", mpid, 0);
 
 
 	/// TODO: setup cgroup -> may conflict with container groups?
@@ -277,52 +275,143 @@ static int prepareEnvironment() {
 	/// checkout cgroup cpuset for docker instances
 	struct stat s;
 
-	if((fileprefix = malloc(strlen(cpusetfileprefix)+strlen("docker/")+1)) != NULL){
-		// create string
-		fileprefix[0] = '\0';   // ensures the memory is an empty string
-		strcat(fileprefix,cpusetfileprefix);
-		strcat(fileprefix,"docker/");
-	} else {
-		printDbg(KRED "Error!" KNRM " : %s\n", strerror(errno));
-		// exit?
-	}
+	// no memory has been allocated yet
+	fileprefix = cpusetdfileprefix; // set to docker directory
 
 	int err = stat(fileprefix, &s);
 	if(-1 == err) {
 		if(ENOENT == errno) {
-		    printDbg(KMAG "Warn!" KNRM " : cgroup %s does not exist. Is it running?\n", "docker/");
+		    printDbg(KMAG "Warn!" KNRM " : cgroup '%s' does not exist. Is it running?\n", "docker/");
+			printDbg( "... will use PIDs of '%s' to detect processes..\n", CONT_PPID);
 		} else {
 		    perror("stat");
 		}
-		use_cgroup = 0;
+		use_cgroup = DM_CNTPID;
 	} else {
 		if(S_ISDIR(s.st_mode)) {
 		    /* it's a dir */
 			printDbg( "Info: using Cgroups to detect processes..\n");
-			use_cgroup = 1;
+			use_cgroup = DM_CGRP;
 		} else {
 		    /* exists but is no dir */
-			use_cgroup = 0;
+			use_cgroup = DM_CNTPID;
 		}
 	}
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
-	if (use_cgroup) {
+	if (DM_CGRP == use_cgroup) {
 
-		 DIR *d;
-		  struct dirent *dir;
-		  d = opendir(".");
-		  if (d) {
+		char cpus[10];
+		sprintf(cpus, "%d-%d", SYSCPUS,get_nprocs_conf()-1); 
+
+		printDbg( "... reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
+
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(fileprefix);// -> pointing to global
+		fileprefix = NULL; // clear pointer
+		if (d) {
+
 			while ((dir = readdir(d)) != NULL) {
-			  printf("%s\n", dir->d_name);
+			// scan trough docker cgroups, find them?
+				if ((strlen(dir->d_name)>60) && // container strings are very long!
+						(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)+strlen(dir->d_name)+1))) {
+					fileprefix[0] = '\0';   // ensures the memory is an empty string
+					// copy to new prefix
+					strcat(fileprefix,cpusetdfileprefix);
+					strcat(fileprefix,dir->d_name);
+
+					if (setkernvar("/cpuset.cpus", cpus)){
+						printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+					}
+
+
+				}
 			}
+			if (fileprefix)
+				free (fileprefix);
+
+			fileprefix = cpusetdfileprefix; // set to docker directory
+
+			if (setkernvar("cpuset.cpus", cpus)){
+				printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+			}
+
+			if (setkernvar("cpuset.cpu_exclusive", "1")){
+				printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+			}
+
 			closedir(d);
-		  }
+		}
+
+		fileprefix = NULL;
+		sprintf(cpus, "%d-%d", 0, SYSCPUS-1); 
+		printDbg( "... creating cgroup for system on %s\n", cpus);
+
+		if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
+			fileprefix[0] = '\0';   // ensures the memory is an empty string
+			// copy to new prefix
+			strcat(fileprefix,cpusetfileprefix);
+			strcat(fileprefix,"system/");
+			if (!mkdir(fileprefix, ACCESSPERMS)) {
+				if (setkernvar("cpuset.cpus", cpus)){
+					printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+				}
+				if (setkernvar("cpuset.mems", "0")){ // TODO: fix cpuset mems
+					printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+				}
+				if (setkernvar("cpuset.cpu_exclusive", "1")){
+					printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+				}
+			}
+			else
+				printDbg( KMAG "Warn!" KNRM " Can not set cpu system group\n");
+
+			char * nfileprefix = NULL;
+			if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
+				nfileprefix[0] = '\0';   // ensures the memory is an empty string
+				// copy to new prefix
+				strcat(nfileprefix,cpusetfileprefix);
+				strcat(nfileprefix,"tasks");
+
+				char pidline[1024];
+				char *pid;
+				int i =0  ;
+				// prepare literal and open pipe request
+				int path = open(nfileprefix,O_RDONLY);
+
+				// Scan through string and put in array
+				while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln?
+					//printDbg("Pid string return %s\n", pidline);
+					pid = strtok (pidline,"\n");	
+					while (pid != NULL) {
+
+						// fileprefix still pointing to system/
+						if (setkernvar("tasks", pid)){
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+						}
+						pid = strtok (NULL,"\n");	
+
+					}
+					
+				}
+
+				close(path);
+			}
+
+			// free string buffers
+			if (fileprefix)
+				free (fileprefix);
+
+			if (nfileprefix)
+				free (nfileprefix);
+
+		}
+
+
 
 	}
-
-	free (fileprefix);
 
 	return 0;
 }
