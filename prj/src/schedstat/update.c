@@ -237,7 +237,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 				strcat(fileprefix,cpusetdfileprefix);
 				strcat(fileprefix,dir->d_name);
 
-				printDbg( "... Container detection!\n");
+// PDB				printDbg( "... Container detection!\n");
 
 				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("/tasks")+1))) {
 					nfileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -357,21 +357,22 @@ void scanNew () {
 	else {
 		cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
 	}
-	for (int i=0; i<cnt; i++){
+// PDB
+/*	for (int i=0; i<cnt; i++){
 		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
-	}
+	}*/
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
 
-	printDbg("Entering node update\n");		
+// PDB	printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
 	pthread_mutex_lock(&dataMutex);
 	while ( (act != NULL) && (i >= 0)) {
 		
 		// insert a missing item		
 		if ((pidlst +i)->pid < ((*act).pid)) {
-			printDbg("Insert\n");		
+			printDbg("... Insert new PID %d\n", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
 			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 			// sig here to other thread?
@@ -380,14 +381,14 @@ void scanNew () {
 		else		
 		// delete a dopped item
 		if ((pidlst +i)->pid > ((*act).pid)) {
-			printDbg("Delete\n");		
+			printDbg("... Delete %d\n", (pidlst +i)->pid);		
 			get_next(&act);
 			(void)drop_after(&head, &prev);
 			// sig here to other thread?
 		} 
 		// ok, skip to next
 		else {
-			printDbg("No change\n");		
+// PDB			printDbg("No change\n");		
 			i--;
 			prev = act; // update prev 
 			get_next(&act);
@@ -395,7 +396,7 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		printDbg("Insert at end\n");		
+		printDbg("... Insert at end PID %d\n", (pidlst +i)->pid);		
 		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 		// sig here to other thread?
 		i--;
@@ -403,7 +404,7 @@ void scanNew () {
 
 	while (act != NULL) {
 		// drop missing items
-		printDbg("Delete\n");		
+		printDbg("... Delete %d\n", (pidlst +i)->pid);		
 		// get next item, then drop old
 		get_next(&act);
 		(void)drop_after(&head, &prev);
@@ -412,7 +413,7 @@ void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("Exiting node update\n");	
+// PDB	printDbg("Exiting node update\n");	
 }
 
 /// thread_update(): thread function call to manage and update present pids list

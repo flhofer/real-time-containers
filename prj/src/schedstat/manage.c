@@ -121,36 +121,36 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 
 		case 3: // schedule flags
 				phead->attr.sched_flags = strtol(c,NULL,10);
-				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
+// PDB				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
 				break;
 
 		case 4: // schedule niceness
 				phead->attr.sched_nice = (uint32_t)strtol(c,NULL,10);
-				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);
+// PDB				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);// PDB
 				break;
 
 		case 5: // schedule rt priority
 				phead->attr.sched_priority = (uint32_t)strtol(c,NULL,10);
-				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
+// PDB				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
 				break;
 		case 6: // schedule rt runtime
 				phead->attr.sched_runtime = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
+// PDB				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
 				break;
 		
 		case 7: // schedule rt deadline
 				phead->attr.sched_deadline = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
+// PDB				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
 				break;
 
 		case 8: // schedule rt period
 				phead->attr.sched_period = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
+// PDB				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
 				break;
 
 		case 10: // task affinity
 				phead->rscs.affinity = strtol(c,NULL,10);
-				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
+// PDB				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
 				break;
 		}
 
@@ -200,7 +200,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			
 			case 0: // process/command signature found
 					sprintf(phead->psig, "%.*s", t->end - t->start, js+t->start);
-					printDbg("JSON: setting cmd to '%s'", phead->psig);
+// PDB					printDbg("JSON: setting cmd to '%s'", phead->psig);
 					break;
 
 			case 2: ; // schedule policy 
@@ -209,7 +209,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					phead->attr.sched_policy = handlepolicy(c);
 					// TODO: fix size elements
 					phead->attr.size=48; // has to be set
-					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+// PDB					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
 					break;
 
 			}
@@ -226,7 +226,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		// add a new settings item at head
 		// TODO: fix it to be depth independent
 		if (depth == 2) {
-			printDbg("Adding new item:\n");
+// PDB			printDbg("Adding new item:\n");
 			ppush (&phead);
 		}
 
@@ -387,8 +387,11 @@ int updateSched() {
 
 	while (NULL != current) {
 		
+
+		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
+			printDbg("Info: new pid in list %d\n", current->pid);
 			current->param = findParams(current);
 			if (SCHED_OTHER != current->attr.sched_policy && NULL != current->param) { 
 				// only if successful
@@ -396,7 +399,8 @@ int updateSched() {
 				current->psig = current->param->psig;
 
 				// TODO: track failed scheduling update?
-				printDbg("Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+				// TODO: might want to put this into a function. Multiple use
+				printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
 				int flags = current->attr.sched_flags;
 				if (sched_setattr (current->pid, &current->param->attr, flags))
 					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
@@ -415,11 +419,14 @@ int updateSched() {
 					printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
 					// not possible with sched_deadline
 				else
-					printDbg("Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
+					printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
 			}
 			else
-				printDbg("Skipping non-RT PID %d from rescheduling\n", current->pid);
+				printDbg("... Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}
+
+		// TODO: check if there is some faulty behaviour
+
 
 		current = current->next;
 
@@ -439,51 +446,19 @@ parm_t * now;
 ///
 int manageSched(){
 
-	// this is for the dynamic scheduler only. Not up to date
-	/*
-	uint64_t cputimes[MAX_CPUS] = {}; 
-	uint64_t cpuperiod[MAX_CPUS] = {}; 
-	cpu_set_t cset;
-
-	// zero cpu-set, static size set
-	CPU_ZERO(&cset);
-	CPU_SET(0, &cset);
+	// TODO: this is for the dynamic scheduler only
 
     node_t * current = head;
 
 	(void)pthread_mutex_lock(&dataMutex);
 
 	while (current != NULL) {
-		// get schedule of new pids
-		if (current->attr.size == 0) {
-			struct timespec tt;
-			
-			int ret = sched_rr_get_interval(current->pid, &tt);
-			printDbg("Schedule pid %d: %d %ld\n", current->pid, ret, tt.tv_nsec);
-
-			int flags;
-			// TODO: fix memory allignment, pointer inside structure is given!
-			ret = sched_getattr (current->pid, &(current->attr), sizeof(node_t), flags); // was 0U
-			printDbg("Attr: %d %d\n", ret, current->attr.sched_policy);
-
-			ret = sched_setaffinity(current->pid, sizeof(cset), &cset );
-			if (ret == 0)
-				printDbg("Pid %d reassigned to CPU0\n", current->pid);
-
-			// TODO: ret value evaluation 
-		}
-
-		// affinity not set?? default is 0, affinity of system stuff
-
-		// sum of cpu-times, affinity is only 1 cpu here
-		cputimes[current->param->rscs.affinity] += current->attr.sched_deadline;
-		cpuperiod[current->param->rscs.affinity] += current->attr.sched_deadline;
 
         current = current->next;
     }
 
 
-	(void)pthread_mutex_unlock(&dataMutex); */
+	(void)pthread_mutex_unlock(&dataMutex); 
 }
 
 /// thread_manage(): thread function call to manage schedule list
