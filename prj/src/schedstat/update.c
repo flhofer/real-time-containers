@@ -164,6 +164,7 @@ int updateStats ()
 	
 	// for now does only a simple update
 	while (item != NULL) {
+		// TODO: no need to update all the time.. :/
 		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0)
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
 

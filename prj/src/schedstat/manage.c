@@ -390,13 +390,13 @@ int updateSched() {
 		if (NULL == current->param) {
 			// params unassigned
 			current->param = findParams(current);
-			if (NULL != current->param) { 
+			if (SCHED_OTHER != current->attr.sched_policy && NULL != current->param) { 
 				// only if successful
 				free (current->psig);
 				current->psig = current->param->psig;
 
 				// TODO: track failed scheduling update?
-				printDbg("Setting Scheduler of pid %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+				printDbg("Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
 				int flags = current->attr.sched_flags;
 				if (sched_setattr (current->pid, &current->param->attr, flags))
 					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
@@ -416,9 +416,9 @@ int updateSched() {
 					// not possible with sched_deadline
 				else
 					printDbg("Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
-
-				
 			}
+			else
+				printDbg("Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}
 
 		current = current->next;
