@@ -13,6 +13,15 @@
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include "rt-sched.h" // temporary as libc does not include new sched yet
 
+// new since cgroup
+#include <fcntl.h> 
+#include <sys/utsname.h>
+#include <sys/capability.h>
+#include <sys/sysinfo.h>
+#include <sys/stat.h>
+#include <dirent.h>
+
+
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
 

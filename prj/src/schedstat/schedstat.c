@@ -3,13 +3,6 @@
 #include "update.h"
 #include "manage.h"
 
-#include <fcntl.h> 
-#include <sys/utsname.h>
-#include <sys/capability.h>
-#include <sys/sysinfo.h>
-#include <sys/stat.h>
-#include <dirent.h>
-
 // Global variables for all the threads and programms
 
 // signal to keep status of triggers ext SIG
@@ -368,6 +361,8 @@ static int prepareEnvironment() {
 			else
 				printDbg( KMAG "Warn!" KNRM " Can not set cpu system group\n");
 
+			printDbg( "... moving tasks..\n");
+
 			char * nfileprefix = NULL;
 			if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 				nfileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -406,10 +401,7 @@ static int prepareEnvironment() {
 
 			if (nfileprefix)
 				free (nfileprefix);
-
 		}
-
-
 
 	}
 

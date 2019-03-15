@@ -14,7 +14,7 @@ struct sched_mon { // actual values for monitoring
 
 typedef struct sched_pid { // pid mamagement and monitoring info
 	pid_t pid;
-	char * psig;			// temp char, then moves to entry in pidparam
+	char * psig;			// temp char, then moves to entry in pidparam. identifying signature/container
 	struct sched_attr attr;
 	struct sched_rscs rscs;
 	struct sched_mon mon;

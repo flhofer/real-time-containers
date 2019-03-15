@@ -11,6 +11,8 @@
 //TODO: unify constants
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
 
+static char *fileprefix;
+
 
 // test added 
 typedef struct statstruct_proc {
@@ -203,14 +205,104 @@ int updateStats ()
 
 }
 
-/// getpids(): utility function to get PID list of interrest
+/// getContPids(): utility function to get PID list of interrest from Cgroups
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
 ///			   - tag string containing the 
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
+int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+{
+
+	// no memory has been allocated yet
+	fileprefix = cpusetdfileprefix; // set to docker directory
+
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(fileprefix);// -> pointing to global
+	fileprefix = NULL; // clear pointer again
+	char * nfileprefix = NULL;
+	if (d) {
+
+		while ((dir = readdir(d)) != NULL) {
+		// scan trough docker cgroups, find them?
+			if ((strlen(dir->d_name)>60) && // container strings are very long!
+					(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)+strlen(dir->d_name)+1))) {
+				fileprefix[0] = '\0';   // ensures the memory is an empty string
+				// copy to new prefix
+				strcat(fileprefix,cpusetdfileprefix);
+				strcat(fileprefix,dir->d_name);
+
+				printDbg( "... Container detection!\n");
+
+				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("tasks")+1))) {
+					nfileprefix[0] = '\0';   // ensures the memory is an empty string
+					// copy to new prefix
+					strcat(nfileprefix,fileprefix);
+					strcat(nfileprefix,"tasks");
+
+					char pidline[1024];
+					char *pid;
+					int i =0  ;
+					// prepare literal and open pipe request
+					int path = open(nfileprefix,O_RDONLY);
+
+					// Scan through string and put in array
+					while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln? -> see schedstat
+						//printDbg("Pid string return %s\n", pidline);
+						pid = strtok (pidline,"\n");	
+						while (pid != NULL) {
+							// pid found
+							pidlst->pid = atoi(pid);
+							printDbg("%d",pidlst->pid);
+
+							// find command string and copy to new allocation
+							// TODO: what if len = max, null terminator?
+							if (pidlst->psig = calloc(1, strlen(dir->d_name))) // alloc memory for string
+								(void)strncpy(pidlst->psig,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+							pidlst++;
+							i++;
+
+							pid = strtok (NULL,"\n");	
+
+						}
+						
+					}
+
+					close(path);
+				}
+
+			}
+		}
+		closedir(d);
+
+		// free string buffers
+		if (fileprefix)
+			free (fileprefix);
+
+		if (nfileprefix)
+			free (nfileprefix);
+
+	}
+	else {
+		printDbg( KMAG "Warn!" KNRM " Can not open Docker CGroups - is the daemon still running?\n");
+		printDbg( "... switching to container PID detection mode\n");
+		use_cgroup = DM_CNTPID; // switch to container pid detection mode
+		return 0; // count of items found
+
+	}
+
+}
+
+/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 get PID list of interrest
+/// Arguments: - pointer to array of PID
+///			   - size in elements of array of PID
+///			   - tag string containing the 
+///
+/// Return value: number of PIDs found (total)
+///
+int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[1024];
 	char req[40];
@@ -252,9 +344,18 @@ int getpids (pidinfo_t *pidlst, size_t cnt, char * tag)
 ///
 void scanNew () {
 	// get PIDs 
-	pidinfo_t pidlst[MAX_PIDS];
+	pidinfo_t pidlst[MAX_PIDS]; // TODO: create dynamic list, allocate as grows
 
-	int cnt = getpids(&pidlst[0], MAX_PIDS, "bash");
+	/// --------------------
+	/// cgroup present, fix cpu-sets of running containers
+	int cnt;
+
+	if (DM_CGRP == use_cgroup) {
+		cnt = getContPids(&pidlst[0], MAX_PIDS, "bash");
+	}
+	else {
+		cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
+	}
 	for (int i=0; i<cnt; i++){
 		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
 	}
