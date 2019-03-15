@@ -29,7 +29,7 @@ void push(node_t ** head, pid_t pid, char * psig) {
 void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig) {
 	if (*prev == NULL) {
 		push (head, pid, psig);
-//		*prev = *head;
+		*prev = *head; // shift to new
 		return;
 	}
    	node_t * new_node;
@@ -39,7 +39,7 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig) {
     new_node->psig = psig;
     new_node->next = (*prev)->next;
     (*prev)->next = new_node;
-//	*prev = (*prev)->next;
+	*prev = (*prev)->next; // shift to new
 	//return &new_node->attr;
 }
 

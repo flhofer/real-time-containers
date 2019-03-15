@@ -351,20 +351,57 @@ again:
 /// Return value: pointer to parameters
 ///
 
-parm_t* findParams(node_t* node){
+int findParams(node_t* node){
 
 	parm_t * curr = phead;
 
 	while (NULL != curr) {
-		if(!strcmp(curr->psig, node->psig))
-			return curr;
-		if(!strncmp(curr->psig, node->psig, 12)) // TODO: temp, exact signature match?
-			return curr;
-
+		if(!strcmp(curr->psig, node->psig)) {
+			node->param = curr;
+			return 0;
+		}
+		if(!strncmp(curr->psig, node->psig, 12)) {// TODO: temp, exact signature match?
+			node->param = curr;
+			return 0;
+		}
 		curr = curr->next; 
 	}
 
-	return NULL;
+	printDbg("... parameters not found, creating from PID\n");
+
+	// TODO: fix for generic list
+	ppush(&phead); // add new empty item
+	// copy sig, will be freed
+	(void)strncpy(phead->psig,node->psig,SIG_LEN); // copy string, max size of string
+
+	// copy scheduling parameters
+	memcpy(&phead->attr, &node->attr, sizeof(node->attr));
+
+	int flags = node->attr.sched_flags;
+	cpu_set_t cset;	
+
+	if (sched_getaffinity(node->pid, sizeof(cset), &cset ))
+		printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+	else {
+
+		if (1 == CPU_COUNT(&cset)) {
+			// cpu affinity defined to one cpu?
+			for (int i=0; i<sizeof(cset); i++){
+				if (CPU_ISSET(i, &cset)) {
+					phead->rscs.affinity = i;
+					break;
+				}
+			}
+		}
+		else {
+			// cpu affinity to all
+			phead->rscs.affinity = -1;
+		}
+	}
+
+	// assing new parameters
+	node->param = phead;
+	return -1;
 
 }
 
@@ -392,8 +429,8 @@ int updateSched() {
 		if (NULL == current->param) {
 			// params unassigned
 			printDbg("Info: new pid in list %d\n", current->pid);
-			current->param = findParams(current);
-			if (SCHED_OTHER != current->attr.sched_policy && NULL != current->param) { 
+			
+			if (!findParams(current) && SCHED_OTHER != current->attr.sched_policy) { 
 				// only if successful
 				free (current->psig);
 				current->psig = current->param->psig;
@@ -417,7 +454,6 @@ int updateSched() {
 
 				if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 					printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
-					// not possible with sched_deadline
 				else
 					printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
 			}

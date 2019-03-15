@@ -322,11 +322,11 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 		//printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
         pidlst->pid = atoi(pid);
-        printDbg("%d",pidlst->pid);
+// PDB        printDbg("%d",pidlst->pid);
 
 		// find command string and copy to new allocation
         pid = strtok (NULL, "\n"); // end of line?
-        printDbg(" cmd: %s\n",pid);
+// PDB        printDbg(" cmd: %s\n",pid);
 		// TODO: what if len = max, null terminator?
 		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
@@ -354,11 +354,18 @@ void scanNew () {
 	/// cgroup present, fix cpu-sets of running containers
 	int cnt;
 
-	if (DM_CGRP == use_cgroup) {
-		cnt = getContPids(&pidlst[0], MAX_PIDS);
-	}
-	else {
-		cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
+	switch (use_cgroup) {
+
+		case DM_CGRP: // detect by cgroup
+			cnt = getContPids(&pidlst[0], MAX_PIDS);
+			break;
+
+		case DM_CNTPID: // TODO: detect by container shim pid
+
+		default: // TODO: update - detect by pid signature / fix param structure first
+			cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
+			break;
+		
 	}
 // PDB
 /*	for (int i=0; i<cnt; i++){
@@ -370,8 +377,8 @@ void scanNew () {
 	int new= 0;
 // PDB	printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
-	pthread_mutex_lock(&dataMutex);
-	while ( (act != NULL) && (i >= 0)) {
+	(void)pthread_mutex_lock(&dataMutex);
+	while ((NULL != act) && (0 <= i )) {
 		
 		// insert a missing item		
 		if ((pidlst +i)->pid < ((*act).pid)) {
@@ -399,14 +406,14 @@ void scanNew () {
 		}
 	}
 
-	while (i >= 0) {
+	while (i >= 0) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
 		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 		new++;
 		i--;
 	}
 
-	while (act != NULL) {
+	while (act != NULL) { // reached the end of the pid queue -- drop list end
 		// drop missing items
 		printDbg("\n... Delete at end %d, %d", act->pid, prev->next->pid);		
 		// get next item, then drop old
