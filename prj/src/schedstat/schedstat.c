@@ -156,12 +156,11 @@ static int setkernvar(const char *name, char *value)
 				}
 			}
 			if (i == KVARS)
-				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n",
-					name, oldvalue);
+				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n", name, oldvalue);
 		}
 	}
 	if (kernvar(O_WRONLY, name, value, strlen(value))){
-		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
+// PDB		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
 		return -1;
 	}
 	
@@ -363,6 +362,7 @@ static int prepareEnvironment() {
 
 			printDbg( "... moving tasks..\n");
 
+			int mtask = 0;
 			char * nfileprefix = NULL;
 			if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 				nfileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -384,12 +384,14 @@ static int prepareEnvironment() {
 
 						// fileprefix still pointing to system/
 						if (setkernvar("tasks", pid)){
-							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+// PDB							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+							mtask++;
 						}
 						pid = strtok (NULL,"\n");	
 
 					}
-					
+				if (mtask) 
+					printDbg( KMAG "Warn!" KNRM " Could not move %d tasks\n", mtask);					
 				}
 
 				close(path);

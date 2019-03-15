@@ -13,7 +13,6 @@ extern int use_cgroup; // processes identificatiom mode, written before startup 
 
 static char *fileprefix;
 
-
 // test added 
 typedef struct statstruct_proc {
   int           pid;                      /** The process id. **/
@@ -155,13 +154,19 @@ int get_proc_info(pid_t pid, procinfo * pinfo)
 ///
 int updateStats ()
 {
+	static int prot = 0; // pipe rotation animation
+	static char const sp[4] = "/-\\|";
+
+	prot = (++prot) % 4;
+	printDbg("\b%c", sp[prot]);		
+	fflush(stdout);
+
+
 	// init head
 	node_t * item = head;
 	int flags;
 	procinfo * procinf = calloc(1, sizeof(procinfo));
 
-	printDbg("Entering node stats update\n");		
-	
 	// for now does only a simple update
 	while (item != NULL) {
 		// TODO: no need to update all the time.. :/
@@ -202,8 +207,6 @@ int updateStats ()
 		item=item->next; 
 	}
 
-	printDbg("Exiting node stats update\n");		
-
 }
 
 /// getContPids(): utility function to get PID list of interrest from Cgroups
@@ -213,7 +216,7 @@ int updateStats ()
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+int getContPids (pidinfo_t *pidlst, size_t cnt)
 {
 
 	// no memory has been allocated yet
@@ -255,7 +258,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 						while (pid != NULL) {
 							// pid found
 							pidlst->pid = atoi(pid);
-//							printDbg("%d\n",pidlst->pid);
+// PDB							printDbg("%d\n",pidlst->pid);
 
 							// find command string and copy to new allocation
 							// TODO: what if len = max, null terminator?
@@ -352,7 +355,7 @@ void scanNew () {
 	int cnt;
 
 	if (DM_CGRP == use_cgroup) {
-		cnt = getContPids(&pidlst[0], MAX_PIDS, "bash");
+		cnt = getContPids(&pidlst[0], MAX_PIDS);
 	}
 	else {
 		cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
@@ -364,7 +367,7 @@ void scanNew () {
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
-
+	int new= 0;
 // PDB	printDbg("Entering node update\n");		
 	// lock data to avoid inconsistency
 	pthread_mutex_lock(&dataMutex);
@@ -372,19 +375,20 @@ void scanNew () {
 		
 		// insert a missing item		
 		if ((pidlst +i)->pid < ((*act).pid)) {
-			printDbg("... Insert new PID %d\n", (pidlst +i)->pid);		
+			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
 			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
-			// sig here to other thread?
+			act = prev->next;
+			new++;
 			i--;
 		} 
 		else		
 		// delete a dopped item
 		if ((pidlst +i)->pid > ((*act).pid)) {
-			printDbg("... Delete %d\n", (pidlst +i)->pid);		
+			printDbg("\n... Delete %d > %d", (pidlst +i)->pid, (*act).pid);		
 			get_next(&act);
 			(void)drop_after(&head, &prev);
-			// sig here to other thread?
+			new++;
 		} 
 		// ok, skip to next
 		else {
@@ -396,22 +400,25 @@ void scanNew () {
 	}
 
 	while (i >= 0) {
-		printDbg("... Insert at end PID %d\n", (pidlst +i)->pid);		
+		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
 		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
-		// sig here to other thread?
+		new++;
 		i--;
 	}
 
 	while (act != NULL) {
 		// drop missing items
-		printDbg("... Delete %d\n", (pidlst +i)->pid);		
+		printDbg("\n... Delete at end %d, %d", act->pid, prev->next->pid);		
 		// get next item, then drop old
 		get_next(&act);
 		(void)drop_after(&head, &prev);
-		// sig here to other thread?
+		new++;
 	}
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
+
+	if (new)
+		printDbg("\n");		
 
 // PDB	printDbg("Exiting node update\n");	
 }
@@ -434,9 +441,10 @@ void *thread_update (void *arg)
 			// startup-refresh: this should be executed only once every td
 			scanNew(); 
 			*pthread_state=1;
+			printDbg("\rNode Stats update  ");		
 		case 1: // normal thread loop
 			updateStats();
-			if (!cc) 
+			if (!cc)
 				*pthread_state=0;
 			break;
 		case -1:
