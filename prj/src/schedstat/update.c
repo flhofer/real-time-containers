@@ -252,8 +252,10 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 					int path = open(nfileprefix,O_RDONLY);
 
 					// Scan through string and put in array
-					while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln? -> see schedstat
+					int nread = 0;
+					while(nread =read(path, pidline,1023)) { // TODO: fix, doesn't get all tasks, readln? -> see schedstat
 						//printDbg("Pid string return %s\n", pidline);
+						pidline[nread+1] = '\0';						
 						pid = strtok (pidline,"\n");	
 						while (pid != NULL) {
 							// pid found
@@ -368,9 +370,9 @@ void scanNew () {
 		
 	}
 // PDB
-/*	for (int i=0; i<cnt; i++){
+	for (int i=0; i<cnt; i++){
 		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
-	}*/
+	}
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
@@ -381,18 +383,17 @@ void scanNew () {
 	while ((NULL != act) && (0 <= i )) {
 		
 		// insert a missing item		
-		if ((pidlst +i)->pid < ((*act).pid)) {
-			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
+		if ((pidlst +i)->pid > (act->pid)) {
+			printDbg("\n... Insert new PID %d before %d", (pidlst +i)->pid, act->pid);		
 			// insert, prev is upddated to the new element
 			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
-			act = prev->next;
 			new++;
 			i--;
 		} 
 		else		
 		// delete a dopped item
-		if ((pidlst +i)->pid > ((*act).pid)) {
-			printDbg("\n... Delete %d > %d", (pidlst +i)->pid, (*act).pid);		
+		if ((pidlst +i)->pid < (act->pid)) {
+			printDbg("\n... Delete %d < %d", (pidlst +i)->pid, (*act).pid);		
 			get_next(&act);
 			(void)drop_after(&head, &prev);
 			new++;
@@ -415,7 +416,7 @@ void scanNew () {
 
 	while (act != NULL) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n... Delete at end %d, %d", act->pid, prev->next->pid);		
+		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
 		// get next item, then drop old
 		get_next(&act);
 		(void)drop_after(&head, &prev);

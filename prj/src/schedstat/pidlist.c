@@ -70,9 +70,14 @@ pid_t drop_after(node_t ** head, node_t ** prev) {
 
 	// next node is the node to be dropped
     next_node = (*prev)->next;
-    (*prev)->next = next_node->next;
+	if (NULL != next_node) {
+	    (*prev)->next = next_node->next;
+	    free(next_node);
+		}
+	else
+		(*prev)->next = NULL;
+
     retval = (*prev)->pid;
-    free(next_node);
 
     return retval;
 }
