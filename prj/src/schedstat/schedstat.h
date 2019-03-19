@@ -12,6 +12,7 @@
 #include <signal.h> // for SIGs
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include "rt-sched.h" // temporary as libc does not include new sched yet
+#include "rt_numa.h" // from cyclictest -> affinity of cpu and memory
 
 // new since cgroup
 #include <fcntl.h> 
@@ -20,7 +21,7 @@
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <dirent.h>
-
+#include <getopt.h>
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_

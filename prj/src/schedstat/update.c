@@ -170,8 +170,10 @@ int updateStats ()
 	// for now does only a simple update
 	while (item != NULL) {
 		// TODO: no need to update all the time.. :/
-		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0)
+		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0) {
+
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+		}
 
 		if (flags != item->attr.sched_flags)
 		// TODO: strangely there is a type mismatch
@@ -253,9 +255,9 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 					// Scan through string and put in array
 					int nread = 0;
-					while(nread =read(path, pidline,1023)) { // TODO: fix, doesn't get all tasks, readln? -> see schedstat
+					while(nread =read(path, pidline,1023)) { // used len -1 TODO: fix, doesn't get all tasks, readln? -> see schedstat
 						//printDbg("Pid string return %s\n", pidline);
-						pidline[nread+1] = '\0';						
+						pidline[nread] = '\0';						
 						pid = strtok (pidline,"\n");	
 						while (pid != NULL) {
 							// pid found
@@ -370,9 +372,9 @@ void scanNew () {
 		
 	}
 // PDB
-	for (int i=0; i<cnt; i++){
-		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
-	}
+//	for (int i=0; i<cnt; i++){
+//		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
+//	}
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
@@ -384,7 +386,7 @@ void scanNew () {
 		
 		// insert a missing item		
 		if ((pidlst +i)->pid > (act->pid)) {
-			printDbg("\n... Insert new PID %d before %d", (pidlst +i)->pid, act->pid);		
+			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
 			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
 			new++;
@@ -393,7 +395,7 @@ void scanNew () {
 		else		
 		// delete a dopped item
 		if ((pidlst +i)->pid < (act->pid)) {
-			printDbg("\n... Delete %d < %d", (pidlst +i)->pid, (*act).pid);		
+			printDbg("\n... Delete %d", (pidlst +i)->pid);		
 			get_next(&act);
 			(void)drop_after(&head, &prev);
 			new++;
