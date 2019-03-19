@@ -2,6 +2,7 @@
 
 #include "update.h"
 #include "manage.h"
+#include <sys/mman.h>
 
 // Global variables for all the threads and programms
 
@@ -444,6 +445,14 @@ static int prepareEnvironment() {
 
 	}
 
+	/* lock all memory (prevent swapping) */
+	if (lockall)
+		if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
+			perror("mlockall");
+			return -1;
+		}
+
+
 	return 0;
 }
 
@@ -470,10 +479,10 @@ static int use_system;
 static int priority;
 static int policy = SCHED_OTHER;	/* default policy if not specified */
 static int num_threads = 1;
-static int max_cycles;
 static int clocksel = 0;
 static int quiet;
-static int interval = TSCAN;
+int interval = TSCAN;
+int loops = TDETM;
 static int distance = -1;
 static struct bitmask *affinity_mask = NULL;
 static int smp = 0;
@@ -520,12 +529,12 @@ static void display_help(int error)
 	       "                           with NUM pin all threads to the processor NUM\n"
 #endif
 	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
-	       "-i INTV  --interval=INTV   base interval of thread in us default=1000\n"
-	       "-l LOOPS --loops=LOOPS     number of loops: default=0(endless)\n"
+	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
+	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
 	       "-p PRIO  --priority=PRIO   priority of highest prio thread\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
-	       "                           of: other, normal, batch, idle, fifo or rr.\n"
+	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
 	       "-q       --quiet           print a summary only on exit\n"
 	       "-S       --smp             Standard SMP testing: options -a -t -n and\n"
 	       "                           same priority of all threads\n"
@@ -675,7 +684,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			interval = atoi(optarg); break;
 		case 'l':
 		case OPT_LOOPS:
-			max_cycles = atoi(optarg); break;
+			loops = atoi(optarg); break;
 		case 'm':
 		case OPT_MLOCKALL:
 			lockall = 1; break;
@@ -833,6 +842,10 @@ int main(int argc, char **argv)
 	pthread_join( thread2, NULL); 
 
     printDbg("exiting safely\n");
+
+	/* unlock everything */
+	if (lockall)
+		munlockall();
 
 	restorekernvars(); // restore previous variables
     return 0;

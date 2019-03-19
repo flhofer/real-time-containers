@@ -10,6 +10,8 @@
 
 //TODO: unify constants
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
+extern int interval; // settting, default to SCAN
+extern int loops; // once every x interval the containers are checked again
 
 static char *fileprefix;
 
@@ -449,22 +451,22 @@ void *thread_update (void *arg)
 		{
 		case 0: 
 			// startup-refresh: this should be executed only once every td
+			*pthread_state=1; // must be first thing! -> main writes -1 to stop
 			scanNew(); 
-			*pthread_state=1;
 			printDbg("\rNode Stats update  ");		
 		case 1: // normal thread loop
-			updateStats();
 			if (!cc)
-				*pthread_state=0;
+				*pthread_state=0; // must be first thing
+			updateStats();
 			break;
 		case -1:
 			// tidy or whatever is necessary
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-		usleep(TSCAN);
+		usleep(interval);
 		cc++;
-		cc%=TDETM;
+		cc%=loops;
 	}
 }
 
