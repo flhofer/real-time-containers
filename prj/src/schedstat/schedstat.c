@@ -34,11 +34,11 @@ void inthand ( int signum ) {
 #define KVALUELEN		32
 
 int enable_events;
+int verbose = 0;
 
 static int kernelversion;
 static int sys_cpus = 1; // 0-> count reserved for orchestrator and system
 
-static int verbose = 0;
 static int lockall = 0;
 static int duration = 0;
 static int use_nsecs = 0;
@@ -76,6 +76,15 @@ enum kernelversion {
 	KV_416	// includes full EDF with GRUB-PA for ARM
 };
 
+void inline vbprintf ( const char * format, ... )
+{
+	if (!verbose)
+		return;
+	va_list args;
+	va_start (args, format);
+	vprintf (format, args);
+  	va_end (args);
+}
 
 static int check_kernel(void)
 {
@@ -542,8 +551,38 @@ static unsigned int is_cpumask_zero(const struct bitmask *mask)
 	return (rt_numa_bitmask_count(mask) == 0);
 }
 
+/*
+static inline struct bitmask* rt_numa_parse_cpustring(const char* s,
+	int max_cpus)
+{
+	int cpu;
+	struct bitmask *mask = NULL;
+	cpu = atoi(s);
+	if (0 <= cpu && cpu < max_cpus) {
+		mask = malloc(sizeof(*mask));
+		if (mask) {
+			/ Round up to integral number of longs to contain
+			 * max_cpus bits /
+			int nlongs = (max_cpus+BITS_PER_LONG-1)/BITS_PER_LONG;
+
+			mask->maskp = calloc(nlongs, sizeof(unsigned long));
+			if (mask->maskp) {
+				mask->maskp[cpu/BITS_PER_LONG] |=
+					(1UL << (cpu % BITS_PER_LONG));
+				mask->size = max_cpus;
+			} else {
+				free(mask);
+				mask = NULL;
+			}
+		}
+	}
+	return mask;
+}
+*/
+
 static void parse_cpumask(const char *option, const int max_cpus)
 {
+
 	affinity_mask = rt_numa_parse_cpustring(option, max_cpus);
 	if (affinity_mask) {
 		if (is_cpumask_zero(affinity_mask)) {
@@ -589,7 +628,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		 * Ordered alphabetically by single letter name
 		 */
 		static struct option long_options[] = {
-			{"affinity",         optional_argument, NULL, OPT_AFFINITY},
+			{"affinity",         required_argument, NULL, OPT_AFFINITY},
 			{"fifo",             required_argument, NULL, OPT_FIFO },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
@@ -605,7 +644,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a::Fi:l:mp:qSt::uUv",
+		int c = getopt_long(argc, argv, "a:Fi:l:mp:qSt::uUv",
 				    long_options, &option_index);
 		if (c == -1)
 			break;

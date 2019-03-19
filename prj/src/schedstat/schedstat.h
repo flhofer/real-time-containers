@@ -32,13 +32,14 @@
 	#define MAX_CPUS 8
 
 	#define DBG
-
 	/* Debug printing to console or buffer ?? */
+//	void inline vbprintf ( const char * format, ... );
+
 	#ifdef DBG
 		#define printDbg (void)printf
 
 	#else
-		#define printDbg
+		#define printDbg (void)vbprintf
 	#endif
 
 	// general default
@@ -68,5 +69,8 @@
 		DM_CNTPID,	// use container skim instances to detect pids
 		DM_CGRP		// USe cgroup to detect PIDs of processes
 	};
+
+	
+
 
 #endif
