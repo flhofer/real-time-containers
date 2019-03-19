@@ -10,7 +10,7 @@ parm_t * phead;
 /// Arguments: string of scheduling name
 ///
 /// Return value: Code of scheduling type
-static uint32_t handlepolicy(char *polname)
+uint32_t handlepolicy(char *polname)
 {
 	if (strncasecmp(polname, "other", 5) == 0)
 		return SCHED_OTHER;
