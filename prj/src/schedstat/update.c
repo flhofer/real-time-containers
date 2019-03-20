@@ -467,14 +467,15 @@ void *thread_update (void *arg)
 
 	// initialize the thread locals
 	while(1) {
-	
+
+		/*	only needed for TIMER_ABSOLUTE, Not implemented
 		ret = clock_gettime(clocksources[clocksel], &now);
 		if (ret != 0) {
 			if (ret != EINTR)
 				warn("clock_gettime() failed: %s", strerror(errno));
 			*pthread_state=-1;
 			break; // stop while
-		}
+		}*/
 
 		switch( *pthread_state )
 		{
@@ -511,17 +512,15 @@ void *thread_update (void *arg)
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-		if (SCHED_FIFO == policy || SCHED_RR == policy || SCHED_DEADLINE == policy){
 			
-			ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
-			if (ret != 0) {
-				if (ret != EINTR)
-					warn("clock_nanosleep() failed. errno: %d\n", errno);
-				*pthread_state=-1;
-			}
+		// sleep for interval nanoseconds
+		ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
+		if (ret != 0) {
+			if (ret != EINTR)
+				warn("clock_nanosleep() failed. errno: %d\n", errno);
+			*pthread_state=-1;
+			break;
 		}
-		else
-			usleep(interval);
 
 		cc++;
 		cc%=loops;
