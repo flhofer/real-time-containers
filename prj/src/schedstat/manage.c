@@ -2,6 +2,9 @@
 #include "manage.h"
 #include "pidparm.h"
 
+extern char * config; // filename of configuration file
+
+
 // parameter tree linked list head
 parm_t * phead;
 
@@ -289,7 +292,7 @@ int readParams() {
 		return 3;
 	}
 
-	FILE * f = fopen ("config.json", "r");
+	FILE * f = fopen (config, "r");
 
 	if (f){
 	for (;;) {

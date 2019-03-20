@@ -56,6 +56,7 @@ static int offset = 0;
 
 static char fifopath[MAX_PATH]; // TODO:  implement fifo thread as in cycictest for readout
 static char *fileprefix;
+char * config = "config.json";
 
 static int32_t latency_target_value = 0;
 
@@ -501,44 +502,38 @@ static void display_help(int error)
 	}
 
 	printf("Usage:\n"
-	       "schedstat <options>\n\n"
+	       "schedstat <options> [config.json]\n\n"
 #if LIBNUMA_API_VERSION >= 2
-	       "-a [CPUSET] --affinity     Run thread #N on processor #N, if possible, or if CPUSET\n"
-	       "                           given, pin threads to that set of processors in round-\n"
-	       "                           robin order.  E.g. -a 2 pins all threads to CPU 2,\n"
-	       "                           but -a 3-5,0 -t 5 will run the first and fifth\n"
-	       "                           threads on CPU (0),thread #2 on CPU 3, thread #3\n"
-	       "                           on CPU 4, and thread #5 on CPU 5.\n"
+//	       "-a [CPUSET] --affinity     Run thread #N on processor #N, if possible, or if CPUSET\n"
+//	       "                           given, pin threads to that set of processors in round-\n"
+//	       "                           robin order.  E.g. -a 2 pins all threads to CPU 2,\n"
+//	       "                           but -a 3-5,0 -t 5 will run the first and fifth\n"
+//	       "                           threads on CPU (0),thread #2 on CPU 3, thread #3\n"
+//	       "                           on CPU 4, and thread #5 on CPU 5.\n"
 #else
-	       "-a [NUM] --affinity        run thread #N on processor #N, if possible\n"
-	       "                           with NUM pin all threads to the processor NUM\n"
+//	       "-a [NUM] --affinity        run thread #N on processor #N, if possible\n"
+//	       "                           with NUM pin all threads to the processor NUM\n"
 #endif
-	       "-c CLOCK --clock=CLOCK     select clock\n"
+	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
-	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
+//	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
-	       "-q       --quiet           print a summary only on exit\n"
-	       "-S       --smp             Standard SMP testing: options -a -t -n and\n"
-	       "                           same priority of all threads\n"
-	       "-t       --threads         one thread per available processor\n"
-	       "-t [NUM] --threads=NUM     number of threads:\n"
-	       "                           without NUM, threads = max_cpus\n"
-	       "                           without -t default = 1\n"
-	       "-u       --unbuffered      force unbuffered output for live processing\n"
+//	       "-q       --quiet           print a summary only on exit\n"
+//	       "-t NUM   --threads=NUM     number of threads for resource management\n"
+//	       "                           default = 1 (not changeable for now)\n"
+//	       "-u       --unbuffered      force unbuffered output for live processing (FIFO)\n"
 #ifdef NUMA
-	       "-U       --numa            Standard NUMA testing (similar to SMP option)\n"
-	       "                           thread data structures allocated from local node\n"
+//	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
-	       "-v       --verbose         output values on stdout for statistics\n"
-	       "                           format: n:c:v n=tasknum c=count v=value in us\n"
+//	       "-v       --verbose         output values on stdout for statistics\n"
 		);
 	if (error)
 		exit(EXIT_FAILURE);
@@ -617,9 +612,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 {
 	int error = 0;
 	int option_affinity = 0;
+	int option_index = 0;
 
 	for (;;) {
-		int option_index = 0;
+		option_index = 0;
 		/*
 		 * Options for getopt
 		 * Ordered alphabetically by single letter name
@@ -633,8 +629,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"mlockall",         no_argument,       NULL, OPT_MLOCKALL },
 			{"priority",         required_argument, NULL, OPT_PRIORITY },
 			{"quiet",            no_argument,       NULL, OPT_QUIET },
-			{"smp",              no_argument,       NULL, OPT_SMP },
-			{"threads",          optional_argument, NULL, OPT_THREADS },
+			{"threads",          required_argument, NULL, OPT_THREADS },
 			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
@@ -642,7 +637,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:c:Fi:l:mp:qSt::uUv",
+		int c = getopt_long(argc, argv, "a:c:Fi:l:mp:qt:uUv",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -689,15 +684,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'q':
 		case OPT_QUIET:
 			quiet = 1; break;
-		case 'S':
-		case OPT_SMP: /* SMP testing */
-			if (numa)
-				fatal("numa and smp options are mutually exclusive\n");
-			smp = 1;
-			num_threads = max_cpus;
-			setaffinity = AFFINITY_USEALL;
-//			use_nanosleep = MODE_CLOCK_NANOSLEEP;
-			break;
 		case 't':
 		case OPT_THREADS:
 			if (smp) {
@@ -768,12 +754,19 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	if (num_threads < 1)
 		error = 1;
 
+	if (option_index+1 < argc)
+	{
+		// non option argument parameters, first = cmdline, second = file if present 
+	    config = argv[++option_index];
+		if ( access( config, F_OK ))
+			error = 1;
+	}
+
 	if (error) {
 		if (affinity_mask)
 			rt_bitmask_free(affinity_mask);
 		display_help(1);
 	}
-
 }
 
 /// main(): mein program.. setup threads and keep loop for user/system break
