@@ -1,0 +1,69 @@
+README for statsched v0.21
+
+==============
+ INTRODUCTION
+==============
+
+statsched is an orchestration application that tries to optimize real-time scheduled container alloocation. Its function is to maintain schedulability and determinism while reducing resource requirements.
+
+Code is currently maintained on GitHub:
+
+	git@github.com:ianno/real-time-containers.git
+
+
+==============
+ REQUIREMENTS
+==============
+
+statsched runs on GNU/Linux. It needs bash, GNU make and a recent compiler (tested on: gcc) for basic features.
+** note - this will change once the package is complete **
+
+==================================
+ BUILDING AND INSTALLING statsched
+==================================
+
+No additional make and build targets defined yet.
+
+
+=======
+ USAGE
+=======
+
+	Options available as of this version
+
+    $ statsched.o [-i <scan interval> -l <loop count> -m -p <priority> --policy=<name>]
+
+where interval is the update intervall of running statistics; loop count is the number of update loops until new containers are checked; -m enables memory page locking; the policy and the priority refer to the parameters applied to the metric update thread.
+
+
+===============
+ CONFIGURATION
+===============
+
+statsched reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation.
+The configuration file settings for this version are one object per container in the follpwing format:
+
+
+{  										// open root object
+	[  									// array of objects
+		{  								// first container, one object per container
+			"cmd" : "4efcb6c965de",		// process identification
+			"params" : {				// real-time parameters - optional
+				"policy" : "other", 	// required scheduling policy
+				"flags"  : 0,			// process flags -> inheritance
+				"nice"   : 0,			// niceness factor for CFS schedules
+				"prio"   : 0,			// priority for RT schedules, FIFO & RR
+				"runtime": 1000000,		// EDF runtime in us
+				"deadline": 4000000,	// EDF deadline in us
+				"period" : 4000000		// EDF period in us
+			},
+			"res" : {					// resouces to allocate for container/process-opt
+				"affinity" : -1,		// CPU affinity, -1 = all 
+			},
+		},
+	]
+}
+
+Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the params will be used to allocate the best slot.
+Affinity might be a limiting factor as long as it is a single CPU setting. ** this might change in future versions **
+
