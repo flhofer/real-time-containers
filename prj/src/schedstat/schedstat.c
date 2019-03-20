@@ -456,28 +456,14 @@ static int prepareEnvironment() {
 	return 0;
 }
 
-/// configureThreads(): configures running parameters for orchestrator's threads
-///
-/// Arguments: thread to manage
-///
-/// Return value: errors
-///
-static int configureThreads(pthread_t * thread) {
-
-	// TODO: add thread configuration, RR <= 1ms? 
-	// for now, keep em standard free-run, inherited from main process 
-	
-	return 0;
-}
-
 // -- new options
 /// Option parsing !!
 
 static int use_nanosleep;
 static int timermode = TIMER_ABSTIME;
 static int use_system;
-static int priority;
-static int policy = SCHED_OTHER;	/* default policy if not specified */
+int priority=0;
+int policy = SCHED_OTHER;	/* default policy if not specified */
 static int num_threads = 1;
 static int clocksel = 0;
 static int quiet;
@@ -532,7 +518,7 @@ static void display_help(int error)
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
-	       "-p PRIO  --priority=PRIO   priority of highest prio thread\n"
+	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
 	       "-q       --quiet           print a summary only on exit\n"
@@ -768,12 +754,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		error = 1;
 
 	if (priority && (policy != SCHED_FIFO && policy != SCHED_RR)) {
-		fprintf(stderr, "policy and priority don't match: setting policy to SCHED_FIFO\n");
+		printDbg(KMAG "Warn!" KNRM " policy and priority don't match: setting policy to SCHED_FIFO\n");
 		policy = SCHED_FIFO;
 	}
 
 	if ((policy == SCHED_FIFO || policy == SCHED_RR) && priority == 0) {
-		fprintf(stderr, "defaulting realtime priority to %d\n",
+		printDbg(KMAG "Warn!" KNRM " defaulting realtime priority to %d\n",
 			num_threads+1);
 		priority = num_threads+1;
 	}
@@ -787,7 +773,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		display_help(1);
 	}
 }
-
 
 /// main(): mein program.. setup threads and keep loop for user/system break
 ///
@@ -819,10 +804,6 @@ int main(int argc, char **argv)
 	/* Create independent threads each of which will execute function */
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2);
-
-	// TODO: set thread prio and sched to RR -> maybe 
-	(void) configureThreads (&thread1);
-	(void) configureThreads (&thread2);
 
 	// set interrupt sig hand
 	signal(SIGINT, inthand);

@@ -12,6 +12,8 @@
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
 extern int interval; // settting, default to SCAN
 extern int loops; // once every x interval the containers are checked again
+extern int priority; // priority for eventual RT policy
+extern int policy;	/* default policy if not specified */
 
 static char *fileprefix;
 
@@ -449,14 +451,29 @@ void *thread_update (void *arg)
 	
 		switch( *pthread_state )
 		{
-		case 0: 
-			// startup-refresh: this should be executed only once every td
+		case 0:
+			// setup of thread, configuration of scheduling and priority
 			*pthread_state=1; // must be first thing! -> main writes -1 to stop
+			if (SCHED_OTHER != policy) {
+				// set policy to thread
+				struct sched_param schedp  = { priority };
+
+				if (sched_setscheduler(0, policy, &schedp)) {
+					printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
+					// reset value -- not written in main anymore
+					policy = SCHED_OTHER;
+				}
+
+			}
+
+		case 1: 
+			// startup-refresh: this should be executed only once every td
+			*pthread_state=2; // must be first thing! -> main writes -1 to stop
 			scanNew(); 
 			printDbg("\rNode Stats update  ");		
-		case 1: // normal thread loop
+		case 2: // normal thread loop
 			if (!cc)
-				*pthread_state=0; // must be first thing
+				*pthread_state=1; // must be first thing
 			updateStats();
 			break;
 		case -1:
@@ -464,7 +481,11 @@ void *thread_update (void *arg)
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-		usleep(interval);
+		if (SCHED_FIFO == policy || SCHED_RR == policy || SCHED_DEADLINE == policy)
+			sched_yield();
+		else
+			usleep(interval);
+
 		cc++;
 		cc%=loops;
 	}
