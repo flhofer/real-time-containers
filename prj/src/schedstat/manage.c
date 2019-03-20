@@ -80,7 +80,7 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 }
 
 
-const char *keys[] = {"cmd", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity"};
+const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity"};
 
 /// extractJSON(): extract parameter values from JSON tokens
 ///
@@ -122,36 +122,36 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 
 		switch (key) {
 
-		case 3: // schedule flags
+		case 4: // schedule flags
 				phead->attr.sched_flags = strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
 				break;
 
-		case 4: // schedule niceness
+		case 5: // schedule niceness
 				phead->attr.sched_nice = (uint32_t)strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);// PDB
 				break;
 
-		case 5: // schedule rt priority
+		case 6: // schedule rt priority
 				phead->attr.sched_priority = (uint32_t)strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
 				break;
-		case 6: // schedule rt runtime
+		case 7: // schedule rt runtime
 				phead->attr.sched_runtime = strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
 				break;
 		
-		case 7: // schedule rt deadline
+		case 8: // schedule rt deadline
 				phead->attr.sched_deadline = strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
 				break;
 
-		case 8: // schedule rt period
+		case 9: // schedule rt period
 				phead->attr.sched_period = strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
 				break;
 
-		case 10: // task affinity
+		case 11: // task affinity
 				phead->rscs.affinity = strtol(c,NULL,10);
 // PDB				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
 				break;
@@ -162,7 +162,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	
 	// setting value or label
 	} else if (t->type == JSMN_STRING) {
-		// here len must be shorter than SIG_LEN
+		// here len must be shorter than SIG_LEN TODO: fix to dynamic length
 		if ((t->end - t->start) > SIG_LEN){
 			printDbg("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
@@ -206,7 +206,12 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 // PDB					printDbg("JSON: setting cmd to '%s'", phead->psig);
 					break;
 
-			case 2: ; // schedule policy 
+			case 1: // ID signature found
+					sprintf(phead->contid, "%.*s", t->end - t->start, js+t->start);
+// PDB					printDbg("JSON: setting cmd to '%s'", phead->psig);
+					break;
+
+			case 3: ; // schedule policy 
 					char c[SIG_LEN]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
 					phead->attr.sched_policy = handlepolicy(c);
@@ -359,11 +364,11 @@ int findParams(node_t* node){
 	parm_t * curr = phead;
 
 	while (NULL != curr) {
-		if(!strcmp(curr->psig, node->psig)) {
+		if(curr->psig && node->psig && !strcmp(curr->psig, node->psig)) {
 			node->param = curr;
 			return 0;
 		}
-		if(!strncmp(curr->psig, node->psig, 12)) {// TODO: temp, exact signature match?
+		if(curr->contid && node->contid && !strncmp(curr->contid, node->contid, 12)) {// TODO: temp, exact signature match?
 			node->param = curr;
 			return 0;
 		}
@@ -375,7 +380,10 @@ int findParams(node_t* node){
 	// TODO: fix for generic list
 	ppush(&phead); // add new empty item
 	// copy sig, will be freed
-	(void)strncpy(phead->psig,node->psig,SIG_LEN); // copy string, max size of string
+	if (node->psig)
+		(void)strncpy(phead->psig,node->psig,SIG_LEN); // copy string, max size of string
+	if (node->contid)
+		(void)strncpy(phead->contid,node->contid,SIG_LEN); // copy string, max size of string
 
 	// copy scheduling parameters
 	memcpy(&phead->attr, &node->attr, sizeof(node->attr));
@@ -435,8 +443,13 @@ int updateSched() {
 			
 			if (!findParams(current) && SCHED_OTHER != current->attr.sched_policy) { 
 				// only if successful
-				free (current->psig);
+				if (current->psig) 
+					free (current->psig);
+				if (current->contid)
+					free (current->contid);
+
 				current->psig = current->param->psig;
+				current->contid = current->param->contid;
 
 				// TODO: track failed scheduling update?
 				// TODO: might want to put this into a function. Multiple use

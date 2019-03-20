@@ -14,7 +14,9 @@ struct sched_mon { // actual values for monitoring
 
 typedef struct sched_pid { // pid mamagement and monitoring info
 	pid_t pid;
-	char * psig;			// temp char, then moves to entry in pidparam. identifying signature/container
+	// usually only one of two is set
+	char * psig;	// temp char, then moves to entry in pidparam. identifying signature
+	char * contid; 	// temp char, then moves to entry in pidparam. identifying container
 	struct sched_attr attr;
 	struct sched_rscs rscs;
 	struct sched_mon mon;
@@ -24,9 +26,9 @@ typedef struct sched_pid { // pid mamagement and monitoring info
 
 extern node_t * head;
 
-void push_t(node_t * head, pid_t pid, char * psig);
-void push(node_t ** head, pid_t pid, char * psig);
-void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig);
+void push_t(node_t * head, pid_t pid, char * psig, char * contid);
+void push(node_t ** head, pid_t pid, char * psig, char * contid);
+void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 pid_t pop(node_t ** head);
 pid_t drop_after(node_t ** head, node_t ** prev);
 //pid_t remove_last(node_t * head);

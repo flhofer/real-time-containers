@@ -615,7 +615,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	int option_index = 0;
 
 	for (;;) {
-		option_index = 0;
+		//option_index = 0;
 		/*
 		 * Options for getopt
 		 * Ordered alphabetically by single letter name
@@ -754,12 +754,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	if (num_threads < 1)
 		error = 1;
 
-	if (option_index+1 < argc)
+	// look for filename after options, we process only first
+	if (optind < argc)
 	{
-		// non option argument parameters, first = cmdline, second = file if present 
-	    config = argv[++option_index];
-		if ( access( config, F_OK ))
+	    config = argv[optind];
+		if ( access( config, F_OK )) {
+			printDbg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
 			error = 1;
+		}
 	}
 
 	if (error) {

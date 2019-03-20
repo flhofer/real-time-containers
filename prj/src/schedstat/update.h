@@ -8,4 +8,5 @@ void *thread_update (void *arg); // thread that verifies status and allocates ne
 typedef struct pid_info {
 	pid_t pid;
 	char * psig; 
+	char * contid;
 } pidinfo_t;

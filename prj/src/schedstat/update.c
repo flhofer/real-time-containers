@@ -281,10 +281,10 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 							pidlst->pid = atoi(pid);
 // PDB							printDbg("%d\n",pidlst->pid);
 
+							pidlst->psig = NULL;							
 							// find command string and copy to new allocation
-							// TODO: what if len = max, null terminator?
-							if (pidlst->psig = calloc(1, strlen(dir->d_name))) // alloc memory for string
-								(void)strncpy(pidlst->psig,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+							if (pidlst->contid = calloc(1, strlen(dir->d_name)+1)) // alloc memory for string
+								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
 							pidlst++;
 							i++;
 
@@ -351,6 +351,8 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 		// TODO: what if len = max, null terminator?
 		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
+		pidlst->contid = NULL;							
+
 		pidlst++;
         i++;
     }
@@ -405,7 +407,7 @@ void scanNew () {
 		if ((pidlst +i)->pid > (act->pid)) {
 			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
-			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
+			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
 			new++;
 			i--;
 		} 
@@ -428,7 +430,7 @@ void scanNew () {
 
 	while (i >= 0) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
-		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig);
+		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
 		new++;
 		i--;
 	}
@@ -468,7 +470,7 @@ void *thread_update (void *arg)
 	// initialize the thread locals
 	while(1) {
 
-		/*	only needed for TIMER_ABSOLUTE, Not implemented
+		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented
 		ret = clock_gettime(clocksources[clocksel], &now);
 		if (ret != 0) {
 			if (ret != EINTR)

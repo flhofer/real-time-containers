@@ -5,8 +5,7 @@
 #ifndef __PIDPARM_
 #define __PIDPARM_
 
-#define SIG_LEN 50
-
+#define SIG_LEN 65	// increased to 64 -> standard lenght of container IDs for docker
 
 struct sched_rscs { // resources 
 	int affinity; // exclusive cpu-num
@@ -15,6 +14,7 @@ struct sched_rscs { // resources
 
 typedef struct pid_parm {
 	char psig[SIG_LEN]; 	// matching signatures -> target pids
+	char contid[SIG_LEN]; 	// matching signatures -> container IDs
 	struct sched_attr attr; // standard linux pid attributes
 	struct sched_rscs rscs;   // additional resource settings 
 	struct pid_parm* next;
