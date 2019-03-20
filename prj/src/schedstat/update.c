@@ -9,6 +9,16 @@
 
 #include <errno.h> // TODO: fix as general
 
+#define USEC_PER_SEC		1000000
+#define NSEC_PER_SEC		1000000000
+#define TIMER_RELTIME		0
+
+static int clocksources[] = { // TODO: integrate clock source selection
+	CLOCK_MONOTONIC,
+	CLOCK_REALTIME,
+	CLOCK_PROCESS_CPUTIME_ID,
+	CLOCK_THREAD_CPUTIME_ID
+};
 
 //TODO: unify constants
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
@@ -16,6 +26,7 @@ extern int interval; // settting, default to SCAN
 extern int loops; // once every x interval the containers are checked again
 extern int priority; // priority for eventual RT policy
 extern int policy;	/* default policy if not specified */
+extern int clocksel; // clock selection for intervals
 
 static char *fileprefix;
 
@@ -447,21 +458,22 @@ void scanNew () {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc;
-	struct timespec now, interval;
+	int cc, ret;
+	struct timespec now, intervaltv;
 
-	interval.tv_sec = interval / 1000000;
-	interval.tv_nsec = (interval % USEC_PER_SEC) * 1000;
+	intervaltv.tv_sec = interval / USEC_PER_SEC;
+	intervaltv.tv_nsec = (interval % USEC_PER_SEC) * 1000;
 
 
 	// initialize the thread locals
 	while(1) {
 	
-		ret = clock_gettime(par->clock, &now);
+		ret = clock_gettime(clocksources[clocksel], &now);
 		if (ret != 0) {
 			if (ret != EINTR)
 				warn("clock_gettime() failed: %s", strerror(errno));
-			goto out;
+			*pthread_state=-1;
+			break; // stop while
 		}
 
 		switch( *pthread_state )
@@ -501,14 +513,12 @@ void *thread_update (void *arg)
 		}
 		if (SCHED_FIFO == policy || SCHED_RR == policy || SCHED_DEADLINE == policy){
 			
-			ret = clock_nanosleep(par->clock,
-				TIMER_RELTIME, &interval, NULL);
+			ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
 			if (ret != 0) {
 				if (ret != EINTR)
 					warn("clock_nanosleep() failed. errno: %d\n", errno);
 				*pthread_state=-1;
 			}
-
 		}
 		else
 			usleep(interval);

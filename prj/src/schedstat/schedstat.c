@@ -465,7 +465,7 @@ static int use_system;
 int priority=0;
 int policy = SCHED_OTHER;	/* default policy if not specified */
 static int num_threads = 1;
-static int clocksel = 0;
+int clocksel = 0;
 static int quiet;
 int interval = TSCAN;
 int loops = TDETM;
@@ -513,6 +513,11 @@ static void display_help(int error)
 	       "-a [NUM] --affinity        run thread #N on processor #N, if possible\n"
 	       "                           with NUM pin all threads to the processor NUM\n"
 #endif
+	       "-c CLOCK --clock=CLOCK     select clock\n"
+	       "                           0 = CLOCK_MONOTONIC (default)\n"
+	       "                           1 = CLOCK_REALTIME\n"
+	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
+	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
@@ -595,13 +600,11 @@ static void parse_cpumask(const char *option, const int max_cpus)
 
 
 enum option_values {
-	OPT_AFFINITY=1, OPT_ALIGNED, OPT_CLOCK,
-	OPT_DISTANCE, OPT_DURATION, OPT_LATENCY, OPT_EVENT,
-	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL, OPT_REFRESH,
-	OPT_NANOSLEEP, OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
-	OPT_RELATIVE, OPT_RESOLUTION, OPT_SYSTEM, OPT_SMP, OPT_THREADS,
-	OPT_UNBUFFERED, OPT_NUMA, OPT_VERBOSE, OPT_POLICY, 
-	OPT_HELP, OPT_NUMOPTS, OPT_SECALIGNED,  
+	OPT_AFFINITY=1, OPT_CLOCK,
+	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
+	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
+	OPT_THREADS, OPT_SMP, OPT_UNBUFFERED, OPT_NUMA, 
+	OPT_VERBOSE, OPT_POLICY, OPT_HELP,
 };
 
 /// process_options(): Process commandline options 
@@ -623,6 +626,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		 */
 		static struct option long_options[] = {
 			{"affinity",         required_argument, NULL, OPT_AFFINITY},
+			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"fifo",             required_argument, NULL, OPT_FIFO },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
@@ -638,7 +642,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:Fi:l:mp:qSt::uUv",
+		int c = getopt_long(argc, argv, "a:c:Fi:l:mp:qSt::uUv",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -658,6 +662,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
+		case 'c':
+		case OPT_CLOCK:
+			clocksel = atoi(optarg); break;
 /*		case 'F':
 		case OPT_FIFO:
 			use_fifo = 1;
@@ -728,14 +735,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case OPT_HELP:
 			display_help(0); break;
 
-		/* long only options */
-		case OPT_LATENCY:
-                          /* power management latency target value */
-			  /* note: default is 0 (zero) */
-			latency_target_value = atoi(optarg);
-			if (latency_target_value < 0)
-				latency_target_value = 0;
-			break;
 		case OPT_POLICY:
 			policy = handlepolicy(optarg); break;
 		}
@@ -748,6 +747,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			warn("-a ignored due to --numa\n");
 		}
 	}
+
+	if (clocksel < 0 || clocksel > 3)
+		error = 1;
 
 	if (priority < 0 || priority > 99)
 		error = 1;
