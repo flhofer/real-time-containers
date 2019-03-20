@@ -1,5 +1,6 @@
 #include "schedstat.h"
 #include "update.h"
+#include "manage.h"
 
 // test added
 #include <limits.h>
@@ -7,6 +8,7 @@
 #include <sys/vfs.h>
 
 #include <errno.h> // TODO: fix as general
+
 
 //TODO: unify constants
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
@@ -446,12 +448,25 @@ void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc;
+	struct timespec now, interval;
+
+	interval.tv_sec = interval / 1000000;
+	interval.tv_nsec = (interval % USEC_PER_SEC) * 1000;
+
+
 	// initialize the thread locals
 	while(1) {
 	
+		ret = clock_gettime(par->clock, &now);
+		if (ret != 0) {
+			if (ret != EINTR)
+				warn("clock_gettime() failed: %s", strerror(errno));
+			goto out;
+		}
+
 		switch( *pthread_state )
 		{
-		case 0:
+		case 0:			
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=1; // must be first thing! -> main writes -1 to stop
 			if (SCHED_OTHER != policy) {
@@ -463,6 +478,9 @@ void *thread_update (void *arg)
 					// reset value -- not written in main anymore
 					policy = SCHED_OTHER;
 				}
+				else {
+					printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+					}
 
 			}
 
@@ -481,8 +499,17 @@ void *thread_update (void *arg)
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-		if (SCHED_FIFO == policy || SCHED_RR == policy || SCHED_DEADLINE == policy)
-			sched_yield();
+		if (SCHED_FIFO == policy || SCHED_RR == policy || SCHED_DEADLINE == policy){
+			
+			ret = clock_nanosleep(par->clock,
+				TIMER_RELTIME, &interval, NULL);
+			if (ret != 0) {
+				if (ret != EINTR)
+					warn("clock_nanosleep() failed. errno: %d\n", errno);
+				*pthread_state=-1;
+			}
+
+		}
 		else
 			usleep(interval);
 

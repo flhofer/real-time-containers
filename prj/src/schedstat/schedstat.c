@@ -500,7 +500,6 @@ static void display_help(int error)
 			strcpy(tracers, "none");
 	}
 
-	printf("%s V %1.2f\n", PRGNAME, VERSION);
 	printf("Usage:\n"
 	       "schedstat <options>\n\n"
 #if LIBNUMA_API_VERSION >= 2
@@ -738,7 +737,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				latency_target_value = 0;
 			break;
 		case OPT_POLICY:
-			handlepolicy(optarg); break;
+			policy = handlepolicy(optarg); break;
 		}
 	}
 
@@ -772,6 +771,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			rt_bitmask_free(affinity_mask);
 		display_help(1);
 	}
+
 }
 
 /// main(): mein program.. setup threads and keep loop for user/system break
@@ -783,13 +783,13 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	process_options(argc, argv, max_cpus);
-	
 	printDbg("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
 	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
 	printDbg("Source compilation date: %s\n", __DATE__);
 	printDbg("This software comes with no waranty. Please be careful\n\n");
 
+	process_options(argc, argv, max_cpus);
+	
 	// gather actual information at startup, prepare environment
 	if (prepareEnvironment()) {
 		printDbg("Hard HALT.\n");
