@@ -31,9 +31,9 @@ No additional make and build targets defined yet.
 
 	Options available as of this version
 
-    $ statsched.o [-i <scan interval> -l <loop count> -m -p <priority> --policy=<name>]
+    $ statsched.o [-c <clock> -i <scan interval> -l <loop count> -m -p <priority> --policy=<name>] [configuration-file]
 
-where interval is the update intervall of running statistics; loop count is the number of update loops until new containers are checked; -m enables memory page locking; the policy and the priority refer to the parameters applied to the metric update thread.
+where clock is the type of clock timer used for recurring threads; interval is the update intervall of running statistics; loop count is the number of update loops until new containers are checked; -m enables memory page locking; the policy and the priority refer to the parameters applied to the metric update thread. The configuration fle specified is optional. By default 'config.json' will be used 
 
 
 ===============
@@ -47,7 +47,8 @@ The configuration file settings for this version are one object per container in
 {  										// open root object
 	[  									// array of objects
 		{  								// first container, one object per container
-			"cmd" : "4efcb6c965de",		// process identification
+			"cmd" : "rt-app conf2.json",// process run signature identification
+			"contid" : "4efcb6c965de",	// full or partial (12) container id
 			"params" : {				// real-time parameters - optional
 				"policy" : "other", 	// required scheduling policy
 				"flags"  : 0,			// process flags -> inheritance
