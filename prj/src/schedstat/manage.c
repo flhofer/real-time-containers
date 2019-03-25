@@ -299,7 +299,7 @@ int readParams() {
 
 	FILE * f = fopen (config, "r");
 
-	if (f){
+	if (f){ // !! does not check file existence! inserted into Schedstat.h at startup
 	for (;;) {
 		/* Read another chunk */
 		r = fread(buf, 1, sizeof(buf), f);

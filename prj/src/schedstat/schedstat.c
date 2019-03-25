@@ -758,11 +758,13 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	if (optind < argc)
 	{
 	    config = argv[optind];
-		if ( access( config, F_OK )) {
-			printDbg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
-			error = 1;
-		}
 	}
+	// allways verify for config file -> segmentation fault??
+	if ( access( config, F_OK )) {
+		printDbg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
+		error = 1;
+	}
+
 
 	if (error) {
 		if (affinity_mask)
