@@ -236,6 +236,8 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		if (depth == 2) {
 // PDB			printDbg("Adding new item:\n");
 			ppush (&phead);
+			// if any sched parameter is set, policy must also be set
+			phead->attr.sched_policy = -1; // default for not set.
 		}
 
 		// printout 
@@ -453,10 +455,15 @@ int updateSched() {
 
 				// TODO: track failed scheduling update?
 				// TODO: might want to put this into a function. Multiple use
-				printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
-				int flags = current->attr.sched_flags;
-				if (sched_setattr (current->pid, &current->param->attr, flags))
-					printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+				// only do if different than -1, <- not set values
+				if (-1 != current->param->attr.sched_policy) {
+					printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+					int flags = current->attr.sched_flags;
+					if (sched_setattr (current->pid, &current->param->attr, flags))
+						printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+				}
+				else
+					printDbg("... Skipping setting of scheduler for PID %d\n", current->pid);  
 
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
