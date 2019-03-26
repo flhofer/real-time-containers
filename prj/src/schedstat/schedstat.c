@@ -14,7 +14,7 @@ pthread_mutex_t dataMutex;
 // head of pidlist
 node_t * head = NULL;
 
-int use_cgroup = DM_CMDLINE; // identify processes via cgroup
+int use_cgroup = DM_CGRP; // identify processes via cgroup
 
 
 /// inthand(): interrupt handler for infinite while loop, help 
@@ -326,31 +326,32 @@ static int prepareEnvironment() {
 
 
 	/// TODO: setup cgroup -> may conflict with container groups?
-
 	/// --------------------
 	/// checkout cgroup cpuset for docker instances
-	struct stat s;
+	if (DM_CGRP == use_cgroup) { // option enabled, test for it
+		struct stat s;
 
-	// no memory has been allocated yet
-	fileprefix = cpusetdfileprefix; // set to docker directory
+		// no memory has been allocated yet
+		fileprefix = cpusetdfileprefix; // set to docker directory
 
-	int err = stat(fileprefix, &s);
-	if(-1 == err) {
-		if(ENOENT == errno) {
-		    printDbg(KMAG "Warn!" KNRM " : cgroup '%s' does not exist. Is it running?\n", "docker/");
-			printDbg( "... will use PIDs of '%s' to detect processes..\n", CONT_PPID);
-		} else {
-		    perror("stat");
-		}
-		use_cgroup = DM_CNTPID;
-	} else {
-		if(S_ISDIR(s.st_mode)) {
-		    /* it's a dir */
-			printDbg( "Info: using Cgroups to detect processes..\n");
-			use_cgroup = DM_CGRP;
-		} else {
-		    /* exists but is no dir */
+		int err = stat(fileprefix, &s);
+		if(-1 == err) {
+			if(ENOENT == errno) {
+				printDbg(KMAG "Warn!" KNRM " : cgroup '%s' does not exist. Is it running?\n", "docker/");
+				printDbg( "... will use PIDs of '%s' to detect processes..\n", CONT_PPID);
+			} else {
+				perror("stat");
+			}
 			use_cgroup = DM_CNTPID;
+		} else {
+			if(S_ISDIR(s.st_mode)) {
+				/* it's a dir */
+				printDbg( "Info: using Cgroups to detect processes..\n");
+				use_cgroup = DM_CGRP;
+			} else {
+				/* exists but is no dir */
+				use_cgroup = DM_CNTPID;
+			}
 		}
 	}
 
@@ -516,10 +517,13 @@ static void display_help(int error)
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
+	       "-n                         use CMD signature on PID to identify containers\n"
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
 //	       "-q       --quiet           print a summary only on exit\n"
+	       "-s [CMD]                   use shim PPID container detection.\n"
+	       "                           optional CMD parameter specifies ppid command\n"
 //	       "-t NUM   --threads=NUM     number of threads for resource management\n"
 //	       "                           default = 1 (not changeable for now)\n"
 //	       "-u       --unbuffered      force unbuffered output for live processing (FIFO)\n"
@@ -610,7 +614,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:c:Fi:l:mp:qt:uUv",
+		int c = getopt_long(argc, argv, "a:c:Fi:l:mnp:qs::t:uUv",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -654,6 +658,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'm':
 		case OPT_MLOCKALL:
 			lockall = 1; break;
+		case 'n':
+			use_cgroup = DM_CMDLINE;
+			break;
 		case 'p':
 		case OPT_PRIORITY:
 			priority = atoi(optarg);
@@ -663,6 +670,15 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'q':
 		case OPT_QUIET:
 			quiet = 1; break;
+		case 's':
+			use_cgroup = DM_CNTPID;
+			if (optarg != NULL) {
+				cont_ppidc = optarg;
+			} else if (optind<argc && atoi(argv[optind])) {
+				cont_ppidc = argv[optind];
+			}
+			break;
+
 		case 't':
 		case OPT_THREADS:
 			if (smp) {
