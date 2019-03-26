@@ -421,7 +421,7 @@ void scanNew () {
 			break;
 
 		default: // TODO: update - detect by pid signature / fix param structure first
-			cnt = getPids(&pidlst[0], MAX_PIDS, "");
+			cnt = getPids(&pidlst[0], MAX_PIDS, "-C bash");
 			break;
 		
 	}

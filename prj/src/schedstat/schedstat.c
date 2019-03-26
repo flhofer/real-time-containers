@@ -324,7 +324,6 @@ static int prepareEnvironment() {
 	else
 		printDbg("... Pid %d reassigned to CPU%d\n", mpid, 0);
 
-
 	/// TODO: setup cgroup -> may conflict with container groups?
 	/// --------------------
 	/// checkout cgroup cpuset for docker instances
@@ -338,7 +337,6 @@ static int prepareEnvironment() {
 		if(-1 == err) {
 			if(ENOENT == errno) {
 				printDbg(KMAG "Warn!" KNRM " : cgroup '%s' does not exist. Is it running?\n", "docker/");
-				printDbg( "... will use PIDs of '%s' to detect processes..\n", CONT_PPID);
 			} else {
 				perror("stat");
 			}
@@ -347,13 +345,17 @@ static int prepareEnvironment() {
 			if(S_ISDIR(s.st_mode)) {
 				/* it's a dir */
 				printDbg( "Info: using Cgroups to detect processes..\n");
-				use_cgroup = DM_CGRP;
 			} else {
 				/* exists but is no dir */
 				use_cgroup = DM_CNTPID;
 			}
 		}
 	}
+
+	if (DM_CNTPID == use_cgroup)
+		printDbg( "... will use PIDs of '%s' to detect processes..\n", cont_ppidc);
+	if (DM_CMDLINE == use_cgroup)
+		printDbg( "... will use PIDs of configured commands to detect processes..\n");
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
