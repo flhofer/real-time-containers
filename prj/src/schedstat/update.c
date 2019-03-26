@@ -12,6 +12,7 @@
 #define USEC_PER_SEC		1000000
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
+#define PID_BUFFER			4096
 
 static int clocksources[] = { // TODO: integrate clock source selection
 	CLOCK_MONOTONIC,
@@ -27,6 +28,7 @@ extern int loops; // once every x interval the containers are checked again
 extern int priority; // priority for eventual RT policy
 extern int policy;	/* default policy if not specified */
 extern int clocksel; // clock selection for intervals
+extern char * cont_ppidc; // container pid signature to look for
 
 static char *fileprefix;
 
@@ -246,7 +248,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 	if (d) {
 		fileprefix = NULL; // clear pointer again
 		char * nfileprefix = NULL;
-		char pidline[1024];
+		char pidline[PID_BUFFER];
 		char *pid;
 		int i =0;
 
@@ -272,7 +274,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 					// Scan through string and put in array
 					int nread = 0;
-					while(nread =read(path, pidline,1023)) { // used len -1 TODO: fix, doesn't get all tasks, readln? -> see schedstat
+					while(nread =read(path, pidline,PID_BUFFER-1)) { // used len -1 TODO: fix, doesn't get all tasks, readln? -> see schedstat
 						//printDbg("Pid string return %s\n", pidline);
 						pidline[nread] = '\0';						
 						pid = strtok (pidline,"\n");	
@@ -320,7 +322,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 }
 
-/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 get PID list of interrest
+/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          get PID list of interrest
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
 ///			   - tag string containing the 
@@ -329,17 +331,16 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 ///
 int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
-	char pidline[1024];
+	char pidline[PID_BUFFER];
 	char req[40];
 	char *pid;
 	int i =0  ;
 	// prepare literal and open pipe request
-	//sprintf (req,  "pidof %s", tag);
-	(void)sprintf (req,  "ps h -o pid,command -C %s", tag);
+	(void)sprintf (req,  "ps h -o pid,command %s", tag);
 	FILE *fp = popen(req,"r");
 
 	// Scan through string and put in array
-	while(fgets(pidline,1024,fp) && i < cnt) {
+	while(fgets(pidline,PID_BUFFER,fp) && i < cnt) {
 		//printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
         pidlst->pid = atoi(pid);
@@ -360,6 +361,38 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	pclose(fp);
 	// return number of elements found
 	return i;
+}
+
+
+
+/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          get PID list of interrest
+/// Arguments: - pointer to array of PID
+///			   - size in elements of array of PID
+///			   - tag string containing the 
+///
+/// Return value: number of PIDs found (total)
+///
+int getcPids (pidinfo_t *pidlst, size_t cnt)
+{
+	char pidline[PID_BUFFER];
+	char req[40];
+	char *pid;
+	int i =0  ;
+	// prepare literal and open pipe request
+	(void)sprintf (req,  "pidof %s", cont_ppidc);
+	FILE *fp = popen(req,"r");
+
+
+	int cnt2 = 0;
+	// read list of PPIDs
+	if (fgets(pidline,PID_BUFFER-8,fp)) { // len -7
+		char pids[PID_BUFFER] = "--ppid "; // len = 7
+		(void)strcat(pids, pidline);
+		pids[PID_BUFFER-1]='\0';
+		cnt2 = getPids(&pidlst[0], cnt, pids );
+	}
+	pclose(fp);
+	return cnt2;
 }
 
 /// scanNew(): main function for thread_update, scans for pids and inserts
@@ -384,9 +417,11 @@ void scanNew () {
 			break;
 
 		case DM_CNTPID: // TODO: detect by container shim pid
+			cnt = getcPids(&pidlst[0], MAX_PIDS);
+			break;
 
 		default: // TODO: update - detect by pid signature / fix param structure first
-			cnt = getPids(&pidlst[0], MAX_PIDS, "bash");
+			cnt = getPids(&pidlst[0], MAX_PIDS, "");
 			break;
 		
 	}

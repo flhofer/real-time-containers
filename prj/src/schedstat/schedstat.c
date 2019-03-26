@@ -57,6 +57,7 @@ static int offset = 0;
 static char fifopath[MAX_PATH]; // TODO:  implement fifo thread as in cycictest for readout
 static char *fileprefix;
 char * config = "config.json";
+char * cont_ppidc = CONT_PPID;
 
 static int32_t latency_target_value = 0;
 
@@ -217,6 +218,36 @@ static void restorekernvars(void)
 
 /// Kernel variable management - end (ct extract)
 
+// -- new options
+/// Option parsing !!
+
+static int use_nanosleep;
+static int timermode = TIMER_ABSTIME;
+static int use_system;
+int priority=0;
+int policy = SCHED_OTHER;	/* default policy if not specified */
+static int num_threads = 1;
+int clocksel = 0;
+static int quiet;
+int interval = TSCAN;
+int loops = TDETM;
+static int distance = -1;
+static int smp = 0;
+
+enum {
+	AFFINITY_UNSPECIFIED,
+	AFFINITY_SPECIFIED,
+	AFFINITY_USEALL
+};
+static int setaffinity = AFFINITY_UNSPECIFIED;
+static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus-1 rest
+
+static int clocksources[] = {
+	CLOCK_MONOTONIC,
+	CLOCK_REALTIME,
+};
+
+
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
 /// and populates initial state of pid list
@@ -328,7 +359,7 @@ static int prepareEnvironment() {
 	if (DM_CGRP == use_cgroup) {
 
 		char cpus[10];
-		sprintf(cpus, "%d-%d", SYSCPUS,get_nprocs_conf()-1); 
+		sprintf(cpus, "%d-%d", affinity,get_nprocs_conf()-1); 
 
 		printDbg( "... reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
 
@@ -371,7 +402,7 @@ static int prepareEnvironment() {
 		}
 
 		fileprefix = NULL;
-		sprintf(cpus, "%d-%d", 0, SYSCPUS-1); 
+		sprintf(cpus, "%d-%d", 0, affinity-1); 
 		printDbg( "... creating cgroup for system on %s\n", cpus);
 
 		if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
@@ -457,35 +488,6 @@ static int prepareEnvironment() {
 	return 0;
 }
 
-// -- new options
-/// Option parsing !!
-
-static int use_nanosleep;
-static int timermode = TIMER_ABSTIME;
-static int use_system;
-int priority=0;
-int policy = SCHED_OTHER;	/* default policy if not specified */
-static int num_threads = 1;
-int clocksel = 0;
-static int quiet;
-int interval = TSCAN;
-int loops = TDETM;
-static int distance = -1;
-static struct bitmask *affinity_mask = NULL;
-static int smp = 0;
-
-enum {
-	AFFINITY_UNSPECIFIED,
-	AFFINITY_SPECIFIED,
-	AFFINITY_USEALL
-};
-static int setaffinity = AFFINITY_UNSPECIFIED;
-
-static int clocksources[] = {
-	CLOCK_MONOTONIC,
-	CLOCK_REALTIME,
-};
-
 /* Print usage information */
 static void display_help(int error)
 {
@@ -503,17 +505,8 @@ static void display_help(int error)
 
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
-#if LIBNUMA_API_VERSION >= 2
-//	       "-a [CPUSET] --affinity     Run thread #N on processor #N, if possible, or if CPUSET\n"
-//	       "                           given, pin threads to that set of processors in round-\n"
-//	       "                           robin order.  E.g. -a 2 pins all threads to CPU 2,\n"
-//	       "                           but -a 3-5,0 -t 5 will run the first and fifth\n"
-//	       "                           threads on CPU (0),thread #2 on CPU 3, thread #3\n"
-//	       "                           on CPU 4, and thread #5 on CPU 5.\n"
-#else
-//	       "-a [NUM] --affinity        run thread #N on processor #N, if possible\n"
-//	       "                           with NUM pin all threads to the processor NUM\n"
-#endif
+	       "-a [NUM] --affinity        run system threads on processor 0-NUM, if possible\n"
+	       "                           run container threads on processor NUM-MAX_CPU \n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
@@ -574,26 +567,6 @@ static inline struct bitmask* rt_numa_parse_cpustring(const char* s,
 }
 */
 
-static void parse_cpumask(const char *option, const int max_cpus)
-{
-
-	affinity_mask = rt_numa_parse_cpustring(option, max_cpus);
-	if (affinity_mask) {
-		if (is_cpumask_zero(affinity_mask)) {
-			rt_bitmask_free(affinity_mask);
-			affinity_mask = NULL;
-		}
-	}
-	if (!affinity_mask)
-		display_help(1);
-
-	if (verbose) {
-		printf("%s: Using %u cpus.\n", __func__,
-			rt_numa_bitmask_count(affinity_mask));
-	}
-}
-
-
 enum option_values {
 	OPT_AFFINITY=1, OPT_CLOCK,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
@@ -645,13 +618,19 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'a':
 		case OPT_AFFINITY:
 			option_affinity = 1;
-			if (smp || numa)
-				break;
 			if (optarg != NULL) {
-				parse_cpumask(optarg, max_cpus);
+				affinity = atoi(optarg);
+				if (affinity < 1 || affinity > max_cpus) {
+					error = 1;
+					printDbg(KRED "Error!" KNRM " affinity value '%s' not valid\n", optarg);
+				}
 				setaffinity = AFFINITY_SPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
-				parse_cpumask(argv[optind], max_cpus);
+				affinity = atoi(argv[optind]);
+				if (affinity < 1 || affinity > max_cpus) {
+					error = 1;
+					printDbg(KRED "Error!" KNRM " affinity value '%s' not valid\n", argv[optind]);
+				}
 				setaffinity = AFFINITY_SPECIFIED;
 			} else {
 				setaffinity = AFFINITY_USEALL;
@@ -767,8 +746,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 
 
 	if (error) {
-		if (affinity_mask)
-			rt_bitmask_free(affinity_mask);
 		display_help(1);
 	}
 }
