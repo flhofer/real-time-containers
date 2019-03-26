@@ -335,8 +335,9 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	char req[40];
 	char *pid;
 	int i =0  ;
-	// prepare literal and open pipe request
-	(void)sprintf (req,  "ps h -o pid,command %s", tag);
+	// prepare literal and open pipe request, request spid (thread) ids\
+	// spid and pid coincide for main process
+	(void)sprintf (req,  "ps h -o spid,command %s", tag);
 	FILE *fp = popen(req,"r");
 
 	// Scan through string and put in array
@@ -376,19 +377,27 @@ int getcPids (pidinfo_t *pidlst, size_t cnt)
 {
 	char pidline[PID_BUFFER];
 	char req[40];
-	char *pid;
-	int i =0  ;
+
 	// prepare literal and open pipe request
 	(void)sprintf (req,  "pidof %s", cont_ppidc);
 	FILE *fp = popen(req,"r");
 
-
 	int cnt2 = 0;
 	// read list of PPIDs
-	if (fgets(pidline,PID_BUFFER-8,fp)) { // len -7
-		char pids[PID_BUFFER] = "--ppid "; // len = 7
+	if (fgets(pidline,PID_BUFFER-10,fp)) { // len -10 (+\n), limit maximum
+		int i=0;
+		while (pidline[i] && i<PID_BUFFER) {
+			if (' ' == pidline[i]) 
+				pidline[i]=',';
+			i++;
+		}
+
+		char pids[PID_BUFFER] = "-T --ppid "; // len = 10, sum = total buffer
 		(void)strcat(pids, pidline);
-		pids[PID_BUFFER-1]='\0';
+		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with nullchar, overwrite \n
+
+		// replace space with, for PID list
+
 		cnt2 = getPids(&pidlst[0], cnt, pids );
 	}
 	pclose(fp);
