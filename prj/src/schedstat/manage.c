@@ -443,45 +443,46 @@ int updateSched() {
 			// params unassigned
 			printDbg("\nInfo: new pid in list %d\n", current->pid);
 			
-			if (!findParams(current) && SCHED_OTHER != current->attr.sched_policy) { 
-				// only if successful
-				if (current->psig) 
-					free (current->psig);
-				if (current->contid)
-					free (current->contid);
+			if (!findParams(current))
+				if (SCHED_OTHER != current->attr.sched_policy) { 
+					// only if successful
+					if (current->psig) 
+						free (current->psig);
+					if (current->contid)
+						free (current->contid);
 
-				current->psig = current->param->psig;
-				current->contid = current->param->contid;
+					current->psig = current->param->psig;
+					current->contid = current->param->contid;
 
-				// TODO: track failed scheduling update?
-				// TODO: might want to put this into a function. Multiple use
-				// only do if different than -1, <- not set values
-				if (-1 != current->param->attr.sched_policy) {
-					printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
-					int flags = current->attr.sched_flags;
-					if (sched_setattr (current->pid, &current->param->attr, flags))
-						printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+					// TODO: track failed scheduling update?
+					// TODO: might want to put this into a function. Multiple use
+					// only do if different than -1, <- not set values
+					if (-1 != current->param->attr.sched_policy) {
+						printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+						int flags = current->attr.sched_flags;
+						if (sched_setattr (current->pid, &current->param->attr, flags))
+							printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+					}
+					else
+						printDbg("... Skipping setting of scheduler for PID %d\n", current->pid);  
+
+					if (0 <= current->param->rscs.affinity) {
+						// cpu affinity defined to one cpu?
+						CPU_ZERO(&cset);
+						CPU_SET(current->param->rscs.affinity, &cset);
+					}
+					else {
+						// cpu affinity to all
+						cset = cset_full;
+					}
+
+					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+						printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+					else
+						printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
 				}
 				else
-					printDbg("... Skipping setting of scheduler for PID %d\n", current->pid);  
-
-				if (0 <= current->param->rscs.affinity) {
-					// cpu affinity defined to one cpu?
-					CPU_ZERO(&cset);
-					CPU_SET(current->param->rscs.affinity, &cset);
-				}
-				else {
-					// cpu affinity to all
-					cset = cset_full;
-				}
-
-				if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-					printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
-				else
-					printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
-			}
-			else
-				printDbg("... Skipping non-RT PID %d from rescheduling\n", current->pid);
+					printDbg("... Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}
 
 		// TODO: check if there is some faulty behaviour

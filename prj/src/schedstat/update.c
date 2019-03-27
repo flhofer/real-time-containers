@@ -9,10 +9,22 @@
 
 #include <errno.h> // TODO: fix as general
 
+// Included in kernel 4.13
+#ifndef SCHED_FLAG_RECLAIM
+	#define SCHED_FLAG_RECLAIM		0x02
+#endif
+
+// Included in kernel 4.16
+#ifndef SCHED_FLAG_DL_OVERRUN
+	#define SCHED_FLAG_DL_OVERRUN		0x04
+#endif
+
 #define USEC_PER_SEC		1000000
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 #define PID_BUFFER			4096
+
+int hallo = SCHED_FLAG_DL_OVERRUN;
 
 static int clocksources[] = { // TODO: integrate clock source selection
 	CLOCK_MONOTONIC,
@@ -31,6 +43,11 @@ extern int clocksel; // clock selection for intervals
 extern char * cont_ppidc; // container pid signature to look for
 
 static char *fileprefix;
+
+
+// Global variables used here ->
+
+long jps = 1; // get jiffies-clock ticks per second -> for stat readout
 
 // test added 
 typedef struct statstruct_proc {
@@ -183,7 +200,7 @@ int updateStats ()
 
 	// init head
 	node_t * item = head;
-	int flags;
+	int flags = 0;
 	procinfo * procinf = calloc(1, sizeof(procinfo));
 
 	// for now does only a simple update
@@ -192,6 +209,12 @@ int updateStats ()
 		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0) {
 
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+		}
+
+		if (0 != (flags & SCHED_FLAG_DL_OVERRUN)) { // only 4.16 and above
+			// deadline overrun occurred 
+			item->mon.dl_overrun++;
+			printDbg(KMAG "Warn!" KNRM " Pid overrrun runtime\n");
 		}
 
 		if (flags != item->attr.sched_flags)
@@ -528,19 +551,46 @@ void *thread_update (void *arg)
 		case 0:			
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=1; // must be first thing! -> main writes -1 to stop
+			// get jiffies per sec -> to ms
+			jps = sysconf(_SC_CLK_TCK) / 1000;
+			if (jps<1) { // must always be greater 0 
+				printDbg(KRED "Error!" KNRM " could not read jiffie config!\n");
+				break;
+			}
 			if (SCHED_OTHER != policy) {
 				// set policy to thread
-				struct sched_param schedp  = { priority };
 
-				if (sched_setscheduler(0, policy, &schedp)) {
-					printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
-					// reset value -- not written in main anymore
-					policy = SCHED_OTHER;
-				}
-				else {
-					printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+				if (SCHED_DEADLINE == policy) {
+					struct sched_attr scheda  = { 48, 
+												SCHED_DEADLINE,
+												0,
+												0,
+												priority,
+												interval/10, interval, interval
+												};
+
+
+					if (sched_setattr(0, &scheda, 0L)) {
+						printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
+						// reset value -- not written in main anymore
+						policy = SCHED_OTHER;
 					}
+					else {
+						printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						}
+				}
+				else{
+					struct sched_param schedp  = { priority };
 
+					if (sched_setscheduler(0, policy, &schedp)) {
+						printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
+						// reset value -- not written in main anymore
+						policy = SCHED_OTHER;
+					}
+					else {
+						printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						}
+				}
 			}
 
 		case 1: 
@@ -558,16 +608,20 @@ void *thread_update (void *arg)
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
-			
-		// sleep for interval nanoseconds
-		ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
-		if (ret != 0) {
-			if (ret != EINTR)
-				warn("clock_nanosleep() failed. errno: %d\n", errno);
-			*pthread_state=-1;
-			break;
-		}
 
+		if (SCHED_DEADLINE == policy) 
+			// perfect sync with period here, allow replenish 
+			sched_yield(); 
+		else {			
+			// sleep for interval nanoseconds
+			ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
+			if (ret != 0) {
+				if (ret != EINTR)
+					warn("clock_nanosleep() failed. errno: %d\n", errno);
+				*pthread_state=-1;
+				break;
+			}
+		}
 		cc++;
 		cc%=loops;
 	}
