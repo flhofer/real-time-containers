@@ -42,12 +42,10 @@ extern int policy;	/* default policy if not specified */
 extern int clocksel; // clock selection for intervals
 extern char * cont_ppidc; // container pid signature to look for
 
-static char *fileprefix;
-
-
 // Global variables used here ->
 
-long jps = 1; // get jiffies-clock ticks per second -> for stat readout
+static char *fileprefix;
+long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 
 // test added 
 typedef struct statstruct_proc {
@@ -70,11 +68,11 @@ typedef struct statstruct_proc {
   unsigned int  cmajflt;                  /** The number of major faults with childs **/
   int           utime;                    /** user mode jiffies **/
   int           stime;                    /** kernel mode jiffies **/
-  int		cutime;                   /** user mode jiffies with childs **/
+  int			cutime;                   /** user mode jiffies with childs **/
   int           cstime;                   /** kernel mode jiffies with childs **/
-  int           counter;                  /** process's next timeslice **/
+  int           nice;	                  /** niceness level **/
   int           priority;                 /** the standard nice value, plus fifteen **/
-  unsigned int  timeout;                  /** The time in jiffies of the next timeout **/
+  unsigned int  num_threads;                  /** The time in jiffies of the next timeout **/
   unsigned int  itrealvalue;              /** The time before the next SIGALRM is sent to the process **/
   int           starttime; /** 20 **/     /** Time the process started after system boot **/
   unsigned int  vsize;                    /** Virtual memory size **/
@@ -138,7 +136,7 @@ int get_proc_info(pid_t pid, procinfo * pinfo)
   strncpy (pinfo->exName, s, t - s);
   pinfo->exName [t - s] = '\0';
   
-  sscanf (t + 2, "%c %d %d %d %d %d %u %u %u %u %u %d %d %d %d %d %d %u %u %d %u %u %u %u %u %u %u %u %d %d %d %d %u",
+  sscanf (t + 2, "%c %d %d %d %d %d %u %u %u %u %u %d %d %d %d %d %d %d %d %u %u %d %u %u %u %u %u %u %u %u %u %u %u",
 	  /*       1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33*/
 	  &(pinfo->state),
 	  &(pinfo->ppid),
@@ -155,9 +153,9 @@ int get_proc_info(pid_t pid, procinfo * pinfo)
 	  &(pinfo->stime),
 	  &(pinfo->cutime),
 	  &(pinfo->cstime),
-	  &(pinfo->counter),
 	  &(pinfo->priority),
-	  &(pinfo->timeout),
+	  &(pinfo->nice),
+	  &(pinfo->num_threads),
 	  &(pinfo->itrealvalue),
 	  &(pinfo->starttime),
 	  &(pinfo->vsize),
@@ -206,12 +204,13 @@ int updateStats ()
 	// for now does only a simple update
 	while (item != NULL) {
 		// TODO: no need to update all the time.. :/
+		int flags = 0;
 		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0) {
 
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
 		}
 
-		if (0 != (flags & SCHED_FLAG_DL_OVERRUN)) { // only 4.16 and above
+		if (0 != flags) { // only 4.16 and above
 			// deadline overrun occurred 
 			item->mon.dl_overrun++;
 			printDbg(KMAG "Warn!" KNRM " Pid overrrun runtime\n");
@@ -223,13 +222,14 @@ int updateStats ()
 
 
 		// get runtime value
-		//char path[256],buffer[256]; 
-		//int status,read_length;
-        //sprintf(path,"/proc/%i/status",item->pid);
+		char path[256],buffer[256]; 
+		int status,read_length;
+        sprintf(path,"/proc/%i/status",item->pid);
 
-		/*if (!get_proc_info(item->pid, procinf)) {
-			printf ("Hello: %d\n", procinf->utime);
-			}  -> use function*/ 
+		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
+			printf ("Hello: %d\n", procinf->flags);
+		} 
+
 		/*
         FILE *fd=fopen(path,"r");
         if(fd!=0){
@@ -552,11 +552,13 @@ void *thread_update (void *arg)
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=1; // must be first thing! -> main writes -1 to stop
 			// get jiffies per sec -> to ms
-			jps = sysconf(_SC_CLK_TCK) / 1000;
-			if (jps<1) { // must always be greater 0 
+			ticksps = sysconf(_SC_CLK_TCK);
+			if (ticksps<1) { // must always be greater 0 
 				printDbg(KRED "Error!" KNRM " could not read jiffie config!\n");
 				break;
 			}
+			else 
+				printDbg("... scheduler tick found to be %ldHz.\n", ticksps);
 			if (SCHED_OTHER != policy) {
 				// set policy to thread
 
