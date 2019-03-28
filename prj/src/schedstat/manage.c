@@ -390,7 +390,6 @@ int findParams(node_t* node){
 	// copy scheduling parameters
 	memcpy(&phead->attr, &node->attr, sizeof(node->attr));
 
-	int flags = node->attr.sched_flags;
 	cpu_set_t cset;	
 
 	if (sched_getaffinity(node->pid, sizeof(cset), &cset ))
@@ -459,8 +458,7 @@ int updateSched() {
 					// only do if different than -1, <- not set values
 					if (-1 != current->param->attr.sched_policy) {
 						printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
-						int flags = current->attr.sched_flags;
-						if (sched_setattr (current->pid, &current->param->attr, flags))
+						if (sched_setattr (current->pid, &current->param->attr, 0U))
 							printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
 					}
 					else

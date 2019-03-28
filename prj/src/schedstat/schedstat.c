@@ -301,17 +301,13 @@ static int prepareEnvironment() {
 	/// --------------------
 	/// running settings for scheduler
 	struct sched_attr attr; 
-	int flags = 0U; // must be initialized?
 	pid_t mpid = getpid();
-	if (sched_getattr (mpid, &attr, sizeof(attr), flags))
+	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
 		printDbg(KRED "Error!" KNRM " reading attributes: %s\n", strerror(errno));
-
 	printDbg( "... orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
 
-
 	printDbg( "... promoting process and setting affinity..\n");
-
-	if (sched_setattr (mpid, &attr, flags))
+	if (sched_setattr (mpid, &attr, 0U))
 		printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
 
 	cpu_set_t cset;
@@ -324,9 +320,7 @@ static int prepareEnvironment() {
 	else
 		printDbg("... Pid %d reassigned to CPU%d\n", mpid, 0);
 
-	/// TODO: setup cgroup -> may conflict with container groups?
-	/// --------------------
-	/// checkout cgroup cpuset for docker instances
+	/// Docker CGROUP setup == TODO: verify cmd-line parameters cgroups
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
 		struct stat s;
 

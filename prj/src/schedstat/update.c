@@ -198,28 +198,15 @@ int updateStats ()
 
 	// init head
 	node_t * item = head;
-	int flags = 0;
 	procinfo * procinf = calloc(1, sizeof(procinfo));
 
 	// for now does only a simple update
 	while (item != NULL) {
 		// TODO: no need to update all the time.. :/
-		int flags = 0;
-		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), flags) != 0) {
+		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
 
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
 		}
-
-		if (0 != flags) { // only 4.16 and above
-			// deadline overrun occurred 
-			item->mon.dl_overrun++;
-			printDbg(KMAG "Warn!" KNRM " Pid overrrun runtime\n");
-		}
-
-		if (flags != item->attr.sched_flags)
-		// TODO: strangely there is a type mismatch
-			printDbg(KMAG "Warn!" KNRM " Flags %d do not match %ld\n", flags, item->attr.sched_flags);		
-
 
 		// get runtime value
 		char path[256],buffer[256]; 
@@ -227,6 +214,7 @@ int updateStats ()
         sprintf(path,"/proc/%i/status",item->pid);
 
 		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
+			item->mon.dl_overrun++;
 			printf ("Hello: %d\n", procinf->flags);
 		} 
 
