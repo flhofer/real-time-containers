@@ -216,13 +216,19 @@ int get_sched_info(node_t * item)
   
 	long long num;
 	while (EOF != fscanf(fp,"%s %*c %lld", szStatStr, &num)) {
+		if (strncasecmp(szStatStr, "se.exec_start", 4) == 0)	{
+			item->mon.dl_start = num;
+		}
+		if (strncasecmp(szStatStr, "dl.runtime", 4) == 0)	{
+			item->mon.dl_rt = num;
+		}
 		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
 			item->mon.dl_count++;
 			// modulo? inprobable skip?
 			long long diff = (num-item->mon.dl_deadline) % item->attr.sched_period;			
 			if (diff)  {
 				item->mon.dl_overrun++;
-				printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+				printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns, %lld, %lld\n", item->pid, diff, item->mon.dl_start, item->mon.dl_rt); 
 			}
 			
 			item->mon.dl_deadline = num;
