@@ -47,6 +47,27 @@ extern char * cont_ppidc; // container pid signature to look for
 static char *fileprefix;
 long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 
+
+/// dumpStats(): prints thread statistics to out
+///
+/// Arguments: -
+///
+/// Return value: -
+void dumpStats (){
+
+	node_t * item = head;
+	printDbg("\n\nStats- PID - Overshoots(total)\n"
+			     "------------------------------\n\n" );
+	// for now does only a simple update
+	while (item != NULL) {
+		printDbg("PID %d: %ld(%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count );
+
+	item=item->next; 
+	}
+
+}
+
+
 // test added 
 typedef struct statstruct_proc {
   int           pid;                      /** The process id. **/
@@ -175,6 +196,44 @@ int get_proc_info(pid_t pid, procinfo * pinfo)
   return 0;
 }
 
+int get_sched_info(node_t * item)
+{
+  char szFileName [_POSIX_PATH_MAX],
+  	   szStatStr [2048],
+       *s, *t;
+  FILE *fp;
+  struct stat st;
+  
+  sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
+  
+  if (-1 == access (szFileName, R_OK)) {
+    return -1;
+  } /** if **/
+  
+  if ((fp = fopen (szFileName, "r")) == NULL) {
+    return -1;
+  } /** IF_NULL **/
+  
+	long long num;
+	while (EOF != fscanf(fp,"%s %*c %lld", szStatStr, &num)) {
+		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
+			item->mon.dl_count++;
+			// modulo? inprobable skip?
+			long long diff = (num-item->mon.dl_deadline) % item->attr.sched_period;			
+			if (diff)  {
+				item->mon.dl_overrun++;
+				printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+			}
+			
+			item->mon.dl_deadline = num;
+			}
+	}
+
+  fclose (fp);
+  return 0;
+}
+
+
 // until here
 
 // Thread managing pid list update
@@ -208,17 +267,37 @@ int updateStats ()
 			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
 		}
 
+		// set the flag for deadline notification if not enabled yet -- TEST
+		if ((SCHED_DEADLINE == item->attr.sched_policy) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+
+			printDbg("... Set dl_overrun flag for PID %d\n", item->pid);		
+
+			item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
+			if (sched_setattr (item->pid, &item->attr, 0U))
+				printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+		
+		} 
+
 		// get runtime value
+
+		if (SCHED_DEADLINE == item->attr.sched_policy) {
+			int ret;
+			if ((ret = get_sched_info(item)) ) {
+				printf ("Error %d\n", ret);
+			} 
+		}
+		/*
+		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
+			item->mon.dl_overrun++;
+			printf ("Hello: %d\n", procinf->flags);
+		} these are different flags.. 
+		*/ 
+
+		/*
 		char path[256],buffer[256]; 
 		int status,read_length;
         sprintf(path,"/proc/%i/status",item->pid);
 
-		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
-			item->mon.dl_overrun++;
-			printf ("Hello: %d\n", procinf->flags);
-		} 
-
-		/*
         FILE *fd=fopen(path,"r");
         if(fd!=0){
             read_length=fread(buffer,1,255,fd);
@@ -594,7 +673,12 @@ void *thread_update (void *arg)
 			updateStats();
 			break;
 		case -1:
+			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
 			// tidy or whatever is necessary
+			dumpStats();
+			break;
+		case -2:
+			// exit
 			pthread_exit(0); // exit the thread signalling normal return
 			break;
 		}
