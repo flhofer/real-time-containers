@@ -303,13 +303,13 @@ int updateStats ()
 		} 
 
 		// get runtime value
-
-		//if (SCHED_DEADLINE == item->attr.sched_policy) {
+		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
 				printf ("Error %d\n", ret);
 			} 
-		//}
+		}
+
 		/*
 		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
 			item->mon.dl_overrun++;
