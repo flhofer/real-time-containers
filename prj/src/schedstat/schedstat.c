@@ -37,7 +37,7 @@ void inthand ( int signum ) {
 int enable_events;
 int verbose = 0;
 
-static int kernelversion;
+int kernelversion; // kernel version -> opts based on this
 static int sys_cpus = 1; // 0-> count reserved for orchestrator and system
 
 static int lockall = 0;
@@ -67,17 +67,6 @@ static struct kvars {
 	char name[KVARNAMELEN];
 	char value[KVALUELEN];
 } kv[KVARS];
-
-enum kernelversion {
-	KV_NOT_SUPPORTED,
-	KV_26_LT18,
-	KV_26_LT24,
-	KV_26_33,
-	KV_30,
-	KV_40,
-	KV_413,	// includes full EDF for the first time
-	KV_416	// includes full EDF with GRUB-PA for ARM
-};
 
 void inline vbprintf ( const char * format, ... )
 {
@@ -121,10 +110,10 @@ static int check_kernel(void)
 	} else if (maj == 4) { // fil
 
 		// kernel 4.x introduces Deadline scheduling
-		if (sub < 13)
+		if (min < 13)
 			// standard
 			kv = KV_40;
-		else if (sub < 16)
+		else if (min < 16)
 			// full EDF
 			kv = KV_413;
 		else 
@@ -481,7 +470,6 @@ static int prepareEnvironment() {
 			return -1;
 		}
 
-
 	return 0;
 }
 
@@ -661,6 +649,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case OPT_PRIORITY:
 			priority = atoi(optarg);
 			if (policy != SCHED_FIFO && policy != SCHED_RR)
+				printDbg(KMAG "Warn!" KNRM " policy and priority don't match: setting policy to SCHED_FIFO\n");
 				policy = SCHED_FIFO;
 			break;
 		case 'q':

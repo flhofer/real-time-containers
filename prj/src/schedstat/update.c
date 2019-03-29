@@ -41,12 +41,20 @@ extern int priority; // priority for eventual RT policy
 extern int policy;	/* default policy if not specified */
 extern int clocksel; // clock selection for intervals
 extern char * cont_ppidc; // container pid signature to look for
+extern int kernelversion; // using kernel version.. 
 
 // Global variables used here ->
 
 static char *fileprefix;
 long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 
+static inline void tsnorm(struct timespec *ts)
+{
+	while (ts->tv_nsec >= NSEC_PER_SEC) {
+		ts->tv_nsec -= NSEC_PER_SEC;
+		ts->tv_sec++;
+	}
+}
 
 /// dumpStats(): prints thread statistics to out
 ///
@@ -56,11 +64,11 @@ long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 void dumpStats (){
 
 	node_t * item = head;
-	printDbg("\n\nStats- PID - Overshoots(total)\n"
+	printDbg("\n\nStats- PID - Overshoots(total/scan)\n"
 			     "------------------------------\n\n" );
 	// for now does only a simple update
 	while (item != NULL) {
-		printDbg("PID %d: %ld(%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count );
+		printDbg("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.rt_max);
 
 	item=item->next; 
 	}
@@ -216,23 +224,33 @@ int get_sched_info(node_t * item)
   
 	long long num;
 	while (EOF != fscanf(fp,"%s %*c %lld", szStatStr, &num)) {
-		if (strncasecmp(szStatStr, "se.exec_start", 4) == 0)	{
-			item->mon.dl_start = num;
-		}
+//		printf("%s, %lld\n", szStatStr, num);
+		// first letter gets lost in scanf due to head
+/*		if (strncasecmp(szStatStr, "e.exec_start", 4) == 0)	{
+			long long x;
+			fscanf(fp,"%*c%lld", &x);		
+			item->mon.dl_start = num*1000000+x;
+//			printf("PID %d, %ld\n", item->pid, item->mon.dl_start);
+		}*/
 		if (strncasecmp(szStatStr, "dl.runtime", 4) == 0)	{
 			item->mon.dl_rt = num;
 		}
 		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
-			item->mon.dl_count++;
-			// modulo? inprobable skip?
-			long long diff = (num-item->mon.dl_deadline) % item->attr.sched_period;			
-			if (diff)  {
-				item->mon.dl_overrun++;
-				printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns, %lld, %lld\n", item->pid, diff, item->mon.dl_start, item->mon.dl_rt); 
-			}
-			
-			item->mon.dl_deadline = num;
-			}
+			item->mon.rt_max++;
+			if (0 == item->mon.dl_deadline) 
+				item->mon.dl_deadline = num;
+			else if (num != item->mon.dl_deadline) {
+				item->mon.dl_count++;
+				// modulo? inprobable skip?			
+				long long diff = (num-item->mon.dl_deadline) %item->attr.sched_period;			
+				if (diff)  {
+					item->mon.dl_overrun++;
+					printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+				}
+				item->mon.dl_deadline = num;
+			}	
+			break; // we're done reading
+		}
 	}
 
   fclose (fp);
@@ -274,7 +292,7 @@ int updateStats ()
 		}
 
 		// set the flag for deadline notification if not enabled yet -- TEST
-		if ((SCHED_DEADLINE == item->attr.sched_policy) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+		if ((SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
 			printDbg("... Set dl_overrun flag for PID %d\n", item->pid);		
 
@@ -286,12 +304,12 @@ int updateStats ()
 
 		// get runtime value
 
-		if (SCHED_DEADLINE == item->attr.sched_policy) {
+		//if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
 				printf ("Error %d\n", ret);
 			} 
-		}
+		//}
 		/*
 		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
 			item->mon.dl_overrun++;
@@ -601,23 +619,41 @@ void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc, ret;
-	struct timespec now, intervaltv;
+	struct timespec now, last, intervaltv;
 
-	intervaltv.tv_sec = interval / USEC_PER_SEC;
-	intervaltv.tv_nsec = (interval % USEC_PER_SEC) * 1000;
+//	intervaltv.tv_sec = interval / USEC_PER_SEC;
+//	intervaltv.tv_nsec = (interval % USEC_PER_SEC) * 1000;
 
+		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
+	ret = clock_gettime(clocksources[clocksel], &intervaltv);
+	if (ret != 0) {
+		if (ret != EINTR)
+			warn("clock_gettime() failed: %s", strerror(errno));
+		*pthread_state=-1;
+	}
 
 	// initialize the thread locals
 	while(1) {
-
-		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented
-		ret = clock_gettime(clocksources[clocksel], &now);
+		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
+/*		ret = clock_gettime(clocksources[clocksel], &now);
 		if (ret != 0) {
 			if (ret != EINTR)
 				warn("clock_gettime() failed: %s", strerror(errno));
 			*pthread_state=-1;
-			break; // stop while
-		}*/
+	//	break; // stop while
+		}
+
+		if ((NSEC_PER_SEC+now.tv_nsec-last.tv_nsec)%NSEC_PER_SEC >= ((interval % USEC_PER_SEC) * 1000)) {
+				warn("Update failed: %ld", now.tv_nsec-last.tv_nsec);
+
+		}
+		last=now;*/
+
+//		while ( now.tv_sec > intervaltv.tv_sec && now.tv_nsec > intervaltv.tv_nsec) {
+			intervaltv.tv_sec += interval / USEC_PER_SEC;
+			intervaltv.tv_nsec+= (interval % USEC_PER_SEC) * 1000;
+			tsnorm(&intervaltv);
+//		}
 
 		switch( *pthread_state )
 		{
@@ -641,7 +677,7 @@ void *thread_update (void *arg)
 												0,
 												0,
 												priority,
-												interval/10, interval, interval
+												interval/5, interval, interval
 												};
 
 
@@ -691,16 +727,30 @@ void *thread_update (void *arg)
 
 		if (SCHED_DEADLINE == policy) 
 			// perfect sync with period here, allow replenish 
-			sched_yield(); 
+			pthread_yield(); 
 		else {			
+
 			// sleep for interval nanoseconds
-			ret = clock_nanosleep(clocksources[clocksel], TIMER_RELTIME, &intervaltv, NULL);
+			ret = clock_nanosleep(clocksources[clocksel], TIMER_ABSTIME, &intervaltv, NULL);
 			if (ret != 0) {
-				if (ret != EINTR)
-					warn("clock_nanosleep() failed. errno: %d\n", errno);
+				if (ret != EINTR) {
+					warn("clock_nanosleep() failed. errno: %s\n",strerror (ret));
+				}
 				*pthread_state=-1;
 				break;
 			}
+/*		ret = clock_gettime(clocksources[clocksel], &now);
+		if (ret != 0) {
+			if (ret != EINTR)
+				warn("clock_gettime() failed: %s", strerror(errno));
+	//		*pthread_state=-1;
+	//	break; // stop while
+		}*/
+
+//		printf("%ld ", now.tv_nsec-intervaltv.tv_nsec);
+			
+
+
 		}
 		cc++;
 		cc%=loops;

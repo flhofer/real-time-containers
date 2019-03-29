@@ -11,7 +11,6 @@ struct sched_mon { // actual values for monitoring
 	uint64_t rt_avg;
 	uint64_t rt_max;
 	uint64_t dl_count;
-	uint64_t dl_start;
 	uint64_t dl_rt;
 	uint64_t dl_deadline;
 	uint64_t dl_overrun;

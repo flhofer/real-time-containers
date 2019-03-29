@@ -31,6 +31,17 @@
 	#define MAX_PIDS 64
 	#define MAX_CPUS 8
 
+	enum kernelversion {
+		KV_NOT_SUPPORTED,
+		KV_26_LT18,
+		KV_26_LT24,
+		KV_26_33,
+		KV_30,
+		KV_40,
+		KV_413,	// includes full EDF for the first time
+		KV_416	// includes full EDF with GRUB-PA for ARM
+	};
+
 	#define DBG
 	/* Debug printing to console or buffer ?? */
 //	void inline vbprintf ( const char * format, ... );
