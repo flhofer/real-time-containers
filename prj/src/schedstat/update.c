@@ -306,7 +306,7 @@ int updateStats ()
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
-				printf ("Error %d\n", ret);
+				printf ("Error reading thread debug details  %d\n", ret);
 			} 
 		}
 
@@ -347,7 +347,6 @@ int updateStats ()
 /// getContPids(): utility function to get PID list of interrest from Cgroups
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
-///			   - tag string containing the 
 ///
 /// Return value: number of PIDs found (total)
 ///
@@ -436,7 +435,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 }
 
-/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          get PID list of interrest
+/// getpids(): utility function to get list of PID
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
 ///			   - tag string containing the 

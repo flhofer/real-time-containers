@@ -12,7 +12,8 @@
 #include <signal.h> // for SIGs
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include "rt-sched.h" // temporary as libc does not include new sched yet
-#include "rt_numa.h" // from cyclictest -> affinity of cpu and memory
+
+//#include "rt_numa.h" // from cyclictest -> affinity of cpu and memory
 
 // new since cgroup
 #include <fcntl.h> 
@@ -22,6 +23,8 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <getopt.h>
+#include "error.h"
+#include "rt-utils.h"
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
@@ -48,7 +51,6 @@
 
 	#ifdef DBG
 		#define printDbg (void)printf
-
 	#else
 		#define printDbg (void)vbprintf
 	#endif
@@ -74,14 +76,10 @@
 	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 	static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker/";
 
-
 	enum det_mode {
 		DM_CMDLINE,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect pids
 		DM_CGRP		// USe cgroup to detect PIDs of processes
 	};
-
-	
-
 
 #endif

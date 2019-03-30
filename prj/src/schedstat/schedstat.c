@@ -1,72 +1,64 @@
-#include "schedstat.h" // main settings and header file
 
+void inline vbprintf ( const char * format, ... );
+
+// main settings and header file
+#include "schedstat.h" 
+
+// header files of launched threads
 #include "update.h"
 #include "manage.h"
-#include <sys/mman.h>
 
-// Global variables for all the threads and programms
+// Things that should be needed only here
+#include <sys/mman.h>
+#include <numa.h>
+
+// -------------- Global variables for all the threads and programms ------------------
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t dataMutex;
-
-// head of pidlist
+// head of pidlist - PID runtime and configuration details
 node_t * head = NULL;
-
+// configuration of detection mode of containers
 int use_cgroup = DM_CGRP; // identify processes via cgroup
 
+int verbose = 0;
+int kernelversion; // kernel version -> opts based on this
+char * config = "config.json";
+char * cont_ppidc = CONT_PPID;
+
+int priority=0;
+int clocksel = 0;
+int policy = SCHED_OTHER;	/* default policy if not specified */
+int quiet = 0;
+int interval = TSCAN;
+int loops = TDETM;
+
+/* Backup of kernel variables that we modify */
+
+/// Kernel variable management (ct extract)
+#define KVARS			32
+#define KVARNAMELEN		32
+#define KVALUELEN		32
+
+static struct kvars {
+	char name[KVARNAMELEN];
+	char value[KVALUELEN];
+} kv[KVARS];
+
+static char *fileprefix; // Work variable for local things -> procfs & sysfs
+
+/* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
 /// inthand(): interrupt handler for infinite while loop, help 
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: 
-
 void inthand ( int signum ) {
 	stop = 1;
 }
-
-
-/// Kernel variable management (ct extract)
-
-#define KVARS			32
-#define KVARNAMELEN		32
-#define KVALUELEN		32
-
-int enable_events;
-int verbose = 0;
-
-int kernelversion; // kernel version -> opts based on this
-static int sys_cpus = 1; // 0-> count reserved for orchestrator and system
-
-static int lockall = 0;
-static int duration = 0;
-static int use_nsecs = 0;
-static int refresh_on_max;
-//static int force_sched_other;
-static int check_clock_resolution;
-static int use_fifo = 0;
-//static pthread_t fifo_threadid;
-
-
-static int aligned = 0;
-static int secaligned = 0;
-static int offset = 0;
-
-static char fifopath[MAX_PATH]; // TODO:  implement fifo thread as in cycictest for readout
-static char *fileprefix;
-char * config = "config.json";
-char * cont_ppidc = CONT_PPID;
-
-static int32_t latency_target_value = 0;
-
-
-/* Backup of kernel variables that we modify */
-static struct kvars {
-	char name[KVARNAMELEN];
-	char value[KVALUELEN];
-} kv[KVARS];
 
 void inline vbprintf ( const char * format, ... )
 {
@@ -210,32 +202,28 @@ static void restorekernvars(void)
 // -- new options
 /// Option parsing !!
 
-static int use_nanosleep;
-static int timermode = TIMER_ABSTIME;
-static int use_system;
-int priority=0;
-int policy = SCHED_OTHER;	/* default policy if not specified */
-static int num_threads = 1;
-int clocksel = 0;
-static int quiet;
-int interval = TSCAN;
-int loops = TDETM;
-static int distance = -1;
-static int smp = 0;
+// -------------- LOCAL variables for all the threads and programms ------------------
+
+static int sys_cpus = 1;// TODO: separate orchestrator from system? // 0-> count reserved for orchestrator and system
+static int lockall = 0;
+static int numa = 0;
+
+// TODO:  implement fifo thread as in cycictest for readout
+static int use_fifo = 0;
+//static pthread_t fifo_threadid;
+static char fifopath[MAX_PATH];
+
+static int num_threads = 1; // TODO: extend number of scan threads??
+static int smp = 0;  // TODO: add special configurations for SMP modes
 
 enum {
 	AFFINITY_UNSPECIFIED,
 	AFFINITY_SPECIFIED,
 	AFFINITY_USEALL
 };
+
 static int setaffinity = AFFINITY_UNSPECIFIED;
 static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus-1 rest
-
-static int clocksources[] = {
-	CLOCK_MONOTONIC,
-	CLOCK_REALTIME,
-};
-
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
@@ -521,40 +509,6 @@ static void display_help(int error)
 	exit(EXIT_SUCCESS);
 }
 
-static unsigned int is_cpumask_zero(const struct bitmask *mask)
-{
-	return (rt_numa_bitmask_count(mask) == 0);
-}
-
-/*
-static inline struct bitmask* rt_numa_parse_cpustring(const char* s,
-	int max_cpus)
-{
-	int cpu;
-	struct bitmask *mask = NULL;
-	cpu = atoi(s);
-	if (0 <= cpu && cpu < max_cpus) {
-		mask = malloc(sizeof(*mask));
-		if (mask) {
-			/ Round up to integral number of longs to contain
-			 * max_cpus bits /
-			int nlongs = (max_cpus+BITS_PER_LONG-1)/BITS_PER_LONG;
-
-			mask->maskp = calloc(nlongs, sizeof(unsigned long));
-			if (mask->maskp) {
-				mask->maskp[cpu/BITS_PER_LONG] |=
-					(1UL << (cpu % BITS_PER_LONG));
-				mask->size = max_cpus;
-			} else {
-				free(mask);
-				mask = NULL;
-			}
-		}
-	}
-	return mask;
-}
-*/
-
 enum option_values {
 	OPT_AFFINITY=1, OPT_CLOCK,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
@@ -682,16 +636,15 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			setvbuf(stdout, NULL, _IONBF, 0); break;
 		case 'U':
 		case OPT_NUMA: /* NUMA testing */
-			numa = 1;	/* Turn numa on */
+//			numa = 1;	/* Turn numa on */
 			if (smp)
 				fatal("numa and smp options are mutually exclusive\n");
-			numa_on_and_available();
+			//numa_on_and_available();
 #ifdef NUMA
 			num_threads = max_cpus;
 			setaffinity = AFFINITY_USEALL;
-//			use_nanosleep = MODE_CLOCK_NANOSLEEP;
 #else
-			warn("cyclictest was not built with the numa option\n");
+			warn("schedstat was not built with the numa option\n");
 			warn("ignoring --numa or -U\n");
 #endif
 			break;
@@ -709,9 +662,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	if (option_affinity) {
 		if (smp) {
 			warn("-a ignored due to --smp\n");
-		} else if (numa) {
-			warn("-a ignored due to --numa\n");
-		}
+		} //else if (numa) {
+//			warn("-a ignored due to --numa\n");
+//		}
 	}
 
 	if (clocksel < 0 || clocksel > 3)
