@@ -98,7 +98,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 
 	// base case, no elements in the object
 	if (count == 0) {
-		printDbg("JSON: faulty object data! No element count in this object");
+		warn("JSON: faulty object data! No element count in this object");
 		return 0;
 	}
 
@@ -107,12 +107,12 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		// enter here if a primitive value (int?) has been identified
 
 		if (key == -1 || (t->end - t->start) > SIG_LEN) { // no key value yet or value too long
-			printDbg("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
+			warn("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
 
 		if (!phead) {
-			printDbg("JSON: no element! %.*s", t->end - t->start, js+t->start);
+			warn("JSON: no element! %.*s", t->end - t->start, js+t->start);
 			return 1;
 		}
 
@@ -124,36 +124,36 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 
 		case 4: // schedule flags
 				phead->attr.sched_flags = strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
+				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
 				break;
 
 		case 5: // schedule niceness
 				phead->attr.sched_nice = (uint32_t)strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);// PDB
+				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);// PDB
 				break;
 
 		case 6: // schedule rt priority
 				phead->attr.sched_priority = (uint32_t)strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
+				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
 				break;
 		case 7: // schedule rt runtime
 				phead->attr.sched_runtime = strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
+				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
 				break;
 		
 		case 8: // schedule rt deadline
 				phead->attr.sched_deadline = strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
+				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
 				break;
 
 		case 9: // schedule rt period
 				phead->attr.sched_period = strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
+				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
 				break;
 
 		case 11: // task affinity
 				phead->rscs.affinity = strtol(c,NULL,10);
-// PDB				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
+				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
 				break;
 		}
 
@@ -164,7 +164,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	} else if (t->type == JSMN_STRING) {
 		// here len must be shorter than SIG_LEN TODO: fix to dynamic length
 		if ((t->end - t->start) > SIG_LEN){
-			printDbg("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
+			warn("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
 
@@ -188,14 +188,14 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					break;
 				}
 			// if it get's here, key has not been found in list
-			printDbg("NOT FOUND '%.*s'", t->end - t->start, js+t->start);
+			warn("NOT FOUND '%.*s'", t->end - t->start, js+t->start);
 			return 1;
 		}
 		else
 		{
 
 			if (!phead) { // !! no object defined !!!
-				printDbg("JSON: no element! '%.*s'", t->end - t->start, js+t->start);
+				warn("JSON: no element! '%.*s'", t->end - t->start, js+t->start);
 				return 1;
 			}
 
@@ -203,12 +203,12 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			
 			case 0: // process/command signature found
 					sprintf(phead->psig, "%.*s", t->end - t->start, js+t->start);
-// PDB					printDbg("JSON: setting cmd to '%s'", phead->psig);
+					printDbg("JSON: setting cmd to '%s'", phead->psig);
 					break;
 
 			case 1: // ID signature found
 					sprintf(phead->contid, "%.*s", t->end - t->start, js+t->start);
-// PDB					printDbg("JSON: setting cmd to '%s'", phead->psig);
+					printDbg("JSON: setting cmd to '%s'", phead->psig);
 					break;
 
 			case 3: ; // schedule policy 
@@ -217,7 +217,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					phead->attr.sched_policy = handlepolicy(c);
 					// TODO: fix size elements
 					phead->attr.size=48; // has to be set
-// PDB					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
 					break;
 
 			}
@@ -234,7 +234,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		// add a new settings item at head
 		// TODO: fix it to be depth independent
 		if (depth == 2) {
-// PDB			printDbg("Adding new item:\n");
+			printDbg("Adding new item:\n");
 			ppush (&phead);
 			// if any sched parameter is set, policy must also be set
 			phead->attr.sched_policy = -1; // default for not set.
@@ -393,7 +393,7 @@ int findParams(node_t* node){
 	cpu_set_t cset;	
 
 	if (sched_getaffinity(node->pid, sizeof(cset), &cset ))
-		printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+		err_msg(KRED "Error!" KNRM " reading affinity for PID %d: %s\n", node->pid, strerror(errno));
 	else {
 
 		if (1 == CPU_COUNT(&cset)) {
@@ -459,7 +459,7 @@ int updateSched() {
 					if (-1 != current->param->attr.sched_policy) {
 						printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
-							printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+							err_msg(KRED "Error!" KNRM " setting attributes for PID %d: %s\n", current->pid, strerror(errno));
 					}
 					else
 						printDbg("... Skipping setting of scheduler for PID %d\n", current->pid);  
@@ -475,7 +475,7 @@ int updateSched() {
 					}
 
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
+						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n", current->pid, strerror(errno));
 					else
 						printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
 				}
@@ -536,7 +536,7 @@ void *thread_manage (void *arg)
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
 		if (readParams() != 0){
-			printDbg("JSON: configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
+			err_msg(KRED "Error!" KNRM " JSON: configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
 			*pthread_state=-1;
 			break;
 		}
