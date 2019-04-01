@@ -298,13 +298,13 @@ static int prepareEnvironment() {
 			if(ENOENT == errno) { // TODO: parametrizable Cgroup value
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", "docker/");
 			} else {
-				perror("stat");
+				perror("Stat encountered an error");
 			}
 			use_cgroup = DM_CNTPID;
 		} else {
 			if(S_ISDIR(s.st_mode)) {
 				/* it's a dir */
-				cont("using Cgroups to detect processes..\n");
+				cont("using CGroups to detect processes..\n");
 			} else {
 				/* exists but is no dir */
 				use_cgroup = DM_CNTPID;
@@ -335,7 +335,8 @@ static int prepareEnvironment() {
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker cgroups, find them?
 				if ((strlen(dir->d_name)>60) && // container strings are very long!
-						(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)+strlen(dir->d_name)+1))) {
+						(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
+						+ strlen(dir->d_name)+1))) {
 					fileprefix[0] = '\0';   // ensures the memory is an empty string
 					// copy to new prefix
 					strcat(fileprefix,cpusetdfileprefix);
@@ -453,19 +454,6 @@ static int prepareEnvironment() {
 /* Print usage information */
 static void display_help(int error)
 {
-	/*
-	char tracers[MAX_PATH];
-	char *prefix;
-
-	prefix = get_debugfileprefix();
-	if (prefix[0] == '\0')
-		strcpy(tracers, "unavailable (debugfs not mounted)");
-	else {
-		fileprefix = prefix;
-		if (kernvar(O_RDONLY, "available_tracers", tracers, sizeof(tracers)))
-			strcpy(tracers, "none");
-	}*/
-
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run system threads on processor 0-(NUM-1), if possible\n"
@@ -627,9 +615,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'u':
 		case OPT_UNBUFFERED:
 			setvbuf(stdout, NULL, _IONBF, 0); break;
-		case 'U': //TODO: fix numa ??
-		case OPT_NUMA: /* NUMA testing */
-//			numa = 1;	/* Turn numa on */
+/*		case 'U': //TODO: fix numa ??
+		case OPT_NUMA: // NUMA testing 
+			numa = 1;	// Turn numa on 
 			if (smp)
 				fatal("numa and smp options are mutually exclusive\n");
 			//numa_on_and_available();
@@ -640,7 +628,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			warn("schedstat was not built with the numa option\n");
 			warn("ignoring --numa or -U\n");
 #endif
-			break;
+			break; */ 
 		case 'v':
 		case OPT_VERBOSE: 
 			verbose = 1; break;
@@ -655,31 +643,37 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		}
 	}
 
+	// option mismatch verification
 	if (option_affinity) {
 		if (smp) {
 			warn("-a ignored due to --smp\n");
-		} //else if (numa) {
-//			warn("-a ignored due to --numa\n");
-//		}
+		} else if (numa) {
+			warn("-a ignored due to --numa\n");
+		}
 	}
 
+	// check clock sel boundaries
 	if (clocksel < 0 || clocksel > 3)
 		error = 1;
 
+	// check priority boundary
 	if (priority < 0 || priority > 99)
 		error = 1;
 
+	// check priority and policy match
 	if (priority && (policy != SCHED_FIFO && policy != SCHED_RR)) {
 		warn("policy and priority don't match: setting policy to SCHED_FIFO\n");
 		policy = SCHED_FIFO;
 	}
 
+	// check policy with priority match 
 	if ((policy == SCHED_FIFO || policy == SCHED_RR) && priority == 0) {
 		warn("defaulting realtime priority to %d\n",
-			num_threads+1);
+		num_threads+1); // TODO: num threads and prio connection??
 		priority = num_threads+1;
 	}
 
+	// num theads must be > 0 
 	if (num_threads < 1)
 		error = 1;
 
@@ -688,13 +682,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	{
 	    config = argv[optind];
 	}
+
 	// allways verify for config file -> segmentation fault??
 	if ( access( config, F_OK )) {
 		err_msg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
 		error = 1;
 	}
 
-
+	// error present? print help message and exit
 	if (error) {
 		display_help(1);
 	}

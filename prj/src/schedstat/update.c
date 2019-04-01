@@ -286,22 +286,25 @@ int updateStats ()
 
 	// for now does only a simple update
 	while (item != NULL) {
-		// TODO: no need to update all the time.. :/
-		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
 
-			warn("Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+		// update only when defaulting -> new entry
+		if (-1 == item->attr.sched_policy) {
+			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
+
+				warn("Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+			}
+
+			// set the flag for deadline notification if not enabled yet -- TEST
+			if ((SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+
+				cont("Set dl_overrun flag for PID %d\n", item->pid);		
+
+				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
+				if (sched_setattr (item->pid, &item->attr, 0U))
+					err_msg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+			
+			} 
 		}
-
-		// set the flag for deadline notification if not enabled yet -- TEST
-		if ((SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
-
-			cont("Set dl_overrun flag for PID %d\n", item->pid);		
-
-			item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
-			if (sched_setattr (item->pid, &item->attr, 0U))
-				err_msg(KRED "Error!" KNRM ": %s\n", strerror(errno));
-		
-		} 
 
 		// get runtime value
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
