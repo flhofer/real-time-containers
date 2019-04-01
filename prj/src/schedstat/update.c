@@ -26,7 +26,7 @@
 
 int hallo = SCHED_FLAG_DL_OVERRUN;
 
-static int clocksources[] = { // TODO: integrate clock source selection
+static int clocksources[] = {
 	CLOCK_MONOTONIC,
 	CLOCK_REALTIME,
 	CLOCK_PROCESS_CPUTIME_ID,
@@ -36,6 +36,7 @@ static int clocksources[] = { // TODO: integrate clock source selection
 //TODO: unify constants
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
 extern int interval; // settting, default to SCAN
+extern int update_wcet; // worst case execution time for deadline scheduled task
 extern int loops; // once every x interval the containers are checked again
 extern int priority; // priority for eventual RT policy
 extern int policy;	/* default policy if not specified */
@@ -65,8 +66,8 @@ void dumpStats (){
 
 	node_t * item = head;
 	(void)printf("\n\nStats- PID - Overshoots(total/scan)\n"
-			     "------------------------------\n\n" );
-	// for now does only a simple update
+			         "-----------------------------------\n" );
+	// for now does only a simple update count
 	while (item != NULL) {
 		(void)printf("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.rt_max);
 
@@ -245,7 +246,7 @@ int get_sched_info(node_t * item)
 				long long diff = (num-item->mon.dl_deadline) %item->attr.sched_period;			
 				if (diff)  {
 					item->mon.dl_overrun++;
-					printf (KMAG "Warn!" KNRM " PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+					warn("PID %d Deadline overrun by %lldns\n", item->pid, diff); 
 				}
 				item->mon.dl_deadline = num;
 			}	
@@ -317,27 +318,8 @@ int updateStats ()
 		} these are different flags.. 
 		*/ 
 
-		/*
-		char path[256],buffer[256]; 
-		int status,read_length;
-        sprintf(path,"/proc/%i/status",item->pid);
-
-        FILE *fd=fopen(path,"r");
-        if(fd!=0){
-            read_length=fread(buffer,1,255,fd);
-            printf("Read: %s\n",buffer);
-            fclose(fd);
-        }
-		*/
-
-
 		// exponentially weighted moving average
-		
-
 		//item->mon.rt_avg = item->mon.rt_avg * 0.9 + item.attr;
-
-
-
 
 		item=item->next; 
 	}
@@ -538,11 +520,11 @@ void scanNew () {
 			cnt = getContPids(&pidlst[0], MAX_PIDS);
 			break;
 
-		case DM_CNTPID: // TODO: detect by container shim pid
+		case DM_CNTPID: // detect by container shim pid
 			cnt = getcPids(&pidlst[0], MAX_PIDS);
 			break;
 
-		default: // TODO: update - detect by pid signature / fix param structure first
+		default: // TODO: update - detect by pid signature
 			cnt = getPids(&pidlst[0], MAX_PIDS, "-C bash");
 			break;
 		
@@ -619,12 +601,9 @@ void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc, ret;
-	struct timespec now, last, intervaltv;
+	struct timespec intervaltv;
 
-//	intervaltv.tv_sec = interval / USEC_PER_SEC;
-//	intervaltv.tv_nsec = (interval % USEC_PER_SEC) * 1000;
-
-	/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
+	// get clock, use it as a future reference for update time TIMER_ABS*
 	ret = clock_gettime(clocksources[clocksel], &intervaltv);
 	if (ret != 0) {
 		if (ret != EINTR)
@@ -652,7 +631,7 @@ void *thread_update (void *arg)
 				if (500000000/ticksps > interval*1000)  
 					warn("scan time more than double the debug update rate. On purpose?\n");
 			}
-			if (SCHED_OTHER != policy) {
+			if (SCHED_OTHER != policy) { // TODO: set niceness for other/bash?
 				// set policy to thread
 
 				if (SCHED_DEADLINE == policy) {
@@ -661,7 +640,7 @@ void *thread_update (void *arg)
 												0,
 												0,
 												priority,
-												interval/5, interval, interval
+												update_wcet, interval, interval
 												};
 
 
@@ -671,7 +650,7 @@ void *thread_update (void *arg)
 						policy = SCHED_OTHER;
 					}
 					else {
-						cont("set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						cont("set update thread to '%s', runtime %dus.\n", policyname(policy), update_wcet);
 						}
 				}
 				else{

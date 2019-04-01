@@ -30,7 +30,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.24
+	#define VERSION 0.25
 	#define MAX_PIDS 64
 	#define MAX_CPUS 8
 
@@ -54,7 +54,8 @@
 	#endif
 
 	// here, as it will be changed with cli later
-	#define TSCAN 100000 // scan time of updates
+	#define TSCAN 10000 // scan time of updates
+	#define TWCET 1200 	// default WCET for deadline scheduling
 	#define TDETM 10	// x*TSCAN, time check new containers
 	#define CONT_PPID "docker-containerd-shim"
 

@@ -30,6 +30,7 @@ int clocksel = 0;
 int policy = SCHED_OTHER;	/* default policy if not specified */
 int quiet = 0;
 int interval = TSCAN;
+int update_wcet = TWCET;
 int loops = TDETM;
 
 /* Backup of kernel variables that we modify */
@@ -208,7 +209,7 @@ enum {
 };
 
 static int setaffinity = AFFINITY_UNSPECIFIED;
-static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus-1 rest
+static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
@@ -467,7 +468,7 @@ static void display_help(int error)
 
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
-	       "-a [NUM] --affinity        run system threads on processor 0-NUM, if possible\n"
+	       "-a [NUM] --affinity        run system threads on processor 0-(NUM-1), if possible\n"
 	       "                           run container threads on processor NUM-MAX_CPU \n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
@@ -475,8 +476,8 @@ static void display_help(int error)
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
-	       "-i INTV  --interval=INTV   base interval of update thread in us default=1000\n"
-	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=10\n"
+	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
+	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
 	       "-n                         use CMD signature on PID to identify containers\n"
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
@@ -492,6 +493,8 @@ static void display_help(int error)
 //	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
 //	       "-v       --verbose         output values on stdout for statistics\n"
+	       "-w       --wcet            WCET runtime for deadline policy in us, default=%d\n"
+			, TSCAN, TDETM, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);
@@ -503,7 +506,7 @@ enum option_values {
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
 	OPT_THREADS, OPT_SMP, OPT_UNBUFFERED, OPT_NUMA, 
-	OPT_VERBOSE, OPT_POLICY, OPT_HELP,
+	OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
 };
 
 /// process_options(): Process commandline options 
@@ -538,10 +541,11 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
+			{"wcet",             required_argument, NULL, OPT_WCET },
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:c:Fi:l:mnp:qs::t:uUv",
+		int c = getopt_long(argc, argv, "a:c:Fi:l:mnp:qs::t:uUvw:",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -623,7 +627,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'u':
 		case OPT_UNBUFFERED:
 			setvbuf(stdout, NULL, _IONBF, 0); break;
-		case 'U':
+		case 'U': //TODO: fix numa ??
 		case OPT_NUMA: /* NUMA testing */
 //			numa = 1;	/* Turn numa on */
 			if (smp)
@@ -638,11 +642,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 #endif
 			break;
 		case 'v':
-		case OPT_VERBOSE: verbose = 1; break;
+		case OPT_VERBOSE: 
+			verbose = 1; break;
+		case 'w':
+		case OPT_WCET:
+			update_wcet = atoi(optarg); break;
 		case '?':
 		case OPT_HELP:
 			display_help(0); break;
-
 		case OPT_POLICY:
 			policy = handlepolicy(optarg); break;
 		}
