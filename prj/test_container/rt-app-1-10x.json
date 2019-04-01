@@ -1,0 +1,32 @@
+{
+	"tasks" : {
+		"thread1" : {
+			"policy" : "SCHED_DEADLINE",
+			"dl-runtime" : 1000,
+			"dl-period" : 10000,
+			"dl-deadline" : 8000,
+			"phases" : {
+				"phase1" : {
+					"run" : 1000,
+					"timer" : { "ref" : "uniqueA", "period" : 10000 }
+				}
+			}
+		}
+	},
+
+	"global" : {
+		"duration" : -1,
+		"calibration" : "CPU0",
+		"default_policy" : "SCHED_DEADLINE",
+		"pi_enabled" : false,
+		"lock_pages" : false,
+		"logdir" : "./",
+		"log_size" : "disabled",
+		"log_basename" : "rt-app",
+		"ftrace" : false,
+		"gnuplot" : false,
+		"io_device" : "/dev/null",
+		"mem_buffer_size" : 4194304,
+		"cumulative_slack" : false
+	}
+}
