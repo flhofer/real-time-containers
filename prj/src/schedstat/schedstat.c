@@ -94,7 +94,9 @@ static int check_kernel(void)
 		else 
 			// full EDF -PA
 			kv = KV_416;
-
+	} else if (maj == 4) { // fil
+		// full EDF -PA, newest kernel
+		kv = KV_50;
 	} else
 		kv = KV_NOT_SUPPORTED;
 
@@ -135,10 +137,10 @@ static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
 
 static int setkernvar(const char *name, char *value)
 {
-	int i;
+/*	int i;
 	char oldvalue[KVALUELEN];
 
-/*	if (kernelversion < KV_26_33) {
+	if (kernelversion < KV_26_33) {
 		if (kernvar(O_RDONLY, name, oldvalue, sizeof(oldvalue)))
 			printDbg(KRED "Error!" KNRM " could not retrieve %s\n", name);
 		else {
@@ -700,7 +702,7 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	(void)printf("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
+//	(void)printf("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
 	(void)printf("%s V %1.2f\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
@@ -716,26 +718,36 @@ int main(int argc, char **argv)
 	int32_t t_stat2 = 0; 
 	int  iret1, iret2;
 
-	/* Create independent threads each of which will execute function */ // TODO: evaluaate return value
-	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1);
-	iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2);
+	/* Create independent threads each of which will execute function */ 
+	if (iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1)) {
+		err_msg (KRED "Error!" KNRM " could not start update thread: %s", strerror(iret1));
+		t_stat1 = -1;
+	}
+	if (iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2)) {
+		err_msg (KRED "Error!" KNRM " could not start management thread: %s", strerror(iret2));
+		t_stat2 = -1;
+	}
 
 	// set interrupt sig hand
 	signal(SIGINT, inthand);
 	signal(SIGTERM, inthand);
 	signal(SIGUSR1, inthand);
 
-	while (!stop && (t_stat1 != -1 || t_stat2 != -1)) {
+	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);
 	}
 
 	// signal shutdown to threads
-	t_stat1 = -1;
-	t_stat2 = -1;
+	if (t_stat1 > -1) // only if not already done
+		t_stat1 = -1;
+	if (t_stat2 > -1) // only if not already done
+		t_stat2 = -1;
 
 	// wait until threads have stopped
-	pthread_join( thread1, NULL);
-	pthread_join( thread2, NULL); 
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL);
+	if (!iret2)	// thread started successfully
+		iret2 = pthread_join( thread2, NULL); 
 
     info("exiting safely\n");
 

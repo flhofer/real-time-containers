@@ -634,26 +634,6 @@ void *thread_update (void *arg)
 
 	// initialize the thread locals
 	while(1) {
-		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
-/*		ret = clock_gettime(clocksources[clocksel], &now);
-		if (ret != 0) {
-			if (ret != EINTR)
-				warn("clock_gettime() failed: %s", strerror(errno));
-			*pthread_state=-1;
-	//	break; // stop while
-		}
-
-		if ((NSEC_PER_SEC+now.tv_nsec-last.tv_nsec)%NSEC_PER_SEC >= ((interval % USEC_PER_SEC) * 1000)) {
-				warn("Update failed: %ld", now.tv_nsec-last.tv_nsec);
-
-		}
-		last=now;*/
-
-//		while ( now.tv_sec > intervaltv.tv_sec && now.tv_nsec > intervaltv.tv_nsec) {
-			intervaltv.tv_sec += interval / USEC_PER_SEC;
-			intervaltv.tv_nsec+= (interval % USEC_PER_SEC) * 1000;
-			tsnorm(&intervaltv);
-//		}
 
 		switch( *pthread_state )
 		{
@@ -663,11 +643,15 @@ void *thread_update (void *arg)
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (ticksps<1) { // must always be greater 0 
-				warn("could not read jiffie config!\n");
+				warn("could not read clock tick config!\n");
 				break;
 			}
-			else 
-				cont("scheduler tick found to be %ldHz.\n", ticksps);
+			else{ 
+				// clock settings found -> check for validity
+				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
+				if (500000000/ticksps > interval*1000)  
+					warn("scan time more than double the debug update rate. On purpose?\n");
+			}
 			if (SCHED_OTHER != policy) {
 				// set policy to thread
 
@@ -732,28 +716,24 @@ void *thread_update (void *arg)
 			// perfect sync with period here, allow replenish 
 			pthread_yield(); 
 		else {			
+			// abs-time relative interval shift
+			// TODO: implement relative time and timer based variants?
+
+			// calculate new sleep intervall
+			intervaltv.tv_sec += interval / USEC_PER_SEC;
+			intervaltv.tv_nsec+= (interval % USEC_PER_SEC) * 1000;
+			tsnorm(&intervaltv);
 
 			// sleep for interval nanoseconds
 			ret = clock_nanosleep(clocksources[clocksel], TIMER_ABSTIME, &intervaltv, NULL);
 			if (ret != 0) {
+				// TODO: what-if?
 				if (ret != EINTR) {
 					warn("clock_nanosleep() failed. errno: %s\n",strerror (ret));
 				}
 				*pthread_state=-1;
 				break;
 			}
-/*		ret = clock_gettime(clocksources[clocksel], &now);
-		if (ret != 0) {
-			if (ret != EINTR)
-				warn("clock_gettime() failed: %s", strerror(errno));
-	//		*pthread_state=-1;
-	//	break; // stop while
-		}*/
-
-//		printf("%ld ", now.tv_nsec-intervaltv.tv_nsec);
-			
-
-
 		}
 		cc++;
 		cc%=loops;
