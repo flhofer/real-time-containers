@@ -42,6 +42,7 @@ extern int priority; // priority for eventual RT policy
 extern int policy;	/* default policy if not specified */
 extern int clocksel; // clock selection for intervals
 extern char * cont_ppidc; // container pid signature to look for
+extern char * cont_pidc; // command line pid signature to look for
 extern int kernelversion; // using kernel version.. 
 
 // Global variables used here ->
@@ -527,8 +528,10 @@ void scanNew () {
 			cnt = getcPids(&pidlst[0], MAX_PIDS);
 			break;
 
-		default: // TODO: update - detect by pid signature
-			cnt = getPids(&pidlst[0], MAX_PIDS, "-C bash");
+		default: ;// TODO: update - detect by pid signature
+			char pid[SIG_LEN];
+			sprintf(pid, "-C %s", cont_pidc);
+			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
 			break;
 		
 	}

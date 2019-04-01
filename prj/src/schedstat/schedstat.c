@@ -24,6 +24,7 @@ int verbose = 0;
 int kernelversion; // kernel version -> opts based on this
 char * config = "config.json";
 char * cont_ppidc = CONT_PPID;
+char * cont_pidc = CONT_PID;
 
 int priority=0;
 int clocksel = 0;
@@ -82,7 +83,7 @@ static int check_kernel(void)
 		else
 		// kernel 3.x standard LT kernel for embedded
 		kv = KV_314;
-		// todo if 
+
 	} else if (maj == 4) { // fil
 
 		// kernel 4.x introduces Deadline scheduling
@@ -315,7 +316,7 @@ static int prepareEnvironment() {
 	if (DM_CNTPID == use_cgroup)
 		cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
 	if (DM_CMDLINE == use_cgroup)
-		cont( "will use PIDs of configured commands to detect processes..\n");
+		cont( "will use PIDs of command signtaure '%s' to detect processes..\n", cont_pidc);
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
@@ -365,9 +366,22 @@ static int prepareEnvironment() {
 			closedir(d);
 		}
 
+		//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
+		// system CGroup, possible tasks are moved
+
 		fileprefix = NULL;
 		sprintf(cpus, "%d-%d", 0, affinity-1); 
 		cont("creating cgroup for system on %s\n", cpus);
+
+		// detect numa configuration 
+		char * numastr = "0"; // default numa string
+		if (-1 != numa_available()) {
+			int numanodes = numa_max_node();
+			numastr = calloc (5, 1);
+			sprintf(numastr, "0-%d", numanodes);
+		}
+		else
+			warn("Numa not enabled, defaulting to memory node '0'\n");
 
 		if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
 			fileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -378,8 +392,8 @@ static int prepareEnvironment() {
 				if (setkernvar("cpuset.cpus", cpus)){
 					warn("Can not set cpu-affinity\n");
 				}
-				if (setkernvar("cpuset.mems", "0")){ // TODO: fix cpuset mems
-					warn("Can not set cpu exclusive\n");
+				if (setkernvar("cpuset.mems", numastr)){
+					warn("Can not set numa memory nodes\n");
 				}
 				if (setkernvar("cpuset.cpu_exclusive", "1")){
 					warn("Can not set cpu exclusive\n");
@@ -467,7 +481,8 @@ static void display_help(int error)
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
-	       "-n                         use CMD signature on PID to identify containers\n"
+	       "-n [CMD]                   use CMD signature on PID to identify containers\n"
+	       "                           optional CMD parameter specifies base signature, default=%s\n"
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
@@ -482,7 +497,7 @@ static void display_help(int error)
 #endif
 //	       "-v       --verbose         output values on stdout for statistics\n"
 	       "-w       --wcet            WCET runtime for deadline policy in us, default=%d\n"
-			, TSCAN, TDETM, TWCET
+			, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);
@@ -533,7 +548,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:c:Fi:l:mnp:qs::t:uUvw:",
+		int c = getopt_long(argc, argv, "a:c:Fi:l:mn::p:qs::t:uUvw:",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -579,6 +594,11 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			lockall = 1; break;
 		case 'n':
 			use_cgroup = DM_CMDLINE;
+			if (optarg != NULL) {
+				cont_pidc = optarg;
+			} else if (optind<argc && atoi(argv[optind])) {
+				cont_pidc = argv[optind];
+			}
 			break;
 		case 'p':
 		case OPT_PRIORITY:
@@ -704,7 +724,7 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-//	(void)printf("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
+//	(void)printf("Starting main PID: %d\n", getpid()); // ?? duplicate main pid query?
 	(void)printf("%s V %1.2f\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
