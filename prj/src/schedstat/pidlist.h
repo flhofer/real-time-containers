@@ -7,13 +7,14 @@
 #define __PIDLIST_
 
 struct sched_mon { // actual values for monitoring
-	uint64_t rt_min;
+/*	uint64_t rt_min;
 	uint64_t rt_avg;
-	uint64_t rt_max;
-	uint64_t dl_count;
-	uint64_t dl_rt;
-	uint64_t dl_deadline;
-	uint64_t dl_overrun;
+	uint64_t rt_max;*/
+	uint64_t dl_count;		// deadline verification count
+	uint64_t dl_scount;		// deadline scan count
+	uint64_t dl_rt;			// deadline last runtime value
+	uint64_t dl_deadline;	// deadline last absolute value
+	uint64_t dl_overrun;	// overrun count
 };
 
 typedef struct sched_pid { // pid mamagement and monitoring info

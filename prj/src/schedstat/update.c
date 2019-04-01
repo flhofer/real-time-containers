@@ -70,7 +70,7 @@ void dumpStats (){
 			         "-----------------------------------\n" );
 	// for now does only a simple update count
 	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.rt_max);
+		(void)printf("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount);
 
 	item=item->next; 
 	}
@@ -238,7 +238,7 @@ int get_sched_info(node_t * item)
 			item->mon.dl_rt = num;
 		}
 		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
-			item->mon.rt_max++;
+			item->mon.dl_scount++;
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {

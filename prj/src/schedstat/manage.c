@@ -426,6 +426,7 @@ int findParams(node_t* node){
 int updateSched() {
 
     node_t * current = head;
+	int ovr = 0;
 	cpu_set_t cset;
 	cpu_set_t cset_full;
 
@@ -441,8 +442,9 @@ int updateSched() {
 		if (NULL == current->param) {
 			// params unassigned
 			printDbg("\nInfo: new pid in list %d\n", current->pid);
-			
-			if (!findParams(current))
+
+			if (!findParams(current)) // parameter set found in list -> assign and update
+				// TODO: might want to put this into a function. Multiple use
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
 					if (current->psig) 
@@ -454,7 +456,7 @@ int updateSched() {
 					current->contid = current->param->contid;
 
 					// TODO: track failed scheduling update?
-					// TODO: might want to put this into a function. Multiple use
+
 					// only do if different than -1, <- not set values
 					if (-1 != current->param->attr.sched_policy) {
 						printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
@@ -484,17 +486,15 @@ int updateSched() {
 		}
 
 		// TODO: check if there is some faulty behaviour
-
+//		if (current->mon->dl_overrun)
+//			ovr++;
 
 		current = current->next;
 
 	}
 	(void)pthread_mutex_unlock(&dataMutex);
-	return 0;
+	return ovr;
 }
-
-// working item now
-parm_t * now;
 
 /// manageSched(): main function called to reassign resources
 //
@@ -541,11 +541,11 @@ void *thread_manage (void *arg)
 			break;
 		}
 	  case 1: // normal thread loop, check and update data
-		(void)updateSched();
-		break;
-
+		if (!updateSched())
+			break;
 	  case 2: //
 		// update resources
+		*pthread_state=1;
 		(void)manageSched();
 		break;
 
