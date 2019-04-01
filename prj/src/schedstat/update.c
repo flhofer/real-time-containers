@@ -4,7 +4,7 @@
 
 // test added
 #include <limits.h>
-#include <sys/stat.h>
+//#include <sys/stat.h>
 #include <sys/vfs.h>
 
 #include <errno.h> // TODO: fix as general
@@ -34,6 +34,8 @@ static int clocksources[] = {
 };
 
 //TODO: unify constants
+// Parameters and runtime values ----- 
+// values set at startup in main thread, never changed there anymore
 extern int use_cgroup; // processes identificatiom mode, written before startup of thread
 extern int interval; // settting, default to SCAN
 extern int update_wcet; // worst case execution time for deadline scheduled task

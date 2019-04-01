@@ -1,4 +1,4 @@
-README for statsched v0.21
+README for statsched v0.30
 
 ==============
  INTRODUCTION
@@ -31,10 +31,19 @@ No additional make and build targets defined yet.
 
 	Options available as of this version
 
-    $ statsched.o [-c <clock> -i <scan interval> -l <loop count> -m -p <priority> --policy=<name>] [configuration-file]
+    $ statsched.o [-a <affinity range> -c <clock> -i <scan interval> -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -s [container cmd signature] -w <WCET>] [configuration-file]
 
-where clock is the type of clock timer used for recurring threads; interval is the update intervall of running statistics; loop count is the number of update loops until new containers are checked; -m enables memory page locking; the policy and the priority refer to the parameters applied to the metric update thread. The configuration fle specified is optional. By default 'config.json' will be used 
-
+where:
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs
+* clock is the type of clock timer used for recurring threads; 
+* interval is the update intervall of running statistics; 
+* loop count is the number of update loops until new containers are checked; 
+* -m enables memory page locking; 
+* -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
+* the policy and the priority refer to the parameters applied to the metric update thread;
+* -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of docker containers;
+* -w details the worst case execution time needed for the deadline based scheduling of the metric update thread.
+The configuration fle specified is optional. By default 'config.json' will be used 
 
 ===============
  CONFIGURATION
@@ -65,8 +74,6 @@ The configuration file settings for this version are one object per container in
 	]
 }
 
-
-
-Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the params will be used to allocate the best slot.
+Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
 Affinity might be a limiting factor as long as it is a single CPU setting. ** this might change in future versions **
 

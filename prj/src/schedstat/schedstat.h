@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <getopt.h>
+
 #include "error.h"
 #include "rt-utils.h"
 
@@ -32,7 +33,6 @@
 	#define PRGNAME "DC static orchestrator"
 	#define VERSION 0.30
 	#define MAX_PIDS 64
-	#define MAX_CPUS 8
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
@@ -53,7 +53,7 @@
 		#define printDbg //
 	#endif
 
-	// here, as it will be changed with cli later
+	// default values, changeable via cli
 	#define TSCAN 10000 // scan time of updates
 	#define TWCET 1200 	// default WCET for deadline scheduling
 	#define TDETM 10	// x*TSCAN, time check new containers
@@ -62,10 +62,12 @@
 
 	#define SYSCPUS 1 // 0-> count reserved for orchestrator and system
 
+	// procfs and sysfs path constants
 	static char *procfileprefix = "/proc/sys/kernel/";
 	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 	static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker/";
 
+	// definition of container detection modes
 	enum det_mode {
 		DM_CMDLINE,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect pids
