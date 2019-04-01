@@ -64,11 +64,11 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	printDbg("\n\nStats- PID - Overshoots(total/scan)\n"
+	(void)printf("\n\nStats- PID - Overshoots(total/scan)\n"
 			     "------------------------------\n\n" );
 	// for now does only a simple update
 	while (item != NULL) {
-		printDbg("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.rt_max);
+		(void)printf("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.rt_max);
 
 	item=item->next; 
 	}
@@ -275,7 +275,7 @@ int updateStats ()
 	static char const sp[4] = "/-\\|";
 
 	prot = (++prot) % 4;
-	printDbg("\b%c", sp[prot]);		
+	(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
 
@@ -288,17 +288,17 @@ int updateStats ()
 		// TODO: no need to update all the time.. :/
 		if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
 
-			printDbg(KMAG "Warn!" KNRM " Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+			warn("Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
 		}
 
 		// set the flag for deadline notification if not enabled yet -- TEST
 		if ((SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
-			printDbg("... Set dl_overrun flag for PID %d\n", item->pid);		
+			cont("Set dl_overrun flag for PID %d\n", item->pid);		
 
 			item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
 			if (sched_setattr (item->pid, &item->attr, 0U))
-				printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+				err_msg(KRED "Error!" KNRM ": %s\n", strerror(errno));
 		
 		} 
 
@@ -306,7 +306,7 @@ int updateStats ()
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
-				printf ("Error reading thread debug details  %d\n", ret);
+				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
 			} 
 		}
 
@@ -374,7 +374,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 				strcat(fileprefix,cpusetdfileprefix);
 				strcat(fileprefix,dir->d_name);
 
-// PDB				printDbg( "... Container detection!\n");
+				printDbg( "\nContainer detection!\n");
 
 				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("/tasks")+1))) {
 					nfileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -388,13 +388,13 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 					// Scan through string and put in array
 					int nread = 0;
 					while(nread =read(path, pidline,PID_BUFFER-1)) { // used len -1 TODO: fix, doesn't get all tasks, readln? -> see schedstat
-						//printDbg("Pid string return %s\n", pidline);
+						printDbg("Pid string return %s\n", pidline);
 						pidline[nread] = '\0';						
 						pid = strtok (pidline,"\n");	
 						while (pid != NULL) {
 							// pid found
 							pidlst->pid = atoi(pid);
-// PDB							printDbg("%d\n",pidlst->pid);
+							printDbg("%d\n",pidlst->pid);
 
 							pidlst->psig = NULL;							
 							// find command string and copy to new allocation
@@ -426,8 +426,8 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 		return i;
 	}
 	else {
-		printDbg( KMAG "Warn!" KNRM " Can not open Docker CGroups - is the daemon still running?\n");
-		printDbg( "... switching to container PID detection mode\n");
+		warn("Can not open Docker CGroups - is the daemon still running?\n");
+		cont( "switching to container PID detection mode\n");
 		use_cgroup = DM_CNTPID; // switch to container pid detection mode
 		return 0; // count of items found
 
@@ -455,14 +455,14 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 	// Scan through string and put in array
 	while(fgets(pidline,PID_BUFFER,fp) && i < cnt) {
-		//printDbg("Pid string return %s\n", pidline);
+		printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
         pidlst->pid = atoi(pid);
-// PDB        printDbg("%d",pidlst->pid);
+        printDbg("%d",pidlst->pid);
 
 		// find command string and copy to new allocation
         pid = strtok (NULL, "\n"); // end of line?
-// PDB        printDbg(" cmd: %s\n",pid);
+        printDbg(" cmd: %s\n",pid);
 		// TODO: what if len = max, null terminator?
 		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
@@ -547,15 +547,16 @@ void scanNew () {
 			break;
 		
 	}
-// PDB
-//	for (int i=0; i<cnt; i++){
-//		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
-//	}
+#ifdef DBG
+	for (int i=0; i<cnt; i++){
+		(void)printf("Result update pid %d\n", (pidlst+i)->pid);		
+	}
+#endif
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
 	int new= 0;
-// PDB	printDbg("Entering node update\n");		
+	printDbg("\nEntering node update");		
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 	while ((NULL != act) && (0 <= i )) {
@@ -578,7 +579,7 @@ void scanNew () {
 		} 
 		// ok, skip to next
 		else {
-// PDB			printDbg("No change\n");		
+			printDbg("\nNo change");		
 			i--;
 			prev = act; // update prev 
 			get_next(&act);
@@ -603,8 +604,8 @@ void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	if (new)
-		printDbg("\n");		
+//	if (new)
+	printDbg("\n");		
 
 // PDB	printDbg("Exiting node update\n");	
 }
@@ -623,7 +624,7 @@ void *thread_update (void *arg)
 //	intervaltv.tv_sec = interval / USEC_PER_SEC;
 //	intervaltv.tv_nsec = (interval % USEC_PER_SEC) * 1000;
 
-		/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
+	/*	only needed for TIMER_ABSOLUTE, TODO: Not implemented */
 	ret = clock_gettime(clocksources[clocksel], &intervaltv);
 	if (ret != 0) {
 		if (ret != EINTR)
@@ -662,11 +663,11 @@ void *thread_update (void *arg)
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (ticksps<1) { // must always be greater 0 
-				printDbg(KRED "Error!" KNRM " could not read jiffie config!\n");
+				warn("could not read jiffie config!\n");
 				break;
 			}
 			else 
-				printDbg("... scheduler tick found to be %ldHz.\n", ticksps);
+				cont("scheduler tick found to be %ldHz.\n", ticksps);
 			if (SCHED_OTHER != policy) {
 				// set policy to thread
 
@@ -681,24 +682,24 @@ void *thread_update (void *arg)
 
 
 					if (sched_setattr(0, &scheda, 0L)) {
-						printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
+						warn("Could not set thread policy!\n");
 						// reset value -- not written in main anymore
 						policy = SCHED_OTHER;
 					}
 					else {
-						printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						cont("set update thread to '%s', priority %d.\n", policyname(policy), priority);
 						}
 				}
 				else{
 					struct sched_param schedp  = { priority };
 
 					if (sched_setscheduler(0, policy, &schedp)) {
-						printDbg(KMAG "Warn!" KNRM " Could not set thread policy!\n");
+						warn("Could not set thread policy!\n");
 						// reset value -- not written in main anymore
 						policy = SCHED_OTHER;
 					}
 					else {
-						printDbg("... set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						cont("set update thread to '%s', priority %d.\n", policyname(policy), priority);
 						}
 				}
 			}
@@ -707,7 +708,7 @@ void *thread_update (void *arg)
 			// startup-refresh: this should be executed only once every td
 			*pthread_state=2; // must be first thing! -> main writes -1 to stop
 			scanNew(); 
-			printDbg("\rNode Stats update  ");		
+			(void)printf("\rNode Stats update  ");		
 		case 2: // normal thread loop
 			if (!cc)
 				*pthread_state=1; // must be first thing
@@ -715,8 +716,11 @@ void *thread_update (void *arg)
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
+			(void)printf("\n");
 			// tidy or whatever is necessary
+//#ifdef DBG
 			dumpStats();
+//#endif
 			break;
 		case -2:
 			// exit

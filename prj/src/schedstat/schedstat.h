@@ -36,34 +36,22 @@
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
-		KV_26_LT18,
-		KV_26_LT24,
-		KV_26_33,
-		KV_30,
+		KV_314,
 		KV_40,
 		KV_413,	// includes full EDF for the first time
-		KV_416	// includes full EDF with GRUB-PA for ARM
+		KV_416,	// includes full EDF with GRUB-PA for ARM
+		KV_50	// latest release 
 	};
 
-	#define DBG
+// 	#define DBG
 	/* Debug printing to console or buffer ?? */
 //	void inline vbprintf ( const char * format, ... );
 
 	#ifdef DBG
 		#define printDbg (void)printf
 	#else
-		#define printDbg (void)vbprintf
+		#define printDbg //
 	#endif
-
-	// general default
-	#define KNRM  "\x1B[0m"
-	#define KRED  "\x1B[31m"
-	#define KGRN  "\x1B[32m"
-	#define KYEL  "\x1B[33m"
-	#define KBLU  "\x1B[34m"
-	#define KMAG  "\x1B[35m"
-	#define KCYN  "\x1B[36m"
-	#define KWHT  "\x1B[37m"
 
 	// here, as it will be changed with cli later
 	#define TSCAN 100000 // scan time of updates

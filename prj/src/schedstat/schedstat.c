@@ -1,6 +1,3 @@
-
-void inline vbprintf ( const char * format, ... );
-
 // main settings and header file
 #include "schedstat.h" 
 
@@ -60,45 +57,31 @@ void inthand ( int signum ) {
 	stop = 1;
 }
 
-void inline vbprintf ( const char * format, ... )
-{
-	if (!verbose)
-		return;
-	va_list args;
-	va_start (args, format);
-	vprintf (format, args);
-  	va_end (args);
-}
 
+/// check_kernel(): check the kernel version,
+///
+/// Arguments: - 
+///
+/// Return value: - 
 static int check_kernel(void)
 {
 	struct utsname kname;
 	int maj, min, sub, kv;
 
 	if (uname(&kname)) {
-		printDbg(KRED "Error!" KNRM " uname failed: %s. Assuming not 2.6\n",
+		err_msg(KRED "Error!" KNRM " uname failed: %s. Assuming not 2.6\n",
 				strerror(errno));
 		return KV_NOT_SUPPORTED;
 	}
 	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
-	if (maj == 2 && min == 6) {
-		if (sub < 18)
-			kv = KV_26_LT18;
-			// toto if 
-		else if (sub < 24)
-			kv = KV_26_LT24;
-			// toto if 
-		else if (sub < 28) 
-			kv = KV_26_33;
-			// toto if 
-		else 
-			kv = KV_26_33;
-			// toto if 
-		
-	} else if (maj == 3) {
+	if (maj == 3) {
+		if (min < 14)
+			// EDF not implemented 
+			kv = KV_NOT_SUPPORTED;
+		else
 		// kernel 3.x standard LT kernel for embedded
-		kv = KV_30;
-		// toto if 
+		kv = KV_314;
+		// todo if 
 	} else if (maj == 4) { // fil
 
 		// kernel 4.x introduces Deadline scheduling
@@ -155,7 +138,7 @@ static int setkernvar(const char *name, char *value)
 	int i;
 	char oldvalue[KVALUELEN];
 
-	if (kernelversion < KV_26_33) {
+/*	if (kernelversion < KV_26_33) {
 		if (kernvar(O_RDONLY, name, oldvalue, sizeof(oldvalue)))
 			printDbg(KRED "Error!" KNRM " could not retrieve %s\n", name);
 		else {
@@ -173,9 +156,9 @@ static int setkernvar(const char *name, char *value)
 			if (i == KVARS)
 				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n", name, oldvalue);
 		}
-	}
+	}*/
 	if (kernvar(O_WRONLY, name, value, strlen(value))){
-// PDB		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
+		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
 		return -1;
 	}
 	
@@ -191,7 +174,7 @@ static void restorekernvars(void)
 		if (kv[i].name[0] != '\0') {
 			if (kernvar(O_WRONLY, kv[i].name, kv[i].value,
 			    strlen(kv[i].value)))
-				printDbg(KRED "Error!" KNRM " could not restore %s to %s\n",
+				err_msg(KRED "Error!" KNRM " could not restore %s to %s\n",
 					kv[i].name, kv[i].value);
 		}
 	}
@@ -236,27 +219,27 @@ static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus-1 rest
 static int prepareEnvironment() {
 
 	/// prerequisites
-	printf("Info: This system has %d processors configured and "
+	info("This system has %d processors configured and "
         "%d processors available.\n",
         get_nprocs_conf(), get_nprocs());
 
 	/// --------------------
 	/// verify executable permissions	
 	// TODO: upgrade to libcap-ng
-	printDbg( "Info: Verifying for process capabilities..\n");
+	info( "Verifying for process capabilities..\n");
 	cap_t cap = cap_get_proc(); // get capability map of proc
 	if (!cap) {
-		printDbg( KRED "Error!" KNRM " Can not get capability map!\n");
+		err_msg( KRED "Error!" KNRM " Can not get capability map!\n");
 		return errno;
 	}
 	cap_flag_value_t v = 0; // flag to store return value
 	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) {// check for effective NICE cap
-		printDbg( KRED "Error!" KNRM " Capability test failed!\n");
+		err_msg( KRED "Error!" KNRM " Capability test failed!\n");
 		return errno;
 	}
 
 	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
-		printDbg( KRED "Error!" KNRM " SYS_NICE capability mandatory to operate properly!\n");
+		err_msg( KRED "Error!" KNRM " SYS_NICE capability mandatory to operate properly!\n");
 		return -1;
 	}
 
@@ -267,12 +250,12 @@ static int prepareEnvironment() {
 	fileprefix = procfileprefix; // set working prefix for vfs
 
 	if (kernelversion == KV_NOT_SUPPORTED)
-		printDbg( KMAG "Warn!" KNRM " Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
+		warn("Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
 
-	printDbg( "... Set realtime bandwith limit to (unconstrained)..\n");
+	cont( "Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
 	if (setkernvar("sched_rt_runtime_us", "-1")){
-		printDbg( KMAG "Warn!" KNRM " RT-throttle still enabled. Limitations apply.\n");
+		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
 	/// --------------------
@@ -280,22 +263,25 @@ static int prepareEnvironment() {
 	struct sched_attr attr; 
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
-		printDbg(KRED "Error!" KNRM " reading attributes: %s\n", strerror(errno));
-	printDbg( "... orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
+		warn("could not read orchestrator attributes: %s\n", strerror(errno));
+	else {
+		cont( "orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
 
-	printDbg( "... promoting process and setting affinity..\n");
-	if (sched_setattr (mpid, &attr, 0U))
-		printDbg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+		// TODO: set new attributes here
+
+		cont( "promoting process and setting affinity..\n");
+		if (sched_setattr (mpid, &attr, 0U))
+			warn("could not set orchestrator schedulig attributes, %s\n", strerror(errno));
+	}
 
 	cpu_set_t cset;
 	CPU_ZERO(&cset);
 	CPU_SET(0, &cset); // set process to CPU zero
 
 	if (sched_setaffinity(mpid, sizeof(cset), &cset ))
-		printDbg(KRED "Error!" KNRM " affinity: %s\n", strerror(errno));
-		// not possible with sched_deadline
+		warn("could not set orchestrator affinity: %s\n", strerror(errno));
 	else
-		printDbg("... Pid %d reassigned to CPU%d\n", mpid, 0);
+		cont("PID %d reassigned to CPU%d\n", mpid, 0);
 
 	/// Docker CGROUP setup == TODO: verify cmd-line parameters cgroups
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
@@ -306,8 +292,8 @@ static int prepareEnvironment() {
 
 		int err = stat(fileprefix, &s);
 		if(-1 == err) {
-			if(ENOENT == errno) {
-				printDbg(KMAG "Warn!" KNRM " : cgroup '%s' does not exist. Is it running?\n", "docker/");
+			if(ENOENT == errno) { // TODO: parametrizable Cgroup value
+				warn("CGroup '%s' does not exist. Is the daemon running?\n", "docker/");
 			} else {
 				perror("stat");
 			}
@@ -315,7 +301,7 @@ static int prepareEnvironment() {
 		} else {
 			if(S_ISDIR(s.st_mode)) {
 				/* it's a dir */
-				printDbg( "Info: using Cgroups to detect processes..\n");
+				cont("using Cgroups to detect processes..\n");
 			} else {
 				/* exists but is no dir */
 				use_cgroup = DM_CNTPID;
@@ -324,9 +310,9 @@ static int prepareEnvironment() {
 	}
 
 	if (DM_CNTPID == use_cgroup)
-		printDbg( "... will use PIDs of '%s' to detect processes..\n", cont_ppidc);
+		cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
 	if (DM_CMDLINE == use_cgroup)
-		printDbg( "... will use PIDs of configured commands to detect processes..\n");
+		cont( "will use PIDs of configured commands to detect processes..\n");
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
@@ -335,7 +321,7 @@ static int prepareEnvironment() {
 		char cpus[10];
 		sprintf(cpus, "%d-%d", affinity,get_nprocs_conf()-1); 
 
-		printDbg( "... reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
+		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
 
 		DIR *d;
 		struct dirent *dir;
@@ -353,7 +339,7 @@ static int prepareEnvironment() {
 					strcat(fileprefix,dir->d_name);
 
 					if (setkernvar("/cpuset.cpus", cpus)){
-						printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+						warn("Can not set cpu-affinity\n");
 					}
 
 
@@ -365,11 +351,11 @@ static int prepareEnvironment() {
 			fileprefix = cpusetdfileprefix; // set to docker directory
 
 			if (setkernvar("cpuset.cpus", cpus)){
-				printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+				warn("Can not set cpu-affinity\n");
 			}
 
 			if (setkernvar("cpuset.cpu_exclusive", "1")){
-				printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+				warn("Can not set cpu exclusive\n");
 			}
 
 			closedir(d);
@@ -377,7 +363,7 @@ static int prepareEnvironment() {
 
 		fileprefix = NULL;
 		sprintf(cpus, "%d-%d", 0, affinity-1); 
-		printDbg( "... creating cgroup for system on %s\n", cpus);
+		cont("creating cgroup for system on %s\n", cpus);
 
 		if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
 			fileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -386,13 +372,13 @@ static int prepareEnvironment() {
 			strcat(fileprefix,"system/");
 			if (!mkdir(fileprefix, ACCESSPERMS)) {
 				if (setkernvar("cpuset.cpus", cpus)){
-					printDbg( KMAG "Warn!" KNRM " Can not set cpu-affinity\n");
+					warn("Can not set cpu-affinity\n");
 				}
 				if (setkernvar("cpuset.mems", "0")){ // TODO: fix cpuset mems
-					printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+					warn("Can not set cpu exclusive\n");
 				}
 				if (setkernvar("cpuset.cpu_exclusive", "1")){
-					printDbg( KMAG "Warn!" KNRM " Can not set cpu exclusive\n");
+					warn("Can not set cpu exclusive\n");
 				}
 			}
 			else{
@@ -401,10 +387,10 @@ static int prepareEnvironment() {
 					break;
 
 				default: // error otherwise
-					printDbg( KMAG "Warn!" KNRM " Can not set cpu system group\n");
+					warn("Can not set cpu system group\n");
 				}
 			}
-			printDbg( "... moving tasks..\n");
+			cont( "moving tasks..\n");
 
 			int mtask = 0;
 			char * nfileprefix = NULL;
@@ -422,13 +408,13 @@ static int prepareEnvironment() {
 
 				// Scan through string and put in array
 				while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln?
-					//printDbg("Pid string return %s\n", pidline);
+					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
 					while (pid != NULL) {
 
 						// fileprefix still pointing to system/
 						if (setkernvar("tasks", pid)){
-// PDB							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
 							mtask++;
 						}
 						pid = strtok (NULL,"\n");	
@@ -436,7 +422,7 @@ static int prepareEnvironment() {
 					}
 				}
 				if (mtask) 
-					printDbg( KMAG "Warn!" KNRM " Could not move %d tasks\n", mtask);					
+					warn("Could not move %d tasks\n", mtask);					
 
 				close(path);
 			}
@@ -464,6 +450,7 @@ static int prepareEnvironment() {
 /* Print usage information */
 static void display_help(int error)
 {
+	/*
 	char tracers[MAX_PATH];
 	char *prefix;
 
@@ -474,7 +461,7 @@ static void display_help(int error)
 		fileprefix = prefix;
 		if (kernvar(O_RDONLY, "available_tracers", tracers, sizeof(tracers)))
 			strcpy(tracers, "none");
-	}
+	}*/
 
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
@@ -564,14 +551,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				affinity = atoi(optarg);
 				if (affinity < 1 || affinity > max_cpus) {
 					error = 1;
-					printDbg(KRED "Error!" KNRM " affinity value '%s' not valid\n", optarg);
+					err_msg(KRED "Error!" KNRM " affinity value '%s' not valid\n", optarg);
 				}
 				setaffinity = AFFINITY_SPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
 				affinity = atoi(argv[optind]);
 				if (affinity < 1 || affinity > max_cpus) {
 					error = 1;
-					printDbg(KRED "Error!" KNRM " affinity value '%s' not valid\n", argv[optind]);
+					err_msg(KRED "Error!" KNRM " affinity value '%s' not valid\n", argv[optind]);
 				}
 				setaffinity = AFFINITY_SPECIFIED;
 			} else {
@@ -603,7 +590,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case OPT_PRIORITY:
 			priority = atoi(optarg);
 			if (policy != SCHED_FIFO && policy != SCHED_RR)
-				printDbg(KMAG "Warn!" KNRM " policy and priority don't match: setting policy to SCHED_FIFO\n");
+				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
 				policy = SCHED_FIFO;
 			break;
 		case 'q':
@@ -674,12 +661,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		error = 1;
 
 	if (priority && (policy != SCHED_FIFO && policy != SCHED_RR)) {
-		printDbg(KMAG "Warn!" KNRM " policy and priority don't match: setting policy to SCHED_FIFO\n");
+		warn("policy and priority don't match: setting policy to SCHED_FIFO\n");
 		policy = SCHED_FIFO;
 	}
 
 	if ((policy == SCHED_FIFO || policy == SCHED_RR) && priority == 0) {
-		printDbg(KMAG "Warn!" KNRM " defaulting realtime priority to %d\n",
+		warn("defaulting realtime priority to %d\n",
 			num_threads+1);
 		priority = num_threads+1;
 	}
@@ -694,7 +681,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	}
 	// allways verify for config file -> segmentation fault??
 	if ( access( config, F_OK )) {
-		printDbg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
+		err_msg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
 		error = 1;
 	}
 
@@ -713,25 +700,23 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	printDbg("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
-	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
-	printDbg("Source compilation date: %s\n", __DATE__);
-	printDbg("This software comes with no waranty. Please be careful\n\n");
+	(void)printf("Starting main PID: %d\n", getpid()); // TODO: duplicate main pid query?
+	(void)printf("%s V %1.2f\n", PRGNAME, VERSION);	
+	(void)printf("Source compilation date: %s\n", __DATE__);
+	(void)printf("This software comes with no waranty. Please be careful\n\n");
 
 	process_options(argc, argv, max_cpus);
 	
 	// gather actual information at startup, prepare environment
-	if (prepareEnvironment()) {
-		printDbg("Hard HALT.\n");
-		exit(EXIT_FAILURE);
-	}
+	if (prepareEnvironment()) 
+		err_quit("Hard HALT.\n");
 
 	pthread_t thread1, thread2;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
 	int32_t t_stat2 = 0; 
 	int  iret1, iret2;
 
-	/* Create independent threads each of which will execute function */
+	/* Create independent threads each of which will execute function */ // TODO: evaluaate return value
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2);
 
@@ -752,7 +737,7 @@ int main(int argc, char **argv)
 	pthread_join( thread1, NULL);
 	pthread_join( thread2, NULL); 
 
-    printDbg("exiting safely\n");
+    info("exiting safely\n");
 
 	/* unlock everything */
 	if (lockall)

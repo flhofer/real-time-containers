@@ -56,6 +56,16 @@ void debug(char *fmt, ...)
 	va_end(ap);
 }
 
+void cont(char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	fputs("... ", stderr);
+	err_doit(0, fmt, ap);
+	va_end(ap);
+}
+
 void info(char *fmt, ...)
 {
 	va_list ap;
@@ -71,7 +81,7 @@ void warn(char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fputs("WARN: ", stderr);
+	fputs(KMAG "WARN: " KNRM , stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
 }
@@ -81,7 +91,7 @@ void fatal(char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fputs("FATAL: ", stderr);
+	fputs(KRED "FATAL: " KNRM, stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
 	exit(EXIT_FAILURE);
