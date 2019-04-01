@@ -44,8 +44,6 @@
 	};
 
 // 	#define DBG
-	/* Debug printing to console or buffer ?? */
-//	void inline vbprintf ( const char * format, ... );
 
 	#ifdef DBG
 		#define printDbg (void)printf
