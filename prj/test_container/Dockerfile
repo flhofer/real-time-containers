@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir /home/rtuser
 WORKDIR /home/rtuser 
-COPY rt-app.json .
+COPY rt-app-tst*.json ./
 COPY rt-app .
 RUN chmod +x rt-app
 ENV PATH="/home/rtuser:${PATH}"
