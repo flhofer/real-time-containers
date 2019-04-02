@@ -1,6 +1,7 @@
 \documentclass[]{scrartcl}
 \usepackage{hyperref}
 \usepackage{lipsum}
+\usepackage[utf8]{inputenc}
 
 %opening
 \title{Orchestrating real-time containers:\\ on the possibilities of schedule manipulation}
@@ -57,7 +58,7 @@ The contributions of this paper are:
 %Setup of the paper
 The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:context} introduces the problem and the environment.
 We next investigate how an orchestration and resource management might be performed analyzing a variety of options in Section~\ref{sec:mgmttest}, and perform a test implementation of the chosen method in Section~\ref{sec:testimp}.
-Finally, we document the performed performance tests in Section~\ref{sec:perftest} and conclude in Section~\ref{sec:conclusion}.
+Finally, we document the performed performance tests in Section~\ref{sec:perftest} and conclude in Section~\ref{sec:conclusions}.
 
 \section{Related work}
 \label{sec:relwork}
@@ -417,14 +418,14 @@ The communication between the running software can be performed in different way
 \begin{enumerate}
 	\item we might use the usual IPC, as it is done between processes via
 	\begin{enumerate}
-		\item pipe - a connection between in and out, therefore not easily doable as the threads by default share the same stdin and stdout;
-		\item signals - such as \textit{INT} or \textit{HUP} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself;
-		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information;
+		\item pipe - a connection between in and out, therefore not easily doable as the threads by default share the same stdin and stdout, can be used only for data streams;
+		\item fifo (or named pipe) - similar to pipes, but rely on the file system to be able to connect two arbitrary processes in the system, may be used to talk bidirectionally; % http://www.embhack.com/pipe-and-fifo/
+		\item signals - such as \textit{USR1} or \textit{USR2} which might be sent between processes, but hardly doable on the same process but different threads. The process would need to signal itself and the amount of information exchanged is contained int the signal itself;
+		\item sockets - might be used as a medium where both threads access externally to this resource and exchange information, can be used for streams and datagramms;
 	\end{enumerate}
-	\item shared memory - probably the easiest type. The advantage in case of threads is that they 
-	share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
+	\item shared memory - probably the easiest and fastest type. The advantage in case of threads is that they share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
 \end{enumerate}
-The easiest approach for the orchestrator's threads is to use shared variables and a semaphore/mutex. 
+The easiest approach for the orchestrator's threads is to use shared memory and a semaphore/mutex. 
 On the other hand, the most flexible is via sockets which will be used for the communication of orchestrator and monitoring plugin.
 
 %% In the program
@@ -468,7 +469,7 @@ Considerations for a socket implementation have still to be taken.
 %-> forward 
 %ballarin, 
 
-\section{Performance tests}
+\section{Implementation performance tests}
 \label{sec:perftest}
 
 %TESTS STATIC AND DYNAMIC
@@ -476,7 +477,7 @@ Considerations for a socket implementation have still to be taken.
 The dynamic scheduling will therefore be done at best using the following considerations.
 For simplicity, we suppose that the real-time software running in the various containers is all independent. 
 The processes will be considered as black boxes where we do neither have specifications, nor  source code. 
-There exist quasi static approaches to improve the schedulability but they suffer from an openness constraint.
+There exist quasi static approaches to improve the schedulability, but they suffer from an openness constraint.
 This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
 The tasks may exceed the deadline, but in low probability and contemporaneity
 we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
@@ -500,6 +501,7 @@ we have to consider defining those values in order to obtain boundaries and limi
 
 \lipsum[1]
 
-\bibliography{IEEEabrv,bibliography}
+\bibliographystyle{IEEEtran}
+\bibliography{IEEEabrv,bibliography,paper3}
 
 \end{document}
