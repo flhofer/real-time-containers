@@ -222,10 +222,17 @@ static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 ///
 static int prepareEnvironment() {
 
+	int maxcpu = get_nprocs();	
+	int maxccpu = get_nprocs_conf();	
+
 	/// prerequisites
 	info("This system has %d processors configured and "
         "%d processors available.\n",
-        get_nprocs_conf(), get_nprocs());
+        maxccpu, maxcpu);
+	
+	if (maxccpu < maxcpu) {
+		cont ("numbers differ, assuming Hyprerthreading disabled.");
+	}
 
 	/// --------------------
 	/// verify executable permissions	
@@ -323,7 +330,7 @@ static int prepareEnvironment() {
 	if (DM_CGRP == use_cgroup) {
 
 		char cpus[10];
-		sprintf(cpus, "%d-%d", affinity,get_nprocs_conf()-1); 
+		sprintf(cpus, "%d-%d", affinity,maxcpu-1); 
 
 		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
 
