@@ -178,7 +178,7 @@ If the orchestrator has to run on both systems, the PID retrieval must thus be i
 It is highly likely that the same is true for the other resources, such as memory or connectivity. 
 An example code has been tested which gives the PID's of all matching process names. 
 It might therefore be possible to poll once and verify cyclically for unbound containers. 
-A hook-like structure might be more convenient. Such modification would require a kernel change and is therefore considered only in a second moment.
+A hook-like structure might be more convenient. Such modification would require a kernel change and is therefore considered as a backup solution for to follow in a second moment.
 
 \subsection{Scheduling of processes}
 
@@ -224,7 +224,7 @@ Linux in addition has now:
 \end{verbatim}
 
 
-In addition, scheduling attributes are now extended as:
+The newly introduced scheduling attributes are now extended as:
 
 \begin{verbatim}
 struct sched\_attr {
@@ -246,7 +246,7 @@ struct sched\_attr {
 };
 \end{verbatim}
 
-And might be read and written as follows:
+And might be read and written through two Linux specific system calls which are specified as follows:
 
 
 \begin{verbatim}
@@ -257,15 +257,15 @@ int sched_getattr(pid_t pid, struct sched_attr *attr,
     unsigned int size, unsigned int flags);
 \end{verbatim}
 
-This structure is in addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
+This new data structure is an addition to the original sched\_param which has been kept for standardization and backwards compatibility issues.
 
-The commented scheduling mode in the list, i.e. SCHED\_ISO, is a scheduler intended for isochronous (burst-like) tasks and has not been implemented yet. 
-The brainfuck scheduler (BFS) developed by Con Kolivas is altered version witch actually supports the ISO scheduling mode, with priority between RT and Normal/Other tasks.
+The commented scheduling mode in the list, i.e. SCHED\_ISO, is an algorithm intended for isochronous (burst-like) tasks and has not been completely implemented yet. 
+The brainfuck scheduler (BFS) developed by Con Kolivas is alternative version witch actually supports the ISO scheduling mode. The new processes will have a priority between RT and Normal/Other tasks.
 For further details see "A complete guide to Linux process scheduling"  by Nikita Ishkov.
 
 \subsection{Other considerations}
 
-During the exploration of the namespace and pid function, some features to be implemented in future where discovered. 
+During the exploration of the namespace and PID function, some features to be implemented in future where discovered. 
 The PID 1 inside the container is parent of all the namespace. If it dies, all the children are orphaned and will be killed. As parent, it is also target of sigs without implicit binding, thus it must manually handle incoming signals such as sig\_int.
 The userspace in the container can be mapped. To avoid root as well as other accesses from a container, a proper map should be set up and incorporated in all the containers at load.
 
@@ -281,15 +281,20 @@ This means that the PIDs of all the processes must be queried manually, cyclical
 
 %% how
 In a first implementation test, we verify therefore the poll quality and speed of pid queries.
-As described in Section \ref{sub:pidinf}, there are two ways of polling the prcess table. 
-In our testing environment we use Linux, and are therefore running for a virtual filesystems parsing. 
+As described in Section \ref{sub:pidinf}, there are two ways of polling the process table. 
+In our testing environment we use Linux, and are therefore running for a virtual file-systems parsing. 
 To ease the parsing, we can use the integrated tool ``pidof'' via a pipe opened through the call of \texttt{popen}.
 \texttt{popen} is a POSIX standard call that opens a one-way pipe to indicated purposely process called via shell.
+The processes can either be identified directly or via its parent process. Every container is in fact starting a daemon PID called 'docker-containerd-shim'. This eases grouping and process identification and is preferred to the previous solution.
+Another option is to scan the configured control groups for PIDs. Every container in Docker gets assigned its own control group. Therefore, each of these entries contains the list of PIDs running inside a running container. 
+The latter technique is simpler and allows direct identification of containers.
+All three modes will be implemented in the final version, leaving the choice of operation either to the user or to automatic detection.
 
 %% in the programm
-As soon as the orchestrator is up and running, it scans for target processes which might be  defined in a configuration file (\textit{cmdfile}).
-The PID list is parsed and verified. 
-The whole process takes a fraction of a ms and does not put load on the {CPU}. With unlimited loop the {CPU}-load is below 3\%.
+As soon as the orchestrator is up and running, it scans for target processes.
+The PID list is parsed and verified for matching process signatures or containers.
+Valid PIDs will be stored in memory for further processing.
+The whole process takes a fraction of a ms and does not put load on the {CPU}. With unlimited loop the {CPU}-load is below 3\% (example taken from pidof).
 
 %% Consequences and results>>
 An option to optimize process verification might be that the environment controlling the containers informs the orchestrator about containers entering or leaving the scheduler.
@@ -317,12 +322,11 @@ The actual type of dynamic data structure is irrelevant. Possible structures are
 To test an implementation, a simple linked list data structure has been implemented as a separate source file {src/testPosix/pidlist.c}.
 The test program structure has been rewritten. Now two threads are launched to keep track of the running processes. 
 Thread 1 will keep track of PIDs, add and remove list elements. The resulting PIDs array of a periodic scan is compared to the list's content.
-Insertion and deletion signals the presence of a new or removed process to the other thread.
 Thread 2, implemented in a second step, will take care of the distribution of resources among the listed PIDs. 
 
 %% Considerations.
-Thread 1 implementation works fluently. For the final implementation, Kernel list based structures should be considered. 
-The implementation uses predefined macros for add and delete in the list. Differently from the managed list, this implementation does not cover the memory management of the structure. Memory allocation and freeing must still be done by the programmer.
+The test implementation of Thread 1 works fluently. For the final version of the orchestrator, Kernel list based structures should be considered. 
+The standard Linux linked lists use predefined macros for add and delete in the list. Differently from the managed list, this implementation does not cover the memory management of the structure. Memory allocation and freeing must still be done by the programmer.
 
 \subsection{PID scheduling}
  
@@ -330,6 +334,8 @@ The implementation uses predefined macros for add and delete in the list. Differ
 As a final step for the basic PID scheduling, we gather the information of a target process and set the new attributes. 
 Resources, initially only {CPU}-affinity, are distributed according to configured settings, i.e. max values for resource occupation. 
 This is for example a 80\% boundary for each computation unit ({CPU}). 
+The processes and its running parameters might be defined in a configuration file (\textit{cmdfile}). If not, the real-time parameters of the process are read and stored.
+% -> connected
 The daemon and other system tasks should be mapped to separate resources. Even though real-time tasks have higher priority, a separate CPU might be needed to keep enough boundary for new entries and maintain the system responsive.
 Affinity selection can be done via the functions \texttt{sched\_setaffinity} and \texttt{sched\_getaffinity}.
 In addition, a variety of auxiliary functions are also available to manage those. 
@@ -338,7 +344,7 @@ The macro commands starting with \texttt{CPU\_*} may be used to create and modif
 %% In the programm
 A CPU has a standard cyclic computation monitoring unit of 1 ms, separating it into 1000000 ticks. 
 The different run-times, deadlines and periods of the periodic tasks will be used to find a common denominator on a 1ms basis to create a proper configuration file. 
-The program will then inspect entering and leaving processes and bind them to the specified resources.
+The program will then inspect entering and leaving processes, and bind them to the specified resources.
 %In the end, e.g. 80\% of {CPU} are filled cyclically. 
 %The different distribution strategies, i.e. round robin etc., might be implemented in the final product.
 In the program the new entries found by thread two will be checked for affinity and resources.
@@ -349,6 +355,7 @@ During this phase, thread two will also read actual values and monitor the execu
 %% Considerations
 Thread 2 with be responsible for this task. Cyclically, and in a second moment by trigger, the new PIDs are configured to associate with specific resources.
 As this might introduce some resource peak, the reallocation must happen as soon as possible. 
+
 The new process entry might use any of the resouces and thus add some unwanted peak load. 
 If possible, the daemon and consequently the new created container processes should be bound to a reserved {CPU}, where all the system tasks are also allocated.
 
