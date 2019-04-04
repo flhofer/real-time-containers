@@ -30,6 +30,8 @@ int priority=0;
 int clocksel = 0;
 int policy = SCHED_OTHER;	/* default policy if not specified */
 int quiet = 0;
+int affother = 0;
+int setdflag = 0;
 int interval = TSCAN;
 int update_wcet = TWCET;
 int loops = TDETM;
@@ -479,11 +481,13 @@ static void display_help(int error)
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run system threads on processor 0-(NUM-1), if possible\n"
 	       "                           run container threads on processor NUM-MAX_CPU \n"
+	       "-b       --bind            bind non-RT PIDs to same container affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
+	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
@@ -512,7 +516,7 @@ static void display_help(int error)
 }
 
 enum option_values {
-	OPT_AFFINITY=1, OPT_CLOCK,
+	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
 	OPT_THREADS, OPT_SMP, OPT_UNBUFFERED, OPT_NUMA, 
@@ -539,7 +543,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		 */
 		static struct option long_options[] = {
 			{"affinity",         required_argument, NULL, OPT_AFFINITY},
+			{"bind",     		 no_argument,       NULL, OPT_BIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
+			{"dflag",            no_argument,		NULL, OPT_DFLAG },
 			{"fifo",             required_argument, NULL, OPT_FIFO },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
@@ -555,7 +561,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:c:Fi:l:mn::p:qs::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:dFi:l:mn::p:qs::t:uUvw:?",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -581,6 +587,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
+		case 'b':
+		case OPT_BIND:
+			affother = 1; break;
+		case 'd':
+		case OPT_DFLAG:
+			setdflag = 1; break;
 		case 'c':
 		case OPT_CLOCK:
 			clocksel = atoi(optarg); break;

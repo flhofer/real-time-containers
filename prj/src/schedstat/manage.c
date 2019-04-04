@@ -3,6 +3,7 @@
 #include "pidparm.h"
 
 extern char * config; // filename of configuration file
+extern int affother; // set affinity of all pids in container?
 
 
 // parameter tree linked list head
@@ -441,7 +442,8 @@ int updateSched() {
 		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
-			printDbg("\nInfo: new pid in list %d\n", current->pid);
+			(void)printf("\n");
+			info("new pid in list %d\n", current->pid);
 
 			if (!findParams(current)) // parameter set found in list -> assign and update
 				// TODO: might want to put this into a function. Multiple use
@@ -459,12 +461,12 @@ int updateSched() {
 
 					// only do if different than -1, <- not set values
 					if (-1 != current->param->attr.sched_policy) {
-						printDbg("... Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
 							err_msg(KRED "Error!" KNRM " setting attributes for PID %d: %s\n", current->pid, strerror(errno));
 					}
 					else
-						printDbg("... Skipping setting of scheduler for PID %d\n", current->pid);  
+						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
 
 					if (0 <= current->param->rscs.affinity) {
 						// cpu affinity defined to one cpu?
@@ -479,10 +481,15 @@ int updateSched() {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n", current->pid, strerror(errno));
 					else
-						printDbg("... Pid %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
+						cont("PID %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
 				}
+				else if (affother)
+					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n", current->pid, strerror(errno));
+					else
+						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid, current->param->rscs.affinity);
 				else
-					printDbg("... Skipping non-RT PID %d from rescheduling\n", current->pid);
+					cont("Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}
 
 		// TODO: check if there is some faulty behaviour

@@ -52,9 +52,9 @@
 	#endif
 
 	// default values, changeable via cli
-	#define TSCAN 10000 // scan time of updates
+	#define TSCAN 5000 // scan time of updates
 	#define TWCET 1200 	// default WCET for deadline scheduling
-	#define TDETM 10	// x*TSCAN, time check new containers
+	#define TDETM 100	// x*TSCAN, time check new containers
 	#define CONT_PPID "docker-containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
 

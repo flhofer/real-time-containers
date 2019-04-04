@@ -46,6 +46,7 @@ extern int clocksel; // clock selection for intervals
 extern char * cont_ppidc; // container pid signature to look for
 extern char * cont_pidc; // command line pid signature to look for
 extern int kernelversion; // using kernel version.. 
+extern int setdflag; // set deadline overrun flag? for DL processes?
 
 // Global variables used here ->
 
@@ -68,11 +69,11 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	(void)printf("\n\nStats- PID - Overshoots(total/scan)\n"
-			         "-----------------------------------\n" );
+	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) \n"
+			         "----------------------------------------\n" );
 	// for now does only a simple update count
 	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount);
+		(void)printf("PID %d: %ld(%ld/%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail);
 
 	item=item->next; 
 	}
@@ -238,6 +239,8 @@ int get_sched_info(node_t * item)
 		}*/
 		if (strncasecmp(szStatStr, "dl.runtime", 4) == 0)	{
 			item->mon.dl_rt = num;
+//			if (num < 0)
+//					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
 		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
 			item->mon.dl_scount++;
@@ -246,10 +249,15 @@ int get_sched_info(node_t * item)
 			else if (num != item->mon.dl_deadline) {
 				item->mon.dl_count++;
 				// modulo? inprobable skip?			
-				long long diff = (num-item->mon.dl_deadline) %item->attr.sched_period;			
+				long long diff = (num-item->mon.dl_deadline)-item->attr.sched_period;			
 				if (diff)  {
-					item->mon.dl_overrun++;
-					warn("PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+					if (0 == diff % item->attr.sched_period) 
+						item->mon.dl_scanfail++;
+					else {
+						item->mon.dl_overrun++;
+						printf("\n");
+						warn("PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+					}
 				}
 				item->mon.dl_deadline = num;
 			}	
@@ -298,7 +306,7 @@ int updateStats ()
 			}
 
 			// set the flag for deadline notification if not enabled yet -- TEST
-			if ((SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+			if ((setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
 				cont("Set dl_overrun flag for PID %d\n", item->pid);		
 
@@ -609,7 +617,7 @@ void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc, ret;
-	struct timespec intervaltv;
+	struct timespec intervaltv, diff, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
 	ret = clock_gettime(clocksources[clocksel], &intervaltv);
@@ -618,6 +626,7 @@ void *thread_update (void *arg)
 			warn("clock_gettime() failed: %s", strerror(errno));
 		*pthread_state=-1;
 	}
+	old = intervaltv;
 
 	// initialize the thread locals
 	while(1) {
@@ -637,7 +646,7 @@ void *thread_update (void *arg)
 				// clock settings found -> check for validity
 				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
 				if (500000000/ticksps > interval*1000)  
-					warn("scan time more than double the debug update rate. On purpose?\n");
+					warn("-- scan time more than double the debug update rate. On purpose? (obsolete kernel value) -- \n");
 			}
 			if (SCHED_OTHER != policy) { // TODO: set niceness for other/bash?
 				// set policy to thread
@@ -692,6 +701,18 @@ void *thread_update (void *arg)
 //#ifdef DBG
 			dumpStats();
 //#endif
+
+			// Done -> print total runtime
+			ret = clock_gettime(clocksources[clocksel], &diff);
+			if (ret != 0) {
+				if (ret != EINTR)
+					warn("clock_gettime() failed: %s", strerror(errno));
+				*pthread_state=-1;
+			}
+			old = intervaltv;
+
+			info("Total test runtime is %ld\n", diff.tv_sec - old.tv_sec);
+
 			break;
 		case -2:
 			// exit
