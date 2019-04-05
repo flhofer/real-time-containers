@@ -5,11 +5,8 @@
 extern char * config; // filename of configuration file
 extern int affother; // set affinity of all pids in container?
 
-
 // parameter tree linked list head
 parm_t * phead;
-
-
 
 /* Function realloc_it() is a wrapper function for standard realloc()
  * with one difference - it frees old memory pointer in case of realloc
@@ -25,7 +22,6 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 	}
 	return p;
 }
-
 
 const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity"};
 

@@ -1,12 +1,17 @@
 #include "pidparm.h"
 
-extern pthread_mutex_t dataMutex;
-extern node_t * head;
+	#ifndef __UPDATE_H_
+	#define __UPDATE_H_
 
-void *thread_update (void *arg); // thread that verifies status and allocates new threads
+	extern pthread_mutex_t dataMutex;
+	extern node_t * head;
 
-typedef struct pid_info {
-	pid_t pid;
-	char * psig; 
-	char * contid;
-} pidinfo_t;
+	void *thread_update (void *arg); // thread that verifies status and allocates new threads
+
+	typedef struct pid_info {
+		pid_t pid;
+		char * psig; 
+		char * contid;
+	} pidinfo_t;
+
+#endif

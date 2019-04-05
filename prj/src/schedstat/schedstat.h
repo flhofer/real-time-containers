@@ -1,24 +1,23 @@
 #define _GNU_SOURCE 
 
+// Default stuff, needed form main operation
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // used for string parsing
 #include <pthread.h>// used for thread management
 #include <unistd.h> // used for POSIX XOPEN constants
-#include "pidlist.h" // memory structure to store information
 
 #include <sched.h>			// scheduler functions
 #include <linux/types.h>	// data structure types 
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 //#include <stdarg.h> __VA_ARGS__ does not work??
-#include "rt-sched.h" 		// temporary as libc does not include new sched yet
+#include <fcntl.h>			// file control, new open/close functions
+#include <dirent.h>			// dir enttry structure and expl
 
-// new since cgroup
-#include <fcntl.h>	// file control, new open/close functions
-#include <dirent.h>	// dir enttry structure and expl
-
-#include "error.h"		// error and strerr print functions
+#include "rt-sched.h" 	// temporary as libc does not include new sched yet
+#include "pidlist.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
+#include "error.h"		// error and strerr print functions
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
@@ -36,6 +35,7 @@
 		KV_50	// latest release 
 	};
 
+	// Uncomment this line to enable high debug output
 // 	#define DBG
 
 	#ifdef DBG
