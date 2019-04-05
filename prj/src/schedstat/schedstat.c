@@ -78,27 +78,27 @@ static int check_kernel(void)
 		return KV_NOT_SUPPORTED;
 	}
 	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
-	if (maj == 3) {
-		if (min < 14)
+	if (3 == maj) {
+		if (14  >min)
 			// EDF not implemented 
 			kv = KV_NOT_SUPPORTED;
 		else
 		// kernel 3.x standard LT kernel for embedded
 		kv = KV_314;
 
-	} else if (maj == 4) { // fil
+	} else if (4 == maj) { // fil
 
 		// kernel 4.x introduces Deadline scheduling
-		if (min < 13)
+		if (13 > min)
 			// standard
 			kv = KV_40;
-		else if (min < 16)
+		else if (16 > min)
 			// full EDF
 			kv = KV_413;
 		else 
 			// full EDF -PA
 			kv = KV_416;
-	} else if (maj == 4) { // fil
+	} else if (5 == maj) { // fil
 		// full EDF -PA, newest kernel
 		kv = KV_50;
 	} else
@@ -123,14 +123,14 @@ static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
 	memcpy(filename + len_prefix, name, len_name + 1);
 
 	path = open(filename, mode);
-	if (path >= 0) {
-		if (mode == O_RDONLY) {
+	if (0 <= path) {
+		if (O_RDONLY == mode) {
 			int got;
 			if ((got = read(path, value, sizeofvalue)) > 0) {
 				retval = 0;
 				value[got-1] = '\0';
 			}
-		} else if (mode == O_WRONLY) {
+		} else if (O_WRONLY == mode) {
 			if (write(path, value, sizeofvalue) == sizeofvalue)
 				retval = 0;
 		}
@@ -159,7 +159,7 @@ static int setkernvar(const char *name, char *value)
 					break;
 				}
 			}
-			if (i == KVARS)
+			if (KVARS == i)
 				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n", name, oldvalue);
 		}
 	}*/
@@ -172,19 +172,19 @@ static int setkernvar(const char *name, char *value)
 
 }
 
+/* ----     NOT NEEDED SINCE KERNEL VERSION 2.6.33
 static void restorekernvars(void)
 {
 	int i;
 
 	for (i = 0; i < KVARS; i++) {
 		if (kv[i].name[0] != '\0') {
-			if (kernvar(O_WRONLY, kv[i].name, kv[i].value,
-			    strlen(kv[i].value)))
+			if (kernvar(O_WRONLY, kv[i].name, kv[i].value, strlen(kv[i].value)))
 				err_msg(KRED "Error!" KNRM " could not restore %s to %s\n",
 					kv[i].name, kv[i].value);
 		}
 	}
-}
+} */
 
 /// Kernel variable management - end (ct extract)
 
@@ -262,7 +262,7 @@ static int prepareEnvironment() {
 	kernelversion = check_kernel();
 	fileprefix = procfileprefix; // set working prefix for vfs
 
-	if (kernelversion == KV_NOT_SUPPORTED)
+	if (KV_NOT_SUPPORTED == kernelversion)
 		warn("Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
 
 	cont( "Set realtime bandwith limit to (unconstrained)..\n");
@@ -310,6 +310,12 @@ static int prepareEnvironment() {
 			} else {
 				perror("Stat encountered an error");
 			}
+			// check for sCHED_DEADLINE first-> stop!
+			if (SCHED_DEADLINE == policy) {
+				err_msg( KRED "Error!" KNRM " SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+				return -1;
+			}
+			// otherwise switch to next mode
 			use_cgroup = DM_CNTPID;
 		} else {
 			if(S_ISDIR(s.st_mode)) {
@@ -317,6 +323,12 @@ static int prepareEnvironment() {
 				cont("using CGroups to detect processes..\n");
 			} else {
 				/* exists but is no dir */
+				// check for sCHED_DEADLINE first-> stop!
+				if (SCHED_DEADLINE == policy) {
+					err_msg( KRED "Error!" KNRM " SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+					return -1;
+				}
+				// otherwise switch to next mode
 				use_cgroup = DM_CNTPID;
 			}
 		}
@@ -466,7 +478,7 @@ static int prepareEnvironment() {
 
 	/* lock all memory (prevent swapping) */
 	if (lockall)
-		if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
+		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) {
 			perror("mlockall");
 			return -1;
 		}
@@ -481,7 +493,7 @@ static void display_help(int error)
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run system threads on processor 0-(NUM-1), if possible\n"
 	       "                           run container threads on processor NUM-MAX_CPU \n"
-	       "-b       --bind            bind non-RT PIDs to same container affinity\n"
+	       "-b       --bind            bind non-RT PIDs of container to same container affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
@@ -563,7 +575,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		};
 		int c = getopt_long(argc, argv, "a:bc:dFi:l:mn::p:qs::t:uUvw:?",
 				    long_options, &option_index);
-		if (c == -1)
+		if (-1 == c)
 			break;
 		switch (c) {
 		case 'a':
@@ -613,7 +625,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			lockall = 1; break;
 		case 'n':
 			use_cgroup = DM_CMDLINE;
-			if (optarg != NULL) {
+			if (NULL != optarg) {
 				cont_pidc = optarg;
 			} else if (optind<argc && atoi(argv[optind])) {
 				cont_pidc = argv[optind];
@@ -622,7 +634,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'p':
 		case OPT_PRIORITY:
 			priority = atoi(optarg);
-			if (policy != SCHED_FIFO && policy != SCHED_RR)
+			if (SCHED_FIFO != policy && SCHED_RR != policy)
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
 				policy = SCHED_FIFO;
 			break;
@@ -631,7 +643,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			quiet = 1; break;
 		case 's':
 			use_cgroup = DM_CNTPID;
-			if (optarg != NULL) {
+			if (NULL != optarg) {
 				cont_ppidc = optarg;
 			} else if (optind<argc && atoi(argv[optind])) {
 				cont_ppidc = argv[optind];
@@ -644,7 +656,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				warn("-t ignored due to --smp\n");
 				break;
 			}
-			if (optarg != NULL)
+			if (NULL != optarg)
 				num_threads = atoi(optarg);
 			else if (optind<argc && atoi(argv[optind]))
 				num_threads = atoi(argv[optind]);
@@ -692,28 +704,34 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	}
 
 	// check clock sel boundaries
-	if (clocksel < 0 || clocksel > 3)
+	if (0 > clocksel || 3 < clocksel)
 		error = 1;
 
 	// check priority boundary
-	if (priority < 0 || priority > 99)
+	if (0 > priority || 99 < priority)
 		error = 1;
 
+	// check detection mode and policy -> deadline does not allow fork!
+	if (SCHED_DEADLINE == policy && (DM_CNTPID == use_cgroup || DM_CMDLINE == use_cgroup)) {
+		warn("can not use SCHED_DEADLINE with PID detection modes: setting policy to SCHED_FIFO\n");
+		policy = SCHED_FIFO;	
+	}
+
 	// check priority and policy match
-	if (priority && (policy != SCHED_FIFO && policy != SCHED_RR)) {
+	if (priority && (SCHED_FIFO != policy && SCHED_RR != policy)) {
 		warn("policy and priority don't match: setting policy to SCHED_FIFO\n");
 		policy = SCHED_FIFO;
 	}
 
 	// check policy with priority match 
-	if ((policy == SCHED_FIFO || policy == SCHED_RR) && priority == 0) {
+	if ((SCHED_FIFO == policy || SCHED_RR == policy) && 0 == priority) {
 		warn("defaulting realtime priority to %d\n",
 		num_threads+1); // TODO: num threads and prio connection??
 		priority = num_threads+1;
 	}
 
 	// num theads must be > 0 
-	if (num_threads < 1)
+	if (1 > num_threads)
 		error = 1;
 
 	// look for filename after options, we process only first
@@ -779,9 +797,9 @@ int main(int argc, char **argv)
 	}
 
 	// signal shutdown to threads
-	if (t_stat1 > -1) // only if not already done
+	if (-1 < t_stat1) // only if not already done internally
 		t_stat1 = -1;
-	if (t_stat2 > -1) // only if not already done
+	if (-1 < t_stat2) // only if not already done internally 
 		t_stat2 = -1;
 
 	// wait until threads have stopped
@@ -796,6 +814,6 @@ int main(int argc, char **argv)
 	if (lockall)
 		munlockall();
 
-	restorekernvars(); // restore previous variables
+//	restorekernvars(); // restore previous variables -> not needed anymore
     return 0;
 }
