@@ -248,7 +248,7 @@ int readParams() {
 
 	FILE * f = fopen (config, "r");
 
-	if (f){ // !! does not check file existence! inserted into Schedstat.h at startup
+	if (f){ // !! does not check file existence! inserted into schedstat.h at startup
 	for (;;) {
 		/* Read another chunk */
 		r = fread(buf, 1, sizeof(buf), f);
@@ -427,15 +427,19 @@ int updateSched() {
 					}
 
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n", current->pid, strerror(errno));
+						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
+							current->pid, strerror(errno));
 					else
-						cont("PID %d reassigned to CPU%d\n", current->pid, current->param->rscs.affinity);
+						cont("PID %d reassigned to CPU%d\n", current->pid, 
+							current->param->rscs.affinity);
 				}
 				else if (affother)
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n", current->pid, strerror(errno));
+						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
+							current->pid, strerror(errno));
 					else
-						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid, current->param->rscs.affinity);
+						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid,
+							current->param->rscs.affinity);
 				else
 					cont("Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}

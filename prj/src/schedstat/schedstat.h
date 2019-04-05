@@ -13,8 +13,6 @@
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include "rt-sched.h" 		// temporary as libc does not include new sched yet
 
-//#include "rt_numa.h" // from cyclictest -> affinity of cpu and memory
-
 // new since cgroup
 #include <fcntl.h>	// file control, new open/close functions
 #include <dirent.h>	// dir enttry structure and expl
