@@ -454,6 +454,7 @@ static void display_help(int error)
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
+	       "-f                         force execution with critical parameters\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
@@ -501,6 +502,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	int error = 0;
 	int option_affinity = 0;
 	int option_index = 0;
+	int force = 0;
 
 	for (;;) {
 		//option_index = 0;
@@ -529,7 +531,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:dFi:l:mn::p:qr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:qr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -564,6 +566,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'c':
 		case OPT_CLOCK:
 			clocksel = atoi(optarg); break;
+		case 'f':
+			force = 1; break;
 /*		case 'F':
 		case OPT_FIFO:
 			use_fifo = 1;
@@ -678,6 +682,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	if (SCHED_DEADLINE == policy && (DM_CNTPID == use_cgroup || DM_CMDLINE == use_cgroup)) {
 		warn("can not use SCHED_DEADLINE with PID detection modes: setting policy to SCHED_FIFO\n");
 		policy = SCHED_FIFO;	
+	}
+
+	// check detection mode and policy -> deadline does not allow fork!
+	if (SCHED_DEADLINE == policy && interval < 10000 && !force) {
+		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
+		error = 1;
 	}
 
 	// check priority and policy match
