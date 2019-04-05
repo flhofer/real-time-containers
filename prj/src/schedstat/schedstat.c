@@ -35,6 +35,7 @@ int setdflag = 0;
 int interval = TSCAN;
 int update_wcet = TWCET;
 int loops = TDETM;
+int runtime = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
 
@@ -463,6 +464,7 @@ static void display_help(int error)
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
 //	       "-q       --quiet           print a summary only on exit\n"
+	       "-r RTIME --runtime=RTIME   set a maximum runtime in seconds, default=0(infinite)\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
 //	       "-t NUM   --threads=NUM     number of threads for resource management\n"
@@ -484,7 +486,7 @@ enum option_values {
 	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
-	OPT_THREADS, OPT_SMP, OPT_UNBUFFERED, OPT_NUMA, 
+	OPT_THREADS, OPT_SMP, OPT_RTIME, OPT_UNBUFFERED, OPT_NUMA, 
 	OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
 };
 
@@ -517,6 +519,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"mlockall",         no_argument,       NULL, OPT_MLOCKALL },
 			{"priority",         required_argument, NULL, OPT_PRIORITY },
 			{"quiet",            no_argument,       NULL, OPT_QUIET },
+			{"runtime",          required_argument, NULL, OPT_RTIME },
 			{"threads",          required_argument, NULL, OPT_THREADS },
 			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
@@ -526,7 +529,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:dFi:l:mn::p:qs::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:dFi:l:mn::p:qr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -594,6 +597,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'q':
 		case OPT_QUIET:
 			quiet = 1; break;
+		case 'r':
+		case OPT_RTIME:
+			if (NULL != optarg) {
+				runtime = atoi(optarg);
+			} else if (optind<argc && atoi(argv[optind])) {
+				runtime = atoi(argv[optind]);
+			}
+			break;
 		case 's':
 			use_cgroup = DM_CNTPID;
 			if (NULL != optarg) {
@@ -602,7 +613,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				cont_ppidc = argv[optind];
 			}
 			break;
-
 		case 't':
 		case OPT_THREADS:
 			if (smp) {
@@ -741,9 +751,9 @@ int main(int argc, char **argv)
 	}
 
 	// set interrupt sig hand
-	signal(SIGINT, inthand);
-	signal(SIGTERM, inthand);
-	signal(SIGUSR1, inthand);
+	signal(SIGINT, inthand); // CTRL+C
+	signal(SIGTERM, inthand); // KILL termination or end of test
+	signal(SIGUSR1, inthand); // USR1 signal, not handled yet
 
 	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);

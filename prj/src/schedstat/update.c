@@ -47,6 +47,7 @@ extern char * cont_ppidc; // container pid signature to look for
 extern char * cont_pidc; // command line pid signature to look for
 extern int kernelversion; // using kernel version.. 
 extern int setdflag; // set deadline overrun flag? for DL processes?
+extern int runtime; // test runtime -> 0 = infinite
 
 // Global variables used here ->
 
@@ -72,6 +73,9 @@ void dumpStats (){
 	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) \n"
 			         "----------------------------------------\n" );
 	// for now does only a simple update count
+	if (!item) {
+		(void)printf("(no PIDs)\n");
+	}
 	while (item != NULL) {
 		(void)printf("PID %d: %ld(%ld/%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail);
 
@@ -206,13 +210,13 @@ int updateStats ()
 		}
 
 		// get runtime value
-/*		if (SCHED_DEADLINE == item->attr.sched_policy) {
+		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
 				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
 			} 
 		}
-*/
+
 		/*
 		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
 			item->mon.dl_overrun++;
@@ -525,6 +529,9 @@ void *thread_update (void *arg)
 	}
 	old = intervaltv;
 
+	if (runtime)
+		cont("Runtime set to %d seconds\n", runtime);
+
 	// initialize the thread locals
 	while(1) {
 
@@ -532,7 +539,7 @@ void *thread_update (void *arg)
 		{
 		case 0:			
 			// setup of thread, configuration of scheduling and priority
-			*pthread_state=1; // must be first thing! -> main writes -1 to stop
+			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (1 > ticksps) { // must always be greater 0 
@@ -566,6 +573,7 @@ void *thread_update (void *arg)
 					else {
 						cont("set update thread to '%s', runtime %dus.\n", policyname(policy), update_wcet);
 						}
+
 				}
 				else{
 					struct sched_param schedp  = { priority };
@@ -595,9 +603,7 @@ void *thread_update (void *arg)
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
 			(void)printf("\n");
 			// tidy or whatever is necessary
-//#ifdef DBG
 			dumpStats();
-//#endif
 
 			// Done -> print total runtime
 			ret = clock_gettime(clocksources[clocksel], &diff);
@@ -615,14 +621,28 @@ void *thread_update (void *arg)
 			break;
 		}
 
-		if (SCHED_DEADLINE == policy) 
+		if (SCHED_DEADLINE == policy){
+			// update timefor runtime check
+			if (runtime) {
+				ret = clock_gettime(clocksources[clocksel], &intervaltv);
+				if (0 != ret) {
+					if (EINTR != ret)
+						warn("clock_gettime() failed: %s", strerror(errno));
+					*pthread_state=-1;
+				}
+			}
 			// perfect sync with period here, allow replenish 
-			pthread_yield(); 
+			if (pthread_yield()){
+				warn("pthread_yield() failed. errno: %s\n",strerror (ret));
+				*pthread_state=-1;
+				break;				
+			}
+		}
 		else {			
 			// abs-time relative interval shift
 			// TODO: implement relative time and timer based variants?
 
-			// calculate new sleep intervall
+			// calculate next execution intervall
 			intervaltv.tv_sec += interval / USEC_PER_SEC;
 			intervaltv.tv_nsec+= (interval % USEC_PER_SEC) * 1000;
 			tsnorm(&intervaltv);
@@ -637,7 +657,18 @@ void *thread_update (void *arg)
 				*pthread_state=-1;
 				break;
 			}
+
+
 		}
+
+		// we have a max runtime. Stop! -> after the clock_nanosleep time will be intervaltv
+		if (0 != runtime
+			&& old.tv_sec + runtime <= intervaltv.tv_sec
+			&& old.tv_nsec <= intervaltv.tv_nsec) {
+			// set stop sig
+			raise (SIGTERM); // tell main to st
+		}
+
 		cc++;
 		cc%=loops;
 	}
