@@ -336,13 +336,13 @@ int updateStats ()
 		}
 
 		// get runtime value
-		if (SCHED_DEADLINE == item->attr.sched_policy) {
+/*		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
 				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
 			} 
 		}
-
+*/
 		/*
 		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
 			item->mon.dl_overrun++;
@@ -577,7 +577,6 @@ void scanNew () {
 
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
-	int new= 0;
 	printDbg("\nEntering node update");		
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -588,7 +587,6 @@ void scanNew () {
 			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
 			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
-			new++;
 			i--;
 		} 
 		else		
@@ -597,11 +595,16 @@ void scanNew () {
 			printDbg("\n... Delete %d", (pidlst +i)->pid);		
 			get_next(&act);
 			(void)drop_after(&head, &prev);
-			new++;
 		} 
 		// ok, skip to next
 		else {
 			printDbg("\nNo change");		
+			// free allocated items
+			if ((pidlst +i)->psig)
+				free((pidlst +i)->psig);
+			if ((pidlst +i)->contid)
+				free((pidlst +i)->contid);
+
 			i--;
 			prev = act; // update prev 
 			get_next(&act);
@@ -611,7 +614,6 @@ void scanNew () {
 	while (i >= 0) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
 		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
-		new++;
 		i--;
 	}
 
@@ -621,15 +623,16 @@ void scanNew () {
 		// get next item, then drop old
 		get_next(&act);
 		(void)drop_after(&head, &prev);
-		new++;
 	}
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-//	if (new)
 	printDbg("\n");		
 
-// PDB	printDbg("Exiting node update\n");	
+
+	printDbg("Exiting node update\n");	
+
+
 }
 
 /// thread_update(): thread function call to manage and update present pids list
