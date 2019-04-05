@@ -98,16 +98,16 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	// extend with limits http://man7.org/linux/man-pages/man2/getrlimit.2.html
 
 	// base case, no elements in the object
-	if (count == 0) {
+	if (0 == count) {
 		warn("JSON: faulty object data! No element count in this object");
 		return 0;
 	}
 
 	// setting value, primitive
-	if (t->type == JSMN_PRIMITIVE) {
+	if (JSMN_PRIMITIVE == t->type) {
 		// enter here if a primitive value (int?) has been identified
 
-		if (key == -1 || (t->end - t->start) > SIG_LEN) { // no key value yet or value too long
+		if (-1 == key || (t->end - t->start) > SIG_LEN) { // no key value yet or value too long
 			warn("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
@@ -162,7 +162,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		return 1;
 	
 	// setting value or label
-	} else if (t->type == JSMN_STRING) {
+	} else if (JSMN_STRING == t->type) {
 		// here len must be shorter than SIG_LEN TODO: fix to dynamic length
 		if ((t->end - t->start) > SIG_LEN){
 			warn("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
@@ -170,7 +170,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		}
 
 		// a key has been identified
-		if (key < 0){
+		if (0 > key){
 			char c[SIG_LEN]; // buffer size for temp storage
 			size_t len = sizeof(keys)/sizeof(keys[0]); // count of keys
 
@@ -230,11 +230,11 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		}
 
 	// Process composed objects ( {} }
-	} else if (t->type == JSMN_OBJECT) {
+	} else if (JSMN_OBJECT == t->type) {
 
 		// add a new settings item at head
 		// TODO: fix it to be depth independent
-		if (depth == 2) {
+		if (2 == depth) {
 			printDbg("Adding new item:\n");
 			ppush (&phead);
 			// if any sched parameter is set, policy must also be set
@@ -253,13 +253,13 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			// printDbg(": ");  // separator
 
 			//j += extractJSON(js, t+1+j, count-j, depth+1, -1); // value evaluation
-			// if value is an object, it will contain aga`in keys..
+			// if value is an object, it will contain again keys..
 			printDbg("\n");
 		}
 		return j+1;
 
 	// process arrays ( [] )
-	} else if (t->type == JSMN_ARRAY) {
+	} else if (JSMN_ARRAY == t->type) {
 		j = 0;
 		printDbg("\n");
 		for (i = 0; i < t->size; i++) {
@@ -295,7 +295,7 @@ int readParams() {
 
 	/* Allocate some tokens as a start */
 	tok = malloc(sizeof(*tok) * tokcount);
-	if (tok == NULL) {
+	if (NULL == tok ) {
 		fprintf(stderr, "malloc(): errno=%d\n", errno);
 		return 3;
 	}
@@ -306,14 +306,14 @@ int readParams() {
 	for (;;) {
 		/* Read another chunk */
 		r = fread(buf, 1, sizeof(buf), f);
-		if (r < 0) {
+		if (0 > r) {
 			fprintf(stderr, "fread(): %d, errno=%d\n", r, errno);
 			fclose (f);
 			return 1;
 		}
-		if (r == 0) {
+		if (0 == r) {
 			fclose (f);
-			if (eof_expected != 0) {
+			if (0 != eof_expected) {
 				return 0;
 			} else {
 				fprintf(stderr, "fread(): unexpected EOF\n");
@@ -322,7 +322,7 @@ int readParams() {
 		}
 
 		js = realloc_it(js, jslen + r + 1);
-		if (js == NULL) {
+		if (NULL == js) {
 			fclose (f);
 			return 3;
 		}
@@ -331,11 +331,11 @@ int readParams() {
 
 again:
 		r = jsmn_parse(&p, js, jslen, tok, tokcount);
-		if (r < 0) {
-			if (r == JSMN_ERROR_NOMEM) {
+		if (0 > r) {
+			if (JSMN_ERROR_NOMEM == r) {
 				tokcount = tokcount * 2;
 				tok = realloc_it(tok, sizeof(*tok) * tokcount);
-				if (tok == NULL) {
+				if (NULL == tok) {
 					fclose (f);
 					return 3;
 				}
