@@ -1,10 +1,8 @@
 #include "schedstat.h"
 #include "update.h"
-#include "manage.h"
 
-// test added
+// Should be needed only here
 #include <limits.h>
-//#include <sys/stat.h>
 #include <sys/vfs.h>
 
 #include <errno.h> // TODO: fix as general
@@ -23,8 +21,6 @@
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 #define PID_BUFFER			4096
-
-int hallo = SCHED_FLAG_DL_OVERRUN;
 
 static int clocksources[] = {
 	CLOCK_MONOTONIC,
@@ -54,6 +50,11 @@ extern int runtime; // test runtime -> 0 = infinite
 static char *fileprefix;
 long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 
+/// tsnorm(): verifies timespec for boundaries + fixes it
+///
+/// Arguments: pointer to timespec to check
+///
+/// Return value: -
 static inline void tsnorm(struct timespec *ts)
 {
 	while (ts->tv_nsec >= NSEC_PER_SEC) {
@@ -84,6 +85,12 @@ void dumpStats (){
 
 }
 
+/// get_sched_info(): get sched debug output info
+///
+/// Arguments: the node to get info for
+///
+/// Return value: error code, 0 = success
+///
 int get_sched_info(node_t * item)
 {
 	char szFileName [_POSIX_PATH_MAX],
@@ -161,11 +168,6 @@ int get_sched_info(node_t * item)
 //  fclose (fp);
   return 0;
 }
-
-
-// until here
-
-// Thread managing pid list update
 
 /// updateStats(): update the real time statistics for all scheduled threads
 /// -- used for monitoring purposes ---
@@ -558,7 +560,7 @@ void *thread_update (void *arg)
 						policy = SCHED_OTHER;
 					}
 					else {
-						cont("set update thread to '%s', runtime %dus.\n", policyname(policy), update_wcet);
+						cont("set update thread to '%s', runtime %dus.\n", policy_to_string(policy), update_wcet);
 						}
 
 				}
@@ -571,7 +573,7 @@ void *thread_update (void *arg)
 						policy = SCHED_OTHER;
 					}
 					else {
-						cont("set update thread to '%s', priority %d.\n", policyname(policy), priority);
+						cont("set update thread to '%s', priority %d.\n", policy_to_string(policy), priority);
 						}
 				}
 			}

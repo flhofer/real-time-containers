@@ -6,8 +6,13 @@
 #include "manage.h"
 
 // Things that should be needed only here
-#include <sys/mman.h>
-#include <numa.h>
+#include <sys/mman.h>		// mlock
+#include <numa.h>			// numa node ident
+#include <getopt.h>			// command line parsing
+#include <sys/stat.h>		// directory and fs stat
+#include <sys/utsname.h>	// kernel info
+#include <sys/capability.h>	// cap exploration
+#include <sys/sysinfo.h>	// system general information
 
 // -------------- Global variables for all the threads and programms ------------------
 

@@ -7,25 +7,20 @@
 #include <unistd.h> // used for POSIX XOPEN constants
 #include "pidlist.h" // memory structure to store information
 
-#include <sched.h>
-#include <linux/types.h>
-#include <signal.h> // for SIGs
+#include <sched.h>			// scheduler functions
+#include <linux/types.h>	// data structure types 
+#include <signal.h> 		// for SIGs, handling in main, raise in update
 //#include <stdarg.h> __VA_ARGS__ does not work??
-#include "rt-sched.h" // temporary as libc does not include new sched yet
+#include "rt-sched.h" 		// temporary as libc does not include new sched yet
 
 //#include "rt_numa.h" // from cyclictest -> affinity of cpu and memory
 
 // new since cgroup
-#include <fcntl.h> 
-#include <sys/utsname.h>
-#include <sys/capability.h>
-#include <sys/sysinfo.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <getopt.h>
+#include <fcntl.h>	// file control, new open/close functions
+#include <dirent.h>	// dir enttry structure and expl
 
-#include "error.h"
-#include "rt-utils.h"
+#include "error.h"		// error and strerr print functions
+#include "rt-utils.h"	// trace and other utils
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
