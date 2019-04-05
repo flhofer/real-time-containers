@@ -346,7 +346,7 @@ static int prepareEnvironment() {
 		char * numastr = "0"; // default numa string
 		if (-1 != numa_available()) {
 			int numanodes = numa_max_node();
-			numastr = calloc (5, 1);
+			numastr = calloc (5, 1); // WARN -> not unallocated
 			sprintf(numastr, "0-%d", numanodes);
 		}
 		else
@@ -420,6 +420,7 @@ static int prepareEnvironment() {
 
 			if (nfileprefix)
 				free (nfileprefix);
+
 		}
 
 	}

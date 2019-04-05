@@ -604,11 +604,9 @@ void *thread_update (void *arg)
 			if (0 != ret) {
 				if (EINTR != ret)
 					warn("clock_gettime() failed: %s", strerror(errno));
-				*pthread_state=-1;
 			}
-			old = intervaltv;
-
-			info("Total test runtime is %ld seconds\n", diff.tv_sec - old.tv_sec);
+			else
+				info("Total test runtime is %ld seconds\n", diff.tv_sec - old.tv_sec);
 
 			break;
 		case -2:
