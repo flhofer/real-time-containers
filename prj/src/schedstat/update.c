@@ -183,7 +183,6 @@ int updateStats ()
 	(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
-
 	// init head
 	node_t * item = head;
 
@@ -216,13 +215,6 @@ int updateStats ()
 				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
 			} 
 		}
-
-		/*
-		if (!get_proc_info(item->pid, procinf) && (procinf->flags & 0xF > 0) ) {
-			item->mon.dl_overrun++;
-			printf ("Hello: %d\n", procinf->flags);
-		} these are different flags.. 
-		*/ 
 
 		// exponentially weighted moving average
 		//item->mon.rt_avg = item->mon.rt_avg * 0.9 + item.attr;
@@ -420,11 +412,8 @@ int getcPids (pidinfo_t *pidlst, size_t cnt)
 ///
 void scanNew () {
 	// get PIDs 
-	pidinfo_t pidlst[MAX_PIDS]; // TODO: create dynamic list, allocate as grows
-
-	/// --------------------
-	/// cgroup present, fix cpu-sets of running containers
-	int cnt;
+	pidinfo_t pidlst[MAX_PIDS]; // TODO: create dynamic list, allocate as grows/ may use a parameter
+	int cnt; // Count of found PID
 
 	switch (use_cgroup) {
 
@@ -436,13 +425,14 @@ void scanNew () {
 			cnt = getcPids(&pidlst[0], MAX_PIDS);
 			break;
 
-		default: ;// TODO: update - detect by pid signature
+		default: ;// detect by pid signature
 			char pid[SIG_LEN];
 			sprintf(pid, "-C %s", cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
 			break;
 		
 	}
+
 #ifdef DBG
 	for (int i=0; i<cnt; i++){
 		(void)printf("Result update pid %d\n", (pidlst+i)->pid);		
@@ -452,6 +442,7 @@ void scanNew () {
 	node_t *act = head, *prev = NULL;
 	int i = cnt-1;
 	printDbg("\nEntering node update");		
+
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 	while ((NULL != act) && (0 <= i )) {
@@ -498,22 +489,18 @@ void scanNew () {
 		get_next(&act);
 		(void)drop_after(&head, &prev);
 	}
+
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("\n");		
-
-
-	printDbg("Exiting node update\n");	
-
-
+	printDbg("\nExiting node update\n");	
 }
 
 /// thread_update(): thread function call to manage and update present pids list
 ///
 /// Arguments: - thread state/state machine, passed on to allow main thread stop
 ///
-/// Return value: Exit Code - o for no error - EXIT_SUCCESS
+/// Return value: -
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;

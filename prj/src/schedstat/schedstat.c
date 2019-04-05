@@ -763,7 +763,7 @@ int main(int argc, char **argv)
 	// set interrupt sig hand
 	signal(SIGINT, inthand); // CTRL+C
 	signal(SIGTERM, inthand); // KILL termination or end of test
-	signal(SIGUSR1, inthand); // USR1 signal, not handled yet
+	signal(SIGUSR1, inthand); // USR1 signal, not handled yet TODO
 
 	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);
