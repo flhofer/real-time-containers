@@ -553,19 +553,19 @@ static void process_options (int argc, char *argv[], int max_cpus)
 					err_msg(KRED "Error!" KNRM " affinity value '%s' not valid\n", argv[optind]);
 				}
 				setaffinity = AFFINITY_SPECIFIED;
-			} else {
+			} else { // TODO: remove cgroup limitations if present!
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
 		case 'b':
 		case OPT_BIND:
 			affother = 1; break;
-		case 'd':
-		case OPT_DFLAG:
-			setdflag = 1; break;
 		case 'c':
 		case OPT_CLOCK:
 			clocksel = atoi(optarg); break;
+		case 'd':
+		case OPT_DFLAG:
+			setdflag = 1; break;
 		case 'f':
 			force = 1; break;
 /*		case 'F':
@@ -617,7 +617,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				cont_ppidc = argv[optind];
 			}
 			break;
-		case 't':
+/*		case 't':
 		case OPT_THREADS:
 			if (smp) {
 				warn("-t ignored due to --smp\n");
@@ -629,10 +629,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				num_threads = atoi(argv[optind]);
 			else
 				num_threads = max_cpus;
-			break;
-		case 'u':
+			break;*/
+/*		case 'u':
 		case OPT_UNBUFFERED:
-			setvbuf(stdout, NULL, _IONBF, 0); break;
+			setvbuf(stdout, NULL, _IONBF, 0); break;*/
 /*		case 'U': //TODO: fix numa ??
 		case OPT_NUMA: // NUMA testing 
 			numa = 1;	// Turn numa on 
@@ -647,9 +647,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			warn("ignoring --numa or -U\n");
 #endif
 			break; */ 
-		case 'v':
+/*		case 'v':
 		case OPT_VERBOSE: 
-			verbose = 1; break;
+			verbose = 1; break;*/
 		case 'w':
 		case OPT_WCET:
 			update_wcet = atoi(optarg); break;
@@ -684,7 +684,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		policy = SCHED_FIFO;	
 	}
 
-	// check detection mode and policy -> deadline does not allow fork!
+	// deadline and high refresh might starve the system. require force
 	if (SCHED_DEADLINE == policy && interval < 10000 && !force) {
 		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
 		error = 1;
