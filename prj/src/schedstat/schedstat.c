@@ -232,7 +232,7 @@ static int prepareEnvironment() {
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
 		warn("could not read orchestrator attributes: %s\n", strerror(errno));
 	else {
-		cont( "orchestrator scheduled as '%s'\n", policyname(attr.sched_policy));
+		cont( "orchestrator scheduled as '%s'\n", policy_to_string(attr.sched_policy));
 
 		// TODO: set new attributes here
 
@@ -662,7 +662,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
-			policy = handlepolicy(optarg); break;
+			policy = string_to_policy(optarg); break;
 		}
 	}
 

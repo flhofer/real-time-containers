@@ -9,60 +9,6 @@ extern int affother; // set affinity of all pids in container?
 // parameter tree linked list head
 parm_t * phead;
 
-/// handlepolicy(): Get the scheduling type number 
-///
-/// Arguments: string of scheduling name
-///
-/// Return value: Code of scheduling type
-uint32_t handlepolicy(char *polname)
-{
-	if (strncasecmp(polname, "other", 5) == 0)
-		return SCHED_OTHER;
-	else if (strncasecmp(polname, "batch", 5) == 0)
-		return SCHED_BATCH;
-	else if (strncasecmp(polname, "idle", 4) == 0)
-		return SCHED_IDLE;
-	else if (strncasecmp(polname, "fifo", 4) == 0)
-		return SCHED_FIFO;
-	else if (strncasecmp(polname, "rr", 2) == 0)
-		return SCHED_RR;
-	else if (strncasecmp(polname, "deadline", 8) == 0)
-		return SCHED_DEADLINE;
-	else	/* default policy if we don't recognize the request */
-		return SCHED_OTHER;
-}
-
-/// policyname(): get the policy string from policy type
-///
-/// Arguments: policy type (kernel constant)
-///
-/// Return value: character pointer to text 
-char *policyname(uint32_t policy)
-{
-	char *policystr = "";
-
-	switch(policy) {
-	case SCHED_OTHER:
-		policystr = "other";
-		break;
-	case SCHED_FIFO:
-		policystr = "fifo";
-		break;
-	case SCHED_RR:
-		policystr = "rr";
-		break;
-	case SCHED_DEADLINE:
-		policystr = "deadline";
-		break;
-	case SCHED_BATCH:
-		policystr = "batch";
-		break;
-	case SCHED_IDLE:
-		policystr = "idle";
-		break;
-	}
-	return policystr;
-}
 
 
 /* Function realloc_it() is a wrapper function for standard realloc()
@@ -215,10 +161,10 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			case 3: ; // schedule policy 
 					char c[SIG_LEN]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
-					phead->attr.sched_policy = handlepolicy(c);
+					phead->attr.sched_policy = string_to_policy(c);
 					// TODO: fix size elements
 					phead->attr.size=48; // has to be set
-					printDbg("JSON: setting scheduler to '%s'", policyname(phead->attr.sched_policy));
+					printDbg("JSON: setting scheduler to '%s'", policy_to_string(phead->attr.sched_policy));
 					break;
 
 			}
@@ -461,9 +407,11 @@ int updateSched() {
 
 					// only do if different than -1, <- not set values
 					if (-1 != current->param->attr.sched_policy) {
-						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,  policyname(current->param->attr.sched_policy));
+						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,
+							policy_to_string(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
-							err_msg(KRED "Error!" KNRM " setting attributes for PID %d: %s\n", current->pid, strerror(errno));
+							err_msg(KRED "Error!" KNRM " setting attributes for PID %d: %s\n",
+								current->pid, strerror(errno));
 					}
 					else
 						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
