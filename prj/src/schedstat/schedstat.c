@@ -437,7 +437,7 @@ static int prepareEnvironment() {
 				while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln?
 					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
-					while (pid != NULL) {
+					while (NULL != pid) {
 
 						// fileprefix still pointing to system/
 						if (setkernvar("tasks", pid)){

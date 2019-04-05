@@ -211,38 +211,54 @@ int get_proc_info(pid_t pid, procinfo * pinfo)
 
 int get_sched_info(node_t * item)
 {
-  char szFileName [_POSIX_PATH_MAX],
-  	   szStatStr [2048],
-       *s, *t;
-  FILE *fp;
-  struct stat st;
-  
-  sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
-  
-  if (-1 == access (szFileName, R_OK)) {
-    return -1;
-  } /** if **/
-  
-  if ((fp = fopen (szFileName, "r")) == NULL) {
-    return -1;
-  } /** IF_NULL **/
-  
+	char szFileName [_POSIX_PATH_MAX],
+		szStatBuff [PID_BUFFER],
+		ltag [80], // just tag of beginning, max lenght expected ~30 
+    	*s;
+
+	FILE *fp;
+	struct stat st;
+
+	sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
+
+	if (-1 == access (szFileName, R_OK)) {
+		return -1;
+	} /** if **/
+
+
+	if ((fp = fopen (szFileName, "r")) == NULL) {
+		return -1;
+	} /** IF_NULL **/
+
+	// read output into buffer!
+	if (0 >= fread (szStatBuff, sizeof(char), PID_BUFFER-1, fp)) {
+		fclose (fp);
+		return -1;
+	}
+	szStatBuff[PID_BUFFER-1] = '\0'; // safety first
+
+	fclose (fp);
+
 	long long num;
-	while (EOF != fscanf(fp,"%s %*c %lld", szStatStr, &num)) {
-//		printf("%s, %lld\n", szStatStr, num);
+	s = strtok (szStatBuff, "\n");
+	while (NULL != s) {
+		(void)sscanf(s,"%s %*c %lld", ltag, &num);
+//DBG		printf("%s - %lld\n", ltag, num);
+		
+//		printf("%s, %lld\n", ltag, num);
 		// first letter gets lost in scanf due to head
-/*		if (strncasecmp(szStatStr, "e.exec_start", 4) == 0)	{
+/*		if (strncasecmp(ltag, "se.exec_start", 4) == 0)	{
 			long long x;
 			fscanf(fp,"%*c%lld", &x);		
 			item->mon.dl_start = num*1000000+x;
 //			printf("PID %d, %ld\n", item->pid, item->mon.dl_start);
 		}*/
-		if (strncasecmp(szStatStr, "dl.runtime", 4) == 0)	{
+		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
 			item->mon.dl_rt = num;
 //			if (num < 0)
 //					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
-		if (strncasecmp(szStatStr, "dl.deadline", 4) == 0)	{
+		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
 			item->mon.dl_scount++;
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
@@ -263,9 +279,10 @@ int get_sched_info(node_t * item)
 			}	
 			break; // we're done reading
 		}
+		s = strtok (NULL, "\n");	
 	}
 
-  fclose (fp);
+//  fclose (fp);
   return 0;
 }
 
@@ -447,7 +464,10 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	// prepare literal and open pipe request, request spid (thread) ids\
 	// spid and pid coincide for main process
 	(void)sprintf (req,  "ps h -o spid,command %s", tag);
-	FILE *fp = popen(req,"r");
+	FILE *fp;
+
+	if(!(fp = popen(req,"r")))
+		return 0;
 
 	// Scan through string and put in array
 	while(fgets(pidline,PID_BUFFER,fp) && i < cnt) {
@@ -489,7 +509,10 @@ int getcPids (pidinfo_t *pidlst, size_t cnt)
 
 	// prepare literal and open pipe request
 	(void)sprintf (req,  "pidof %s", cont_ppidc);
-	FILE *fp = popen(req,"r");
+	FILE *fp;
+
+	if(!(fp = popen(req,"r")))
+		return 0;
 
 	int cnt2 = 0;
 	// read list of PPIDs
@@ -711,7 +734,7 @@ void *thread_update (void *arg)
 			}
 			old = intervaltv;
 
-			info("Total test runtime is %ld\n", diff.tv_sec - old.tv_sec);
+			info("Total test runtime is %ld seconds\n", diff.tv_sec - old.tv_sec);
 
 			break;
 		case -2:
