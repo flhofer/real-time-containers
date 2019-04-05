@@ -13,6 +13,7 @@
 //#include <stdarg.h> __VA_ARGS__ does not work??
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir enttry structure and expl
+#include <errno.h>			// error numbers and strings
 
 #include "rt-sched.h" 	// temporary as libc does not include new sched yet
 #include "pidlist.h"	// memory structure to store information
@@ -23,7 +24,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.38
+	#define VERSION 0.39
 	#define MAX_PIDS 64
 
 	enum kernelversion {

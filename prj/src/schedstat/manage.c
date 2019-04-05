@@ -2,11 +2,10 @@
 #include "manage.h"
 #include "pidparm.h"
 
-extern char * config; // filename of configuration file
-extern int affother; // set affinity of all pids in container?
+// Global variables used here ->
 
 // parameter tree linked list head
-parm_t * phead;
+static parm_t * phead;
 
 /* Function realloc_it() is a wrapper function for standard realloc()
  * with one difference - it frees old memory pointer in case of realloc
