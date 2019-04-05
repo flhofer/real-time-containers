@@ -36,18 +36,6 @@ int interval = TSCAN;
 int update_wcet = TWCET;
 int loops = TDETM;
 
-/* Backup of kernel variables that we modify */
-
-/// Kernel variable management (ct extract)
-#define KVARS			32
-#define KVARNAMELEN		32
-#define KVALUELEN		32
-
-static struct kvars {
-	char name[KVARNAMELEN];
-	char value[KVALUELEN];
-} kv[KVARS];
-
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
@@ -141,28 +129,7 @@ static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
 
 static int setkernvar(const char *name, char *value)
 {
-/*	int i;
-	char oldvalue[KVALUELEN];
 
-	if (kernelversion < KV_26_33) {
-		if (kernvar(O_RDONLY, name, oldvalue, sizeof(oldvalue)))
-			printDbg(KRED "Error!" KNRM " could not retrieve %s\n", name);
-		else {
-			for (i = 0; i < KVARS; i++) {
-				if (!strcmp(kv[i].name, name))
-					break;
-				if (kv[i].name[0] == '\0') {
-					strncpy(kv[i].name, name,
-						sizeof(kv[i].name));
-					strncpy(kv[i].value, oldvalue,
-					    sizeof(kv[i].value));
-					break;
-				}
-			}
-			if (KVARS == i)
-				printDbg(KRED "Error!" KNRM " could not backup %s (%s)\n", name, oldvalue);
-		}
-	}*/
 	if (kernvar(O_WRONLY, name, value, strlen(value))){
 		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
 		return -1;
@@ -171,25 +138,6 @@ static int setkernvar(const char *name, char *value)
 	return 0;
 
 }
-
-/* ----     NOT NEEDED SINCE KERNEL VERSION 2.6.33
-static void restorekernvars(void)
-{
-	int i;
-
-	for (i = 0; i < KVARS; i++) {
-		if (kv[i].name[0] != '\0') {
-			if (kernvar(O_WRONLY, kv[i].name, kv[i].value, strlen(kv[i].value)))
-				err_msg(KRED "Error!" KNRM " could not restore %s to %s\n",
-					kv[i].name, kv[i].value);
-		}
-	}
-} */
-
-/// Kernel variable management - end (ct extract)
-
-// -- new options
-/// Option parsing !!
 
 // -------------- LOCAL variables for all the threads and programms ------------------
 
@@ -486,7 +434,11 @@ static int prepareEnvironment() {
 	return 0;
 }
 
-/* Print usage information */
+/// display_help(): Print usage information 
+///
+/// Arguments: exit with error?
+///
+/// Return value: - 
 static void display_help(int error)
 {
 	printf("Usage:\n"
@@ -814,6 +766,5 @@ int main(int argc, char **argv)
 	if (lockall)
 		munlockall();
 
-//	restorekernvars(); // restore previous variables -> not needed anymore
     return 0;
 }
