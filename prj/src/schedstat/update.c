@@ -268,6 +268,7 @@ int get_sched_info(node_t * item)
 				long long diff = (num-item->mon.dl_deadline)-item->attr.sched_period;			
 				if (diff)  {
 					if (0 == diff % item->attr.sched_period) 
+						// difference is exact multiple of period => scan fail? 
 						item->mon.dl_scanfail++;
 					else {
 						item->mon.dl_overrun++;
@@ -644,8 +645,8 @@ void *thread_update (void *arg)
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
 	ret = clock_gettime(clocksources[clocksel], &intervaltv);
-	if (ret != 0) {
-		if (ret != EINTR)
+	if (0 != ret) {
+		if (EINTR != ret)
 			warn("clock_gettime() failed: %s", strerror(errno));
 		*pthread_state=-1;
 	}
@@ -661,14 +662,14 @@ void *thread_update (void *arg)
 			*pthread_state=1; // must be first thing! -> main writes -1 to stop
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
-			if (ticksps<1) { // must always be greater 0 
+			if (1 > ticksps) { // must always be greater 0 
 				warn("could not read clock tick config!\n");
 				break;
 			}
 			else{ 
 				// clock settings found -> check for validity
 				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
-				if (500000000/ticksps > interval*1000)  
+				if (500000/ticksps > interval)  
 					warn("-- scan time more than double the debug update rate. On purpose? (obsolete kernel value) -- \n");
 			}
 			if (SCHED_OTHER != policy) { // TODO: set niceness for other/bash?
@@ -727,8 +728,8 @@ void *thread_update (void *arg)
 
 			// Done -> print total runtime
 			ret = clock_gettime(clocksources[clocksel], &diff);
-			if (ret != 0) {
-				if (ret != EINTR)
+			if (0 != ret) {
+				if (EINTR != ret)
 					warn("clock_gettime() failed: %s", strerror(errno));
 				*pthread_state=-1;
 			}
@@ -757,9 +758,9 @@ void *thread_update (void *arg)
 
 			// sleep for interval nanoseconds
 			ret = clock_nanosleep(clocksources[clocksel], TIMER_ABSTIME, &intervaltv, NULL);
-			if (ret != 0) {
+			if (0 != ret) {
 				// TODO: what-if?
-				if (ret != EINTR) {
+				if (EINTR != ret) {
 					warn("clock_nanosleep() failed. errno: %s\n",strerror (ret));
 				}
 				*pthread_state=-1;
