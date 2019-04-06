@@ -378,21 +378,21 @@ When working with strings and buffers, such as configuration files, particular a
 This is a general weakness as documented in the CWE database. % add here reference to CWE
 Finally, the combination of configuration file containing all process details and the command arguments, needed for example to select configuration file and set verbosity, might be the best option.
 
-%\subsection{Logging and internal monitoring}
-% No sense anymore.. :?<>
+\subsection{Logging and internal monitoring}
+
 %%% How
-%RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
-%This thus does not allow to use the default logging function for continuous monitoring purposes.
-%If a ring-buffer is set in the configuration settings, the buffer is written to file only once the test is finished or interrupted. 
-%Thus, an adaptation of the logging function might be needed to allow readout of the task's performance.
-%The source code is available and written in C. Changes should therefore be no major problem.
-%
+RT-app includes a logging function to keep track of all tasks activity during execution. The logging itself writes to a file without rotation or buffers.
+This thus does not allow to use the default logging function for continuous monitoring purposes.
+If a ring-buffer is set in the configuration settings, the buffer is written to file only once the test is finished or interrupted. 
+Thus, an adaptation of the logging function might be needed to allow readout of the task's performance.
+The source code is available and written in C. Changes should therefore be no major problem.
+
 %%% In the program
-%Some minor changes to the logging function have been successfully tested. Insertion of the ring-buffer dump every time it's capacity has been reached and overwriting of the log-file works as expected.
-%Issues that might be encountered are the high load to disk I/O if a small disks buffer size forces to write to file, and consequently induces delays.
+Some minor changes to the logging function have been successfully tested. Insertion of the ring-buffer dump every time it's capacity has been reached and overwriting of the log-file works as expected.
+Issues that might be encountered are the high load to disk I/O if a small disks buffer size forces to write to file, and consequently induces delays.
 %
 %%% Considerations
-%An option to consider might be the writing to the stdout and piping the process to the Icinga plugin. 
+An option to consider might be the writing to the stdout or a named FIFO buffer and piping the process to the Icinga plugin. 
 
 \subsection{Icinga plugin}
 
@@ -401,19 +401,15 @@ To monitor the app, the interaction of orchestrator and the monitoring software 
 Icinga is a host-client system and relies on daemons and plugins on-site to exchange data. 
 To reduce the overhead for the system, the orchestrator will share the obtained process details from the scheduler with the plugin running on our real-time host.
 In addition, Docker creates CGroups for the running containers, giving the monitoring process access to useful network and memory information.
-%Other data that can be read is the network throughput. Although it might influence the performance , in particular if we want to implement time sensitive networks.
-%The overhead of the virtual internal network could push on the actual performance. 
-%We should check if there is a way of reading io of the network without having to create a virtual subnet.
 Also, possible might be to read disk I/O of a container, even though it could be that it is not necessary. 
-%TODO: NOTE Is there an Icinga plugin made for docker containers already available that can be adapted?
+The Icinga plugin made for Docker available online has a few limitations. In particular, it is limited to standard values such as CPU usage and network throughput.
+Additional statistics, such as deadline miss or monitoring of process execution itself might be acquired via a modified version of the plugin. 
+
 %
 %% In the program
 %
 %% Considerations
-The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin} are used to create the proper plugin output.
-
-
-% Time syncronous network (TSN) maybe necessary
+The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin}, the open source parent of Icinga, are used to create the proper plugin output.
 
 \subsection{Thread and process communication}
 
@@ -489,6 +485,7 @@ This also means that quasi-static scheduling and similar approaches that opt to 
 The tasks may exceed the deadline, but in low probability and contemporaneity
 we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
 
+% Time syncronous network (TSN) maybe necessary
 
 
 %% Considerations
