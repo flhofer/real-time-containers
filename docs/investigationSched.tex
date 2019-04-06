@@ -407,13 +407,14 @@ Additional statistics, such as deadline miss or monitoring of process execution 
 
 %
 %% In the program
+
 %
 %% Considerations
 The instructions for a \href{{https://nagios-plugins.org/doc/guidelines.html#DEVREQUIREMENTS}}{Nagions plugin}, the open source parent of Icinga, are used to create the proper plugin output.
+The test development is stored in git under {src/check\_dockerRT/}.
 
 \subsection{Thread and process communication}
 
-%TODO: detail fifo, correct signal and int specifications
 %% How
 Finally, we have to specify how threads and tasks may communicate.
 The communication between the running software can be performed in different ways:
@@ -429,24 +430,35 @@ The communication between the running software can be performed in different way
 	\item shared memory - probably the easiest and fastest type. The advantage in case of threads is that they share memory. Thus the only additional feature we need are locks/semaphores. Then, data can be exchanged in shared locations or FIFO buffers.
 \end{enumerate}
 The easiest approach for the orchestrator's threads is to use shared memory and a semaphore/mutex. 
-On the other hand, the most flexible is via sockets which will be used for the communication of orchestrator and monitoring plugin.
+On the other hand, sockets and fifo pipes are more flexible. Thus, the latter will be used for the communication of orchestrator and monitoring plugin.
 
 %% In the program
 In our test implementation we add a pthread\_mutex\_t to be acquired before every access to the PID list.
 This way it is possible to instantiate a simple mechanism of intrinsic communication, without having to specify any additional data and protocol.
 The program changes are minimal and thus the code remains as readable as before.
-%TODO: socket implementation description
-Implementation details for sockets have still to be investigated.
+A fifo buffer, or a named pipe, will be used to pass run statistics to the planned Icinga plugin.
+The pipe is simply opened creating a virtual file descriptor and connect both communication partners.  Management and information passing is done as if it were a file.
 
 %% Considerations
 The two threads can manage the list independently as before. On every execution the actual thread has exclusive access to the list.
 This way, thread one can drop any removed item simply from the list and add new PIDs once discovered. 
-Thread two has to scan the PID list anyway.on the other hand
-If new empty items are found, the settings are populated and resources allocated and scheduled.
-The important part here is to assure that the critical section and the new task default resources are not part of the managed spectrum.
-Any new entry has to be reallocated as soon as possible, but at the same time, there must be found a way to allocate new containers by default to specific resources.
-%TODO: socket implementation description
-Considerations for a socket implementation have still to be taken.
+Thread two has to scan the PID list anyway.
+If new items are found, the settings are populated and resources allocated and scheduled.
+
+\section{Implementation performance tests}
+\label{sec:perftest}
+
+In this section we detail function, implementation and tests of the orchestrator.
+First we discuss implemented functionality and assumptions taken. Second, we describe the structure of the program, detailed by source file. 
+Third, a test setup and results are described.
+
+\subsection{Function principle}
+
+The orchestrator's primary goal is to allocate container resources in order to mantain determinism at best.
+To achieve this, containers and their running processes have to be confined in their execution context. 
+We have seen in Section \ref{sec:mgmttest} different techniques how such an isolation can be obtained. 
+
+, limited and assigned to group resources
 
 
 %GENERAL NOTES 
@@ -471,9 +483,6 @@ Considerations for a socket implementation have still to be taken.
 %paper alberto -> scheduling integer linear,
 %-> forward 
 %ballarin, 
-
-\section{Implementation performance tests}
-\label{sec:perftest}
 
 %TESTS STATIC AND DYNAMIC
 
