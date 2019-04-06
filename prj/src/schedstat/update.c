@@ -30,14 +30,14 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) \n"
+	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) - sum diff \n"
 			         "----------------------------------------\n" );
 	// for now does only a simple update count
 	if (!item) {
 		(void)printf("(no PIDs)\n");
 	}
 	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld/%ld)\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail);
+		(void)printf("PID %d: %ld(%ld/%ld/%ld) - %ld\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail, item->mon.dl_diff);
 
 	item=item->next; 
 	}
@@ -94,12 +94,12 @@ int get_sched_info(node_t * item)
 			item->mon.dl_start = num*1000000+x;
 //			printf("PID %d, %ld\n", item->pid, item->mon.dl_start);
 		}*/
-		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
+		if (strncasecmp(ltag, "dl.runtime", 10) == 0)	{
 			item->mon.dl_rt = num;
 //			if (num < 0)
 //					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
-		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
+		if (strncasecmp(ltag, "dl.deadline", 11) == 0)	{
 			item->mon.dl_scount++;
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
@@ -107,14 +107,18 @@ int get_sched_info(node_t * item)
 				item->mon.dl_count++;
 				// modulo? inprobable skip?			
 				long long diff = (num-item->mon.dl_deadline)-item->attr.sched_period;			
+
+				// difference is very close to multiple of period we might have a scan fail 
+				if (abs(10 * diff) >= 9 * item->attr.sched_period) { 
+					item->mon.dl_scanfail++;
+					diff %= item->attr.sched_period;
+				}
 				if (diff)  {
-					if (0 == diff % item->attr.sched_period) 
-						// difference is exact multiple of period => scan fail? 
-						item->mon.dl_scanfail++;
-					else {
+					item->mon.dl_diff += diff;
+					// TODO: verify this: we have jitter but execution stays constant
+					if (abs(item->mon.dl_diff) >= item->attr.sched_period || abs(diff) > 100000) {
 						item->mon.dl_overrun++;
-						printf("\n");
-						warn("PID %d Deadline overrun by %lldns\n", item->pid, diff); 
+						printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
 					}
 				}
 				item->mon.dl_deadline = num;
@@ -488,7 +492,8 @@ void *thread_update (void *arg)
 		case 0:			
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
-			// get jiffies per sec -> to ms
+			cont("Sample time set to %dus.\n", interval);
+				// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (1 > ticksps) { // must always be greater 0 
 				warn("could not read clock tick config!\n");
@@ -506,9 +511,9 @@ void *thread_update (void *arg)
 				if (SCHED_DEADLINE == policy) {
 					struct sched_attr scheda  = { 48, 
 												SCHED_DEADLINE,
+												0,// TODO : reset on fork should help for deadline and PID - , SCHED_FLAG_RECLAIM,
 												0,
 												0,
-												priority,
 												update_wcet, interval, interval
 												};
 
@@ -570,7 +575,8 @@ void *thread_update (void *arg)
 		}
 
 		if (SCHED_DEADLINE == policy){
-			// update timefor runtime check
+			// TODO: fix deadline -> not working correctly with preemption
+			// update time for runtime check
 			if (runtime) {
 				ret = clock_gettime(clocksources[clocksel], &intervaltv);
 				if (0 != ret) {

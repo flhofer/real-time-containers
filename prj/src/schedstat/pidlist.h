@@ -15,6 +15,7 @@ struct sched_mon { // actual values for monitoring
 	uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 	uint64_t dl_rt;			// deadline last runtime value
 	uint64_t dl_deadline;	// deadline last absolute value
+	uint64_t dl_diff;		// deadline diff sum!
 	uint64_t dl_overrun;	// overrun count
 };
 
