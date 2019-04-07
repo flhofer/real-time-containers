@@ -110,7 +110,11 @@ int get_sched_info(node_t * item)
 				// deadline update counter, tick up				
 				item->mon.dl_count++;
 				// calculate difference to last reading, should be 1 period, hence here 0
-				int64_t diff = (int64_t)(num-item->mon.dl_deadline)-item->attr.sched_period;			
+				int64_t diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;			
+
+				// grub allows down-corrections
+				if (negiszero && diff < 0)				
+						diff = 0;
 
 				// difference is very close to multiple of period we might have a scan fail 
 				while (abs(100 * diff) >= 90 * item->attr.sched_period) { 

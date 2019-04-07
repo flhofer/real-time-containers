@@ -41,6 +41,7 @@ int interval = TSCAN;
 int update_wcet = TWCET;
 int loops = TDETM;
 int runtime = 0;
+int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
 
@@ -481,6 +482,7 @@ static void display_help(int error)
 #endif
 //	       "-v       --verbose         output values on stdout for statistics\n"
 	       "-w       --wcet            WCET runtime for deadline policy in us, default=%d\n"
+	       "-0                         negative deadlined difference are 0 (if GRUB is active\n"
 			, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
@@ -536,7 +538,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:qr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:qr:s::t:uUvw:0?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -658,6 +660,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'w':
 		case OPT_WCET:
 			update_wcet = atoi(optarg); break;
+		case '0':
+			negiszero = 1; break;
 		case '?':
 		case OPT_HELP:
 			display_help(0); break;
