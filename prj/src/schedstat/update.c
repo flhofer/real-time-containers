@@ -8,6 +8,7 @@
 // Global variables used here ->
 static char *fileprefix;
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
+static uint64_t scount = 0; // total scan count
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
@@ -30,18 +31,25 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	(void)printf("\n\nStats- PID - Overshoots(total/scan/corr/fail) - sum diff (min/max/avg)\n"
-			         "-----------------------------------------------------------------\n" );
+	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
+					" (others are omitted)\n"
+					"Average exponential with alpha=0.9\n\n"
+					"PID - Cycle Overruns(total/found/fail) - sum diff (min/max/avg)\n"
+			        "---------------------------------------------------------------\n",
+					scount );
+
 	// for now does only a simple update count
 	if (!item) {
 		(void)printf("(no PIDs)\n");
 	}
-	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
-			item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_ccount, item->mon.dl_scanfail, 
+	while (item) {
+		if (SCHED_DEADLINE == item->attr.sched_policy) 
+		(void)printf("%5d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+			item->pid, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+			item->mon.dl_count, item->mon.dl_scanfail, 
 			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 
-	item=item->next; 
+		item=item->next; 
 	}
 
 }
@@ -83,7 +91,7 @@ int get_sched_info(node_t * item)
 	fclose (fp);
 
 	uint64_t num;
-	item->mon.dl_scount++; // increase scan-count
+	int64_t diff;
 
 	s = strtok (szStatBuff, "\n");
 	while (NULL != s) {
@@ -107,49 +115,35 @@ int get_sched_info(node_t * item)
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
-				// calculate difference to last reading, should be 1 period
-				int64_t diff = (int64_t)(num-item->mon.dl_deadline);
-
-				// is the update only a tick correction ?
-				if (abs(diff) < TSCHS) {
-					item->mon.dl_ccount++;								
-
-					item->mon.dl_diff += diff;
-
-					// meh... TODO verify
-					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
-					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
-					// exponentially weighted moving average
-					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
-
-					break; // we're done reading
-				}
-
 				// it's not, updated deadline found
 				item->mon.dl_count++;
-
-				// remove a period;
-				diff -= (int64_t)item->attr.sched_period;			
+\
+				// calculate difference to last reading, should be 1 period
+				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
 
 				// difference is very close to multiple of period we might have a scan fail
+				// in addition to the overshoot
 				while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) { 
 					item->mon.dl_scanfail++;
 					diff -= (int64_t)item->attr.sched_period;
 				}
+
+				// overrun-GRUB handling statistics -- ?
 				if (diff)  {
+					item->mon.dl_overrun++;
 					item->mon.dl_diff += diff;
 
 					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
 					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
-					// exponentially weighted moving average
-					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
 
 					// usually: we have jitter but execution stays constant -> more than a slot?
-					if (abs(diff) > TSCHS) {
-						item->mon.dl_overrun++;
-						warn("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
-					}
+					printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n",
+						item->pid, diff, item->mon.dl_diff); 
 				}
+
+				// exponentially weighted moving average, alpha = 0.9
+				item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
+
 				item->mon.dl_deadline = num;
 			}	
 			break; // we're done reading
@@ -180,6 +174,7 @@ int updateStats ()
 	// init head
 	node_t * item = head;
 
+	scount++; // increase scan-count
 	// for now does only a simple update
 	while (item != NULL) {
 

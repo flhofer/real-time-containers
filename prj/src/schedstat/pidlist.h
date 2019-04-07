@@ -10,17 +10,15 @@ struct sched_mon { // actual values for monitoring
 /*	uint64_t rt_min;
 	uint64_t rt_avg;
 	uint64_t rt_max;*/
-	uint64_t dl_count;		// deadline verification count
-	uint64_t dl_ccount;		// deadline correction count
-	uint64_t dl_scount;		// deadline scan count
+	uint64_t dl_count;		// deadline verification/change count
 	uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 	uint64_t dl_overrun;	// overrun count
 	uint64_t dl_deadline;	// deadline last absolute value
 	int64_t  dl_rt;			// deadline last runtime value
-	int64_t  dl_diff;		// deadline diff sum!
-	int64_t  dl_diffmin;	// diff min peak, filtered
-	int64_t  dl_diffavg;	// diff avg sqr, filtered
-	int64_t  dl_diffmax;	// diff max peak, filtered
+	int64_t  dl_diff;		// overrun-GRUB handling : deadline diff sum!
+	int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
+	int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
+	int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
 };
 
 typedef struct sched_pid { // pid mamagement and monitoring info
