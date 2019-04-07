@@ -30,14 +30,16 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) - sum diff \n"
-			         "----------------------------------------\n" );
+	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) - sum diff (min/max/avg)\n"
+			         "-----------------------------------------------------------------\n" );
 	// for now does only a simple update count
 	if (!item) {
 		(void)printf("(no PIDs)\n");
 	}
 	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld/%ld) - %ld\n", item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail, item->mon.dl_diff);
+		(void)printf("PID %d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+			item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail, 
+			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 
 	item=item->next; 
 	}
@@ -80,10 +82,12 @@ int get_sched_info(node_t * item)
 
 	fclose (fp);
 
-	long long num;
+	uint64_t num;
+	item->mon.dl_scount++; // increase scan-count
+
 	s = strtok (szStatBuff, "\n");
 	while (NULL != s) {
-		(void)sscanf(s,"%s %*c %lld", ltag, &num);
+		(void)sscanf(s,"%s %*c %ld", ltag, &num);
 //DBG		printf("%s - %lld\n", ltag, num);
 		
 //		printf("%s, %lld\n", ltag, num);
@@ -100,23 +104,32 @@ int get_sched_info(node_t * item)
 //					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
 		if (strncasecmp(ltag, "dl.deadline", 11) == 0)	{
-			item->mon.dl_scount++;
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
+				// deadline update counter, tick up				
 				item->mon.dl_count++;
-				// modulo? inprobable skip?			
-				long long diff = (num-item->mon.dl_deadline)-item->attr.sched_period;			
+				// calculate difference to last reading, should be 1 period, hence here 0
+				int64_t diff = (int64_t)(num-item->mon.dl_deadline)-item->attr.sched_period;			
 
 				// difference is very close to multiple of period we might have a scan fail 
-				if (abs(10 * diff) >= 9 * item->attr.sched_period) { 
+				while (abs(100 * diff) >= 90 * item->attr.sched_period) { 
 					item->mon.dl_scanfail++;
-					diff %= item->attr.sched_period;
+					if (diff > 0)
+						diff -= item->attr.sched_period;
+					else
+						diff += item->attr.sched_period;
 				}
 				if (diff)  {
 					item->mon.dl_diff += diff;
+
+					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+					// exponentially weighted moving average
+					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
+
 					// TODO: verify this: we have jitter but execution stays constant
-					if (abs(item->mon.dl_diff) >= item->attr.sched_period || abs(diff) > 100000) {
+					if (abs(diff) > 100000) {
 						item->mon.dl_overrun++;
 						printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
 					}
@@ -180,9 +193,6 @@ int updateStats ()
 				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
 			} 
 		}
-
-		// exponentially weighted moving average
-		//item->mon.rt_avg = item->mon.rt_avg * 0.9 + item.attr;
 
 		item=item->next; 
 	}

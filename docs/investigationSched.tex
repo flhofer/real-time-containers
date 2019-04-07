@@ -456,10 +456,30 @@ Third, a test setup and results are described.
 
 The orchestrator's primary goal is to allocate container resources in order to mantain determinism at best.
 To achieve this, containers and their running processes have to be confined in their execution context. 
-We have seen in Section \ref{sec:mgmttest} different techniques how such an isolation can be obtained. 
+We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such an isolation. 
+In section \ref{sec:testimp} these techniques have then be used to explore the appplication of those to check, maintain and monitor running containers.
+In the following we will describe the final implementation and its functions.
 
-, limited and assigned to group resources
 
+
+%% Considerations
+% Considerations wrong for the static version of the scheduler
+%This is the last active section of the test implementation and probably the most complicated as well.
+%The ideal resource management is hard to guarantee.
+%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
+%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
+%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
+%Such algorithms must surely be reevaluated for the dynamic scheduling version.
+
+%TESTS STATIC AND DYNAMIC
+
+The dynamic scheduling will therefore be done at best using the following considerations.
+For simplicity, we suppose that the real-time software running in the various containers is all independent. 
+The processes will be considered as black boxes where we do neither have specifications, nor  source code. 
+There exist quasi static approaches to improve the schedulability, but they suffer from an openness constraint.
+This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
+The tasks may exceed the deadline, but in low probability and contemporaneity
+we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
 
 %GENERAL NOTES 
 %Heuristic bound, wc has to be satisfied
@@ -484,35 +504,13 @@ We have seen in Section \ref{sec:mgmttest} different techniques how such an isol
 %-> forward 
 %ballarin, 
 
-%TESTS STATIC AND DYNAMIC
-
-The dynamic scheduling will therefore be done at best using the following considerations.
-For simplicity, we suppose that the real-time software running in the various containers is all independent. 
-The processes will be considered as black boxes where we do neither have specifications, nor  source code. 
-There exist quasi static approaches to improve the schedulability, but they suffer from an openness constraint.
-This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
-The tasks may exceed the deadline, but in low probability and contemporaneity
-we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
 
 % Time syncronous network (TSN) maybe necessary
 
 
-%% Considerations
-% Considerations wrong for the static version of the scheduler
-%This is the last active section of the test implementation and probably the most complicated as well.
-%The ideal resource management is hard to guarantee.
-%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
-%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
-%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
-%Such algorithms must surely be reevaluated for the dynamic scheduling version.
-
-
-\lipsum[3]
 
 \section{Conclusions}
 \label{sec:conclusions}
-
-\lipsum[1]
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,bibliography,paper3}
