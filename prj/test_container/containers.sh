@@ -50,7 +50,8 @@ elif [[ "$cmd" == "run" ]]; then
 
 	for filename in rt-app-tst-${grp}*.json; do
 		filen="${filename%%.*}"
-		eval "docker run --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
+		eval "mkdir ${filen}"
+		eval "docker run -v ${PWD}/${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
 	done
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then

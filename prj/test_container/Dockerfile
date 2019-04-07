@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 #Notes! here we shoud add users and groups - or run with usermask
 
 RUN mkdir /home/rtuser
+RUN mkdir /home/rtuser/log
 WORKDIR /home/rtuser 
 COPY rt-app-tst*.json ./
 COPY rt-app .
