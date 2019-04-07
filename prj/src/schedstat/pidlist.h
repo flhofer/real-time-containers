@@ -11,6 +11,7 @@ struct sched_mon { // actual values for monitoring
 	uint64_t rt_avg;
 	uint64_t rt_max;*/
 	uint64_t dl_count;		// deadline verification count
+	uint64_t dl_ccount;		// deadline correction count
 	uint64_t dl_scount;		// deadline scan count
 	uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 	uint64_t dl_overrun;	// overrun count

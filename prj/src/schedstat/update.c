@@ -30,15 +30,15 @@ static inline void tsnorm(struct timespec *ts)
 void dumpStats (){
 
 	node_t * item = head;
-	(void)printf("\n\nStats- PID - Overshoots(total/scan/fail) - sum diff (min/max/avg)\n"
+	(void)printf("\n\nStats- PID - Overshoots(total/scan/corr/fail) - sum diff (min/max/avg)\n"
 			         "-----------------------------------------------------------------\n" );
 	// for now does only a simple update count
 	if (!item) {
 		(void)printf("(no PIDs)\n");
 	}
 	while (item != NULL) {
-		(void)printf("PID %d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
-			item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_scanfail, 
+		(void)printf("PID %d: %ld(%ld/%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+			item->pid, item->mon.dl_overrun, item->mon.dl_count, item->mon.dl_scount, item->mon.dl_ccount, item->mon.dl_scanfail, 
 			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 
 	item=item->next; 
@@ -107,19 +107,34 @@ int get_sched_info(node_t * item)
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
-				// deadline update counter, tick up				
+				// calculate difference to last reading, should be 1 period
+				int64_t diff = (int64_t)(num-item->mon.dl_deadline);
+
+				// is the update only a tick correction ?
+				if (abs(diff) < TSCHS) {
+					item->mon.dl_ccount++;								
+
+					item->mon.dl_diff += diff;
+
+					// meh... TODO verify
+					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+					// exponentially weighted moving average
+					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
+
+					break; // we're done reading
+				}
+
+				// it's not, updated deadline found
 				item->mon.dl_count++;
-				// calculate difference to last reading, should be 1 period, hence here 0
-				int64_t diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;			
 
-				// grub allows down-corrections
-//				if (negiszero && diff < -TSCHS)// TODO, always for grub enabled kernels			
-//						diff = 0;
+				// remove a period;
+				diff -= (int64_t)item->attr.sched_period;			
 
-				// difference is very close to multiple of period we might have a scan fail 
-				while (diff >= (item->attr.sched_period - TSCHS) ) { 
+				// difference is very close to multiple of period we might have a scan fail
+				while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) { 
 					item->mon.dl_scanfail++;
-					diff -= item->attr.sched_period;
+					diff -= (int64_t)item->attr.sched_period;
 				}
 				if (diff)  {
 					item->mon.dl_diff += diff;
@@ -129,10 +144,10 @@ int get_sched_info(node_t * item)
 					// exponentially weighted moving average
 					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
 
-					// TODO: verify this: we have jitter but execution stays constant
-					if (abs(diff) > TSCHS) { // size of scheduler's slot TODO
+					// usually: we have jitter but execution stays constant -> more than a slot?
+					if (abs(diff) > TSCHS) {
 						item->mon.dl_overrun++;
-						printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
+						warn("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
 					}
 				}
 				item->mon.dl_deadline = num;
