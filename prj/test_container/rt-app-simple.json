@@ -2,13 +2,13 @@
 	"tasks" : {
 		"thread1" : {
 			"policy" : "SCHED_DEADLINE",
-			"dl-runtime" : 1000,
+			"dl-runtime" : 1200,
 			"dl-period" : 10000,
 			"dl-deadline" : 8000,
 			"phases" : {
 				"phase1" : {
 					"run" : 1000,
-					"timer" : { "ref" : "uniqueA", "period" : 10000 }
+					"yield" : "",
 				}
 			}
 		}
