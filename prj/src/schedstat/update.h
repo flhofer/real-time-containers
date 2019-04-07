@@ -46,7 +46,7 @@
 	extern int kernelversion; // using kernel version.. 
 	extern int setdflag; // set deadline overrun flag? for DL processes?
 	extern int runtime; // test runtime -> 0 = infinite
-	extern int negiszero; // treat negative deadline difference as zero
+//	extern int negiszero; // treat negative deadline difference as zero
 
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;

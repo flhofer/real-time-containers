@@ -113,16 +113,13 @@ int get_sched_info(node_t * item)
 				int64_t diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;			
 
 				// grub allows down-corrections
-				if (negiszero && diff < 0)				
-						diff = 0;
+//				if (negiszero && diff < -TSCHS)// TODO, always for grub enabled kernels			
+//						diff = 0;
 
 				// difference is very close to multiple of period we might have a scan fail 
-				while (abs(100 * diff) >= 90 * item->attr.sched_period) { 
+				while (diff >= (item->attr.sched_period - TSCHS) ) { 
 					item->mon.dl_scanfail++;
-					if (diff > 0)
-						diff -= item->attr.sched_period;
-					else
-						diff += item->attr.sched_period;
+					diff -= item->attr.sched_period;
 				}
 				if (diff)  {
 					item->mon.dl_diff += diff;
@@ -133,7 +130,7 @@ int get_sched_info(node_t * item)
 					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff)/10;
 
 					// TODO: verify this: we have jitter but execution stays constant
-					if (abs(diff) > 100000) {
+					if (abs(diff) > TSCHS) { // size of scheduler's slot TODO
 						item->mon.dl_overrun++;
 						printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n", item->pid, diff, item->mon.dl_diff); 
 					}
