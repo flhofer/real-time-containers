@@ -34,8 +34,8 @@ void dumpStats (){
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"
-					"PID - Cycle Overruns(total/found/fail) - sum diff (min/max/avg)\n"
-			        "---------------------------------------------------------------\n",
+					"PID - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
+			        "----------------------------------------------------------------------------------\n",
 					scount );
 
 	// for now does only a simple update count
@@ -44,9 +44,10 @@ void dumpStats (){
 	}
 	while (item) {
 		if (SCHED_DEADLINE == item->attr.sched_policy) 
-		(void)printf("%5d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+		(void)printf("%5d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
 			item->pid, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 			item->mon.dl_count, item->mon.dl_scanfail, 
+			item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 
 		item=item->next; 
@@ -90,8 +91,9 @@ int get_sched_info(node_t * item)
 
 	fclose (fp);
 
-	uint64_t num;
-	int64_t diff;
+	int64_t num;
+	int64_t diff = 0;
+	int64_t ltrt = 0; // last seen runtime
 
 	s = strtok (szStatBuff, "\n");
 	while (NULL != s) {
@@ -106,18 +108,19 @@ int get_sched_info(node_t * item)
 			item->mon.dl_start = num*1000000+x;
 //			printf("PID %d, %ld\n", item->pid, item->mon.dl_start);
 		}*/
-		if (strncasecmp(ltag, "dl.runtime", 10) == 0)	{
-			item->mon.dl_rt = num;
+		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
+			// store last seen runtime
+			ltrt = num;
 //			if (num < 0)
 //					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
-		if (strncasecmp(ltag, "dl.deadline", 11) == 0)	{
+		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
 				// it's not, updated deadline found
 				item->mon.dl_count++;
-\
+
 				// calculate difference to last reading, should be 1 period
 				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
 
@@ -144,8 +147,18 @@ int get_sched_info(node_t * item)
 				// exponentially weighted moving average, alpha = 0.9
 				item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
 
+				// runtime replenished - deadline changed: old value may be real RT ->
+				// Works only if scan time < slack time 
+				diff = item->mon.dl_rt;
+				item->mon.rt_min = MIN (item->mon.rt_min, diff);
+				item->mon.rt_max = MAX (item->mon.rt_max, diff);
+				item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+
 				item->mon.dl_deadline = num;
 			}	
+
+			// update last seen runtime
+			item->mon.dl_rt = ltrt;
 			break; // we're done reading
 		}
 		s = strtok (NULL, "\n");	

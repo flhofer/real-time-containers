@@ -7,9 +7,9 @@
 #define __PIDLIST_
 
 struct sched_mon { // actual values for monitoring
-/*	uint64_t rt_min;
-	uint64_t rt_avg;
-	uint64_t rt_max;*/
+	int64_t rt_min;
+	int64_t rt_avg;
+	int64_t rt_max;
 	uint64_t dl_count;		// deadline verification/change count
 	uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 	uint64_t dl_overrun;	// overrun count

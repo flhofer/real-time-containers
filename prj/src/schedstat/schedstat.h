@@ -49,7 +49,6 @@
 	#define TSCAN 5000 // scan time of updates
 	#define TWCET 1024 	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
-	#define TSCHS 1024000 // scheduler slot in nanoseconds -> scheduler granularity
 	#define CONT_PPID "docker-containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
 
