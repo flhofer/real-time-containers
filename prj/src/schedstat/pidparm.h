@@ -5,10 +5,11 @@
 #ifndef __PIDPARM_
 #define __PIDPARM_
 
-#define SIG_LEN 65	// increased to 64 -> standard lenght of container IDs for docker
+#define SIG_LEN 65		// increased to 64 -> standard lenght of container IDs for docker
+#define SCHED_NODATA 99 // constant for no scheduling data
 
 struct sched_rscs { // resources 
-	int affinity; // exclusive cpu-num
+	int32_t affinity; // exclusive cpu-num
 	// TODO: fill with other values, i.e. memory bounds ecc
 };
 

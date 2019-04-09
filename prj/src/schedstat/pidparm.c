@@ -5,6 +5,8 @@
 void ppush(parm_t ** head) {
     parm_t * new_node;
     new_node = calloc(sizeof(parm_t), 1);
+	// if any sched parameter is set, policy must also be set
+	new_node->attr.sched_policy = SCHED_NODATA; // default for not set.
 
     new_node->next = *head;
     *head = new_node;

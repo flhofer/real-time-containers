@@ -178,8 +178,6 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		if (2 == depth) {
 			printDbg("Adding new item:\n");
 			ppush (&phead);
-			// if any sched parameter is set, policy must also be set
-			phead->attr.sched_policy = -1; // default for not set.
 		}
 
 		// printout 
@@ -302,7 +300,6 @@ again:
 ///
 /// Return value: pointer to parameters
 ///
-
 int findParams(node_t* node){
 
 	parm_t * curr = phead;
@@ -379,7 +376,6 @@ int updateSched() {
 
 	while (NULL != current) {
 		
-
 		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
@@ -387,6 +383,17 @@ int updateSched() {
 			info("new pid in list %d\n", current->pid);
 
 			if (!findParams(current)) // parameter set found in list -> assign and update
+				// precompute affinity
+				if (0 <= current->param->rscs.affinity) {
+					// cpu affinity defined to one cpu?
+					CPU_ZERO(&cset);
+					CPU_SET(current->param->rscs.affinity, &cset);
+				}
+				else {
+					// cpu affinity to all
+					cset = cset_full;
+				}
+
 				// TODO: might want to put this into a function. Multiple use
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
@@ -401,7 +408,7 @@ int updateSched() {
 					// TODO: track failed scheduling update?
 
 					// only do if different than -1, <- not set values
-					if (-1 != current->param->attr.sched_policy) {
+					if (SCHED_NODATA != current->param->attr.sched_policy) {
 						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,
 							policy_to_string(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
@@ -411,16 +418,6 @@ int updateSched() {
 					else
 						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
 
-					if (0 <= current->param->rscs.affinity) {
-						// cpu affinity defined to one cpu?
-						CPU_ZERO(&cset);
-						CPU_SET(current->param->rscs.affinity, &cset);
-					}
-					else {
-						// cpu affinity to all
-						cset = cset_full;
-					}
-
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
 							current->pid, strerror(errno));
@@ -428,13 +425,14 @@ int updateSched() {
 						cont("PID %d reassigned to CPU%d\n", current->pid, 
 							current->param->rscs.affinity);
 				}
-				else if (affother)
+				else if (affother) {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
 							current->pid, strerror(errno));
 					else
 						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid,
 							current->param->rscs.affinity);
+				}
 				else
 					cont("Skipping non-RT PID %d from rescheduling\n", current->pid);
 		}

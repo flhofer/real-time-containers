@@ -31,16 +31,18 @@ char * config = "config.json";
 char * cont_ppidc = CONT_PPID;
 char * cont_pidc = CONT_PID;
 
-int priority=0;
-int clocksel = 0;
-int policy = SCHED_OTHER;	/* default policy if not specified */
-int quiet = 0;
-int affother = 0;
-int setdflag = 0;
-int interval = TSCAN;
-int update_wcet = TWCET;
-int loops = TDETM;
-int runtime = 0;
+// parameters
+int priority=0;				// priority parameter for FIFO and RR
+int clocksel = 0;			// selected clock 
+int policy = SCHED_OTHER;	// default policy if not specified
+int quiet = 0;				// quiet enabled TODO
+int affother = 0;			// set affinity of parent as well
+int setdflag = 0;			// set deadline overrun flag
+int interval = TSCAN;		// scan interval
+int update_wcet = TWCET;	// wcet for sched deadline
+int loops = TDETM;			// determinism
+int runtime = 0;			// total orchestrator runtime, 0 is infinite
+int psigscan = 0;			// scan for child threads, -n option only
 //int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
@@ -470,6 +472,7 @@ static void display_help(int error)
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
+	       "-P                         for option -n, sig is parent, scan for children threads\n"
 //	       "-q       --quiet           print a summary only on exit\n"
 	       "-r RTIME --runtime=RTIME   set a maximum runtime in seconds, default=0(infinite)\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
@@ -537,7 +540,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:qr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:Pqr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -604,6 +607,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
 				policy = SCHED_FIFO;
 			break;
+		case 'P':
+			psigscan = 1; break;
 		case 'q':
 		case OPT_QUIET:
 			quiet = 1; break;
@@ -691,7 +696,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	}
 
 	// deadline and high refresh might starve the system. require force
-	if (SCHED_DEADLINE == policy && interval < 10000 && !force) {
+	if (SCHED_DEADLINE == policy && interval < 1000 && !force) {
 		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
 		error = 1;
 	}

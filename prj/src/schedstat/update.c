@@ -111,6 +111,8 @@ int get_sched_info(node_t * item)
 		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
 			// store last seen runtime
 			ltrt = num;
+			if (num != item->mon.dl_rt)
+				item->mon.dl_count++;
 //			if (num < 0)
 //					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
@@ -119,7 +121,7 @@ int get_sched_info(node_t * item)
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
 				// it's not, updated deadline found
-				item->mon.dl_count++;
+//				item->mon.dl_count++;
 
 				// calculate difference to last reading, should be 1 period
 				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
@@ -134,22 +136,22 @@ int get_sched_info(node_t * item)
 				// overrun-GRUB handling statistics -- ?
 				if (diff)  {
 					item->mon.dl_overrun++;
-					item->mon.dl_diff += diff;
-
-					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
-					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
 
 					// usually: we have jitter but execution stays constant -> more than a slot?
 					printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n",
 						item->pid, diff, item->mon.dl_diff); 
 				}
 
+				item->mon.dl_diff += diff;
+				item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+				item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+
 				// exponentially weighted moving average, alpha = 0.9
 				item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
 
 				// runtime replenished - deadline changed: old value may be real RT ->
 				// Works only if scan time < slack time 
-				diff = item->mon.dl_rt;
+				diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
 				item->mon.rt_min = MIN (item->mon.rt_min, diff);
 				item->mon.rt_max = MAX (item->mon.rt_max, diff);
 				item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
@@ -192,7 +194,7 @@ int updateStats ()
 	while (item != NULL) {
 
 		// update only when defaulting -> new entry
-		if (-1 == item->attr.sched_policy) {
+		if (SCHED_NODATA == item->attr.sched_policy) {
 			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
 
 				warn("Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
@@ -317,7 +319,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 /// getpids(): utility function to get list of PID
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
-///			   - tag string containing the 
+///			   - tag string containing the command signature to look for 
 ///
 /// Return value: number of PIDs found (total)
 ///
@@ -361,20 +363,20 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 
 
-/// getpids(): utility function to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          get PID list of interrest
+/// getcPids(): utility function to get list of PID by PPID tag
 /// Arguments: - pointer to array of PID
 ///			   - size in elements of array of PID
-///			   - tag string containing the 
+///			   - tag string containing the name of the parent pid to look for
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getcPids (pidinfo_t *pidlst, size_t cnt)
+int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[PID_BUFFER];
 	char req[40];
 
 	// prepare literal and open pipe request
-	(void)sprintf (req,  "pidof %s", cont_ppidc);
+	(void)sprintf (req,  "pidof %s", tag);
 	FILE *fp;
 
 	if(!(fp = popen(req,"r")))
@@ -421,12 +423,16 @@ void scanNew () {
 			break;
 
 		case DM_CNTPID: // detect by container shim pid
-			cnt = getcPids(&pidlst[0], MAX_PIDS);
+			cnt = getpPids(&pidlst[0], MAX_PIDS, cont_ppidc);
 			break;
 
 		default: ;// detect by pid signature
+			// cmdline of own thread
 			char pid[SIG_LEN];
-			sprintf(pid, "-C %s", cont_pidc);
+			if (psigscan)
+				sprintf(pid, "-TC %s", cont_pidc);
+			else 
+				sprintf(pid, "-C %s", cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
 			break;
 		
@@ -527,7 +533,7 @@ void *thread_update (void *arg)
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
 			cont("Sample time set to %dus.\n", interval);
-				// get jiffies per sec -> to ms
+			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (1 > ticksps) { // must always be greater 0 
 				warn("could not read clock tick config!\n");
@@ -541,14 +547,13 @@ void *thread_update (void *arg)
 			}
 			if (SCHED_OTHER != policy) { // TODO: set niceness for other/bash?
 				// set policy to thread
-
 				if (SCHED_DEADLINE == policy) {
 					struct sched_attr scheda  = { 48, 
 												SCHED_DEADLINE,
 												0,// TODO : reset on fork should help for deadline and PID - , SCHED_FLAG_RECLAIM,
 												0,
 												0,
-												update_wcet, interval, interval
+												update_wcet*1000, interval*1000, interval*1000
 												};
 
 

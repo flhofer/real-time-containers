@@ -1,5 +1,14 @@
 #include "pidlist.h" // memory structure to store information
 
+
+static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
+						{ 48, SCHED_NODATA }, 			// init size and scheduler 
+						{ -1 },							// rscs affinity default = all (-1)
+						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
+						 0, 0, 0, 0, 0,
+						 0, INT64_MAX, 0, INT64_MIN},
+						NULL, NULL};					// *param, *next
+						
 // maybe changed in a second moment to kernel linked lists
 
 void push_t(node_t * head, pid_t pid, char * psig, char * contid) {
@@ -9,22 +18,22 @@ void push_t(node_t * head, pid_t pid, char * psig, char * contid) {
     }
 
     /* now we can add a new variable */
-    current->next = calloc(sizeof(node_t), 1);
+    current->next = malloc(sizeof(node_t));
+	*current->next = _node_default;
     current->next->pid = pid;
     current->next->psig = psig;
     current->next->contid = contid;
-	current->next->attr.sched_policy=-1;
     current->next->next = NULL;
 }
 
 void push(node_t ** head, pid_t pid, char * psig, char * contid) {
     node_t * new_node;
-    new_node = calloc(sizeof(node_t), 1);
+    new_node = malloc(sizeof(node_t));
+	*new_node = _node_default;
 
     new_node->pid = pid;
     new_node->psig = psig;
     new_node->contid = contid;
-	new_node->attr.sched_policy=-1;
     new_node->next = *head;
     *head = new_node;
 }
@@ -36,12 +45,12 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
 		return;
 	}
    	node_t * new_node;
-    new_node = calloc(sizeof(node_t), 1);
+    new_node = malloc(sizeof(node_t));
+	*new_node = _node_default;
 
     new_node->pid = pid;
     new_node->psig = psig;
     new_node->contid = contid;
-	new_node->attr.sched_policy=-1;
     new_node->next = (*prev)->next;
     (*prev)->next = new_node;
 	*prev = (*prev)->next; // shift to new

@@ -24,7 +24,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.43
+	#define VERSION 0.45
 	#define MAX_PIDS 64
 
 	enum kernelversion {
@@ -46,9 +46,10 @@
 	#endif
 
 	// default values, changeable via cli
-	#define TSCAN 5000 // scan time of updates
-	#define TWCET 1024 	// default WCET for deadline scheduling, min-value
+	#define TSCAN 5000	// scan time of updates
+	#define TWCET 100	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
+	#define TSCHS 1024  // scheduler minimum granularity
 	#define CONT_PPID "docker-containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
 
