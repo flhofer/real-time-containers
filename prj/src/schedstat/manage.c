@@ -2,6 +2,10 @@
 #include "manage.h"
 #include "pidparm.h"
 
+#include <sys/resource.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+
 // Global variables used here ->
 
 // parameter tree linked list head
@@ -22,7 +26,7 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 	return p;
 }
 
-const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity"};
+const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity", "rt-soft", "rt-hard", "data-soft", "data-hard"};
 
 /// extractJSON(): extract parameter values from JSON tokens
 ///
@@ -96,6 +100,22 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 		case 11: // task affinity
 				phead->rscs.affinity = strtol(c,NULL,10);
 				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
+				break;
+		case 12: // rt-time soft limit
+				phead->rscs.rt_timew = strtol(c,NULL,10);
+				printDbg("JSON: setting rt-time Slimit to '%d'", phead->rscs.rt_timew);
+				break;
+		case 13: // rt-time hard limit
+				phead->rscs.rt_time = strtol(c,NULL,10);
+				printDbg("JSON: setting rt-time limit to '%d'", phead->rscs.rt_time);
+				break;
+		case 14: // data hard limit
+				phead->rscs.mem_dataw = strtol(c,NULL,10);
+				printDbg("JSON: setting data Slimit to '%d'", phead->rscs.mem_dataw);
+				break;
+		case 15: // data soft limit
+				phead->rscs.mem_data = strtol(c,NULL,10);
+				printDbg("JSON: setting data limit to '%d'", phead->rscs.mem_data);
 				break;
 		}
 
@@ -330,7 +350,7 @@ int findParams(node_t* node){
 	memcpy(&phead->attr, &node->attr, sizeof(node->attr));
 
 	cpu_set_t cset;	
-
+/*
 	if (sched_getaffinity(node->pid, sizeof(cset), &cset ))
 		err_msg(KRED "Error!" KNRM " reading affinity for PID %d: %s\n", node->pid, strerror(errno));
 	else {
@@ -349,7 +369,7 @@ int findParams(node_t* node){
 			phead->rscs.affinity = -1;
 		}
 	}
-
+*/
 	// assing new parameters
 	node->param = phead;
 	return -1;
@@ -382,7 +402,7 @@ int updateSched() {
 			(void)printf("\n");
 			info("new pid in list %d\n", current->pid);
 
-			if (!findParams(current)) // parameter set found in list -> assign and update
+			if (!findParams(current)) { // parameter set found in list -> assign and update
 				// precompute affinity
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
@@ -424,6 +444,46 @@ int updateSched() {
 					else
 						cont("PID %d reassigned to CPU%d\n", current->pid, 
 							current->param->rscs.affinity);
+
+					// controlling resource limits
+          			struct rlimit rlim;					
+
+					// RT-Time limit
+					if (-1 != current->param->rscs.rt_timew || -1 != current->param->rscs.rt_time) {
+						if (prlimit(current->pid, RLIMIT_RTTIME, NULL, &rlim))
+							err_msg(KRED "Error!" KNRM " getting RT-Limit for PID %d: %s\n",
+								current->pid, strerror(errno));
+						else {
+							if (-1 != current->param->rscs.rt_timew)
+								rlim.rlim_cur = current->param->rscs.rt_timew;
+							if (-1 != current->param->rscs.rt_time)
+								rlim.rlim_max = current->param->rscs.rt_time;
+							if (prlimit(current->pid, RLIMIT_RTTIME, &rlim, NULL ))
+								err_msg(KRED "Error!" KNRM " setting RT-Limit for PID %d: %s\n",
+									current->pid, strerror(errno));
+							else
+								cont("PID %d RT-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+						}
+					}
+
+					// Data limit - Heap.. unitialized or not
+					if (-1 != current->param->rscs.mem_dataw || -1 != current->param->rscs.mem_data) {
+						if (prlimit(current->pid, RLIMIT_DATA, NULL, &rlim))
+							err_msg(KRED "Error!" KNRM " getting Data-Limit for PID %d: %s\n",
+								current->pid, strerror(errno));
+						else {
+							if (-1 != current->param->rscs.mem_dataw)
+								rlim.rlim_cur = current->param->rscs.mem_dataw;
+							if (-1 != current->param->rscs.mem_data)
+								rlim.rlim_max = current->param->rscs.mem_data;
+							if (prlimit(current->pid, RLIMIT_DATA, &rlim, NULL ))
+								err_msg(KRED "Error!" KNRM " setting Data-Limit for PID %d: %s\n",
+									current->pid, strerror(errno));
+							else
+								cont("PID %d Data-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+						}
+					}
+
 				}
 				else if (affother) {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
@@ -435,6 +495,7 @@ int updateSched() {
 				}
 				else
 					cont("Skipping non-RT PID %d from rescheduling\n", current->pid);
+			}
 		}
 
 		// TODO: check if there is some faulty behaviour

@@ -208,8 +208,13 @@ static int prepareEnvironment() {
 		return errno;
 	}
 
-	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
-		err_msg( KRED "Error!" KNRM " SYS_NICE capability mandatory to operate properly!\n");
+	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) {// check for effective RESOURCE cap
+		err_msg( KRED "Error!" KNRM " Capability test failed!\n");
+		return errno;
+	}
+
+	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v)) {
+		err_msg( KRED "Error!" KNRM " CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
 		return -1;
 	}
 

@@ -510,7 +510,7 @@ void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc, ret;
-	struct timespec intervaltv, diff, old;
+	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
 	ret = clock_gettime(clocksources[clocksel], &intervaltv);
@@ -597,14 +597,8 @@ void *thread_update (void *arg)
 			// tidy or whatever is necessary
 			dumpStats();
 
-			// Done -> print total runtime
-			ret = clock_gettime(clocksources[clocksel], &diff);
-			if (0 != ret) {
-				if (EINTR != ret)
-					warn("clock_gettime() failed: %s", strerror(errno));
-			}
-			else
-				info("Total test runtime is %ld seconds\n", diff.tv_sec - old.tv_sec);
+			// Done -> print total runtime, now updated every cycle
+			info("Total test runtime is %ld seconds\n", now.tv_sec - old.tv_sec);
 
 			break;
 		case -2:
@@ -614,22 +608,13 @@ void *thread_update (void *arg)
 		}
 
 		if (SCHED_DEADLINE == policy){
-			// TODO: fix deadline -> not working correctly with preemption
-			// update time for runtime check
-			if (runtime) {
-				ret = clock_gettime(clocksources[clocksel], &intervaltv);
-				if (0 != ret) {
-					if (EINTR != ret)
-						warn("clock_gettime() failed: %s", strerror(errno));
-					*pthread_state=-1;
-				}
-			}
 			// perfect sync with period here, allow replenish 
 			if (pthread_yield()){
 				warn("pthread_yield() failed. errno: %s\n",strerror (ret));
 				*pthread_state=-1;
 				break;				
 			}
+
 		}
 		else {			
 			// abs-time relative interval shift
@@ -655,11 +640,18 @@ void *thread_update (void *arg)
 		}
 
 		// we have a max runtime. Stop! -> after the clock_nanosleep time will be intervaltv
-		if (0 != runtime
-			&& old.tv_sec + runtime <= intervaltv.tv_sec
-			&& old.tv_nsec <= intervaltv.tv_nsec) {
-			// set stop sig
-			raise (SIGTERM); // tell main to st
+		if (runtime) {
+			ret = clock_gettime(clocksources[clocksel], &now);
+			if (0 != ret) {
+				if (EINTR != ret)
+					warn("clock_gettime() failed: %s", strerror(errno));
+				*pthread_state=-1;
+			}
+
+			if (old.tv_sec + runtime <= now.tv_sec
+				&& old.tv_nsec <= now.tv_nsec) 
+				// set stop sig
+				raise (SIGTERM); // tell main to st
 		}
 
 		cc++;

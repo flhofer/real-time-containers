@@ -10,6 +10,10 @@
 
 struct sched_rscs { // resources 
 	int32_t affinity; // exclusive cpu-num
+	int32_t rt_timew; // RT execution time soft limit
+	int32_t rt_time;  // RT execution time hard limit
+	int32_t mem_dataw; // Data memory soft limit
+	int32_t mem_data;  // Data memory time hard limit
 	// TODO: fill with other values, i.e. memory bounds ecc
 };
 
