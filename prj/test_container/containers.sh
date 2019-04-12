@@ -83,7 +83,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
 	# start orchestrator and wait for termination
 	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 > log/orchestrator.txt
-
+	eval "chown 1000:1000 log/*"
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 
