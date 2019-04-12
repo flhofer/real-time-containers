@@ -1,5 +1,9 @@
 #include "pidparm.h" // memory structure to store parameter settings
 
+static const struct sched_rscs _rscs_default = { -1, 
+												-1, -1,	
+												-1, -1};
+
 // maybe changed in a second moment to kernel linked lists
 
 void ppush(parm_t ** head) {
@@ -7,6 +11,7 @@ void ppush(parm_t ** head) {
     new_node = calloc(sizeof(parm_t), 1);
 	// if any sched parameter is set, policy must also be set
 	new_node->attr.sched_policy = SCHED_NODATA; // default for not set.
+	new_node->rscs = _rscs_default;
 
     new_node->next = *head;
     *head = new_node;

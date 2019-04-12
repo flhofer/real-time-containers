@@ -24,7 +24,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.46
+	#define VERSION 0.47
 	#define MAX_PIDS 64
 
 	enum kernelversion {
