@@ -20,7 +20,7 @@ EOF
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 
-if [ $# -gt 2 ] && [ $# -ne 0 ]; then
+if [ $# -eq 1 ]; then
 
 cat <<EOF
 Not enough arguments supplied!
@@ -55,7 +55,7 @@ elif [[ "$cmd" == "run" ]]; then
 		filen="${filename%%.*}"
 		#create directory for log output and then symlink
 		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
-		eval "ln -s log-${filen}/log-thread1-0.log log/${filen}.log"
+		eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
 		# start new container
 		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
 	done
@@ -69,11 +69,15 @@ elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; 
 	done
 elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
+	# remove old log file first 
+	eval "rm log/orchestrator.txt"
 	# start containers -> test group
 	while [ "$2" != "" ]; do
 		# start all matching files
 		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
+			# remove old log file first 
+			eval "rm log-${filen}/log-thread1-0.log"
 			eval "docker container start ${filen}"
 		done
 
@@ -82,7 +86,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	done
 
 	# start orchestrator and wait for termination
-	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 > log/orchestrator.txt
+	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 -nrt-app -P > log/orchestrator.txt
 	eval "chown 1000:1000 log/*"
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
