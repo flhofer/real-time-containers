@@ -49,9 +49,14 @@ if [[ "$cmd" == "build" ]]; then
 elif [[ "$cmd" == "run" ]]; then
 # START ALL CONTAINERS OF GRP
 
+	eval "mkdir log"
+
 	for filename in rt-app-tst-${grp}*.json; do
 		filen="${filename%%.*}"
+		#create directory for log output and then symlink
 		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
+		eval "ln -s log-${filen}/log-thread1-0.log log/${filen}.log"
+		# start new container
 		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
 	done
 
