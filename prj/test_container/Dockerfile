@@ -1,11 +1,11 @@
 FROM multiarch/ubuntu-core:x86_64-bionic
 MAINTAINER Florian Hofer (florian.hofer@stud-inf.unibz.it)
 
-LABEL	it.florianhofer.version="0.0.9-beta" \
+LABEL	it.florianhofer.version="0.2.0" \
 	vendor1="Florian Hofer" \
 	vendor2=Florian\ Hofer \
-	it.florianhofer.release-date="2015-02-12" \
-	it.florianhofer.version.is-production=""
+	it.florianhofer.release-date="2019-04-12" \
+	it.florianhofer.version.is-production="no"
 
 RUN apt-get update && apt-get install -y \
 	libjson-c3 \

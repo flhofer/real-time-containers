@@ -25,6 +25,7 @@ if [ $# -gt 2 ] && [ $# -ne 0 ]; then
 cat <<EOF
 Not enough arguments supplied!
 Usag: ./container.sh command testgrp 
+ or   ./container.sh test testgrp [testgrp] .. [testgrp] 
  or   ./container.sh (for defaults)
 
 Defaults are:
@@ -50,8 +51,8 @@ elif [[ "$cmd" == "run" ]]; then
 
 	for filename in rt-app-tst-${grp}*.json; do
 		filen="${filename%%.*}"
-		eval "mkdir ${filen}"
-		eval "docker run -v ${PWD}/${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
+		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
+		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
 	done
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
@@ -61,6 +62,26 @@ elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; 
 		filen="${filename%%.*}"
 		eval "docker container ${cmd} ${filen}"
 	done
+elif [[ "$cmd" == "test" ]]; then # run a test procedure
+
+	# start containers -> test group
+	while [ "$2" != "" ]; do
+		# start all matching files
+		for filename in rt-app-tst-${2:-'*'}*.json; do
+			filen="${filename%%.*}"
+			eval "docker container start ${filen}"
+		done
+
+	    # Shift all the parameters down by one
+	    shift
+	done
+
+	# start orchestrator and wait for termination
+	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 > log/orchestrator.txt
+
+	# give notice about end
+	echo "Test finished. Stop containers manually now if needed." 
+
 else
 	echo "Unknown command"
 fi
