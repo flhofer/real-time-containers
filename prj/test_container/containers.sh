@@ -50,6 +50,7 @@ elif [[ "$cmd" == "run" ]]; then
 # START ALL CONTAINERS OF GRP
 
 	eval "mkdir log"
+	eval "chown 1000:1000 log"
 
 	for filename in rt-app-tst-${grp}*.json; do
 		filen="${filename%%.*}"
