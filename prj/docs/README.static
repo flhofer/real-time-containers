@@ -1,4 +1,4 @@
-README for statsched v0.30
+README for statsched v0.47
 
 ==============
  INTRODUCTION
@@ -10,6 +10,7 @@ Code is currently maintained on GitHub:
 
 	git@github.com:ianno/real-time-containers.git
 
+The static version limits to configured allocation and does not reschedule processes once a slot has been allocated. For dynamic allocation, see dynsched. (future work :) )
 
 ==============
  REQUIREMENTS
@@ -43,16 +44,21 @@ No installation procedure is defined at the moment
 
 	Options available as of this version
 
-    $ statsched.o [-a <affinity range> -c <clock> -i <scan interval> -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -s [container cmd signature] -w <WCET>] [configuration-file]
+    $ statsched.o [-a <affinity range> -b -c <clock> -d -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] -w <WCET>] [configuration-file]
 
 where:
-* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs;
+* -b enables binding of non-realtime tasks to the same core as the real-time task of the container;
 * clock is the type of clock timer used for recurring threads; 
+* -d enables the deadline overflow flag for all real-time deadline scheduled tasks
+* -f forces execution, even if parameters are seen as risky;
 * interval is the update intervall of running statistics; 
 * loop count is the number of update loops until new containers are checked; 
 * -m enables memory page locking; 
 * -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
 * the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo or rr
+* -P, in case command line signature is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
+* a maximum runtime can be set with the r flag, in seconds. Default value is 0=unlimited
 * -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of docker containers;
 * -w details the worst case execution time needed for the deadline based scheduling of the metric update thread.
 The configuration fle specified is optional. By default 'config.json' will be used 
