@@ -115,6 +115,63 @@ docker-containerd-shim.
 .B \-w, TIME
 sets the worst case execution time for the update thread, default is set to 100us.
 (used with --policy=deadline)
+.SH CONFIGURATION
+The configuration file passed at CLI determines resource allocation and distrbution
+of containers. The file is to be redacted in JSON format, strictly compliant.
+By default,
+.I config.json
+will be taken as input file.
+.TP
+In the following and example of a configuration file
+
+{  									// open root object
+
+	[  								// array of objects
+
+		{  							// first container, one object per container
+
+			"cmd" : "rt-app conf2.json",	// process run signature identification
+
+			"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+
+			"params" : {				// real-time parameters - optional
+
+				"policy" : "other", 	// required scheduling policy
+
+				"flags"  : 0,			// process flags -> inheritance
+
+				"nice"   : 0,			// niceness factor for CFS schedules
+
+				"prio"   : 0,			// priority for RT schedules, FIFO & RR
+
+				"runtime": 1000000,		// EDF runtime in us
+
+				"deadline": 4000000,	// EDF deadline in us
+
+				"period" : 4000000		// EDF period in us
+
+			},
+
+			"res" : {					// resouces to allocate for container/process-opt
+
+				"affinity" : -1,		// CPU affinity, -1 = all 
+
+				"rt-soft" : -1,		// real-time soft limit, execution time -> SIGXCPU
+
+				"rt-hard" : -1,		// real-time hard limit, execution time -> SIGKILL
+
+				"data-soft" : -1, 		// data/heap soft limit
+
+// -> not used		"data-hard" : -1,		// hada/heap hard limit
+
+			},
+
+		},
+
+	]
+
+}
+
 
 .SH SEE ALSO
 .BR numa (3),
