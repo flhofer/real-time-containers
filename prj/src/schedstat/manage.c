@@ -336,40 +336,12 @@ int findParams(node_t* node){
 		curr = curr->next; 
 	}
 
-	printDbg("... parameters not found, creating from PID\n");
+	printDbg("... parameters not found, creating empty from PID\n");
 
 	// TODO: fix for generic list
 	ppush(&phead); // add new empty item
-	// copy sig, will be freed
-	if (node->psig)
-		(void)strncpy(phead->psig,node->psig,SIG_LEN); // copy string, max size of string
-	if (node->contid)
-		(void)strncpy(phead->contid,node->contid,SIG_LEN); // copy string, max size of string
+	// HAVE TO KEEP IT EMPTY, no other matches, default = no change
 
-	// copy scheduling parameters
-	memcpy(&phead->attr, &node->attr, sizeof(node->attr));
-
-	cpu_set_t cset;	
-/*
-	if (sched_getaffinity(node->pid, sizeof(cset), &cset ))
-		err_msg(KRED "Error!" KNRM " reading affinity for PID %d: %s\n", node->pid, strerror(errno));
-	else {
-
-		if (1 == CPU_COUNT(&cset)) {
-			// cpu affinity defined to one cpu?
-			for (int i=0; i<sizeof(cset); i++){
-				if (CPU_ISSET(i, &cset)) {
-					phead->rscs.affinity = i;
-					break;
-				}
-			}
-		}
-		else {
-			// cpu affinity to all
-			phead->rscs.affinity = -1;
-		}
-	}
-*/
 	// assing new parameters
 	node->param = phead;
 	return -1;

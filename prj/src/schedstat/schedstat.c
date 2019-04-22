@@ -489,7 +489,7 @@ static void display_help(int error)
 //	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
 //	       "-v       --verbose         output values on stdout for statistics\n"
-	       "-w       --wcet            WCET runtime for deadline policy in us, default=%d\n"
+	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
