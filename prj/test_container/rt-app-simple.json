@@ -4,10 +4,10 @@
 			"policy" : "SCHED_DEADLINE",
 			"dl-runtime" : 1000,
 			"dl-period" : 10000,
-			"dl-deadline" : 8000,
+			"dl-deadline" : 10000,
 			"phases" : {
 				"phase1" : {
-					"run" : 1000,
+					"run" : 800,
 					"yield" : "",
 				}
 			}
@@ -16,12 +16,12 @@
 
 	"global" : {
 		"duration" : -1,
-		"calibration" : "CPU0",
+		"calibration" : "CPU3",
 		"default_policy" : "SCHED_DEADLINE",
 		"pi_enabled" : false,
 		"lock_pages" : false,
 		"logdir" : "./",
-		"log_size" : "disabled",
+		"log_size" : 40,
 		"log_basename" : "rt-app",
 		"ftrace" : false,
 		"gnuplot" : false,
