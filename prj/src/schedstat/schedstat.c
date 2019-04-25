@@ -335,7 +335,8 @@ static int prepareEnvironment() {
 
 	// mask affinity and invert for system map
 	for (int i=0;i<maxccpu;i++)
-		if (!numa_bitmask_isbitset(affinity_mask, i))
+		if (!numa_bitmask_isbitset(affinity_mask, i)
+			&& numa_bitmask_isbitset(con, i)) // filter by online/existing
 			numa_bitmask_setbit(naffinity, i);
 
 	// parse to string	
@@ -420,14 +421,10 @@ static int prepareEnvironment() {
 			warn("could not set orchestrator schedulig attributes, %s\n", strerror(errno));
 	}
 
-	cpu_set_t cset;
-	CPU_ZERO(&cset);
-	CPU_SET(0, &cset); // set process to CPU zero
-
-	if (sched_setaffinity(mpid, sizeof(cset), &cset ))
+	if (numa_sched_setaffinity(mpid, naffinity))
 		warn("could not set orchestrator affinity: %s\n", strerror(errno));
 	else
-		cont("PID %d reassigned to CPU%d\n", mpid, 0);
+		cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
 
 	/// Docker CGROUP setup == TODO: verify cmd-line parameters cgroups
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
@@ -539,25 +536,24 @@ static int prepareEnvironment() {
 			// copy to new prefix
 			strcat(fileprefix,cpusetfileprefix);
 			strcat(fileprefix,"system/");
-			if (!mkdir(fileprefix, ACCESSPERMS)) {
-				if (setkernvar("cpuset.cpus", cpus)){
-					warn("Can not set cpu-affinity\n");
-				}
-				if (setkernvar("cpuset.mems", numastr)){
-					warn("Can not set numa memory nodes\n");
-				}
-				if (setkernvar("cpuset.cpu_exclusive", "1")){
-					warn("Can not set cpu exclusive\n");
-				}
-			}
-			else{
-				switch (errno) {
-				case EEXIST: // directory exists. do nothing?
+			// try to create directory
+			(void)mkdir(fileprefix, ACCESSPERMS);
+			switch (errno) {
+				case 0: // no error
+				case EEXIST: // cgroup (directory) exists
+					if (setkernvar("cpuset.cpus", cpus)){ 
+						warn("Can not set cpu-affinity\n");
+					}
+					if (setkernvar("cpuset.mems", numastr)){
+						warn("Can not set numa memory nodes\n");
+					}
+					if (setkernvar("cpuset.cpu_exclusive", "1")){
+						warn("Can not set cpu exclusive\n");
+					}
 					break;
 
 				default: // error otherwise
 					warn("Can not set cpu system group\n");
-				}
 			}
 			cont( "moving tasks..\n");
 
@@ -604,6 +600,8 @@ static int prepareEnvironment() {
 				free (nfileprefix);
 
 		}
+		else
+			return -1; //realloc issues
 
 	}
 
