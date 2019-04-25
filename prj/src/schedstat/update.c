@@ -597,6 +597,14 @@ void *thread_update (void *arg)
 			// tidy or whatever is necessary
 			dumpStats();
 
+			// update time if not in runtime mode - has not been read yet
+			if (!runtime) {
+				ret = clock_gettime(clocksources[clocksel], &now);
+				if (0 != ret) 
+					if (EINTR != ret)
+						warn("clock_gettime() failed: %s", strerror(errno));
+			}
+
 			// Done -> print total runtime, now updated every cycle
 			info("Total test runtime is %ld seconds\n", now.tv_sec - old.tv_sec);
 
@@ -651,7 +659,7 @@ void *thread_update (void *arg)
 			if (old.tv_sec + runtime <= now.tv_sec
 				&& old.tv_nsec <= now.tv_nsec) 
 				// set stop sig
-				raise (SIGTERM); // tell main to st
+				raise (SIGTERM); // tell main to stop
 		}
 
 		cc++;

@@ -13,6 +13,15 @@
 #include <sys/utsname.h>	// kernel info
 #include <sys/capability.h>	// cap exploration
 #include <sys/sysinfo.h>	// system general information
+#include <cpuid.h>			// cpu information
+
+
+#if (defined(__i386__) || defined(__x86_64__))
+#define ARCH_HAS_SMI_COUNTER
+#endif
+
+#define MSR_SMI_COUNT		0x00000034
+#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
 static void display_help(int); // declaration for compat
 
@@ -48,6 +57,8 @@ int psigscan = 0;			// scan for child threads, -n option only
 //int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
+static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
+static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -59,6 +70,127 @@ static char *fileprefix; // Work variable for local things -> procfs & sysfs
 void inthand ( int signum ) {
 	stop = 1;
 }
+
+#ifdef ARCH_HAS_SMI_COUNTER
+static int open_msr_file(int cpu)
+{
+	int fd;
+	char pathname[32];
+
+	/* SMI needs thread affinity */
+	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	fd = open(pathname, O_RDONLY);
+	if (fd < 0)
+		warn("%s open failed, try modprobe msr, chown or chmod +r "
+		       "/dev/cpu/*/msr, or run as root\n", pathname);
+
+	return fd;
+}
+
+static int get_msr(int fd, off_t offset, unsigned long long *msr)
+{
+	ssize_t retval;
+
+	retval = pread(fd, msr, sizeof *msr, offset);
+
+	if (retval != sizeof *msr)
+		return 1;
+
+	return 0;
+}
+
+static int get_smi_counter(int fd, unsigned long *counter)
+{
+	int retval;
+	unsigned long long msr;
+
+	retval = get_msr(fd, MSR_SMI_COUNT, &msr);
+	if (retval)
+		return retval;
+
+	*counter = (unsigned long) (msr & MSR_SMI_COUNT_MASK);
+
+	return 0;
+}
+
+/* Based on turbostat's check */
+static int has_smi_counter(void)
+{
+	unsigned int ebx, ecx, edx, max_level;
+	unsigned int fms, family, model;
+
+	fms = family = model = ebx = ecx = edx = 0;
+
+	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
+
+	/* check genuine intel */
+	if (!(ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e))
+		return 0;
+
+	__get_cpuid(1, &fms, &ebx, &ecx, &edx);
+	family = (fms >> 8) & 0xf;
+
+	if (family != 6)
+		return 0;
+
+	/* no MSR */
+	if (!(edx & (1 << 5)))
+		return 0;
+
+	model = (((fms >> 16) & 0xf) << 4) + ((fms >> 4) & 0xf);
+
+	switch (model) {
+	case 0x1A:      /* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
+	case 0x1E:      /* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
+	case 0x1F:      /* Core i7 and i5 Processor - Nehalem */
+	case 0x25:      /* Westmere Client - Clarkdale, Arrandale */
+	case 0x2C:      /* Westmere EP - Gulftown */
+	case 0x2E:      /* Nehalem-EX Xeon - Beckton */
+	case 0x2F:      /* Westmere-EX Xeon - Eagleton */
+	case 0x2A:      /* SNB */
+	case 0x2D:      /* SNB Xeon */
+	case 0x3A:      /* IVB */
+	case 0x3E:      /* IVB Xeon */
+	case 0x3C:      /* HSW */
+	case 0x3F:      /* HSX */
+	case 0x45:      /* HSW */
+	case 0x46:      /* HSW */
+	case 0x3D:      /* BDW */
+	case 0x47:      /* BDW */
+	case 0x4F:      /* BDX */
+	case 0x56:      /* BDX-DE */
+	case 0x4E:      /* SKL */
+	case 0x5E:      /* SKL */
+	case 0x8E:      /* KBL */
+	case 0x9E:      /* KBL */
+	case 0x55:      /* SKX */
+	case 0x37:      /* BYT */
+	case 0x4D:      /* AVN */
+	case 0x4C:      /* AMT */
+	case 0x57:      /* PHI */
+	case 0x5C:      /* BXT */
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+#else
+static int open_msr_file(int cpu)
+{
+	return -1;
+}
+
+static int get_smi_counter(int fd, unsigned long *counter)
+{
+	return 1;
+}
+static int has_smi_counter(void)
+{
+	return 0;
+}
+#endif
 
 
 /// check_kernel(): check the kernel version,
@@ -164,11 +296,10 @@ static int getkernvar(const char *name, char *value)
 
 // -------------- LOCAL variables for all the threads and programms ------------------
 
-static int sys_cpus = 1;// TODO: separate orchestrator from system? // 0-> count reserved for orchestrator and system
 static int lockall = 0;
 static int numa = 0;
 static int force = 0;
-
+static int smi = 0;
 
 // TODO:  implement fifo thread as in cycictest for readout
 static int use_fifo = 0;
@@ -188,6 +319,13 @@ static int setaffinity = AFFINITY_UNSPECIFIED;
 static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 static struct bitmask *affinity_mask = NULL; // default bitmask
 
+/// parse_cpumask(): checks if the cpu bitmask is ok
+///
+/// Arguments: - pointer to bitmask
+/// 		   - max number of cpus
+///
+/// Return value: error code if present
+///
 static void parse_cpumask(const char *option, const int max_cpus)
 {
 	affinity_mask = numa_parse_cpustring_all(option);
@@ -250,53 +388,6 @@ static int parse_bitmask(struct bitmask *mask, char * str){
 	printDbg("Parsed bitmask: %s\n", str);
 	return 0;
 }
-/*
-static int parse_bitmask(const struct bitmask *mask, char * str){
-	
-
-//	numa_bitmask_isbitset
-// numa_bitmask_nbytes
-	// base case check
-	if (!mask || !str)
-		return -1;
- 
-	int j=0,rg =-1,fd = -1;
-	long msk;
-	str [0] = '\0';
-	for (int i=0; i<(mask->size / sizeof(long)); i++){
-		msk = *(mask->maskp)+i;
-
-		for (j=0; j<64;j++){
-			
-			if ((msk >> j) & 0x1){
-				// set bit found
-
-				if (fd<0) {
-					// first of sequence?
-
-					fd = i*sizeof(long)+j; // found and start range bit number
-					if (!strlen(str))
-						// first at all?
-						sprintf(str, "%d", fd);
-					else
-						sprintf(str, "%s,%d", str,fd);
-					rg = fd; // end range bit number 
-				}
-				else 
-					// not first in sequence, add to end-range value
-					rg++;
-			}
-			else {
-				if (rg != fd)
-					// end of 1-bit sequence, print end of range
-					sprintf(str, "%s-%d", str,rg);
-				fd = rg = -1; // reset range
-			}
-		}
-	}
-	return 0;
-}
-*/
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
@@ -313,35 +404,16 @@ static int prepareEnvironment() {
 	int maxcpu = get_nprocs();	
 	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
 
+	fileprefix = cpusystemfileprefix;
+	char cpus[10] = SYSCPUS; // cpu allocation string
+	char str[10]; // generic string... 
+
 	info("This system has %d processors configured and "
         "%d processors available.\n",
         maxccpu, maxcpu);
 
 	if (numa_available()){
 		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
-		return -1;
-	}
-
-	fileprefix = cpusystemfileprefix;
-	char str[10]; // generic string... 
-	char cpus[10] = SYSCPUS; // cpu allocation string
-
-	struct bitmask * con;
-	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
-
-	// get online cpu's
-	if (!getkernvar("online", str))
-		con = numa_parse_cpustring_all(str);
-
-	// mask affinity and invert for system map
-	for (int i=0;i<maxccpu;i++)
-		if (!numa_bitmask_isbitset(affinity_mask, i)
-			&& numa_bitmask_isbitset(con, i)) // filter by online/existing
-			numa_bitmask_setbit(naffinity, i);
-
-	// parse to string	
-	if (parse_bitmask (naffinity, cpus)){
-		err_msg (KRED "Error! " KNRM "can not determine inverse affinity mask!\n");
 		return -1;
 	}
 
@@ -360,9 +432,49 @@ static int prepareEnvironment() {
 				return -1;
 			}
 			cont("SMT is now disabled, as required\n");
+			maxcpu = get_nprocs();	// update
 		}
 		else
 			cont("SMT is disabled, as required\n");
+	}
+
+	smi_counter = calloc (sizeof(long), maxccpu);
+	smi_msr_fd = calloc (sizeof(int), maxccpu);
+
+	struct bitmask * con;
+	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
+
+	// get online cpu's
+	if (!getkernvar("online", str))
+		con = numa_parse_cpustring_all(str);
+
+	// mask affinity and invert for system map / readout of smi of online CPUs
+	for (int i=0;i<maxccpu;i++) {
+
+		if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
+
+			// if smi is set, read SMI counter
+			if(smi) {
+				*(smi_msr_fd+i) = open_msr_file(i);
+				if (*(smi_msr_fd+i) < 0)
+					fatal("Could not open MSR interface, errno: %d\n",
+						errno);
+				/* get current smi count to use as base value */
+				if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
+					fatal("Could not read SMI counter, errno: %d\n",
+						0, errno);
+			}
+
+			// invert affinity for avaliable cpus only -> for system
+			if (!numa_bitmask_isbitset(affinity_mask, i))
+				numa_bitmask_setbit(naffinity, i);
+		}
+	}
+
+	// parse to string	
+	if (parse_bitmask (naffinity, cpus)){
+		err_msg (KRED "Error! " KNRM "can not determine inverse affinity mask!\n");
+		return -1;
 	}
 
 	/// --------------------
@@ -648,6 +760,9 @@ static void display_help(int error)
 	       "-r RTIME --runtime=RTIME   set a maximum runtime in seconds, default=0(infinite)\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
+#ifdef ARCH_HAS_SMI_COUNTER
+               "         --smi             Enable SMI counting\n"
+#endif
 //	       "-t NUM   --threads=NUM     number of threads for resource management\n"
 //	       "                           default = 1 (not changeable for now)\n"
 //	       "-u       --unbuffered      force unbuffered output for live processing (FIFO)\n"
@@ -668,7 +783,7 @@ enum option_values {
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
 	OPT_THREADS, OPT_SMP, OPT_RTIME, OPT_UNBUFFERED, OPT_NUMA, 
-	OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
+	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
 };
 
 /// process_options(): Process commandline options 
@@ -705,6 +820,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"threads",          required_argument, NULL, OPT_THREADS },
 			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
+			{"smi",              no_argument,       NULL, OPT_SMI },
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
 			{"wcet",             required_argument, NULL, OPT_WCET },
@@ -859,6 +975,13 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			display_help(0); break;
 		case OPT_POLICY:
 			policy = string_to_policy(optarg); break;
+		case OPT_SMI:
+#ifdef ARCH_HAS_SMI_COUNTER
+			smi = 1;
+#else
+			fatal("--smi is not available on your arch\n");
+#endif
+			break;
 		}
 	}
 
@@ -869,6 +992,15 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		} else if (numa) {
 			warn("-a ignored due to --numa\n");
 		}
+	}
+
+	if (smi) {
+		if (setaffinity == AFFINITY_UNSPECIFIED)
+			fatal("SMI counter relies on thread affinity\n");
+
+		if (!has_smi_counter())
+			fatal("SMI counter is not supported "
+			      "on this processor\n");
 	}
 
 	// check clock sel boundaries
@@ -983,6 +1115,23 @@ int main(int argc, char **argv)
 		iret2 = pthread_join( thread2, NULL); 
 
     info("exiting safely\n");
+
+	if(smi) {
+
+		unsigned long smi_old;
+		int maxccpu = numa_num_configured_cpus();
+		info("SMI counters for the CPUs\n");
+		// mask affinity and invert for system map / readout of smi of online CPUs
+		for (int i=0;i<maxccpu;i++) 
+			// if smi is set, read SMI counter
+			if (*(smi_msr_fd+i)) {
+				/* get current smi count to use as base value */
+				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
+					fatal("Could not read SMI counter, errno: %d\n",
+						0, errno);
+				cont("CPU%d: %ld\n", i, smi_old-*(smi_counter+i));
+			}
+	}
 
 	/* unlock everything */
 	if (lockall)
