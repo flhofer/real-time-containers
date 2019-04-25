@@ -206,6 +206,97 @@ static void parse_cpumask(const char *option, const int max_cpus)
 	}
 }
 
+/// parse_bitmask(): returns the matching bitmask string
+///
+/// Arguments: - pointer to bitmask
+/// 		   - returning string
+///
+/// Return value: error code if present
+///
+static int parse_bitmask(struct bitmask *mask, char * str){
+	// base case check
+	if (!mask || !str)
+		return -1;
+ 
+	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
+	str [0] = '\0';
+
+	for (int i=0; i<sz; i++){
+		if (numa_bitmask_isbitset(mask, i)){
+			// set bit found
+
+			if (fd<0) {
+				// first of sequence?
+
+				fd = i; // found and start range bit number
+				if (!strlen(str))
+					// first at all?
+					sprintf(str, "%d", fd);
+				else
+					sprintf(str, "%s,%d", str,fd);
+				rg = fd; // end range bit number 
+			}
+			else 
+				// not first in sequence, add to end-range value
+				rg++;
+		}
+		else {
+			if (rg != fd)
+				// end of 1-bit sequence, print end of range
+				sprintf(str, "%s-%d", str,rg);
+			fd = rg = -1; // reset range
+		}
+	}
+	printDbg("Parsed bitmask: %s\n", str);
+	return 0;
+}
+/*
+static int parse_bitmask(const struct bitmask *mask, char * str){
+	
+
+//	numa_bitmask_isbitset
+// numa_bitmask_nbytes
+	// base case check
+	if (!mask || !str)
+		return -1;
+ 
+	int j=0,rg =-1,fd = -1;
+	long msk;
+	str [0] = '\0';
+	for (int i=0; i<(mask->size / sizeof(long)); i++){
+		msk = *(mask->maskp)+i;
+
+		for (j=0; j<64;j++){
+			
+			if ((msk >> j) & 0x1){
+				// set bit found
+
+				if (fd<0) {
+					// first of sequence?
+
+					fd = i*sizeof(long)+j; // found and start range bit number
+					if (!strlen(str))
+						// first at all?
+						sprintf(str, "%d", fd);
+					else
+						sprintf(str, "%s,%d", str,fd);
+					rg = fd; // end range bit number 
+				}
+				else 
+					// not first in sequence, add to end-range value
+					rg++;
+			}
+			else {
+				if (rg != fd)
+					// end of 1-bit sequence, print end of range
+					sprintf(str, "%s-%d", str,rg);
+				fd = rg = -1; // reset range
+			}
+		}
+	}
+	return 0;
+}
+*/
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
@@ -220,14 +311,38 @@ static int prepareEnvironment() {
 	/// --------------------
 	/// verify 	cpu topology and distribution
 	int maxcpu = get_nprocs();	
-	int maxccpu = get_nprocs_conf();	
+	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
 
 	info("This system has %d processors configured and "
         "%d processors available.\n",
         maxccpu, maxcpu);
 
-	fileprefix = "/sys/devices/system/cpu/";
-	char str[10];
+	if (numa_available()){
+		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
+		return -1;
+	}
+
+	fileprefix = cpusystemfileprefix;
+	char str[10]; // generic string... 
+	char cpus[10] = SYSCPUS; // cpu allocation string
+
+	struct bitmask * con;
+	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
+
+	// get online cpu's
+	if (!getkernvar("online", str))
+		con = numa_parse_cpustring_all(str);
+
+	// mask affinity and invert for system map
+	for (int i=0;i<maxccpu;i++)
+		if (!numa_bitmask_isbitset(affinity_mask, i))
+			numa_bitmask_setbit(naffinity, i);
+
+	// parse to string	
+	if (parse_bitmask (naffinity, cpus)){
+		err_msg (KRED "Error! " KNRM "can not determine inverse affinity mask!\n");
+		return -1;
+	}
 
 	// verify if SMT is disabled
 	if (!getkernvar("smt/control", str)){
@@ -248,14 +363,6 @@ static int prepareEnvironment() {
 		else
 			cont("SMT is disabled, as required\n");
 	}
-
-	struct bitmask * con;
-
-	if (!getkernvar("online", str))
-		con = numa_parse_cpustring_all(str);
-
-	for (int i=0; i<(con->size / 64); i++)
-		(void)printf("%ld\n", *(con->maskp)+i );
 
 	/// --------------------
 	/// verify executable permissions	
@@ -369,9 +476,6 @@ static int prepareEnvironment() {
 	/// cgroup present, fix cpu-sets of running containers
 	if (DM_CGRP == use_cgroup) {
 
-		char cpus[10];
-//		sprintf(cpus, "%d-%d", affinity,maxcpu-1); 
-
 		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
 
 		DIR *d;
@@ -402,7 +506,7 @@ static int prepareEnvironment() {
 
 			fileprefix = cpusetdfileprefix; // set to docker directory
 
-			if (setkernvar("cpuset.cpus", cpus)){
+			if (setkernvar("cpuset.cpus", affinity)){
 				warn("Can not set cpu-affinity\n");
 			}
 
@@ -413,15 +517,14 @@ static int prepareEnvironment() {
 			closedir(d);
 		}
 
-		exit(1);
 		//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 		// system CGroup, possible tasks are moved
 
 		fileprefix = NULL;
-		sprintf(cpus, "!%s", affinity); 
+
 		cont("creating cgroup for system on %s\n", cpus);
 
-		// detect numa configuration 
+		// detect numa configuration TODO: adapt for full support
 		char * numastr = "0"; // default numa string
 		if (-1 != numa_available()) {
 			int numanodes = numa_max_node();
@@ -523,8 +626,8 @@ static void display_help(int error)
 {
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
-	       "-a [NUM] --affinity        run system threads on processor 0-(NUM-1), if possible\n"
-	       "                           run container threads on processor NUM-MAX_CPU \n"
+	       "-a [NUM] --affinity        run container threads on specified cpu range, colon separated list\n"
+	       "                           run system threads on remaining inverse mask list\n"
 	       "-b       --bind            bind non-RT PIDs of container to same container affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"

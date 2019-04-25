@@ -59,6 +59,7 @@
 	static char *procfileprefix = "/proc/sys/kernel/";
 	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 	static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker/";
+	static char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 
 	// definition of container detection modes
 	enum det_mode {
