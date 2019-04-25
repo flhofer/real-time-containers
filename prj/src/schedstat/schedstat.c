@@ -14,6 +14,8 @@
 #include <sys/capability.h>	// cap exploration
 #include <sys/sysinfo.h>	// system general information
 
+static void display_help(int); // declaration for compat
+
 // -------------- Global variables for all the threads and programms ------------------
 
 // signal to keep status of triggers ext SIG
@@ -148,11 +150,25 @@ static int setkernvar(const char *name, char *value)
 
 }
 
+static int getkernvar(const char *name, char *value)
+{
+
+	if (kernvar(O_RDONLY, name, value, sizeof(value))){
+		printDbg(KRED "Error!" KNRM " could not get %s\n", name);
+		return -1;
+	}
+	
+	return 0;
+
+}
+
 // -------------- LOCAL variables for all the threads and programms ------------------
 
 static int sys_cpus = 1;// TODO: separate orchestrator from system? // 0-> count reserved for orchestrator and system
 static int lockall = 0;
 static int numa = 0;
+static int force = 0;
+
 
 // TODO:  implement fifo thread as in cycictest for readout
 static int use_fifo = 0;
@@ -169,7 +185,27 @@ enum {
 };
 
 static int setaffinity = AFFINITY_UNSPECIFIED;
-static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
+static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
+static struct bitmask *affinity_mask = NULL; // default bitmask
+
+static void parse_cpumask(const char *option, const int max_cpus)
+{
+	affinity_mask = numa_parse_cpustring_all(option);
+	if (affinity_mask) {
+		if (0==numa_bitmask_weight(affinity_mask)) {
+			numa_bitmask_free(affinity_mask);
+			affinity_mask = NULL;
+		}
+	}
+	if (!affinity_mask)
+		display_help(1);
+
+	if (verbose) {
+		printf("%s: Using %u cpus.\n", __func__,
+			numa_bitmask_weight(affinity_mask));
+	}
+}
+
 
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
@@ -181,17 +217,45 @@ static int affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 ///
 static int prepareEnvironment() {
 
+	/// --------------------
+	/// verify 	cpu topology and distribution
 	int maxcpu = get_nprocs();	
 	int maxccpu = get_nprocs_conf();	
 
-	/// prerequisites
 	info("This system has %d processors configured and "
         "%d processors available.\n",
         maxccpu, maxcpu);
-	
-	if (maxccpu < maxcpu) {
-		cont ("numbers differ, assuming Hyprerthreading disabled.");
+
+	fileprefix = "/sys/devices/system/cpu/";
+	char str[10];
+
+	// verify if SMT is disabled
+	if (!getkernvar("smt/control", str)){
+		// value read ok
+		if (!strcmp(str, "on")) {
+			// SMT - HT is on
+			if (!force) {
+				err_msg( KRED "Error! " KNRM "SMT is enabled. Set -f (focre) flag to authorize disabling\n");
+				return -1;
+				}
+
+			if (setkernvar("smt/control", "off")){
+				err_msg( KRED "Error! " KNRM "SMT is enabled. Disabling was unsuccessful!\n");
+				return -1;
+			}
+			cont("SMT is now disabled, as required\n");
+		}
+		else
+			cont("SMT is disabled, as required\n");
 	}
+
+	struct bitmask * con;
+
+	if (!getkernvar("online", str))
+		con = numa_parse_cpustring_all(str);
+
+	for (int i=0; i<(con->size / 64); i++)
+		(void)printf("%ld\n", *(con->maskp)+i );
 
 	/// --------------------
 	/// verify executable permissions	
@@ -306,9 +370,9 @@ static int prepareEnvironment() {
 	if (DM_CGRP == use_cgroup) {
 
 		char cpus[10];
-		sprintf(cpus, "%d-%d", affinity,maxcpu-1); 
+//		sprintf(cpus, "%d-%d", affinity,maxcpu-1); 
 
-		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", cpus);
+		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
 
 		DIR *d;
 		struct dirent *dir;
@@ -326,7 +390,7 @@ static int prepareEnvironment() {
 					strcat(fileprefix,cpusetdfileprefix);
 					strcat(fileprefix,dir->d_name);
 
-					if (setkernvar("/cpuset.cpus", cpus)){
+					if (setkernvar("/cpuset.cpus", affinity)){
 						warn("Can not set cpu-affinity\n");
 					}
 
@@ -349,11 +413,12 @@ static int prepareEnvironment() {
 			closedir(d);
 		}
 
+		exit(1);
 		//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 		// system CGroup, possible tasks are moved
 
 		fileprefix = NULL;
-		sprintf(cpus, "%d-%d", 0, affinity-1); 
+		sprintf(cpus, "!%s", affinity); 
 		cont("creating cgroup for system on %s\n", cpus);
 
 		// detect numa configuration 
@@ -516,7 +581,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	int error = 0;
 	int option_affinity = 0;
 	int option_index = 0;
-	int force = 0;
+	int optargs = 0;
 
 	for (;;) {
 		//option_index = 0;
@@ -553,6 +618,22 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'a':
 		case OPT_AFFINITY:
 			option_affinity = 1;
+			if (smp || numa)
+				break;
+			if (NULL != optarg) {
+				affinity = optarg;
+				parse_cpumask(optarg, max_cpus);
+				setaffinity = AFFINITY_SPECIFIED;
+			} else if (optind<argc && atoi(argv[optind])) {
+				affinity = argv[optind];
+				parse_cpumask(argv[optind], max_cpus);
+				setaffinity = AFFINITY_SPECIFIED;
+			} else {
+				setaffinity = AFFINITY_USEALL;
+			}
+			break;
+
+/*
 			if (optarg != NULL) {
 				affinity = atoi(optarg);
 				if (affinity < 1 || affinity > max_cpus) {
@@ -571,6 +652,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
+*/
 		case 'b':
 		case OPT_BIND:
 			affother = 1; break;
@@ -601,8 +683,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			use_cgroup = DM_CMDLINE;
 			if (NULL != optarg) {
 				cont_pidc = optarg;
-			} else if (optind<argc && atoi(argv[optind])) {
+			} else if (optind<argc) {
 				cont_pidc = argv[optind];
+				optargs++;
 			}
 			break;
 		case 'p':
@@ -629,8 +712,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			use_cgroup = DM_CNTPID;
 			if (NULL != optarg) {
 				cont_ppidc = optarg;
-			} else if (optind<argc && atoi(argv[optind])) {
+			} else if (optind<argc) {
 				cont_ppidc = argv[optind];
+				optargs++;
 			}
 			break;
 /*		case 't':
@@ -724,9 +808,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		error = 1;
 
 	// look for filename after options, we process only first
-	if (optind < argc)
+	if (optind+optargs < argc)
 	{
-	    config = argv[optind];
+	    config = argv[argc-1];
 	}
 
 	// allways verify for config file -> segmentation fault??
