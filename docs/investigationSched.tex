@@ -2,7 +2,8 @@
 \usepackage{hyperref}
 \usepackage{lipsum}
 \usepackage[utf8]{inputenc}
-
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
 %opening
 \title{Orchestrating real-time containers:\\ on the possibilities of schedule manipulation}
 \author{Florian Hofer}
@@ -462,23 +463,37 @@ We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain 
 Section \ref{sec:testimp} used these techniques to explore the applications of those to check, maintain and monitor running containers.
 In the following we will describe the final implementation and its functions.
 
+If we start from computing resources, we can define the following relationships.
+A computation resource has a maximum utilization factor $U_l$ of $1$.
+The utilization factor for each processor is defined as the sum of run-times divided by their period, or
+\begin{equation}
+	U_l = \sum_{i \in T}^{}{\frac{c_i}{p_i}} \leq 1
+\end{equation}  
+where T is the set of all tasks, $p_i$ the period and $c_i$ the computation time.
+If we schedule our tasks, we try to maximize $U$ without exceeding, but the maximum amount is limited by the worst case computation time (WCET) $w_i$.
+To guarantee determinism, we have to account for the worst all the time.
+If then the worst case is rare, this results in a high waste of resources.
+Our orchestration tool will try to optimize out this loss while moderating risks.
+
 Ideal resource management is hard to guarantee.
 To ease the process allocation and resource assignment, we start with simplifying assumptions.
 First, we suppose that the real-time software running in the various containers is all independent. 
 The processes will be considered as black boxes where we do neither have specifications, nor source code. 
-If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O.
-What we have is details about the worst case run-time, deadline and period.
-Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks. Deadlines of tasks are equal to their period.
+If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O, thus each has its own $U_l = 1$.
+Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
+Deadlines of tasks are equal to their period.
+We have thus the run-time values WCET $w_i$, period and deadline ($p_i = d_i$).
 With these two assumptions we perform the implementation of a first version. 
 
-The static orchestrator works with a simple logic. The real-time tasks that have to run are known where they have to run too, and the allocation schedule is computed online. 
+The static orchestrator works with a simple logic. 
+The real-time tasks that have to run are known. Where they have to run too, and the allocation schedule is computed online. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
 Successful implementation allows us to proceed to the next iteration.
 
 The adaptive static orchestrator comes into play if all existing applications are known, but which of them actually runs is unknown. 
 This combination requires a more complex algorithm.
-In this case, to ease the implementation, we limit the maximum allowance of shifting containers.
+To ease the implementation, we limit the maximum allowance of shifting containers.
 If all containers would be allowed to shift to other resources, the schedule would get dynamic and  undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
 
@@ -502,13 +517,22 @@ We have already seen that dynamic scheduling without any additional assumptions 
 Therefore, it will be done at best using the following additional considerations.
 All tasks are scheduled statically, with adaptive configuration.
 The difference to the previous scheduling algorithm is that we no longer set absolute peaks as worst case execution times. 
-To reduce the amount of unused resources, the worst case tim programmed for a task will be obtained based pn probability distribution and allowed risk.
-In such case the tasks may exceed the configured worst case run-time, but the probability is low and contemporaneity factor even lower.
+To reduce the amount of unused resources, the worst case time programmed for a task will be obtained based on probability distribution and allowed risk.
+In such case the tasks may exceed the configured worst case run-time $w_i$, but the probability is low and contemporaneity factor even lower.
 We obtain run-time values and probability distributions through experimental measurements. 
-Those measurements give us an average and peak value. The closer we set the worst case execution time to the average, the higher is the risk of exceeding it.
+Those measurements give us an average ($\bar c_i$) and peak value ($\max c_i = w_i$). The closer we set our new $w_i$ to the average $\bar c_i$, the higher is the risk of exceeding it.
+However, monitoring the execution of tasks will allow the orchestrator to predict if the total computation time may exceed the maximum allowance.
+If so, some of the tasks closest to next in line will be rescheduled onto a different resource. 
 
 The outcome of this approach has multiple advantages. 
 While before the resource slot between average and peak is used with a low probability only, reducing the WCET increases resource utulization at a probability cost.
+If for example we have nine tasks with WCET 10, period $p_i$ 50 and $\bar c_i$ 5 and probability of exceding $\bar c_i$ of $10 \exp{-10}$ we can take the following assumptions.
+We can put all tasks $w_i$ to 5, resulting in a total utilzation factor $U_l$ of $0.9$.
+The 10\% margin can be used by any of the containers to bridge the gap between average $\bar c_i$ and WCET of 5.
+The risk is given by the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of eccedence is more than 10
+% of $U_l$.
+
+
 
 
 %% Considerations
