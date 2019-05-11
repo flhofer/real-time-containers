@@ -476,25 +476,39 @@ Once running, the orchestrator prepares the environment and reads the container 
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
 Successful implementation allows us to proceed to the next iteration.
 
-The adaptive static orchestrator comes into play if all applications are known, but which of them actually runs is unknown. 
+The adaptive static orchestrator comes into play if all existing applications are known, but which of them actually runs is unknown. 
 This combination requires a more complex algorithm.
-In this case, to ease the implementation, we limit the allowance of shifting containers.
-If all containers would be allowed to shift to other resources, the schedule would get undecidable again.
+In this case, to ease the implementation, we limit the maximum allowance of shifting containers.
+If all containers would be allowed to shift to other resources, the schedule would get dynamic and  undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
 
--differences to static 
--why, application 
--advantanges.. 
+% Advantages
+The advantage of this version is that we can configure all possible containers that can run on all nodes of a group of servers upfront.
+No need to specify in detail, and offline, which is running where.
+% Why are we doing this
+This allows a management tool to dynamically decide the node that will run a new container.
+% Introduction of kubernetes into the equation.
+An example of such a management tool is Kubernetes. 
+Kubernetes can manage nodes, pods (groups of containers) and decide deployment and resource allocation (count).
+In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.
+Therefore, also migration and node mixing is possible.
 
-->maybe todo introduce kubernetes in the equation 
-->architecture-, maybe also in the intro
+What Kubernetes can't carry out is monitor  resource availability in real-time and with no delay.
+While container allocation is static, this makes no issue. 
+If we have to dynamically reallocate resources, real-time monitoring gets mandatory.
+% Switch over to dynamic scheduling
 
+We have already seen that dynamic scheduling without any additional assumptions is undecideable . % TODO; check if that has been introduced.. actually
+Therefore, it will be done at best using the following additional considerations.
+All tasks are scheduled statically, with adaptive configuration.
+The difference to the previous scheduling algorithm is that we no longer set absolute peaks as worst case execution times. 
+To reduce the amount of unused resources, the worst case tim programmed for a task will be obtained based pn probability distribution and allowed risk.
+In such case the tasks may exceed the configured worst case run-time, but the probability is low and contemporaneity factor even lower.
+We obtain run-time values and probability distributions through experimental measurements. 
+Those measurements give us an average and peak value. The closer we set the worst case execution time to the average, the higher is the risk of exceeding it.
 
-We have already seen that dynamic scheduling is undecideable without any additional assumptions. 
-It will therefore be done at best using the following considerations.
-
-The tasks may exceed the deadline, but in low probability and contemporaneity
-we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
+The outcome of this approach has multiple advantages. 
+While before the resource slot between average and peak is used with a low probability only, reducing the WCET increases resource utulization at a probability cost.
 
 
 %% Considerations
