@@ -448,32 +448,39 @@ If new items are found, the settings are populated and resources allocated and s
 \section{Implementation performance tests}
 \label{sec:perftest}
 
-%TODO:
 In this section we detail function, implementation and tests of the orchestrator.
-First we discuss implemented functionality and assumptions taken. Second, we describe the structure of the program, detailed by source file. 
-Third, a test setup and results are described.
+First we discuss implemented functionality and assumptions taken. 
+We developed the orchestrator in three iterations, extending gradually the functionality.
+Second, we detail a test setup and configuration we will use for performance tests.
+Third, for each of the three versions we detail implementation and performance tests in a separate sub-section. 
 
 \subsection{Function principle}
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
 To achieve this, containers and their running processes have to be confined in their execution context. 
-We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such isolation. 
+We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such isolation.
 Section \ref{sec:testimp} used these techniques to explore the applications of those to check, maintain and monitor running containers.
 In the following we will describe the final implementation and its functions.
 
-%% Considerations
-% Considerations wrong for the static version of the scheduler
-%This is the last active section of the test implementation and probably the most complicated as well.
-%The ideal resource management is hard to guarantee.
-%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
-%If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
-%If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
-%Such algorithms must surely be reevaluated for the dynamic scheduling version.
+Ideal resource management is hard to guarantee.
+To ease the process allocation and resource assignment, we start with simplifying assumptions.
+First, we suppose that the real-time software running in the various containers is all independent. 
+The processes will be considered as black boxes where we do neither have specifications, nor source code. 
+If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O.
+What we have is details about the worst case run-time, deadline and period.
+Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks. Deadlines of tasks are equal to their period.
+With these two assumptions we perform the implementation of a first version. 
 
-static algorightm
+The static orchestrator works with a simple logic. The real-time tasks that have to run are known where they have to run too, and the allocation schedule is computed online. 
+Once running, the orchestrator prepares the environment and reads the container configurations.
+It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
+Successful implementation allows us to proceed to the next iteration.
 
-
-Static with dynamic entry
+The adaptive static orchestrator comes into play if all applications are known, but which of them actually runs is unknown. 
+This combination requires a more complex algorithm.
+In this case, to ease the implementation, we limit the allowance of shifting containers.
+If all containers would be allowed to shift to other resources, the schedule would get undecidable again.
+A correct implementation of this version opens the path for the most complex of the algorithms.
 
 -differences to static 
 -why, application 
@@ -483,17 +490,20 @@ Static with dynamic entry
 ->architecture-, maybe also in the intro
 
 
-dynamic algorithm
+We have already seen that dynamic scheduling is undecideable without any additional assumptions. 
+It will therefore be done at best using the following considerations.
 
-%TESTS STATIC AND DYNAMIC
-
-The dynamic scheduling will therefore be done at best using the following considerations.
-For simplicity, we suppose that the real-time software running in the various containers is all independent. 
-The processes will be considered as black boxes where we do neither have specifications, nor  source code. 
-There exist quasi static approaches to improve the schedulability, but they suffer from an openness constraint.
-This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
 The tasks may exceed the deadline, but in low probability and contemporaneity
 we have to consider defining those values in order to obtain boundaries and limits. Might also be experimental values obtained from the running containers in Siemens Business Unit Farm
+
+
+%% Considerations
+%The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
+%Such algorithms must surely be reevaluated for the dynamic scheduling version.
+
+
+%There exist quasi static approaches to improve the schedulability, but they suffer from an openness constraint.
+%This also means that quasi-static scheduling and similar approaches that opt to improve schedulability at compile-time are not applicable.
 
 %GENERAL NOTES 
 %Heuristic bound, wc has to be satisfied
