@@ -448,19 +448,18 @@ If new items are found, the settings are populated and resources allocated and s
 \section{Implementation performance tests}
 \label{sec:perftest}
 
+%TODO:
 In this section we detail function, implementation and tests of the orchestrator.
 First we discuss implemented functionality and assumptions taken. Second, we describe the structure of the program, detailed by source file. 
 Third, a test setup and results are described.
 
 \subsection{Function principle}
 
-The orchestrator's primary goal is to allocate container resources in order to mantain determinism at best.
+The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
 To achieve this, containers and their running processes have to be confined in their execution context. 
-We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such an isolation. 
-In section \ref{sec:testimp} these techniques have then be used to explore the appplication of those to check, maintain and monitor running containers.
+We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such isolation. 
+Section \ref{sec:testimp} used these techniques to explore the applications of those to check, maintain and monitor running containers.
 In the following we will describe the final implementation and its functions.
-
-
 
 %% Considerations
 % Considerations wrong for the static version of the scheduler
@@ -470,6 +469,21 @@ In the following we will describe the final implementation and its functions.
 %If we do not consider interdependence of the threads, the scheduling algorithm might be simplified to operate on multiple single core units with dedicated memory and I/O.
 %If the tasks are instead depending on each other, more complex and sophisticated algorithms are needed.
 %Such algorithms must surely be reevaluated for the dynamic scheduling version.
+
+static algorightm
+
+
+Static with dynamic entry
+
+-differences to static 
+-why, application 
+-advantanges.. 
+
+->maybe todo introduce kubernetes in the equation 
+->architecture-, maybe also in the intro
+
+
+dynamic algorithm
 
 %TESTS STATIC AND DYNAMIC
 
@@ -507,6 +521,51 @@ we have to consider defining those values in order to obtain boundaries and limi
 
 % Time syncronous network (TSN) maybe necessary
 
+\subsection{Test configuration}
+
+
+# insert specifications of eah 
+
+\subsubsection{rt-app}
+
+parameters: run, runtime -> consequent test overrun.
+
+#
+scripts and containers
+scripts for tests and test-runs
+
+\subsection{Static scheduler - structure}
+
+divided in 3 main files, 
+#main 
+the progam start , defines enviroment parameters. -> runtime etc. interval , opt run
+setup and configuration of system, cores etc
+#update 
+scans for containers and keeps statistics up to date
+#manage
+assigns resources to containers. Algothm of allocation and container configuration resides here
+
+\subsection{Static scheduler - performance tests}
+
+Tests run on the bare metal machine
+test T3
+test C5
+Test T3U?
+
+Different configurations
+-> maybe start from 30% -. 10 step ?
+upto 100%
+
+test-run with multiple rt-cores in parallel .. ->> same tests again
+
+Results = differences and conclusions
+
+\subsection{Adaptive scheduler -  structure}
+
+Changes to the program. From before to now
+
+
+\subsection{Dynamic Scheduler - structure}
 
 
 \section{Conclusions}
