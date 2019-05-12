@@ -464,10 +464,10 @@ Section \ref{sec:testimp} used these techniques to explore the applications of t
 In the following we will describe the final implementation and its functions.
 
 If we start from computing resources, we can define the following relationships.
-A computation resource has a maximum utilization factor $U_l$ of $1$.
+A computation resource has a maximum utilization factor (limit) $U_l$ of $1$.
 The utilization factor for each processor is defined as the sum of run-times divided by their period, or
 \begin{equation}
-	U_l = \sum_{i \in T}^{}{\frac{c_i}{p_i}} \leq 1
+	U = \sum_{i \in T}^{}{\frac{c_i}{p_i}} \leq U_l = 1
 \end{equation}  
 where T is the set of all tasks, $p_i$ the period and $c_i$ the computation time.
 If we schedule our tasks, we try to maximize $U$ without exceeding, but the maximum amount is limited by the worst case computation time (WCET) $w_i$.
@@ -527,11 +527,39 @@ If so, some of the tasks closest to next in line will be rescheduled onto a diff
 The outcome of this approach has multiple advantages. 
 While before the resource slot between average and peak is used with a low probability only, reducing the WCET increases resource utulization at a probability cost.
 If for example we have nine tasks with WCET 10, period $p_i$ 50 and $\bar c_i$ 5 and probability of exceding $\bar c_i$ of $10 \exp{-10}$ we can take the following assumptions.
-We can put all tasks $w_i$ to 5, resulting in a total utilzation factor $U_l$ of $0.9$.
+We can put all tasks $w_i$ to 5, resulting in a total utilzation factor $U$ of $0.9$.
 The 10\% margin can be used by any of the containers to bridge the gap between average $\bar c_i$ and WCET of 5.
 The risk is given by the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of eccedence is more than 10
-% of $U_l$.
+\% of $U$.
 
+We have now given the following.
+Getting closer to $c_{i\_max}$, the probability $\pi_i$ of a task to exceed the set $wi$ decreases according to the PDF measured for the task. 
+The amount of buffer available for a task is defined as $B_l = 1 - U_l = 1 - \sum_{i \in T} \frac{w_i}{p_i}$, thus decreasing the higher the $w_i$ is set.
+Or put differently, if we set $w_i$ closer to the average than to the peak, the resources free and will not be used with a probability F.
+
+The utilization buffer is defined thus as 
+\begin{equation}
+	U_B = 1 - U
+\end{equation}
+
+And the worst case utilization excedence of a task i is 
+\begin{equation}
+	U_{Ei} = \frac{C_{i_{max}}- w_i}{p_i}
+\end{equation}
+
+With this two utilization factors we can then compute the accomodation rate of the buffer, $c$, which is defined as
+
+\begin{equation}
+	c = 1 + \lceil \frac{U_B}{U_{Ei}} \rceil
+\end{equation}
+
+This probability, defined by two tasks exceeding the average, is given as
+\begin{equation}
+	F = \frac{n!}{c*(n-c)!} * p^c
+\end{equation}
+
+
+The risk taken is influenced by mutliple factors. If the buffer time is big enough to accommodate more than one exceeding tasks, the probability of failure reduces even more.
 
 
 
