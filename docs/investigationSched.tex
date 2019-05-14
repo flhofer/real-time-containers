@@ -7,6 +7,8 @@
 %opening
 \title{Orchestrating real-time containers:\\ on the possibilities of schedule manipulation}
 \author{Florian Hofer}
+\newcommand*{\thead}[1]{\multicolumn{1}{c}{\bfseries #1}}
+
 
 \begin{document}
 
@@ -456,6 +458,13 @@ Second, we detail a test setup and configuration we will use for performance tes
 Third, for each of the three versions we detail implementation and performance tests in a separate sub-section. 
 
 \subsection{Function principle}
+\label{sub:funcdesc}
+
+
+%Description on what we want to achieve
+Having assessed the feasibility of real-time, low latency execution within bounds in \cite{Hoferetal2019}, we next address system efficiency.
+The efficiency of containerized applications can be increased by managing resources and mapping multiple containers onto shared resources.
+We will use an \emph{orchestrator} including the needed algorithms to perform this tasks.
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
 To achieve this, containers and their running processes have to be confined in their execution context. 
@@ -478,8 +487,9 @@ Our orchestration tool will try to optimize out this loss while moderating risks
 Ideal resource management is hard to guarantee.
 To ease the process allocation and resource assignment, we start with simplifying assumptions.
 First, we suppose that the real-time software running in the various containers is all independent. 
-The processes will be considered as black boxes where we do neither have specifications, nor source code. 
+The processes will be considered as black boxes where we do neither have specifications, nor source code.
 If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O, thus each has its own $U_l = 1$.
+Consequently, allocation algorithms might reach theoretical utilization rates converging to $69\%$ for Rate Monotonic (RM) scheduling and up to $100\%$ for Earliest Deadline First (EDF)~\cite{Buttazzo2011}. 
 Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
 Deadlines of tasks are equal to their period.
 We have thus the run-time values WCET $w_i$, period and deadline ($p_i = d_i$).
@@ -578,8 +588,6 @@ These savings expressed as utilization factor are defined as:
 If we ceil the sum of all $U_S$ of all installed processing units, we get the number of CPUs that have been saved with the probability setting configured.
 
 
-
-
 %% Considerations
 %The thread has to calculate utilization values and utilization limits, things known from real time scheduling theory, multiple times a second. 
 %Such algorithms must surely be reevaluated for the dynamic scheduling version.
@@ -618,50 +626,218 @@ If we ceil the sum of all $U_S$ of all installed processing units, we get the nu
 
 To execute these tests we prepared a set of test configurations. 
 
+% test setup, IAAS Aws C5 and Bare metal Ubuntu Server 18.04 LTS, kernel 4.19.31-rt18
+%To consider also latest kernel updates and patches, we reconfigured both systems with the newest kernel.
+%TODO:
+For the results in this section, both our AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} have been re-configured with the latest LTS operating system release, Ubuntu Server 18.04.2.
+In addition, the kernel of all systems has been upgraded to and patched with the latest \texttt{PREEMPT-RT} release, 4.19.31-rt18.
+The installation and update steps were performed using the same build scripts of Section \ref{sub:ostest}, with only some minor changes.
+These changes should reduce interruption frequency and duration, important details when trying to measure system introduced runtime noise.
+To increase preemption performance, the configurations of the latest available official kernel releases have been applied (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively), the source code patched, and preemption set.
+Some debug features have been disabled, and the scheduler base tick frequency has been increased.
+%The performance of the kernel is increased as we change debugging and synchronization settings.
 
+In particular, the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) is now disabled to reduce kernel preemption duration.
+We disabled the flag \texttt{CONFIG\_DEBUG\_SHIRQ} to prohibit generation of spurious debug interrupts.
+In addition, The configuration settings for the Read-Copy-Update synchronization kernel tracing  (\texttt{CONFIG\_RCU\_TRACE} and \texttt{CONFIG\_TREE\_RCU\_TRACE}) are disabled to reduce synchronization-induced latencies.
+Via the \texttt{CONFIG\_HZ\_1000} and \texttt{CONFIG\_HZ} flags, the tick has been changed from the default value of $250Hz$ (or $100Hz$ depending on the distribution) to $1000Hz$.
+Although introducing some scheduling overhead, this change allows schedule evaluation up to every millisecond. 
+In combination with high resolution timers (\texttt{CONFIG\_HIGH\_RES\_TIMERS}), this enables higher scheduling granularity and fractional allocation of computation time.
+Our system works with dynamic ticks enabled (\texttt{CONFIG\_NO\_HZ\_IDLE}) for the first round of test batches.
+During this first round, the scheduler adapts the rescheduling of tasks to a minimum for each core with \texttt{CONFIG\_HZ} as upper bound. 
+The second batch runs with full ticks, a second recompiled kernel forcing scheduler evocation every millisecond (flag \texttt{CONFIG\_HZ\_FULL}).
 
-! insert specifications of eah 
+All test use the EDF scheduler including the Greedy Reclamation of Unused Bandwidth (GRUB) server shipped with the Linux kernel since version 4.13.
+The latter is an improvement to Constant Bandwidth Servers (CBS) used to manage asynchronous tasks in a real-time setting. 
+In fact, the CBS algorithm is unable to manage WCET overshoots and task misbehaviour; for instance, an EDF real-time task going to sleep would risk starving a system. 
+The GRUB algorithm, yet, is able to manage such situations and preempt the starvation causing task. 
+In addition, it can reclaim the unused bandwidth of EDF tasks and reallocate it to other EDF processes, allowing them to continue over their WCET without throttling.
+
+% Advantages of EDF in general
+Another advantage of the EDF scheduler is the ease to determine feasibility of a schedule.
+Each task $i$ in an EDF schedule requires three parameters: programmed worst case runtime $w_i$, deadline $d_i$ and period $p_i$, where the relation is as follows:
+\begin{equation}
+t_i \le d_i \le p_i
+\end{equation}
+For a generic periodic task, the runtime $w$ is set to be equal to the WCET, $p$ is the repetition period, and the deadline $d$ is the relative point in time since period start where the computation must be finished. 
+During runtime, the scheduler will use these settings to compute the absolute deadline $D_i$ and the absolute period end $P_i$ based on the absolute start time $S_i$ of the new period.
+A partitioned or affinity managed system can furthermore be considered a set of isolated subsystems.
+If now the deadline of a task $d_i$ is equal to the period $p_i$ of a task, a schedule consisting of $n$ tasks running on one of the partitioned subsystems is feasible if
+\begin{equation}
+\sum_{i \in n} \frac{w_i}{p_i} \le 1 = U_l,
+\end{equation}
+which also equals the theoretical utilization limit $U_l$~\cite{Buttazzo2011}. 
+
+% how is the run-time exe, CGroups, affinity, and period configuration 
+In preparation for execution, the static orchestrator identifies environment parameters and configures the kernel.
+In particular, the RT-containers are isolated via %``cpuset''
+\texttt{CGroups} from system tasks.
+A separate control group called \texttt{system} is created and before allocating containers, all possible system or user tasks are moved from the root into the new group.
+The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
+The division and size of the CPU-sets can be configured via command line parameters.
+In addition, at start-up, the orchestrator sets the maximum real-time run-time to $-1$. This is to avoid throttling of RT tasks and to enable CPU affinity for EDF scheduled processes.
+
+The test batch consists of a set of preliminary boundary tests and a simulation test.
+In particular, we have created the following preliminary test settings:
+
+\begin{itemize}
+	\item \textit{Test lower bound:} homogeneous period and run-time among all containers executing on the same resources with a WCET $w_i$ smaller than the scheduler's granularity ($1000\mu s$);
+	\item \textit{Test upper bound:} homogeneous period and run-time among containers executing on the same resources, with a runtime to period ratio $(\frac{t_i}{p_i})$ close to $0.5$.
+	\item \textit{Test diversity:} mixed periods and run-times each container executing on the same resources.
+\end{itemize}
+
+As a conclusive test, we emulate the scenario of our initial problem statement. 
+The parallel operation of multiple instances of the flow control software is verified creating an additional test set.
+The test configuration foresees a homogeneous period and run-time among all containers on the same resources, with timing based on the values of Section \ref{sec:bgnd} ($10ms$ run-time, $100ms$ deadline and period).
+
+Unfortunately, there is no direct access to the scheduler's kernel data.
+Therefore, the orchestrator scans continuously the kernel debug output for each process to analyze remaining runtime budget and verify period and deadline consistency. 
+If a deadline is missed, the reported absolute deadline will deviate from the programmed period. By definition, the absolute deadline $D_i$ of a task $i$ with execution period $j$ is given by:
+\begin{equation}
+D_i = \Phi_i + (j-1) p_i + d_i,
+\end{equation}
+where $\Phi_i$ is the task's absolute initial start time.
+
+For the first test batch, we set up one resource configuration for each of the tests discussed in the previous section.
+The first group consists of ten containers with a WCET $w_i$ of $900\mu s$ . 
+With a period and deadline of $10ms$, this results in a utilization factor $U_l$ of $0.9$.
+The second configured group includes two containers with $1.9ms$ runtime $t_i$, $2.5ms$ WCET and $5ms$ period.
+Although this configuration has only two containers, scheduling consists a challenge in a relatively small period.
+The scheduler's refresh rate is limited to $1000\mu s$, making this configuration a scheduling challenge.
+Group number three consists of a mixed set of containers: one container set to $2.5/5ms$, one $900\mu s/10ms$, and one configured as $3/9ms$ for worst case computation time and deadline/period, respectively.
+The configuration and resource affinity is managed automatically by the orchestrator, based on a static schedule configuration file.
+The last test is the simulation of the parallel operation of the control programs. 
+For this test, all three groups are filled with instances of the test container. 
+The computation and period are set to $10$ and $100ms$, respectively.
+Test results will be detailed after each implementation description.
 
 \subsubsection{rt-app}
 
-parameters: run, runtime -> consequent test overrun.
+% What are we doing
+We perform the resource efficiency tests in this section by placing a higher number of real-time applications on the same set of resources.
+For this purpose, the real-time test software \texttt{rt-app}~\cite{rtapp01} is used to create configurable dummy applications. 
+\texttt{rt-app} allows a variety of simulated actions, from pure computation loops, to memory and I/O operations, as well as synchronization simulations.
+Those applications are then placed individually into containers and run on shared resources. 
+Each of the containers is set up and configured with running periods and computation times.
+For simplicity, the relative computation deadline $d_i$ is set to be the same as the period $p_i$ in all tests.
+In addition to the worst case runtime $w_i$, the configuration requires a simulated runtime parameter $t_i$ which is the supposed effective runtime of the simulated task.
+The simulated runtimes of the test software is configured to allow a margin of $30\%$, i.e. $t_i = w_i / 1.3$.
+As the number of loops is constant, the actual execution time depends solely on interaction with the system.
+\texttt{rt-app} tracks the absolute elapsed time between computation start and computation end.
+Monitoring the resulting value will therefore allow detection of execution jitter and capture of eventual deadline miss caused by the tested system configuration.
 
-!
-scripts and containers
-scripts for tests and test-runs
+To emulate real-time computation, \texttt{rt-app} uses a loop performing exponential dummy computations. 
+Usually, to relate loops to time, a calibration phase to determine the execution time of the calculation is executed.
+The result is then used to determine the number of loops required to reach the desired runtime, $t_i$. 
+Due to granularity and precision issues, the resulting application run-time might differ slightly.
+However, the $30\%$ margin between runtime and WCET should suffice to account for this discrepancy.
+To align loop execution period among all containers and avoid anomalies, the calibration is performed in advance and passed as fixed parameter to all instances of \texttt{rt-app}.
+
+
+During test execution, the orchestrator and the output of \texttt{rt-app} will be used to monitor run-time behavior of the system.
+\texttt{rt-app} is configured to create a log file detailing each execution cycle to be inspected for eventual deadline failures.
+The test scripts, the source code and a detailed description of the orchestrator can be found in the project repository~\cite{homep01}.
+
+%TODO :parameters: run, runtime -> consequent test overrun.
+%TODO :scripts and containers
+%TODO :scripts for tests and test-runs
 
 \subsection{Static scheduler - structure}
 
-divided in 3 main files, 
-!main 
-the progam start , defines enviroment parameters. -> runtime etc. interval , opt run
-setup and configuration of system, cores etc
-!update 
-scans for containers and keeps statistics up to date
-!manage
-assigns resources to containers. Algothm of allocation and container configuration resides here
+% divided in 3 main files, 
+%!main 
+%the progam start , defines enviroment parameters. -> runtime etc. interval , opt run
+%setup and configuration of system, cores etc
+%!update 
+%scans for containers and keeps statistics up to date
+%!manage
+%assigns resources to containers. Algorithm of allocation and container configuration resides here
 
 \subsection{Static scheduler - performance tests}
 
-Tests run on the bare metal machine
-test T3
-test C5
-Test T3U?
+The results on both AWS T3/C5 and Bare Metal are reported in Table~\ref{tab:schedprel}.
 
-Different configurations
--> maybe start from 30% -. 10 step ?
-upto 100%
+\begin{table}[bt]
+	\centering
+	\caption{Test batch 1 results, three container groups on Bare metal and IAAS}
+		\begin{tabular}{lccccccccc}
+%			\headrow
+			\thead{Variables} & \multicolumn{3}{}{\thead{Bare Metal}}& \multicolumn{3}{}{\thead{Aws T3}}& \multicolumn{3}{}{\thead{Aws C5}}\\
+			& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}\\
+			Group 1, 4 units <50\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+			Group 2, 1 unit <50\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+			Group 3, 1 unit <50\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+			Group 1, 6 units <70\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+			Group 3, 2 units <70\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+			Group 1, 8 units <90\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+			Group 2, 2 units <90\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+			Group 1, 9 units <100\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+			Group 3, 3 unit <100\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+			\hline  % Please only put a hline at the end of the table
+		\end{tabular}
+		
+		%        \begin{tablenotes}
+		%            \item JKL, just keep laughing; MN, merry noise.
+		%        \end{tablenotes}
+	\label{tab:schedprel}
+\end{table}
 
-test-run with multiple rt-cores in parallel .. ->> same tests again
+In test batch Two, we repeated the same tests on all three systems with a kernel having forced tick rate.
+Table \ref{schedsim} shows results of the second test batch for different utilization rates.
 
-Results = differences and conclusions
+\begin{table}[bt]
+	\centering
+	\caption{Test batch 2 results, all groups running an equal number of simulation containers. Experiments run on Bare metal and IAAS AWS T3 and C5.}
+	\begin{tabular}{l ccccccccc}
+%^		\headrow
+		\thead{Variables} & \multicolumn{3}{}{\thead{Bare Metal}}& \multicolumn{3}{}{\thead{Aws T3}}& \multicolumn{3}{}{\thead{Aws C5}}\\
+		& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}\\
+		4 units <50\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+		5 units <60\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+		6 units <70\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
+		7 units <80\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+		8 units <90\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+		9 units <100\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
+		\hline  % Please only put a hline at the end of the table
+	\end{tabular}
+	\label{tab:schedsim}
+\end{table}
+
+The data from both test batches shows that multiple runs of containers are feasible.
+In particular, if configured properly, an utilization limit close to $0.8$, or $80\%$, can be reached.
+With a variety of tests and combinations, it has been shown that even in an IAAS infrastructure, latency and determinism required to obtain such resource savings can be reached.
+%With utilization factors $U_l$ up to $60\%$, all the containers stay constant and execute without missing deadlines.
+
+Although higher utilization factors cause some deadline overshoot, the amount is minimal and can be attained to system overhead.
+In many cases, the scheduler allows some grace time which has been reclaimed from other EDF tasks.
+However, the execution logs also show how the GRUB algorithm preempts overrunning tasks once this grace period is over. 
+This is to restrain the container from starving other processes and influencing their execution times.
+The data in Tables \ref{tab:schedprel} and \ref{tab:schedsim} includes some deadline jitter, which seems to depend mostly on background activity of the system.
+Although latency and execution jitter stay within limits of $xxx \mu s$, these values have to be considered when dealing with very small hard deadlines. 
+An early deadline could avoid the sum effect to exceed the deadline by significant amounts of time. 
+
+
+% Tests run on the bare metal machine
+% test T3
+% test C5
+% Test T3U? <- important to check this!!
+
+% Different configurations
+% -> maybe start from 30% -. 10 step ?
+% upto 100%
+
+% test-run with multiple rt-cores in parallel .. ->> same tests again
+
+% Results = differences and conclusions
 
 \subsection{Adaptive scheduler -  structure}
 
-Changes to the program. From before to now
+%TODO Changes to the program. From before to now
 
 
 \subsection{Dynamic Scheduler - structure}
+
+%TODO: well.. still to be defined
 
 
 \section{Conclusions}
