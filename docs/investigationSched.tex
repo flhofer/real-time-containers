@@ -744,14 +744,12 @@ The test scripts, the source code and a detailed description of the orchestrator
 
 \subsection{Static scheduler - structure}
 
-% divided in 3 main files, 
-%!main 
-%the progam start , defines enviroment parameters. -> runtime etc. interval , opt run
-%setup and configuration of system, cores etc
-%!update 
-%scans for containers and keeps statistics up to date
-%!manage
-%assigns resources to containers. Algorithm of allocation and container configuration resides here
+Divided in 3 files, one per thread. 
+The first is main the progam start , defines enviroment parameters for run-time of the other tasks, the interval, and other optional run parameters. 
+It performs setup and configuration of system, cores etc.
+The second, the update thread, scans for containers and keeps statistics up to date.
+The third, manage thread, assigns resources to containers. Algorithm of allocation and container configuration resides here.
+%TODO: extend and add op details: loop execution ecc.
 
 \subsection{Static scheduler - performance tests}
 
@@ -783,7 +781,7 @@ The results on both AWS T3/C5 and Bare Metal are reported in Table~\ref{tab:sche
 \end{table}
 
 In test batch Two, we repeated the same tests on all three systems with a kernel having forced tick rate.
-Table \ref{schedsim} shows results of the second test batch for different utilization rates.
+Table \ref{tab:schedsim} shows results of the second test batch for different utilization rates.
 
 \begin{table}[bt]
 	\centering
