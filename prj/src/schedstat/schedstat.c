@@ -282,10 +282,10 @@ static int setkernvar(const char *name, char *value)
 
 }
 
-static int getkernvar(const char *name, char *value)
+static int getkernvar(const char *name, char *value, int size)
 {
 
-	if (kernvar(O_RDONLY, name, value, sizeof(value))){
+	if (kernvar(O_RDONLY, name, value, size)){
 		printDbg(KRED "Error!" KNRM " could not get %s\n", name);
 		return -1;
 	}
@@ -315,7 +315,7 @@ enum {
 	AFFINITY_USEALL
 };
 
-static int setaffinity = AFFINITY_UNSPECIFIED;
+static int setaffinity = AFFINITY_SPECIFIED; // TODO: for now always specified as SYSCPUS
 static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 static struct bitmask *affinity_mask = NULL; // default bitmask
 
@@ -406,7 +406,7 @@ static int prepareEnvironment() {
 
 	fileprefix = cpusystemfileprefix;
 	char cpus[10] = SYSCPUS; // cpu allocation string
-	char str[10]; // generic string... 
+	char str[100]; // generic string... 
 
 	info("This system has %d processors configured and "
         "%d processors available.\n",
@@ -416,8 +416,8 @@ static int prepareEnvironment() {
 		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
 		return -1;
 	}
-
-	// verify if SMT is disabled
+/*
+	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
 	if (!getkernvar("smt/control", str)){
 		// value read ok
 		if (!strcmp(str, "on")) {
@@ -437,7 +437,7 @@ static int prepareEnvironment() {
 		else
 			cont("SMT is disabled, as required\n");
 	}
-
+*/
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
 
@@ -445,13 +445,44 @@ static int prepareEnvironment() {
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
 
 	// get online cpu's
-	if (!getkernvar("online", str))
+	if (!getkernvar("online", str, sizeof(str)))
 		con = numa_parse_cpustring_all(str);
 
 	// mask affinity and invert for system map / readout of smi of online CPUs
 	for (int i=0;i<maxccpu;i++) {
 
 		if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
+
+			char fstring[50]; // cpu string
+			char poss[50]; // cpu string
+
+			// verify if cpu-freq is on performance -> set it
+			(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
+			if (!getkernvar(fstring, poss, sizeof(poss))){
+				// value possible read ok
+				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
+				if (!getkernvar(fstring, str, sizeof(str))){
+					// value act read ok
+					if (strcmp(str, "performance")) {
+						// SMT - HT is on
+						cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
+						if (!force) {
+							err_msg( KRED "Error! " KNRM "CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"performance\"\n", str, i);
+							return -1;
+							}
+
+						if (setkernvar(fstring, "performance")){
+							err_msg( KRED "Error! " KNRM "CPU-freq change unsuccessful!\n");
+							return -1;
+						}
+						cont("CPU-freq on CPU%d is now set to \"performance\" as required\n", i);
+					}
+					else
+						cont("CPU-freq on CPU%d is set as required\n", i);
+				}
+			}
+
+			// TODO: cpu-idle
 
 			// if smi is set, read SMI counter
 			if(smi) {
@@ -469,6 +500,14 @@ static int prepareEnvironment() {
 			if (!numa_bitmask_isbitset(affinity_mask, i))
 				numa_bitmask_setbit(naffinity, i);
 		}
+
+		// if CPU not online
+		else if (numa_bitmask_isbitset(affinity_mask, i)) {
+			// disabled processor set to affiinty
+			err_msg( KRED "Error! " KNRM "Unavailable CPU set for affinity.\n");
+			return -1;
+		}
+
 	}
 
 	// parse to string	
@@ -839,13 +878,13 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				break;
 			if (NULL != optarg) {
 				affinity = optarg;
-				parse_cpumask(optarg, max_cpus);
 				setaffinity = AFFINITY_SPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
 				affinity = argv[optind];
-				parse_cpumask(argv[optind], max_cpus);
 				setaffinity = AFFINITY_SPECIFIED;
 			} else {
+				affinity = malloc(10);
+				sprintf(affinity, "0-%d", max_cpus-1);
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
@@ -984,6 +1023,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			break;
 		}
 	}
+
+	// create affinity mask
+	parse_cpumask(affinity, max_cpus);
 
 	// option mismatch verification
 	if (option_affinity) {
