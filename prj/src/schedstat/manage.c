@@ -8,8 +8,24 @@
 
 // Global variables used here ->
 
-// parameter tree linked list head
+// parameter tree linked list head, resource linked list head
 static parm_t * phead;
+static struct resTracer * rhead;
+
+////// TEMP ---------------------------------------------
+
+void rpush(struct resTracer ** head) {
+    struct resTracer * new_node;
+    new_node = calloc(sizeof(struct resTracer), 1);
+	// if any sched parameter is set, policy must also be set
+
+    new_node->next = *head;
+    *head = new_node;
+}
+
+////// TEMP ---------------------------------------------
+
+
 
 /* Function realloc_it() is a wrapper function for standard realloc()
  * with one difference - it frees old memory pointer in case of realloc
@@ -481,11 +497,30 @@ int updateSched() {
 	return ovr;
 }
 
-/// manageSched(): main function called to reassign resources
+/// createResTracer(): create resource tracing memory elements
 //
 /// Arguments: 
 ///
-/// Return value: N/D
+/// Return value: N/D - int
+///
+int createResTracer(){
+	// mask affinity and invert for system map / readout of smi of online CPUs
+//	for (int i=0;i<affinity_mask.size;i++) 
+
+//		if (numa_bitmask_isbitset(affinity_mask, 0)){ // filter by selected only
+
+;
+//struct resTracer
+		
+		
+
+}
+
+/// manageSched(): main function called to reassign resources
+///
+/// Arguments: 
+///
+/// Return value: N/D - int
 ///
 int manageSched(){
 

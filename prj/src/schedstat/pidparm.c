@@ -17,6 +17,7 @@ void ppush(parm_t ** head) {
     *head = new_node;
 }
 
+/*
 struct sched_attr * pget_node(parm_t * act) {
 
     if (act == NULL) {
@@ -38,4 +39,4 @@ struct sched_attr * pget_next(parm_t ** act) {
     }
     return pget_node(*act);
 }
-
+*/

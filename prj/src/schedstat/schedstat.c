@@ -54,6 +54,8 @@ int update_wcet = TWCET;	// wcet for sched deadline
 int loops = TDETM;			// determinism
 int runtime = 0;			// total orchestrator runtime, 0 is infinite
 int psigscan = 0;			// scan for child threads, -n option only
+struct bitmask *affinity_mask = NULL; // default bitmask allocation of threads!!
+
 //int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
@@ -317,7 +319,6 @@ enum {
 
 static int setaffinity = AFFINITY_SPECIFIED; // TODO: for now always specified as SYSCPUS
 static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
-static struct bitmask *affinity_mask = NULL; // default bitmask
 
 /// parse_cpumask(): checks if the cpu bitmask is ok
 ///
@@ -416,7 +417,8 @@ static int prepareEnvironment() {
 		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
 		return -1;
 	}
-/*
+/* TODO: remove this comment!
+
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
 	if (!getkernvar("smt/control", str)){
 		// value read ok
