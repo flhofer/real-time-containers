@@ -5,6 +5,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <numa.h>			// numa node ident
 
 // Global variables used here ->
 
@@ -21,6 +22,70 @@ void rpush(struct resTracer ** head) {
 
     new_node->next = *head;
     *head = new_node;
+}
+
+/// checkUvalue(): verify if task fits into Utilization limits of a resource
+///
+/// Arguments: resource entry for this cpu, the attr structure of the task
+///
+/// Return value: 0 = ok, -1 = no space, 1 = ok but recalc base
+int checkUvalue(struct resTracer * res, struct sched_attr * par) {
+	uint64_t	base = res->basePeriod,
+				used = res->usedPeriod;
+	int rv = 0;
+	
+	if (base % par->sched_deadline != 0) {
+		// realign periods
+		uint64_t max_Value = MAX (base, par->sched_period);
+
+		if (base % 1000 != 0 || par->sched_period % 1000 != 0)
+			fatal("Nanosecond resolution periods not supported!\n");
+			// temporary solution to avoid very long loops
+
+		while(1) //Alway True
+		{
+			if(max_Value % base == 0 && max_Value % par->sched_period == 0) 
+			{
+				break;
+			}
+			max_Value+= 1000; // add a microsecond..
+		}
+
+		used *= max_Value/base;
+		base = max_Value;	
+		rv=1;
+	}
+
+	if (MAX_UL < (double)(used + par->sched_runtime * base/par->sched_period)/(double)(base) )
+		rv = -1;
+
+	return rv;
+}
+
+void addUvalue(struct resTracer * res, struct sched_attr * par) {
+	if (res->basePeriod % par->sched_deadline != 0) {
+		// realign periods
+		uint64_t max_Value = MAX (res->basePeriod, par->sched_period);
+
+		if (res->basePeriod % 1000 != 0 || par->sched_period % 1000 != 0)
+			fatal("Nanosecond resolution periods not supported!\n");
+			// temporary solution to avoid very long loops
+
+		while(1) //Alway True
+		{
+			if(max_Value % res->basePeriod == 0 && max_Value % par->sched_period == 0) 
+			{
+				break;
+			}
+			max_Value+= 1000; // add a microsecond..
+		}
+
+		res->usedPeriod *= max_Value/res->basePeriod;
+		res->basePeriod = max_Value;	
+
+	}
+
+	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 }
 
 ////// TEMP ---------------------------------------------
@@ -395,7 +460,7 @@ int updateSched() {
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
 					CPU_ZERO(&cset);
-					CPU_SET(current->param->rscs.affinity, &cset);
+					CPU_SET(current->param->rscs.affinity & !(SCHED_FAFMSK), &cset);
 				}
 				else {
 					// cpu affinity to all
@@ -505,14 +570,13 @@ int updateSched() {
 ///
 int createResTracer(){
 	// mask affinity and invert for system map / readout of smi of online CPUs
-//	for (int i=0;i<affinity_mask.size;i++) 
+	for (int i=0;i<(affinity_mask->size);i++) 
 
-//		if (numa_bitmask_isbitset(affinity_mask, 0)){ // filter by selected only
-
-;
-//struct resTracer
-		
-		
+		if (numa_bitmask_isbitset(affinity_mask, i)){ // filter by selected only
+			rpush ( &rhead);
+			rhead->affinity = i;
+			rhead->basePeriod = 1;
+	}		
 
 }
 
@@ -524,7 +588,7 @@ int createResTracer(){
 ///
 int manageSched(){
 
-	// TODO: this is for the dynamic scheduler only
+	// TODO: this is for the dynamic and adaptive scheduler only
 
     node_t * current = head;
 
