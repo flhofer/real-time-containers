@@ -417,10 +417,9 @@ static int prepareEnvironment() {
 		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
 		return -1;
 	}
-/* TODO: remove this comment!
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (!getkernvar("smt/control", str)){
+	if (!getkernvar("smt/control", str, sizeof(str))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
@@ -439,7 +438,7 @@ static int prepareEnvironment() {
 		else
 			cont("SMT is disabled, as required\n");
 	}
-*/
+
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
 
