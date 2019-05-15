@@ -55,12 +55,13 @@ int loops = TDETM;			// determinism
 int runtime = 0;			// total orchestrator runtime, 0 is infinite
 int psigscan = 0;			// scan for child threads, -n option only
 struct bitmask *affinity_mask = NULL; // default bitmask allocation of threads!!
-
+char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 //int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
+static char * cont_cgrp = CONT_DCKR; // CGroup subdirectory configuration for container detection
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -491,7 +492,7 @@ static int prepareEnvironment() {
 				if (*(smi_msr_fd+i) < 0)
 					fatal("Could not open MSR interface, errno: %d\n",
 						errno);
-				/* get current smi count to use as base value */
+				// get current smi count to use as base value 
 				if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
 					fatal("Could not read SMI counter, errno: %d\n",
 						0, errno);
@@ -578,7 +579,12 @@ static int prepareEnvironment() {
 	else
 		cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
 
-	/// Docker CGROUP setup == TODO: verify cmd-line parameters cgroups
+	// create Docker CGroup prefix
+	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
+	*cpusetdfileprefix = '\0'; // set first chat to null
+	(void)strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
+
+	/// Docker CGROUP setup 
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
 		struct stat s;
 
@@ -588,7 +594,7 @@ static int prepareEnvironment() {
 		int err = stat(fileprefix, &s);
 		if(-1 == err) {
 			if(ENOENT == errno) { // TODO: parametrizable Cgroup value
-				warn("CGroup '%s' does not exist. Is the daemon running?\n", "docker/");
+				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
 			} else {
 				perror("Stat encountered an error");
 			}
@@ -784,6 +790,8 @@ static void display_help(int error)
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
+	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
+	       "                           optional CGRP parameter specifies base signature, default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 	       "-f                         force execution with critical parameters\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
@@ -811,7 +819,7 @@ static void display_help(int error)
 #endif
 //	       "-v       --verbose         output values on stdout for statistics\n"
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
-			, TSCAN, TDETM, CONT_PID, TWCET
+			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);
@@ -867,7 +875,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:dfFi:l:mn::p:Pqr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:C:dfFi:l:mn::p:Pqr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -916,6 +924,15 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'c':
 		case OPT_CLOCK:
 			clocksel = atoi(optarg); break;
+		case 'C':
+			use_cgroup = DM_CGRP;
+			if (NULL != optarg) {
+				cont_cgrp = optarg;
+			} else if (optind<argc) {
+				cont_cgrp = argv[optind];
+				optargs++;
+			}
+			break;
 		case 'd':
 		case OPT_DFLAG:
 			setdflag = 1; break;

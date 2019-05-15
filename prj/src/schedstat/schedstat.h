@@ -52,13 +52,13 @@
 	#define TSCHS 1024  // scheduler minimum granularity
 	#define CONT_PPID "docker-containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
+	#define CONT_DCKR "docker/" // default cgroup subdirectory
 
 	#define SYSCPUS "0" // 0-> count reserved for orchestrator and system
 
 	// procfs and sysfs path constants
 	static char *procfileprefix = "/proc/sys/kernel/";
 	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
-	static char *cpusetdfileprefix = "/sys/fs/cgroup/cpuset/docker/";
 	static char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 
 	// definition of container detection modes

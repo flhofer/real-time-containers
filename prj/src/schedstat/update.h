@@ -43,6 +43,7 @@
 	extern int clocksel; // clock selection for intervals
 	extern char * cont_ppidc; // container pid signature to look for
 	extern char * cont_pidc; // command line pid signature to look for
+	extern char * cpusetdfileprefix; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 	extern int kernelversion; // using kernel version.. 
 	extern int setdflag; // set deadline overrun flag? for DL processes?
 	extern int runtime; // test runtime -> 0 = infinite
