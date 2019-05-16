@@ -349,9 +349,12 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 		// find command string and copy to new allocation
         pid = strtok (NULL, "\n"); // end of line?
         printDbg(" cmd: %s\n",pid);
-		// TODO: what if len = max, null terminator?
-		if (pidlst->psig = calloc(1, SIG_LEN)) // alloc memory for string
+
+		// add command string to pidlist
+		if (pidlst->psig = calloc(1, SIG_LEN)) { // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
+			pidlst->psig[SIG_LEN-1] = '\0'; // safety trunc if too long
+		}
 		pidlst->contid = NULL;							
 
 		pidlst++;

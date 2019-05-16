@@ -24,4 +24,5 @@
 	void *thread_manage (void *arg); // thread that scans peridically for new entry pids
 	#define JSMN_STRICT // force json conformance when parsing
 	#define MAX_UL 0.90
+	#define JSN_READ 65	// Json string value read length, must be longer than SIG_LEN
 #endif

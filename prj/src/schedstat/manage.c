@@ -130,7 +130,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	if (JSMN_PRIMITIVE == t->type) {
 		// enter here if a primitive value (int?) has been identified
 
-		if (-1 == key || (t->end - t->start) > SIG_LEN) { // no key value yet or value too long
+		if (-1 == key || (t->end - t->start) > JSN_READ) { // no key value yet or value too long
 			warn("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
@@ -140,8 +140,8 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			return 1;
 		}
 
-		// here len must be shorter than SIG_LEN 
-		char c[SIG_LEN]; // buffer size for tem
+		// here len must be shorter than JSN_READ 
+		char c[JSN_READ]; // buffer size for tem
 		sprintf(c, "%.*s", t->end - t->start, js+t->start);
 
 		switch (key) {
@@ -202,15 +202,15 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	
 	// setting value or label
 	} else if (JSMN_STRING == t->type) {
-		// here len must be shorter than SIG_LEN TODO: fix to dynamic length
-		if ((t->end - t->start) > SIG_LEN){
+		// here len must be shorter than JSN_READ
+		if ((t->end - t->start) > JSN_READ-1){
 			warn("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
 			return 1; // 0 or 1? or count? check?
 		}
 
 		// a key has been identified
 		if (0 > key){
-			char c[SIG_LEN]; // buffer size for temp storage
+			char c[JSN_READ]; // buffer size for temp storage
 			size_t len = sizeof(keys)/sizeof(keys[0]); // count of keys
 
 			// copy key to temp string buffer
@@ -250,7 +250,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					break;
 
 			case 3: ; // schedule policy 
-					char c[SIG_LEN]; // buffer size for tem
+					char c[JSN_READ]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
 					phead->attr.sched_policy = string_to_policy(c);
 					printDbg("JSON: setting scheduler to '%s'", policy_to_string(phead->attr.sched_policy));
@@ -268,7 +268,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 	} else if (JSMN_OBJECT == t->type) {
 
 		// add a new settings item at head
-		// TODO: fix it to be depth independent
+		// depth 2 is fixed, 0 = main object, 1 = configuration array
 		if (2 == depth) {
 			printDbg("Adding new item:\n");
 			ppush (&phead);
@@ -283,10 +283,6 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			// we evaluate only the key here, value is taken in cascade
 			j += extractJSON(js, t+1+j, count-j, depth+1, -1);   // key evaluation
 
-			// printDbg(": ");  // separator
-
-			//j += extractJSON(js, t+1+j, count-j, depth+1, -1); // value evaluation
-			// if value is an object, it will contain again keys..
 			printDbg("\n");
 		}
 		return j+1;
@@ -422,6 +418,8 @@ int findParams(node_t* node){
 
 }
 
+static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
+
 /// updateSched(): main function called to verify status of threads
 //
 /// Arguments: 
@@ -433,10 +431,6 @@ int updateSched() {
     node_t * current = head;
 	int ovr = 0;
 	cpu_set_t cset;
-	cpu_set_t cset_full;
-
-	// TODO: fix for one time query
-	for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -616,6 +610,9 @@ void *thread_manage (void *arg)
 			*pthread_state=-1;
 			break;
 		}
+		// set lolcal variable -- all cpus set.
+		// TODO: adapt to cpu mask
+		for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 	  case 1: // normal thread loop, check and update data
 		if (!updateSched())
 			break;
