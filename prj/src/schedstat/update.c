@@ -550,17 +550,20 @@ void *thread_update (void *arg)
 				if (500000/ticksps > interval)  
 					warn("-- scan time more than double the debug update rate. On purpose? (obsolete kernel value) -- \n");
 			}
-			if (SCHED_OTHER != policy) { // TODO: set niceness for other/bash?
+			if (SCHED_OTHER != policy && SCHED_IDLE != policy && SCHED_BATCH != policy) {
 				// set policy to thread
 				if (SCHED_DEADLINE == policy) {
 					struct sched_attr scheda  = { 48, 
 												SCHED_DEADLINE,
-												0,// TODO : reset on fork should help for deadline and PID - , SCHED_FLAG_RECLAIM,
+												SCHED_FLAG_RESET_ON_FORK,
 												0,
 												0,
 												update_wcet*1000, interval*1000, interval*1000
 												};
 
+					// enable bandwith reclaim if supported, allow to reduce impact.. 
+					if (KV_413 <= kernelversion) 
+						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 
 					if (sched_setattr(0, &scheda, 0L)) {
 						warn("Could not set thread policy!\n");
@@ -584,6 +587,17 @@ void *thread_update (void *arg)
 						cont("set update thread to '%s', priority %d.\n", policy_to_string(policy), priority);
 						}
 				}
+			}
+			else if (SCHED_OTHER == policy) {
+				// SCHED_OTHER only, BATCH or IDLE are static to 0
+				struct sched_param schedp  = { priority };
+
+				if (sched_setscheduler(0, policy, &schedp)) {
+					warn("Could not set thread policy!\n");
+				}
+				else {
+					cont("set update thread to '%s', niceness %d.\n", policy_to_string(policy), priority);
+					}
 			}
 
 		case 1: 
