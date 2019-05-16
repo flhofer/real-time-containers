@@ -25,7 +25,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.55
+	#define VERSION 0.56a
 	#define MAX_PIDS 64 // max containers detectable
 
 	enum kernelversion {
@@ -34,7 +34,7 @@
 		KV_40,
 		KV_413,	// includes full EDF for the first time
 		KV_416,	// includes full EDF with GRUB-PA for ARM
-		KV_50	// latest release 
+		KV_50	// latest releases, now 5.1 (May 8th '19)
 	};
 
 	// Uncomment this line to enable high debug output
@@ -51,6 +51,7 @@
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
 	#define TSCHS 1024  // scheduler minimum granularity
+	#define BUFRD 1024  // buffer read size
 	#define CONT_PPID "docker-containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
 	#define CONT_DCKR "docker/" // default cgroup subdirectory

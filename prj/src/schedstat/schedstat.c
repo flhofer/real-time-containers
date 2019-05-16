@@ -318,7 +318,7 @@ enum {
 	AFFINITY_USEALL
 };
 
-static int setaffinity = AFFINITY_SPECIFIED; // TODO: for now always specified as SYSCPUS
+static int setaffinity = AFFINITY_SPECIFIED;
 static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
 
 /// parse_cpumask(): checks if the cpu bitmask is ok
@@ -574,10 +574,12 @@ static int prepareEnvironment() {
 			warn("could not set orchestrator schedulig attributes, %s\n", strerror(errno));
 	}
 
-	if (numa_sched_setaffinity(mpid, naffinity))
-		warn("could not set orchestrator affinity: %s\n", strerror(errno));
-	else
-		cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
+	if (AFFINITY_USEALL != setaffinity){
+		if (numa_sched_setaffinity(mpid, naffinity))
+			warn("could not set orchestrator affinity: %s\n", strerror(errno));
+		else
+			cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
+	}
 
 	// create Docker CGroup prefix
 	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
@@ -631,45 +633,48 @@ static int prepareEnvironment() {
 	/// cgroup present, fix cpu-sets of running containers
 	if (DM_CGRP == use_cgroup) {
 
-		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
+		if (AFFINITY_USEALL != setaffinity){ // useall = ignore setting of exclusive
 
-		DIR *d;
-		struct dirent *dir;
-		d = opendir(fileprefix);// -> pointing to global
-		fileprefix = NULL; // clear pointer
-		if (d) {
+			cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
 
-			while ((dir = readdir(d)) != NULL) {
-			// scan trough docker cgroups, find them?
-				if ((strlen(dir->d_name)>60) && // container strings are very long!
-						(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
-						+ strlen(dir->d_name)+1))) {
-					fileprefix[0] = '\0';   // ensures the memory is an empty string
-					// copy to new prefix
-					strcat(fileprefix,cpusetdfileprefix);
-					strcat(fileprefix,dir->d_name);
+			DIR *d;
+			struct dirent *dir;
+			d = opendir(fileprefix);// -> pointing to global
+			fileprefix = NULL; // clear pointer
+			if (d) {
 
-					if (setkernvar("/cpuset.cpus", affinity)){
-						warn("Can not set cpu-affinity\n");
+				while ((dir = readdir(d)) != NULL) {
+				// scan trough docker cgroups, find them?
+					if ((strlen(dir->d_name)>60) && // container strings are very long!
+							(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
+							+ strlen(dir->d_name)+1))) {
+						fileprefix[0] = '\0';   // ensures the memory is an empty string
+						// copy to new prefix
+						strcat(fileprefix,cpusetdfileprefix);
+						strcat(fileprefix,dir->d_name);
+
+						if (setkernvar("/cpuset.cpus", affinity)){
+							warn("Can not set cpu-affinity\n");
+						}
+
+
 					}
-
-
 				}
+				if (fileprefix)
+					free (fileprefix);
+
+				fileprefix = cpusetdfileprefix; // set to docker directory
+
+				if (setkernvar("cpuset.cpus", affinity)){
+					warn("Can not set cpu-affinity\n");
+				}
+
+				if (setkernvar("cpuset.cpu_exclusive", "1")){
+					warn("Can not set cpu exclusive\n");
+				}
+
+				closedir(d);
 			}
-			if (fileprefix)
-				free (fileprefix);
-
-			fileprefix = cpusetdfileprefix; // set to docker directory
-
-			if (setkernvar("cpuset.cpus", affinity)){
-				warn("Can not set cpu-affinity\n");
-			}
-
-			if (setkernvar("cpuset.cpu_exclusive", "1")){
-				warn("Can not set cpu exclusive\n");
-			}
-
-			closedir(d);
 		}
 
 		//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
@@ -722,14 +727,14 @@ static int prepareEnvironment() {
 				// copy to new prefix
 				(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
 
-				char pidline[1024];
+				char pidline[BUFRD];
 				char *pid;
 				int nleft=0; // reading left counter
 				// prepare literal and open pipe request
 				int path = open(nfileprefix,O_RDONLY);
 
 				// Scan through string and put in array
-				while(nleft += read(path, pidline+nleft,1024-nleft)) {
+				while(nleft += read(path, pidline+nleft,BUFRD-nleft)) {
 					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
 					while (NULL != pid && 5<nleft)  {
@@ -1034,7 +1039,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		}
 	}
 
-	if (smi) {
+	if (smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)
 			fatal("SMI counter relies on thread affinity\n");
 
