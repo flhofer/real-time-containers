@@ -118,10 +118,7 @@ const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "pri
 static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, int key) {
 	int i, j, k;
 
-
 	// TODO: len check and case not matching type, also key > than values
-
-	// extend with limits http://man7.org/linux/man-pages/man2/getrlimit.2.html
 
 	// base case, no elements in the object
 	if (0 == count) {
@@ -219,8 +216,6 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			// copy key to temp string buffer
 			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
 
-			// TODO: strcasecmp vs strncasecmp
-			
 			for (i=0; i<len; i++) 
 				if (!strcasecmp(c, keys[i])){
 					// key match.. find value for it
@@ -258,8 +253,6 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 					char c[SIG_LEN]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
 					phead->attr.sched_policy = string_to_policy(c);
-					// TODO: fix size elements
-					phead->attr.size=48; // has to be set
 					printDbg("JSON: setting scheduler to '%s'", policy_to_string(phead->attr.sched_policy));
 					break;
 
@@ -467,7 +460,6 @@ int updateSched() {
 					cset = cset_full;
 				}
 
-				// TODO: might want to put this into a function. Multiple use
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
 					if (current->psig) 

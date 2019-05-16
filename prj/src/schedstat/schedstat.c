@@ -898,27 +898,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_USEALL;
 			}
 			break;
-
-/*
-			if (optarg != NULL) {
-				affinity = atoi(optarg);
-				if (affinity < 1 || affinity > max_cpus) {
-					error = 1;
-					err_msg(KRED "Error!" KNRM " affinity value '%s' not valid\n", optarg);
-				}
-				setaffinity = AFFINITY_SPECIFIED;
-			} else if (optind<argc && atoi(argv[optind])) {
-				affinity = atoi(argv[optind]);
-				if (affinity < 1 || affinity > max_cpus) {
-					error = 1;
-					err_msg(KRED "Error!" KNRM " affinity value '%s' not valid\n", argv[optind]);
-				}
-				setaffinity = AFFINITY_SPECIFIED;
-			} else { // TODO: remove cgroup limitations if present!
-				setaffinity = AFFINITY_USEALL;
-			}
-			break;
-*/
 		case 'b':
 		case OPT_BIND:
 			affother = 1; break;
@@ -1092,8 +1071,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 
 	// check policy with priority match 
 	if ((SCHED_FIFO == policy || SCHED_RR == policy) && 0 == priority) {
-		warn("defaulting realtime priority to %d\n",
-		10); // TODO: num threads and prio connection??
+		warn("defaulting realtime priority to %d\n", 10);
 		priority = 10;
 	}
 
@@ -1128,7 +1106,6 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-//	(void)printf("Starting main PID: %d\n", getpid()); // ?? duplicate main pid query?
 	(void)printf("%s V %1.2f\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
