@@ -62,6 +62,7 @@ static char *fileprefix; // Work variable for local things -> procfs & sysfs
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 static char * cont_cgrp = CONT_DCKR; // CGroup subdirectory configuration for container detection
+static int dryrun = 0; // test only, no changes to environment
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -275,6 +276,8 @@ static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
 
 static int setkernvar(const char *name, char *value)
 {
+	if (dryrun) // suppress system changes
+		return 0;
 
 	if (kernvar(O_WRONLY, name, value, strlen(value))){
 		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
@@ -531,6 +534,12 @@ static int prepareEnvironment() {
 	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) {// check for effective NICE cap
 		err_msg( KRED "Error!" KNRM " Capability test failed!\n");
 		return errno;
+	}
+
+	v=0;
+	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
+		err_msg( KRED "Error!" KNRM " CAP_SYS_NICE capability mandatory to operate properly!\n");
+		return -1;
 	}
 
 	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) {// check for effective RESOURCE cap
@@ -801,6 +810,7 @@ static void display_help(int error)
 	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature, default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
+		   "-D						   dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
@@ -883,7 +893,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:C:dfFi:l:mn::p:Pqr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:C:dDfFi:l:mn::p:Pqr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -923,6 +933,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'd':
 		case OPT_DFLAG:
 			setdflag = 1; break;
+		case 'D':
+			dryrun = 1; break;
 		case 'f':
 			force = 1; break;
 /*		case 'F':
