@@ -318,8 +318,8 @@ enum {
 	AFFINITY_USEALL
 };
 
-static int setaffinity = AFFINITY_SPECIFIED;
-static char * affinity = SYSCPUS; // default split, 0-0 SYS, Syscpus to end rest
+static int setaffinity = AFFINITY_UNSPECIFIED;
+static char * affinity = "1"; // default split, 0-0 SYS, Syscpus to end rest
 
 /// parse_cpumask(): checks if the cpu bitmask is ok
 ///
@@ -407,7 +407,7 @@ static int prepareEnvironment() {
 	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
 
 	fileprefix = cpusystemfileprefix;
-	char cpus[10] = SYSCPUS; // cpu allocation string
+	char cpus[10]; // cpu allocation string
 	char str[100]; // generic string... 
 
 	info("This system has %d processors configured and "
@@ -568,13 +568,14 @@ static int prepareEnvironment() {
 		cont( "orchestrator scheduled as '%s'\n", policy_to_string(attr.sched_policy));
 
 		// TODO: set new attributes here
+		// TODO: maybe reset on fork.. and if DL is set, grub and overrun
 
-		cont( "promoting process and setting affinity..\n");
+		cont( "promoting process and setting attributes..\n");
 		if (sched_setattr (mpid, &attr, 0U))
 			warn("could not set orchestrator schedulig attributes, %s\n", strerror(errno));
 	}
 
-	if (AFFINITY_USEALL != setaffinity){
+	if (AFFINITY_USEALL != setaffinity){ // set affinity only if not useall
 		if (numa_sched_setaffinity(mpid, naffinity))
 			warn("could not set orchestrator affinity: %s\n", strerror(errno));
 		else
@@ -789,7 +790,8 @@ static void display_help(int error)
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run container threads on specified cpu range, colon separated list\n"
-	       "                           run system threads on remaining inverse mask list\n"
+	       "                           run system threads on remaining inverse mask list.\n"
+		   "						   default: System=0, Containers=1-MAX_CPU\n"
 	       "-b       --bind            bind non-RT PIDs of container to same container affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
@@ -889,8 +891,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'a':
 		case OPT_AFFINITY:
 			option_affinity = 1;
-			if (smp || numa)
-				break;
+//			if (smp || numa)
+//				break;
 			if (NULL != optarg) {
 				affinity = optarg;
 				setaffinity = AFFINITY_SPECIFIED;
@@ -1027,17 +1029,23 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		}
 	}
 
-	// create affinity mask
+	// create affinity mask, if default select SYSCPUS+1 to CPU-nos
+	if (!option_affinity){
+		affinity = malloc(10);
+		sprintf(affinity, "%d-%d", SYSCPUS+1, max_cpus-1);
+		setaffinity = AFFINITY_SPECIFIED;
+	}
 	parse_cpumask(affinity, max_cpus);
 
 	// option mismatch verification
-	if (option_affinity) {
+/*	if (option_affinity) {
 		if (smp) {
 			warn("-a ignored due to --smp\n");
 		} else if (numa) {
 			warn("-a ignored due to --numa\n");
 		}
 	}
+*/
 
 	if (smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)
@@ -1111,7 +1119,7 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	(void)printf("%s V %1.2f\n", PRGNAME, VERSION);	
+	(void)printf("%s V %s\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
 

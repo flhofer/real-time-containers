@@ -25,7 +25,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.56a
+	#define VERSION "0.56a"
 	#define MAX_PIDS 64 // max containers detectable
 
 	enum kernelversion {
@@ -56,7 +56,7 @@
 	#define CONT_PID  "bash" // test for now :)
 	#define CONT_DCKR "docker/" // default cgroup subdirectory
 
-	#define SYSCPUS "0" // 0-> count reserved for orchestrator and system
+	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
 
 	// procfs and sysfs path constants
 	static char *procfileprefix = "/proc/sys/kernel/";
