@@ -328,7 +328,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[PID_BUFFER];
-	char req[40];
+	char req[40]; // TODO: might overrun if signatures are too long
 	char *pid;
 	int i =0  ;
 	// prepare literal and open pipe request, request spid (thread) ids\
@@ -378,7 +378,7 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[PID_BUFFER];
-	char req[40];
+	char req[40]; // TODO: might overrun if signatures are too long
 
 	// prepare literal and open pipe request
 	(void)sprintf (req,  "pidof %s", tag);
@@ -418,7 +418,7 @@ int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 ///
 void scanNew () {
 	// get PIDs 
-	pidinfo_t pidlst[MAX_PIDS]; // TODO: create dynamic list, allocate as grows/ may use a parameter
+	pidinfo_t pidlst[MAX_PIDS];
 	int cnt; // Count of found PID
 
 	switch (use_cgroup) {
@@ -439,8 +439,7 @@ void scanNew () {
 			else 
 				sprintf(pid, "-C %s", cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
-			break;
-		
+			break;		
 	}
 
 #ifdef DBG
@@ -645,7 +644,6 @@ void *thread_update (void *arg)
 		}
 		else {			
 			// abs-time relative interval shift
-			// TODO: implement relative time and timer based variants?
 
 			// calculate next execution intervall
 			intervaltv.tv_sec += interval / USEC_PER_SEC;
@@ -655,12 +653,11 @@ void *thread_update (void *arg)
 			// sleep for interval nanoseconds
 			ret = clock_nanosleep(clocksources[clocksel], TIMER_ABSTIME, &intervaltv, NULL);
 			if (0 != ret) {
-				// TODO: what-if?
+				// Set warning only.. shouldn't stop working
+				// probably overrun, restarts immediately in attempt to catch up
 				if (EINTR != ret) {
 					warn("clock_nanosleep() failed. errno: %s\n",strerror (ret));
 				}
-				*pthread_state=-1;
-				break;
 			}
 
 

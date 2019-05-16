@@ -25,8 +25,8 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION 0.54
-	#define MAX_PIDS 64
+	#define VERSION 0.55
+	#define MAX_PIDS 64 // max containers detectable
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,

@@ -399,7 +399,8 @@ int findParams(node_t* node){
 			node->param = curr;
 			return 0;
 		}
-		if(curr->contid && node->contid && !strncmp(curr->contid, node->contid, 12)) {// TODO: temp, exact signature match?
+		if(curr->contid && node->contid && !strncmp(curr->contid, node->contid, 12)) { 
+			// 12 is standard docker short signature
 			node->param = curr;
 			return 0;
 		}
