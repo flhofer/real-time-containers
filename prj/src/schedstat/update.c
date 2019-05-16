@@ -267,12 +267,12 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 					int path = open(nfileprefix,O_RDONLY);
 
 					// Scan through string and put in array
-					int nread = 0;
-					while(nread =read(path, pidline,PID_BUFFER-1)) { // used len -1 TODO: fix, doesn't get all tasks, readln? -> see schedstat
+					int nleft = 0;
+					while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft)) {
 						printDbg("Pid string return %s\n", pidline);
-						pidline[nread] = '\0';						
+
 						pid = strtok (pidline,"\n");	
-						while (pid != NULL) {
+						while (pid != NULL && 5<nleft) {
 							// pid found
 							pidlst->pid = atoi(pid);
 							printDbg("%d\n",pidlst->pid);
@@ -284,10 +284,12 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 							pidlst++;
 							i++;
 
+							nleft -= strlen(pid)+1;
 							pid = strtok (NULL,"\n");	
 
 						}
-						
+						if (pid) // copy leftover chars to beginning of string buffer
+							memcpy(pidline, pid, nleft); 
 					}
 
 					close(path);
