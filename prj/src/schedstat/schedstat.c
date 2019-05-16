@@ -593,7 +593,7 @@ static int prepareEnvironment() {
 
 		int err = stat(fileprefix, &s);
 		if(-1 == err) {
-			if(ENOENT == errno) { // TODO: parametrizable Cgroup value
+			if(ENOENT == errno) {
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
 			} else {
 				perror("Stat encountered an error");
@@ -607,10 +607,10 @@ static int prepareEnvironment() {
 			use_cgroup = DM_CNTPID;
 		} else {
 			if(S_ISDIR(s.st_mode)) {
-				/* it's a dir */
+				// it's a dir 
 				cont("using CGroups to detect processes..\n");
 			} else {
-				/* exists but is no dir */
+				// exists but is no dir 
 				// check for sCHED_DEADLINE first-> stop!
 				if (SCHED_DEADLINE == policy) {
 					err_msg( KRED "Error!" KNRM " SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
@@ -720,29 +720,30 @@ static int prepareEnvironment() {
 			if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 				nfileprefix[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				strcat(nfileprefix,cpusetfileprefix);
-				strcat(nfileprefix,"tasks");
+				(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
 
 				char pidline[1024];
 				char *pid;
-				int i =0  ;
+				int nleft=0; // reading left counter
 				// prepare literal and open pipe request
 				int path = open(nfileprefix,O_RDONLY);
 
 				// Scan through string and put in array
-				while(read(path, pidline,1024)) { // TODO: fix, doesn't get all tasks, readln?
+				while(nleft += read(path, pidline+nleft,1024-nleft)) {
 					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
-					while (NULL != pid) {
+					while (NULL != pid && 5<nleft)  {
 
 						// fileprefix still pointing to system/
 						if (setkernvar("tasks", pid)){
 							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
 							mtask++;
 						}
+						nleft-=strlen(pid)+1;
 						pid = strtok (NULL,"\n");	
-
 					}
+					if (pid) // copy leftover chars to beginning of string buffer
+						memcpy(pidline, pid, nleft); 
 				}
 				if (mtask) 
 					warn("Could not move %d tasks\n", mtask);					
