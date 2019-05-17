@@ -14,15 +14,6 @@ static struct resTracer * rhead;
 
 ////// TEMP ---------------------------------------------
 
-void rpush(struct resTracer ** head) {
-    struct resTracer * new_node;
-    new_node = calloc(sizeof(struct resTracer), 1);
-	// if any sched parameter is set, policy must also be set
-
-    new_node->next = *head;
-    *head = new_node;
-}
-
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
 /// Arguments: resource entry for this cpu, the attr structure of the task

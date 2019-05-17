@@ -26,19 +26,13 @@ void ppush(parm_t ** head) {
     *head = new_node;
 }
 
-void push_t(node_t * head, pid_t pid, char * psig, char * contid) {
-    node_t * current = head;
-    while (current->next != NULL) {
-        current = current->next;
-    }
+void rpush(struct resTracer ** head) {
+    struct resTracer * new_node;
+    new_node = calloc(sizeof(struct resTracer), 1);
+	// if any sched parameter is set, policy must also be set
 
-    /* now we can add a new variable */
-    current->next = malloc(sizeof(node_t));
-	*current->next = _node_default;
-    current->next->pid = pid;
-    current->next->psig = psig;
-    current->next->contid = contid;
-    current->next->next = NULL;
+    new_node->next = *head;
+    *head = new_node;
 }
 
 void push(node_t ** head, pid_t pid, char * psig, char * contid) {
@@ -123,21 +117,5 @@ pid_t drop_after(node_t ** head, node_t ** prev) {
     retval = (*prev)->pid;
 
     return retval;
-}
-
-struct sched_attr * get_node(node_t * act) {
-
-    if (act == NULL) {
-        return NULL;
-    }
-
-    return &act->attr;
-}
-
-void get_next(node_t ** act) {
-
-    if (*act != NULL) 
-	    *act = (*act)->next;
-	
 }
 

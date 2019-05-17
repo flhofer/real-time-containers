@@ -27,6 +27,14 @@
 		struct pid_parm* next;
 	} parm_t;
 
+	struct resTracer { // resource tracers
+		int32_t affinity; 		// exclusive cpu-num
+		uint64_t usedPeriod;	// amount of cputime left..
+		uint64_t basePeriod;	// if a common period is set, or least common multiplier
+		// TODO: fill with other values, i.e. memory amounts ecc
+		struct resTracer * next;
+	};
+
 	struct sched_mon { // actual values for monitoring
 		int64_t rt_min;
 		int64_t rt_avg;
@@ -56,14 +64,12 @@
 
 	extern node_t * head;
 
-	void push_t(node_t * head, pid_t pid, char * psig, char * contid);
 	void push(node_t ** head, pid_t pid, char * psig, char * contid);
 	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
-	struct sched_attr * get_node(node_t * act);
-	void get_next(node_t ** act);
 
+	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);
 
 #endif

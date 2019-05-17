@@ -14,14 +14,6 @@
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;
 
-	struct resTracer { // resource tracers
-		int32_t affinity; 		// exclusive cpu-num
-		uint64_t usedPeriod;	// amount of cputime left..
-		uint64_t basePeriod;	// if a common period is set, or least common multiplier
-		// TODO: fill with other values, i.e. memory amounts ecc
-		struct resTracer * next;
-	};
-
 	void *thread_manage (void *arg); // thread that scans peridically for new entry pids
 	#define JSMN_STRICT // force json conformance when parsing
 	#define MAX_UL 0.90

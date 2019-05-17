@@ -468,7 +468,7 @@ void scanNew () {
 		// delete a dopped item
 		if ((pidlst +i)->pid < (act->pid)) {
 			printDbg("\n... Delete %d", (pidlst +i)->pid);		
-			get_next(&act);
+			act = act->next;
 			(void)drop_after(&head, &prev);
 		} 
 		// ok, skip to next
@@ -482,7 +482,7 @@ void scanNew () {
 
 			i--;
 			prev = act; // update prev 
-			get_next(&act);
+			act = act->next;
 		}
 	}
 
@@ -496,7 +496,7 @@ void scanNew () {
 		// drop missing items
 		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
 		// get next item, then drop old
-		get_next(&act);
+		act = act->next;
 		(void)drop_after(&head, &prev);
 	}
 
