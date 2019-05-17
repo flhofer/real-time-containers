@@ -1,10 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rt-sched.h" // temporary as libc does not include new sched yet
-#include "pidparm.h"
 
 #ifndef __PIDLIST_
 	#define __PIDLIST_
+
+	#define SIG_LEN 65			// increased to 64 -> standard lenght of container IDs for docker
+	// TODO: limited to 32k processors ;)
+	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
+	#define SCHED_FAFMSK 0xE000	// flexible affinity mask
+
+	struct sched_rscs { // resources 
+		int32_t affinity; // exclusive cpu-num
+		int32_t rt_timew; // RT execution time soft limit
+		int32_t rt_time;  // RT execution time hard limit
+		int32_t mem_dataw; // Data memory soft limit
+		int32_t mem_data;  // Data memory time hard limit
+		// TODO: fill with other values, i.e. memory bounds ecc
+	};
+
+	typedef struct pid_parm {
+		char psig[SIG_LEN]; 	// matching signatures -> target pids
+		char contid[SIG_LEN]; 	// matching signatures -> container IDs
+		struct sched_attr attr; // standard linux pid attributes
+		struct sched_rscs rscs;   // additional resource settings 
+		struct pid_parm* next;
+	} parm_t;
 
 	struct sched_mon { // actual values for monitoring
 		int64_t rt_min;
@@ -40,10 +61,9 @@
 	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
-	//pid_t remove_last(node_t * head);
-	//pid_t remove_by_index(node_t ** head, int n);
-	//int remove_by_value(node_t ** head, pid_t pid);
 	struct sched_attr * get_node(node_t * act);
 	void get_next(node_t ** act);
+
+	void ppush(parm_t ** head);
 
 #endif

@@ -9,7 +9,22 @@ static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
 						 0, INT64_MAX, 0, INT64_MIN},
 						NULL, NULL};					// *param, *next
 						
+static const struct sched_rscs _rscs_default = { -1, 
+												-1, -1,	
+												-1, -1};
+
 // maybe changed in a second moment to kernel linked lists
+
+void ppush(parm_t ** head) {
+    parm_t * new_node;
+    new_node = calloc(sizeof(parm_t), 1);
+	// if any sched parameter is set, policy must also be set
+	new_node->attr.sched_policy = SCHED_NODATA; // default for not set.
+	new_node->rscs = _rscs_default;
+
+    new_node->next = *head;
+    *head = new_node;
+}
 
 void push_t(node_t * head, pid_t pid, char * psig, char * contid) {
     node_t * current = head;

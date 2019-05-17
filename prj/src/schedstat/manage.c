@@ -1,6 +1,5 @@
 #include "schedstat.h"
 #include "manage.h"
-#include "pidparm.h"
 
 #include <sys/resource.h>
 #include <sys/wait.h>
