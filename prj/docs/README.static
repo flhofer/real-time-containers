@@ -44,13 +44,15 @@ No installation procedure is defined at the moment
 
 	Options available as of this version
 
-    $ statsched.o [-a <affinity range> -b -c <clock> -d -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] -w <WCET>] [configuration-file]
+    $ ./statsched.o [-a <affinity range> -b -c <clock> -C <cgroup> -d -D -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] --smi -w <WCET>] [configuration-file]
 
 where:
-* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs;
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs. The affinity range can be specified as comma separated list and ranges, e.g. "0,4,7-10";
 * -b enables binding of non-realtime tasks to the same core as the real-time task of the container;
 * clock is the type of clock timer used for recurring threads; 
-* -d enables the deadline overflow flag for all real-time deadline scheduled tasks
+* -C sets the CGroup based container detection mode. By default the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
+* -d enables the deadline overflow flag for all real-time deadline scheduled tasks;
+* -D sets the dry-run flag. No kernel or environemnt parameters will be changed;
 * -f forces execution, even if parameters are seen as risky;
 * interval is the update intervall of running statistics; 
 * loop count is the number of update loops until new containers are checked; 
@@ -60,15 +62,16 @@ where:
 * -P, in case command line signature is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
 * a maximum runtime can be set with the r flag, in seconds. Default value is 0=unlimited
 * -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of docker containers;
+* --smi enables interrupt counters to be read for each CPU. This to track the effect of uncontrollable interrupts;
 * -w details the worst case execution time needed for the deadline based scheduling of the metric update thread.
-The configuration fle specified is optional. By default 'config.json' will be used 
+The configuration fle specified is optional. By default 'config.json' will be used.
 
 ===============
  CONFIGURATION
 ===============
 
-statsched reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation.
-The configuration file settings for this version are one object per container in the follpwing format:
+statsched reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation. The  file is usually found in the local working directory.
+The configuration file settings for this version are one object per container in the following format:
 
 
 {  										// open root object
@@ -98,4 +101,15 @@ The configuration file settings for this version are one object per container in
 
 Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
 Affinity might be a limiting factor as long as it is a single CPU setting. ** this might change in future versions **
+
+=============
+ EXAMPLE RUN
+=============
+
+The following command presents a possible running scenario:
+
+	$ ./schedstat.o -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
+
+In this case, the orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with command 'rt-app' and verify also all their threads. All threads running in a container will be bound to the same affinity range, set up as 1-3. The scan will be performed with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles the orchestrator will look for new containers to realign.
+All other parameters are left default.
 

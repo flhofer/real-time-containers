@@ -523,7 +523,6 @@ static int prepareEnvironment() {
 
 	/// --------------------
 	/// verify executable permissions	
-	// TODO: upgrade to libcap-ng
 	info( "Verifying for process capabilities..\n");
 	cap_t cap = cap_get_proc(); // get capability map of proc
 	if (!cap) {
@@ -800,7 +799,7 @@ static void display_help(int error)
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run container threads on specified cpu range, colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
-		   "						   default: System=0, Containers=1-MAX_CPU\n"
+		   "                           default: System=0, Containers=1-MAX_CPU\n"
 	       "-b       --bind            bind non-RT PIDs of container to same container affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
@@ -810,7 +809,7 @@ static void display_help(int error)
 	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature, default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
-		   "-D						   dry run: suppress system changes/test only\n"
+		   "-D                         dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
