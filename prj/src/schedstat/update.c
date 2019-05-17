@@ -183,7 +183,8 @@ int updateStats ()
 	static char const sp[4] = "/-\\|";
 
 	prot = (++prot) % 4;
-	(void)printf("\b%c", sp[prot]);		
+	if (!quiet)	
+		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
 	// init head
@@ -603,7 +604,8 @@ void *thread_update (void *arg)
 			// startup-refresh: this should be executed only once every td
 			*pthread_state=2; // must be first thing! -> main writes -1 to stop
 			scanNew(); 
-			(void)printf("\rNode Stats update  ");		
+			if (!quiet)	
+				(void)printf("\rNode Stats update  ");		
 		case 2: // normal thread loop
 			if (!cc)
 				*pthread_state=1; // must be first thing
@@ -611,7 +613,8 @@ void *thread_update (void *arg)
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
-			(void)printf("\n");
+			if (!quiet)	
+				(void)printf("\n");
 			// tidy or whatever is necessary
 			dumpStats();
 

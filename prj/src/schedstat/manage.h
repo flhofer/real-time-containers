@@ -9,6 +9,7 @@
 	extern char * config; // filename of configuration file
 	extern int affother; // set affinity of all pids in container?
 	extern struct bitmask *affinity_mask; // default bitmask allocation of threads!!
+	extern int quiet;	// quiet enabled
 
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;

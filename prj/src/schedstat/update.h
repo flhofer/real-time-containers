@@ -48,6 +48,7 @@
 	extern int setdflag; // set deadline overrun flag? for DL processes?
 	extern int runtime; // test runtime -> 0 = infinite
 	extern int psigscan;// scan for child threads, -n option only
+	extern int quiet;	// quiet enabled
 
 
 	extern pthread_mutex_t dataMutex;

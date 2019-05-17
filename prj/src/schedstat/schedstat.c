@@ -46,7 +46,7 @@ char * cont_pidc = CONT_PID;
 int priority=0;				// priority parameter for FIFO and RR
 int clocksel = 0;			// selected clock 
 int policy = SCHED_OTHER;	// default policy if not specified
-int quiet = 0;				// quiet enabled TODO
+int quiet = 0;				// quiet enabled
 int affother = 0;			// set affinity of parent as well
 int setdflag = 0;			// set deadline overrun flag
 int interval = TSCAN;		// scan interval
@@ -343,7 +343,7 @@ static void parse_cpumask(const char *option, const int max_cpus)
 		display_help(1);
 
 	if (verbose) {
-		printf("%s: Using %u cpus.\n", __func__,
+		info("%s: Using %u cpus.\n", __func__,
 			numa_bitmask_weight(affinity_mask));
 	}
 }
@@ -820,7 +820,7 @@ static void display_help(int error)
 	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
 	       "-P                         for option -n, sig is parent, scan for children threads\n"
-//	       "-q       --quiet           print a summary only on exit\n"
+	       "-q       --quiet           print a summary only on exit\n"
 	       "-r RTIME --runtime=RTIME   set a maximum runtime in seconds, default=0(infinite)\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"

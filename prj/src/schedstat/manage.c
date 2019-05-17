@@ -440,7 +440,8 @@ int updateSched() {
 		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
-			(void)printf("\n");
+			if (!quiet)
+				(void)printf("\n");
 			info("new pid in list %d\n", current->pid);
 
 			if (!findParams(current)) { // parameter set found in list -> assign and update
