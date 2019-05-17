@@ -11,6 +11,7 @@ void err_exit(int err, char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
+	fputs("FATAL: ", stderr);
 	err_doit(err, fmt, ap);
 	va_end(ap);
 	exit(err);
@@ -21,6 +22,7 @@ void err_msg(char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
+	fputs("ERROR: ", stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
 	return;
@@ -31,6 +33,7 @@ void err_msg_n(int err, char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
+	fputs("ERROR: ", stderr);
 	err_doit(err, fmt, ap);
 	va_end(ap);
 	return;
@@ -81,7 +84,7 @@ void warn(char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fputs(KMAG "WARN: " KNRM , stderr);
+	fputs("WARN: ", stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
 }
@@ -91,7 +94,7 @@ void fatal(char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	fputs(KRED "FATAL: " KNRM, stderr);
+	fputs("FATAL: ", stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
 	exit(EXIT_FAILURE);

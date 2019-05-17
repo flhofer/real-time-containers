@@ -472,15 +472,15 @@ int updateSched() {
 						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,
 							policy_to_string(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
-							err_msg(KRED "Error!" KNRM " setting attributes for PID %d: %s\n",
-								current->pid, strerror(errno));
+							err_msg_n(errno, "setting attributes for PID %d",
+								current->pid);
 					}
 					else
 						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
 
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
-							current->pid, strerror(errno));
+						err_msg_n(errno,"setting affinity for PID %d",
+							current->pid);
 					else
 						cont("PID %d reassigned to CPU%d\n", current->pid, 
 							current->param->rscs.affinity);
@@ -491,16 +491,16 @@ int updateSched() {
 					// RT-Time limit
 					if (-1 != current->param->rscs.rt_timew || -1 != current->param->rscs.rt_time) {
 						if (prlimit(current->pid, RLIMIT_RTTIME, NULL, &rlim))
-							err_msg(KRED "Error!" KNRM " getting RT-Limit for PID %d: %s\n",
-								current->pid, strerror(errno));
+							err_msg_n(errno, "getting RT-Limit for PID %d",
+								current->pid);
 						else {
 							if (-1 != current->param->rscs.rt_timew)
 								rlim.rlim_cur = current->param->rscs.rt_timew;
 							if (-1 != current->param->rscs.rt_time)
 								rlim.rlim_max = current->param->rscs.rt_time;
 							if (prlimit(current->pid, RLIMIT_RTTIME, &rlim, NULL ))
-								err_msg(KRED "Error!" KNRM " setting RT-Limit for PID %d: %s\n",
-									current->pid, strerror(errno));
+								err_msg_n(errno,"setting RT-Limit for PID %d",
+									current->pid);
 							else
 								cont("PID %d RT-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
 						}
@@ -509,16 +509,16 @@ int updateSched() {
 					// Data limit - Heap.. unitialized or not
 					if (-1 != current->param->rscs.mem_dataw || -1 != current->param->rscs.mem_data) {
 						if (prlimit(current->pid, RLIMIT_DATA, NULL, &rlim))
-							err_msg(KRED "Error!" KNRM " getting Data-Limit for PID %d: %s\n",
-								current->pid, strerror(errno));
+							err_msg_n(errno, "getting Data-Limit for PID %d",
+								current->pid);
 						else {
 							if (-1 != current->param->rscs.mem_dataw)
 								rlim.rlim_cur = current->param->rscs.mem_dataw;
 							if (-1 != current->param->rscs.mem_data)
 								rlim.rlim_max = current->param->rscs.mem_data;
 							if (prlimit(current->pid, RLIMIT_DATA, &rlim, NULL ))
-								err_msg(KRED "Error!" KNRM " setting Data-Limit for PID %d: %s\n",
-									current->pid, strerror(errno));
+								err_msg_n(errno, "setting Data-Limit for PID %d",
+									current->pid);
 							else
 								cont("PID %d Data-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
 						}
@@ -527,8 +527,8 @@ int updateSched() {
 				}
 				else if (affother) {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg(KRED "Error!" KNRM " setting affinity for PID %d: %s\n",
-							current->pid, strerror(errno));
+						err_msg_n(errno, "setting affinity for PID %d",
+							current->pid);
 					else
 						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid,
 							current->param->rscs.affinity);
@@ -607,7 +607,7 @@ void *thread_manage (void *arg)
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
 		if (readParams() != 0){
-			err_msg(KRED "Error!" KNRM " JSON: configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
+			err_msg("JSON configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
 			*pthread_state=-1;
 			break;
 		}

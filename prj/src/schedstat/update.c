@@ -207,7 +207,7 @@ int updateStats ()
 
 				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
 				if (sched_setattr (item->pid, &item->attr, 0U))
-					err_msg(KRED "Error!" KNRM ": %s\n", strerror(errno));
+					err_msg_n(errno, "Can not set overrun flag");
 			
 			} 
 		}
@@ -216,7 +216,7 @@ int updateStats ()
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
-				err_msg (KRED "Error!" KNRM " reading thread debug details  %d\n", ret);
+				err_msg ("reading thread debug details %d\n", ret);
 			} 
 		}
 

@@ -208,8 +208,7 @@ static int check_kernel(void)
 	int maj, min, sub, kv;
 
 	if (uname(&kname)) {
-		err_msg(KRED "Error!" KNRM " uname failed: %s. Assuming not 2.6\n",
-				strerror(errno));
+		err_msg_n (errno, "Assuming not 2.6. uname failed");
 		return KV_NOT_SUPPORTED;
 	}
 	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
@@ -418,7 +417,7 @@ static int prepareEnvironment() {
         maxccpu, maxcpu);
 
 	if (numa_available()){
-		err_msg( KRED "Error! " KNRM "NUMA is not available but mandatory for the orchestration\n");		
+		err_msg( "NUMA is not available but mandatory for the orchestration\n");		
 		return -1;
 	}
 
@@ -428,12 +427,12 @@ static int prepareEnvironment() {
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
 			if (!force) {
-				err_msg( KRED "Error! " KNRM "SMT is enabled. Set -f (focre) flag to authorize disabling\n");
+				err_msg("SMT is enabled. Set -f (focre) flag to authorize disabling\n");
 				return -1;
 				}
 
 			if (setkernvar("smt/control", "off")){
-				err_msg( KRED "Error! " KNRM "SMT is enabled. Disabling was unsuccessful!\n");
+				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
 			cont("SMT is now disabled, as required\n");
@@ -472,12 +471,12 @@ static int prepareEnvironment() {
 						// SMT - HT is on
 						cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
 						if (!force) {
-							err_msg( KRED "Error! " KNRM "CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"performance\"\n", str, i);
+							err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"performance\"\n", str, i);
 							return -1;
 							}
 
 						if (setkernvar(fstring, "performance")){
-							err_msg( KRED "Error! " KNRM "CPU-freq change unsuccessful!\n");
+							err_msg("CPU-freq change unsuccessful!\n");
 							return -1;
 						}
 						cont("CPU-freq on CPU%d is now set to \"performance\" as required\n", i);
@@ -509,7 +508,7 @@ static int prepareEnvironment() {
 		// if CPU not online
 		else if (numa_bitmask_isbitset(affinity_mask, i)) {
 			// disabled processor set to affiinty
-			err_msg( KRED "Error! " KNRM "Unavailable CPU set for affinity.\n");
+			err_msg("Unavailable CPU set for affinity.\n");
 			return -1;
 		}
 
@@ -517,7 +516,7 @@ static int prepareEnvironment() {
 
 	// parse to string	
 	if (parse_bitmask (naffinity, cpus)){
-		err_msg (KRED "Error! " KNRM "can not determine inverse affinity mask!\n");
+		err_msg ("can not determine inverse affinity mask!\n");
 		return -1;
 	}
 
@@ -526,28 +525,28 @@ static int prepareEnvironment() {
 	info( "Verifying for process capabilities..\n");
 	cap_t cap = cap_get_proc(); // get capability map of proc
 	if (!cap) {
-		err_msg( KRED "Error!" KNRM " Can not get capability map!\n");
+		err_msg_n(errno, "Can not get capability map");
 		return errno;
 	}
 	cap_flag_value_t v = 0; // flag to store return value
 	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) {// check for effective NICE cap
-		err_msg( KRED "Error!" KNRM " Capability test failed!\n");
+		err_msg_n(errno, "Capability test failed");
 		return errno;
 	}
 
 	v=0;
 	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
-		err_msg( KRED "Error!" KNRM " CAP_SYS_NICE capability mandatory to operate properly!\n");
+		err_msg("CAP_SYS_NICE capability mandatory to operate properly!\n");
 		return -1;
 	}
 
 	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) {// check for effective RESOURCE cap
-		err_msg( KRED "Error!" KNRM " Capability test failed!\n");
+		err_msg_n(errno, "Capability test failed");
 		return errno;
 	}
 
 	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v)) {
-		err_msg( KRED "Error!" KNRM " CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
+		err_msg("CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
 		return -1;
 	}
 
@@ -611,7 +610,7 @@ static int prepareEnvironment() {
 			}
 			// check for sCHED_DEADLINE first-> stop!
 			if (SCHED_DEADLINE == policy) {
-				err_msg( KRED "Error!" KNRM " SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+				err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
 				return -1;
 			}
 			// otherwise switch to next mode
@@ -624,7 +623,7 @@ static int prepareEnvironment() {
 				// exists but is no dir 
 				// check for sCHED_DEADLINE first-> stop!
 				if (SCHED_DEADLINE == policy) {
-					err_msg( KRED "Error!" KNRM " SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+					err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
 					return -1;
 				}
 				// otherwise switch to next mode
@@ -1111,7 +1110,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 
 	// allways verify for config file -> segmentation fault??
 	if ( access( config, F_OK )) {
-		err_msg(KRED "Error!" KNRM " configuration file '%s' not found\n", config);
+		err_msg("configuration file '%s' not found\n", config);
 		error = 1;
 	}
 
@@ -1147,11 +1146,11 @@ int main(int argc, char **argv)
 
 	/* Create independent threads each of which will execute function */ 
 	if (iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1)) {
-		err_msg (KRED "Error!" KNRM " could not start update thread: %s", strerror(iret1));
+		err_msg_n (iret1, "could not start update thread");
 		t_stat1 = -1;
 	}
 	if (iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2)) {
-		err_msg (KRED "Error!" KNRM " could not start management thread: %s", strerror(iret2));
+		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
 	}
 
