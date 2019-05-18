@@ -461,7 +461,7 @@ void scanNew () {
 		if ((pidlst +i)->pid > (act->pid)) {
 			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
 			// insert, prev is upddated to the new element
-			insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
+			insert_after(&head, prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
 			i--;
 		} 
 		else		
@@ -469,7 +469,7 @@ void scanNew () {
 		if ((pidlst +i)->pid < (act->pid)) {
 			printDbg("\n... Delete %d", (pidlst +i)->pid);		
 			act = act->next;
-			(void)drop_after(&head, &prev);
+			(void)drop_after(&head, prev);
 		} 
 		// ok, skip to next
 		else {
@@ -488,7 +488,7 @@ void scanNew () {
 
 	while (i >= 0) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
-		insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
+		insert_after(&head, prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
 		i--;
 	}
 
@@ -497,7 +497,7 @@ void scanNew () {
 		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
 		// get next item, then drop old
 		act = act->next;
-		(void)drop_after(&head, &prev);
+		(void)drop_after(&head, prev);
 	}
 
 	// unlock data thread

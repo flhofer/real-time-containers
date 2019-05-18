@@ -63,9 +63,9 @@
 	} node_t;
 
 	void push(node_t ** head, pid_t pid, char * psig, char * contid);
-	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
+	void insert_after(node_t ** head, node_t * prev, pid_t pid, char * psig, char * contid);
 	pid_t pop(node_t ** head);
-	pid_t drop_after(node_t ** head, node_t ** prev);
+	pid_t drop_after(node_t ** head, node_t * prev);
 
 	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);

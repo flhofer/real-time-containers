@@ -42,10 +42,10 @@ void push(node_t ** head, pid_t pid, char * psig, char * contid) {
     *head = new_node;
 }
 
-void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
-	if (*prev == NULL) {
+void insert_after(node_t ** head, node_t * prev, pid_t pid, char * psig, char * contid) {
+	if (prev == NULL) {
 		push (head, pid, psig, contid);
-		*prev = *head; // shift to new
+		prev = *head; // shift to new
 		return;
 	}
    	node_t * new_node = malloc(sizeof(node_t));
@@ -54,9 +54,9 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
     new_node->pid = pid;
     new_node->psig = psig;
     new_node->contid = contid;
-    new_node->next = (*prev)->next;
-    (*prev)->next = new_node;
-	*prev = (*prev)->next; // shift to new
+    new_node->next = prev->next;
+    prev->next = new_node;
+	prev = prev->next; // shift to new
 }
 
 static int check_free(node_t * node) {
@@ -88,9 +88,9 @@ pid_t pop(node_t ** head) {
     return retval;
 }
 
-pid_t drop_after(node_t ** head, node_t ** prev) {
+pid_t drop_after(node_t ** head, node_t * prev) {
 	// special case, drop head, has no prec
-	if (*prev == NULL) {
+	if (prev == NULL) {
 		return pop (head);
 	}
 
@@ -98,16 +98,16 @@ pid_t drop_after(node_t ** head, node_t ** prev) {
     node_t * next_node = NULL;
 
 	// next node is the node to be dropped
-	if (NULL !=  (*prev)->next) {
-		next_node =  (*prev)->next->next;
+	if (NULL !=  prev->next) {
+		next_node =  prev->next->next;
 
-	    retval = (*prev)->next->pid;
-		check_free((*prev)->next);
-	    free((*prev)->next);
+	    retval = prev->next->pid;
+		check_free(prev->next);
+	    free(prev->next);
 	}
 	
-	(*prev)->next = next_node;
-    retval = (*prev)->pid;
+	prev->next = next_node;
+    retval = prev->pid;
 
     return retval;
 }
