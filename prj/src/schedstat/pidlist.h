@@ -62,8 +62,6 @@
 		struct sched_pid * next;
 	} node_t;
 
-	extern node_t * head;
-
 	void push(node_t ** head, pid_t pid, char * psig, char * contid);
 	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	pid_t pop(node_t ** head);

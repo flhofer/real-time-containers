@@ -13,8 +13,6 @@ static const struct sched_rscs _rscs_default = { -1,
 												-1, -1,	
 												-1, -1};
 
-// maybe changed in a second moment to kernel linked lists
-
 void ppush(parm_t ** head) {
     parm_t * new_node;
     new_node = calloc(sizeof(parm_t), 1);
@@ -27,17 +25,14 @@ void ppush(parm_t ** head) {
 }
 
 void rpush(struct resTracer ** head) {
-    struct resTracer * new_node;
-    new_node = calloc(sizeof(struct resTracer), 1);
-	// if any sched parameter is set, policy must also be set
+    struct resTracer * new_node = calloc(sizeof(struct resTracer), 1);
 
     new_node->next = *head;
     *head = new_node;
 }
 
 void push(node_t ** head, pid_t pid, char * psig, char * contid) {
-    node_t * new_node;
-    new_node = malloc(sizeof(node_t));
+    node_t * new_node = malloc(sizeof(node_t));
 	*new_node = _node_default;
 
     new_node->pid = pid;
@@ -53,8 +48,7 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
 		*prev = *head; // shift to new
 		return;
 	}
-   	node_t * new_node;
-    new_node = malloc(sizeof(node_t));
+   	node_t * new_node = malloc(sizeof(node_t));
 	*new_node = _node_default;
 
     new_node->pid = pid;
@@ -104,16 +98,15 @@ pid_t drop_after(node_t ** head, node_t ** prev) {
     node_t * next_node = NULL;
 
 	// next node is the node to be dropped
-    next_node = (*prev)->next;
-	if (NULL != next_node) {
-	    (*prev)->next = next_node->next;
+	if (NULL !=  (*prev)->next) {
+		next_node =  (*prev)->next->next;
 
-		check_free(next_node);
-	    free(next_node);
-		}
-	else
-		(*prev)->next = NULL;
-
+	    retval = (*prev)->next->pid;
+		check_free((*prev)->next);
+	    free((*prev)->next);
+	}
+	
+	(*prev)->next = next_node;
     retval = (*prev)->pid;
 
     return retval;
