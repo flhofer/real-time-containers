@@ -741,8 +741,8 @@ static int prepareEnvironment() {
 				// prepare literal and open pipe request
 				int path = open(nfileprefix,O_RDONLY);
 
-				// Scan through string and put in array
-				while(nleft += read(path, pidline+nleft,BUFRD-nleft)) {
+				// Scan through string and put in array, leave one byte extra, needed for strtok to work
+				while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {
 					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
 					while (NULL != pid && 5<nleft)  {

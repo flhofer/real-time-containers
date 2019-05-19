@@ -269,7 +269,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 					// Scan through string and put in array
 					int nleft = 0;
-					while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft)) {
+					while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft-1)) {
 						printDbg("Pid string return %s\n", pidline);
 
 						pid = strtok (pidline,"\n");	
