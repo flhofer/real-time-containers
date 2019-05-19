@@ -138,7 +138,7 @@ int get_sched_info(node_t * item)
 					item->mon.dl_overrun++;
 
 					// usually: we have jitter but execution stays constant -> more than a slot?
-					printDbg("\nPID %d Deadline overrun by %lldns, sum %lld\n",
+					printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
 						item->pid, diff, item->mon.dl_diff); 
 				}
 
@@ -265,15 +265,16 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 					strcat(nfileprefix,"/tasks");
 
 					// prepare literal and open pipe request
+					pidline[PID_BUFFER-1] = '\0'; // safety to avoid overrun
 					int path = open(nfileprefix,O_RDONLY);
 
 					// Scan through string and put in array
 					int nleft = 0;
 					while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft-1)) {
 						printDbg("Pid string return %s\n", pidline);
-
+						pidline[PID_BUFFER-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
 						pid = strtok (pidline,"\n");	
-						while (pid != NULL && 5<nleft) {
+						while (pid != NULL && nleft && ( '\0' != pidline[PID_BUFFER-2])) { // <6 = 5 pid no + \n 
 							// pid found
 							pidlst->pid = atoi(pid);
 							printDbg("%d\n",pidlst->pid);
@@ -290,7 +291,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 						}
 						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pid, nleft); 
+							memcpy(pidline, pidline+PID_BUFFER-nleft-2, nleft); 
 					}
 
 					close(path);
@@ -588,7 +589,7 @@ void *thread_update (void *arg)
 						}
 				}
 			}
-			else if (SCHED_OTHER == policy) {
+			else if (SCHED_OTHER == policy && priority) {
 				// SCHED_OTHER only, BATCH or IDLE are static to 0
 				struct sched_param schedp  = { priority };
 

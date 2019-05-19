@@ -739,13 +739,15 @@ static int prepareEnvironment() {
 				char *pid;
 				int nleft=0; // reading left counter
 				// prepare literal and open pipe request
+				pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
 				int path = open(nfileprefix,O_RDONLY);
 
 				// Scan through string and put in array, leave one byte extra, needed for strtok to work
-				while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {
+				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
+					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
 					printDbg("Pid string return %s\n", pidline);
 					pid = strtok (pidline,"\n");	
-					while (NULL != pid && 5<nleft)  {
+					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
 
 						// fileprefix still pointing to system/
 						if (setkernvar("tasks", pid)){
@@ -756,7 +758,7 @@ static int prepareEnvironment() {
 						pid = strtok (NULL,"\n");	
 					}
 					if (pid) // copy leftover chars to beginning of string buffer
-						memcpy(pidline, pid, nleft); 
+						memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
 				}
 				if (mtask) 
 					warn("Could not move %d tasks\n", mtask);					
