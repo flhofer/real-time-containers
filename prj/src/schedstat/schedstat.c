@@ -534,12 +534,12 @@ static int prepareEnvironment() {
 		return errno;
 	}
 
-	v=0;
 	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
 		err_msg("CAP_SYS_NICE capability mandatory to operate properly!\n");
 		return -1;
 	}
 
+	v=0;
 	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) {// check for effective RESOURCE cap
 		err_msg_n(errno, "Capability test failed");
 		return errno;
@@ -1044,6 +1044,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		affinity = malloc(10);
 		sprintf(affinity, "%d-%d", SYSCPUS+1, max_cpus-1);
 		setaffinity = AFFINITY_SPECIFIED;
+		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
 	}
 	parse_cpumask(affinity, max_cpus);
 
