@@ -56,7 +56,6 @@
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container
 		struct sched_attr attr;
-//		struct sched_rscs rscs;
 		struct sched_mon mon;
 		parm_t * param;			// points to entry in pidparam, mutliple pid-same param
 		struct sched_pid * next;

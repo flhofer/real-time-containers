@@ -15,6 +15,7 @@
 	#define NSEC_PER_SEC		1000000000
 	#define TIMER_RELTIME		0
 	#define PID_BUFFER			4096
+	#define MAX_PIDS 64 // max containers detectable
 
 	static int clocksources[] = {
 		CLOCK_MONOTONIC,

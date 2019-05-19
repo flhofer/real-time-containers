@@ -11,12 +11,10 @@
 #include <linux/sched.h>	// linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
-//#include <stdarg.h> __VA_ARGS__ does not work??
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir enttry structure and expl
 #include <errno.h>			// error numbers and strings
 
-//#include "rt-sched.h" 	// temporary as libc does not include new sched yet
 #include "pidlist.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "error.h"		// error and strerr print functions
@@ -26,7 +24,6 @@
 
 	#define PRGNAME "DC static orchestrator"
 	#define VERSION "0.57c"
-	#define MAX_PIDS 64 // max containers detectable
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,

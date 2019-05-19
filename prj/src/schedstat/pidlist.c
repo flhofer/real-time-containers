@@ -3,7 +3,6 @@
 
 static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
-//						{ -1 },							// rscs affinity default = all (-1)
 						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						 0, 0, 0, 0, 0,
 						 0, INT64_MAX, 0, INT64_MIN},
