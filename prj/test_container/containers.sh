@@ -58,7 +58,7 @@ elif [[ "$cmd" == "run" ]]; then
 		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
 		eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
 		# start new container
-		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE -d --name ${filen} testcnt ${filename}"
+		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
 	done
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
