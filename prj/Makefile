@@ -9,7 +9,6 @@ sources = schedstat.c \
 			manage.c\
 			update.c\
 			pidlist.c\
-			pidparm.c\
 			jsmn.c
 
 TARGETS = $(sources:.c=)
@@ -90,8 +89,8 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/pidlist.o $(OBJDIR)/pidparm.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o $(OBJDIR)/librttest.a
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJDIR)/pidlist.o $(OBJDIR)/pidparm.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/pidlist.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o $(OBJDIR)/librttest.a
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJDIR)/pidlist.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
