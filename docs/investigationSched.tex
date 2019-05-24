@@ -744,8 +744,12 @@ The test scripts, the source code and a detailed description of the orchestrator
 
 \subsection{Static scheduler - structure}
 
+We implement the static scheduler as first of our solutions for this project. The solution divides into three code ``*.c'' files, each of them with a specific function. 
+
+The main file, named ``schedstat.c''
+
 Divided in 3 files, one per thread. 
-The first is main the progam start , defines enviroment parameters for run-time of the other tasks, the interval, and other optional run parameters. 
+The first is main the program start, defines environment parameters for run-time of the other tasks, the interval, and other optional run parameters. 
 It performs setup and configuration of system, cores etc.
 The second, the update thread, scans for containers and keeps statistics up to date.
 The third, manage thread, assigns resources to containers. Algorithm of allocation and container configuration resides here.
