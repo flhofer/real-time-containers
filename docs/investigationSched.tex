@@ -499,50 +499,56 @@ For simplicity, task deadlines track their period.
 We have thus the run-time values of WCET $w_i$, period and deadline ($p_i = d_i$).
 Given these two assumptions we perform the implementation of a first version. 
 
-The static orchestrator works with a simple logic. 
+The static orchestrator is the simplest of the three and works with a plain logic. 
 It knows all real-time tasks that have to run, and where they have to run. 
-The allocation schedule is computed offline. 
+An offline computation writes schedule parameters to a file. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
-Successful implementation allows us to proceed to the next iteration.
+A successful implementation allows us to proceed to the next iteration.
 
-The adaptive static orchestrator comes into play if all existing applications are known, but which of them actually runs is unknown. 
-This combination requires a more complex algorithm.
-To ease the implementation, we limit the maximum allowance of shifting containers.
-If all containers would be allowed to shift to other resources, the schedule would get dynamic and  undecidable again.
+The adaptive static orchestrator is a variant of the first program.
+It comes into play if we still know all existing applications, but not which of them actually runs or will run. 
+This requires a more complex algorithm.
+To ease the implementation, we change the former solution in the following form.
+Instead of static assignments, the offline parameters set preferences. 
+If the preferred resource is not available, the orchestrator binds the container to the best fitting resource pair.
+The preference list will contain more entries than resources might allow, but we do not expect all of them to execute.
+To reduce dynamism, we limit the maximum allowance of shifting containers to the set preference, and the determined best fit.
+If all containers would be allowed to shift to other resources, the schedule would get dynamic and undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
 
-% Advantages
+% Advantages Why are we doing this
 The advantage of this version is that we can configure all possible containers that can run on all nodes of a group of servers upfront.
 No need to specify in detail, and offline, which is running where.
-% Why are we doing this
 This allows a management tool to dynamically decide the node that will run a new container.
-%TODO: what is the decision based on?
 % Introduction of kubernetes into the equation.
 An example of such a management tool is Kubernetes. 
 Kubernetes can manage nodes, pods (groups of containers) and decide deployment and resource allocation (count).
 In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.
 Therefore, also migration and node mixing is possible.
-
-What Kubernetes can't carry out is monitor  resource availability in real-time and with no delay.
-While container allocation is static, this makes no issue. 
-If we have to dynamically reallocate resources, real-time monitoring gets mandatory.
+% Where this stops
+What Kubernetes cannot carry out, is monitoring resources in real-time and with no delay.
+As long as container allocation remains static, this makes no issue. 
+If we have to reallocate resources dynamically, a real-time monitor gets mandatory.
 
 % Switch over to dynamic scheduling
-We have already seen that dynamic scheduling without any additional assumptions is undecideable . % TODO; check if that has been introduced.. actually
-Therefore, it will be done at best using the following additional considerations.
-All tasks are scheduled statically, with adaptive configuration.
-The difference to the previous scheduling algorithm is that we no longer set absolute peaks as worst case execution times. 
-To reduce the amount of unused resources, the worst case time programmed for a task will be obtained based on probability distribution and allowed risk.
-In such case the tasks may exceed the configured worst case run-time $w_{i_c}$, but the probability is low and contemporaneity factor even lower. %TODO: w_ic vs w_i explanation or graph
-We obtain run-time values and probability distributions through experimental measurements. 
-Those measurements give us an average ($\bar c_i$) and peak value ($c_{i_{max}} = \max c_i = w_{i_c} $). The closer we set our new $w_i$ to the average $\bar c_i$, the higher is the risk of exceeding it.
-However, monitoring the execution of tasks will allow the orchestrator to predict if the total computation time may exceed the maximum allowance.
-If so, some of the tasks closest to next in line will be rescheduled onto a different resource. 
+%We have already seen that, 
+Without any additional assumptions, dynamic scheduling is undecidable. % TODO; check if that has been introduced.. actually or add reference to it
+Therefore, we will implement it at best using a variation and the following additional considerations.
+All tasks have a static, adaptive configuration.
+A parameter that changes is that we no longer set execution peak times as WCET. 
+To reduce the amount of unused resources, we reduce the programmed WCET to a much lower value, $w_{i_c}$.
+Based on a maximum assumed risk, we retrieve the WCET from a task's probability distribution of execution times.
+We get these run-time values and probability distributions through experimental measurements. 
+Those measurements give us an average ($\bar c_i$) and peak value ($c_{i_{max}} = \max c_i = w_{i_c} $). 
+The closer we set our new $w_{i_c}$ to the average $\bar c_i$, the higher is the risk of exceeding it.
+A buffer time may hold for this, offloading the risk to a contemporaneity factor.
+In addition, monitoring the execution of tasks will allow the orchestrator to predict if the total computation time may exceed the maximum allowance.
+If so, some of the tasks closest to next in line will be rescheduled onto a different resource.
 The re-scheduling uses the adaptive static scheduler algorithm of the previous version.
 
 The outcome of this approach has multiple advantages. 
-While before the resource slot between average and peak is used with a low probability only, reducing the WCET increases resource utilization at a probability cost.
+While before a task uses the resource slot between average and peak only with a low probability, reducing the WCET increases resource utilization at a probability cost.
 If for example we have nine tasks with WCET 10, period $p_i$ 50 and $\bar c_i$ of 5 and probability of exceeding $\bar c_i$ of $10\exp {-10}$ we can take the following assumptions.
 We can put all tasks $w_i$ to 5, resulting in a total utilization factor $U$ of $0.9$.
 The 10\% margin can be used by any of the containers to bridge the gap between average $\bar c_i$ and WCET of 5.
