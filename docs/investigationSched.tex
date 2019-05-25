@@ -547,26 +547,32 @@ In addition, monitoring the execution of tasks will allow the orchestrator to pr
 If so, some of the tasks closest to next in line will be rescheduled onto a different resource.
 The re-scheduling uses the adaptive static scheduler algorithm of the previous version.
 
-The outcome of this approach has multiple advantages. 
-While before a task uses the resource slot between average and peak only with a low probability, reducing the WCET increases resource utilization at a probability cost.
-If for example we have nine tasks with WCET 10, period $p_i$ 50 and $\bar c_i$ of 5 and probability of exceeding $\bar c_i$ of $10\exp {-10}$ we can take the following assumptions.
-We can put all tasks $w_i$ to 5, resulting in a total utilization factor $U$ of $0.9$.
-The 10\% margin can be used by any of the containers to bridge the gap between average $\bar c_i$ and WCET of 5.
-The risk is given by the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of their overtime is more than 10
-\% of $U$.
+This approach has one advantages. 
+Before a task used the resource slot between average and peak value only with a low probability.
+If we reduce the assigned WCET, we free part of this slot to the use of other tasks.
+This increases resource utilization at a cost of a probability $P$ to miss a deadline.
+Let us illustrate it with an example.
+If we have nine tasks with WCET $10ms$, period $p_i$ of $50ms$ and $\bar c_i$ of $5ms$, a static scheduler cannot allocate them. 
+The total utilization factor $U$ reaches a value $1.8$, way beyond the limit $U_l$.
+A probabilistic solution, yet, can handle this situation. 
+We can put all tasks WCET $w_i$ to $5ms$, resulting in a total utilization factor $U$ of $0.9$.
+The 10\% margin ($5ms$) can be used by any of the tasks as buffer ($U_B$) to bridge the gap between $\bar c_i$ and WCET ($w_{i_c}$).
+The risk depends on the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of their overtime is more than 10\% of $U$.
 
-We have now given the following.
-Getting closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $wi$ decreases according to the PDF measured for the task. 
-The amount of buffer available for a task is defined as $B_l = 1 - U_l = 1 - \sum_{i \in T} \frac{w_i}{p_i}$, thus decreasing the higher the $w_i$ is set.
-Or put differently, if we set $w_i$ closer to the average than to the peak, the resources free and will not be used with a probability $P$. The utilization buffer is defined thus as 
+Based on this example, we can now lie out the following.
+Setting $w_{i_c}$ closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $w_{i_c}$ decreases according to the PDF measured for the task. 
+The relation in equation \ref{eq:buffer} gives the amount of buffer available for a task. It is the ``left-over'' computation time, decreasing the higher a task's $w_{i_c}$ is set.
+Or put differently, if we set $w_{i_c}$ closer to the average than to the peak, the resources freed will not be used with a probability $1-P$. 
 \begin{equation}
-	U_B = 1 - U
+	\label{eq:buffer}
+	U_B = 1 - U = 1 - \sum_{i \in T} \frac{w_{i_c}}{p_i}
 \end{equation}
-And the worst case utilization exceedance of a task $i$ is 
+Equation \ref{eq:delta} describes the amount a tasks frees for resource sharing. $c_{i_\delta}$ gives also the maximum amount of buffer time the task $i$ may reclaim. 
 \begin{equation}
-	U_{Ei} = \frac{c_{i_{max}}- w_i}{p_i}
+	\label{eq:delta}
+	U_{E_i} = c_{i_\delta} = \frac{w_{i}- w_{i_c}}{p_i}
 \end{equation}
-With this two utilization factors we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
+With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
 We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
 %TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
 %TODO: or an approximation might be average divide
@@ -580,23 +586,24 @@ We define it in equation \ref{eq:accrate} based on the average task overtime $\b
 	\label{eq:accrate}
 	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
 \end{equation}
-
-This probability, defined by two tasks exceeding the average, is given as
+The final probability of deadline failure depends on the following relation:
 \begin{equation}
+	\label{eq:prob}
 	P = \frac{n!}{c*(n-c)!} * p^c
 \end{equation}
 
-The risk taken is influenced by multiple factors. If the buffer time is big enough to accommodate more than one exceeding tasks, the probability of failure reduces even more.
-At the same time, the amout of exceeding time varies. 
-Even if there is only buffer enough for one task to fully run into WCET, there is space for multiple tasks exceeding a little.
-A set of tasks that in sum do not exceed $U_B$ are handled properly by the scheduler. 
-The overshoots will be accounted to the buffer until there is none left. Only then the GRUB scheduler preempts the task.
-As long as the mentioned parameters are respected, the task set remains thus schedulable with probability $P$ and resource savings $U_S$.
+Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
+If the buffer big enough to accommodate more than one exceeding tasks, the probability of failure reduces.
+At the same time, the amount of buffer reclaimed per task can also vary ($\bar U_E$). 
+Even if there is only buffer enough for one task to fully run for a duration of WCET, there is space for multiple tasks exceeding $w_{i_c}$ a little.
+A set of tasks that in sum do not exceed $U_B$ are thus handled properly by the EDF scheduler. 
+The overshoots will be accounted to the buffer until there is none left. Only then the GRUB algorithm preempts the task.
+The task set remains thus schedulable with probability of failure $P$ and resource savings as long as it complies with the mentioned parameters. %  $U_S$
 These savings expressed as utilization factor are defined as:
 \begin{equation}
-	U_S = \sum_{i \in T} \frac{c_{i_{max}} - w_i}{p_i}.
+	U_S = \sum_{i \in T} \frac{w_i - w_{i_c}}{p_i}.
 \end{equation}
-If we ceil the sum of all $U_S$ of all installed processing units, we get the number of CPUs that have been saved with the probability setting configured.
+If we apply the ceiling operator to the sum of all savings of all installed processing units, we get the number of CPUs that have been saved with the configured probability setting.
 
 
 %% Considerations
