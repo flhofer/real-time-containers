@@ -448,55 +448,60 @@ This way, thread one can drop any removed item simply from the list and add new 
 Thread two has to scan the PID list anyway.
 If new items are found, the settings are populated and resources allocated and scheduled.
 
-\section{Implementation performance tests}
+\section{The orchestrator}
 \label{sec:perftest}
 
-In this section we detail function, implementation and tests of the orchestrator.
-First we discuss implemented functionality and assumptions taken. 
-We developed the orchestrator in three iterations, extending gradually the functionality.
-Second, we detail a test setup and configuration we will use for performance tests.
-Third, for each of the three versions we detail implementation and performance tests in a separate sub-section. 
+In this section we detail function, implementation and tests.
+First, we discuss the assumptions taken for the implemented features. 
+We developed the orchestrator in three iterations, extending gradually its functionality.
+Second, we detail the test setup and configuration we use for performance tests.
+Third, we report these tests for each of the three versions in a separate sub-section. 
 
 \subsection{Function principle}
 \label{sub:funcdesc}
 
-
 %Description on what we want to achieve
-Having assessed the feasibility of real-time, low latency execution within bounds in \cite{Hoferetal2019}, we next address system efficiency.
-The efficiency of containerized applications can be increased by managing resources and mapping multiple containers onto shared resources.
-We will use an \emph{orchestrator} including the needed algorithms to perform this tasks.
+In \cite{Hoferetal2019} we assessed the feasibility of real-time tasks in the cloud. 
+Now we address the system efficiency of this bounded execution instead.
+If we place these tasks into containers, we can increase their efficiency by managing and sharing the latter's resources.
+We will use an \emph{orchestrator} including the needed algorithms to perform these tasks.
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
-To achieve this, containers and their running processes have to be confined in their execution context. 
+To achieve this, it has to confine containers, and their running processes in their execution context.
 We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such isolation.
-Section \ref{sec:testimp} used these techniques to explore the applications of those to check, maintain and monitor running containers.
+Section \ref{sec:testimp} used these techniques to explore their appliance to check, maintain and monitor running containers.
 In the following we will describe the final implementation and its functions.
 
-If we start from computing resources, we can define the following relationships.
+Each container will need three main resource allocations.
+It needs computing power to proceed with the algorithm, memory to store and manipulate data, and I/O to interact with the environment.
+If we start now by isolating computing resources, we can define the following relationships.
 A computation resource has a maximum utilization factor (limit) $U_l$ of $1$.
-The utilization factor for each processor is defined as the sum of run-times divided by their period, or
+The utilization factor for each processor has a value defined as the sum of run-times divided by their period, or
 \begin{equation}
 	U = \sum_{i \in T}^{}{\frac{c_i}{p_i}} \leq U_l = 1
 \end{equation}  
 where T is the set of all tasks, $p_i$ the period and $c_i$ the computation time.
-If we schedule our tasks, we try to maximize $U$ without exceeding, but the maximum amount is limited by the worst case computation time (WCET) $w_i$.
-To guarantee determinism, we have to account for the worst all the time.
-If then the worst case is rare, this results in a high waste of resources.
+When we schedule our tasks, we try to maximize $U$ without exceeding it (over-subscription).
+However, to guarantee determinism we have to account for the worst execution for each period, thus $c_i = w_i$.
+This means that the worst case execution time (WCET) $w_i$ of a task sets out the maximum amount that can be reclaimed or shared.
+If then this worst case is rare, this results in a high ``waste'' of resources.
 Our orchestration tool will try to optimize out this loss while moderating risks.
 
 Ideal resource management is hard to guarantee.
-To ease the process allocation and resource assignment, we start with simplifying assumptions.
-First, we suppose that the real-time software running in the various containers is all independent. 
-The processes will be considered as black boxes where we do neither have specifications, nor source code.
-If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O, thus each has its own $U_l = 1$.
-Consequently, allocation algorithms might reach theoretical utilization rates converging to $69\%$ for Rate Monotonic (RM) scheduling and up to $100\%$ for Earliest Deadline First (EDF)~\cite{Buttazzo2011}. 
+To ease a process' allocation and resource assignment, we start with some simplifying assumptions.
+First, we suppose that the real-time software running in the various containers is all independent.
+We will consider processes as black boxes where we do neither have specifications, nor source code.
+If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units. 
+With dedicated memory and I/O, each unit has its own $U_l$ of $1$.
+Consequently, allocation might reach theoretical utilization rates converging to $69\%$ for Rate Monotonic (RM) scheduling and up to $100\%$ for Earliest Deadline First (EDF)~\cite{Buttazzo2011}. 
 Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
-Deadlines of tasks are equal to their period.
-We have thus the run-time values WCET $w_i$, period and deadline ($p_i = d_i$).
-With these two assumptions we perform the implementation of a first version. 
+For simplicity, task deadlines track their period.
+We have thus the run-time values of WCET $w_i$, period and deadline ($p_i = d_i$).
+Given these two assumptions we perform the implementation of a first version. 
 
 The static orchestrator works with a simple logic. 
-The real-time tasks that have to run are known. Where they have to run too, and the allocation schedule is computed online. 
+It knows all real-time tasks that have to run, and where they have to run. 
+The allocation schedule is computed offline. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
 Successful implementation allows us to proceed to the next iteration.
@@ -705,7 +710,7 @@ The second configured group includes two containers with $1.9ms$ runtime $t_i$, 
 Although this configuration has only two containers, scheduling consists a challenge in a relatively small period.
 The scheduler's refresh rate is limited to $1000\mu s$, making this configuration a scheduling challenge.
 Group number three consists of a mixed set of containers: one container set to $2.5/5ms$, one $900\mu s/10ms$, and one configured as $3/9ms$ for worst case computation time and deadline/period, respectively.
-The configuration and resource affinity is managed automatically by the orchestrator, based on a static schedule configuration file.
+The orchestrator manages configuration and resource affinity automatically based on a static scheduling file.
 The last test is the simulation of the parallel operation of the control programs. 
 For this test, all three groups are filled with instances of the test container. 
 The computation and period are set to $10$ and $100ms$, respectively.
@@ -744,16 +749,37 @@ The test scripts, the source code and a detailed description of the orchestrator
 
 \subsection{Static scheduler - structure}
 
-We implement the static scheduler as first of our solutions for this project. The solution divides into three code ``*.c'' files, each of them with a specific function. 
+We implement the static scheduler as the first of our solutions for this project. 
+The solution divides into three primary code ``*.c'' files, each of them with a specific function. 
 
-The main file, named ``schedstat.c''
+The main file, named ``schedstat.c'' prepares for execution.
+It configures the system and verifies if the running process has all required capabilities. 
+If successful, the main thread starts the linked threads and waits for interruption or termination.
 
-Divided in 3 files, one per thread. 
-The first is main the program start, defines environment parameters for run-time of the other tasks, the interval, and other optional run parameters. 
-It performs setup and configuration of system, cores etc.
-The second, the update thread, scans for containers and keeps statistics up to date.
-The third, manage thread, assigns resources to containers. Algorithm of allocation and container configuration resides here.
-%TODO: extend and add op details: loop execution ecc.
+Among its duties is also to test what detection mode is available.
+The latest version of the static orchestrator includes three detection modes:
+\begin{itemize}
+	\item via CGroup settings;
+	\item using the parent PID of the container daemon;
+	\item comparing the signature of the command line.
+\end{itemize}
+The default selection is the first in list. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
+
+The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time statistics current.  
+A linked list serves as memory database and all threads share it and may access it only if they get the corresponding lock.
+The scan executes periodically with a preset scan time of $5ms$. 
+By default, every $100^th$ scan the thread verifies if there are new containers present.
+The main thread parses these parameters from the CLI input at start-up.
+If the thread interrupts or stops, it prints a list of statistics for each real-time capable process.
+We placed the source code for this thread in ``update.c'' and the used linked lists in ``pidlist.c''. 
+
+The second started thread keeps track of resources. Its goal is to assign the configured resources to each container and set optional run-time parameters.
+The code in ``manage.c'' reads a configuration file for container settings.
+Like the update thread, this thread scans regularly for changes in the container linked list. 
+If it finds some new entry, the manager verifies for present parameters for the container and assigns them.
+For static orchestration this thread has not more duties. We add more advanced features for adaptive and dynamic scheduling. 
+
+This first implementation of the tool is simple and reduced in functionality. Although this simplicity, we will see in the performance tests if it allows some resource savings and to which extent.
 
 \subsection{Static scheduler - performance tests}
 
