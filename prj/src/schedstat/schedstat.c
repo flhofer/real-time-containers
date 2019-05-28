@@ -305,6 +305,7 @@ static int lockall = 0;
 static int numa = 0;
 static int force = 0;
 static int smi = 0;
+static int rrtime = 0;
 
 // TODO:  implement fifo thread as in cycictest for readout
 static int use_fifo = 0;
@@ -574,6 +575,14 @@ static int prepareEnvironment() {
 		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
+	if (SCHED_RR == policy && 0 < rrtime) {
+		cont( "Set round robin interval to %dms..\n", rrtime);
+		(void)sprintf(str, "%d", rrtime);
+		if (setkernvar("sched_rr_timeslice_ms", str)){
+			warn("RR timeslice not changed!\n");
+		}
+	}
+
 	/// --------------------
 	/// running settings for scheduler
 	struct sched_attr attr; 
@@ -809,17 +818,19 @@ static void display_help(int error)
 {
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
-	       "-a [NUM] --affinity        run container threads on specified cpu range, colon separated list\n"
+	       "-a [NUM] --affinity        run container threads on specified cpu range,\n"
+           "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-b       --bind            bind non-RT PIDs of container to same container affinity\n"
+	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
-	       "                           optional CGRP parameter specifies base signature, default=%s\n"
+	       "                           optional CGRP parameter specifies base signature,\n"
+           "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
@@ -828,13 +839,15 @@ static void display_help(int error)
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
 	       "-n [CMD]                   use CMD signature on PID to identify containers\n"
-	       "                           optional CMD parameter specifies base signature, default=%s\n"
+	       "                           optional CMD parameter specifies base signature,\n"
+           "                           default=%s\n"
 	       "-p PRIO  --priority=PRIO   priority of the measurement thread:default=0\n"
-	       "	 --policy=NAME     policy of measurement thread, where NAME may be one\n"
+	       "         --policy=NAME     policy of measurement thread, where NAME may be one\n"
 	       "                           of: other, normal, batch, idle, deadline, fifo or rr.\n"
-	       "-P                         for option -n, sig is parent, scan for children threads\n"
+	       "-P                         with option -n, scan for children threads\n"
 	       "-q       --quiet           print a summary only on exit\n"
 	       "-r RTIME --runtime=RTIME   set a maximum runtime in seconds, default=0(infinite)\n"
+	       "         --rr=RRTIME       set a SCHED_RR interval time in ms, default=100\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
 #ifdef ARCH_HAS_SMI_COUNTER
@@ -858,8 +871,8 @@ static void display_help(int error)
 enum option_values {
 	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
-	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, 
-	OPT_THREADS, OPT_SMP, OPT_RTIME, OPT_UNBUFFERED, OPT_NUMA, 
+	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, OPT_THREADS, 
+	OPT_SMP, OPT_RTIME, OPT_RRTIME, OPT_UNBUFFERED, OPT_NUMA, 
 	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
 };
 
@@ -894,6 +907,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"priority",         required_argument, NULL, OPT_PRIORITY },
 			{"quiet",            no_argument,       NULL, OPT_QUIET },
 			{"runtime",          required_argument, NULL, OPT_RTIME },
+			{"rr",               required_argument, NULL, OPT_RRTIME },
 			{"threads",          required_argument, NULL, OPT_THREADS },
 			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
@@ -919,6 +933,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_SPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
 				affinity = argv[optind];
+				optargs++;
 				setaffinity = AFFINITY_SPECIFIED;
 			} else {
 				affinity = malloc(10);
@@ -990,6 +1005,15 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				runtime = atoi(optarg);
 			} else if (optind<argc && atoi(argv[optind])) {
 				runtime = atoi(argv[optind]);
+				optargs++;
+			}
+			break;
+		case OPT_RRTIME:
+			if (NULL != optarg) {
+				rrtime = atoi(optarg);
+			} else if (optind<argc && atoi(argv[optind])) {
+				rrtime = atoi(argv[optind]);
+				optargs++;
 			}
 			break;
 		case 's':
@@ -1011,6 +1035,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				num_threads = atoi(optarg);
 			else if (optind<argc && atoi(argv[optind]))
 				num_threads = atoi(argv[optind]);
+				optargs++;
 			else
 				num_threads = max_cpus;
 			break;*/
