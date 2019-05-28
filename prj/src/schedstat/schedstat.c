@@ -717,23 +717,23 @@ static int prepareEnvironment() {
 			strcat(fileprefix,cpusetfileprefix);
 			strcat(fileprefix,"system/");
 			// try to create directory
-			(void)mkdir(fileprefix, ACCESSPERMS);
-			switch (errno) {
-				case 0: // no error
-				case EEXIST: // cgroup (directory) exists
-					if (setkernvar("cpuset.cpus", cpus)){ 
-						warn("Can not set cpu-affinity\n");
-					}
-					if (setkernvar("cpuset.mems", numastr)){
-						warn("Can not set numa memory nodes\n");
-					}
-					if (setkernvar("cpuset.cpu_exclusive", "1")){
-						warn("Can not set cpu exclusive\n");
-					}
-					break;
+			if(0 != mkdir(fileprefix, ACCESSPERMS))
+				switch (errno) {
+					case 0: // no error
+					case EEXIST: // cgroup (directory) exists
+						if (setkernvar("cpuset.cpus", cpus)){ 
+							warn("Can not set cpu-affinity\n");
+						}
+						if (setkernvar("cpuset.mems", numastr)){
+							warn("Can not set numa memory nodes\n");
+						}
+						if (setkernvar("cpuset.cpu_exclusive", "1")){
+							warn("Can not set cpu exclusive\n");
+						}
+						break;
 
-				default: // error otherwise
-					warn("Can not set cpu system group\n");
+					default: // error otherwise
+						warn("Can not set cpu system group: %s\n", strerror(errno));
 			}
 			cont( "moving tasks..\n");
 
