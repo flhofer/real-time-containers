@@ -23,7 +23,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.58"
+	#define VERSION "0.59a"
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
@@ -54,6 +54,7 @@
 	#define CONT_DCKR "docker/" // default cgroup subdirectory
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
+	#define CPUGOVR	"performance" // configuration for cpu governor	
 
 	// procfs and sysfs path constants
 	static char *procfileprefix = "/proc/sys/kernel/";

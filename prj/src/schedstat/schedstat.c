@@ -70,7 +70,7 @@ static int dryrun = 0; // test only, no changes to environment
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///
-/// Return value: 
+/// Return value: -
 void inthand ( int signum ) {
 	stop = 1;
 }
@@ -201,7 +201,7 @@ static int has_smi_counter(void)
 ///
 /// Arguments: - 
 ///
-/// Return value: - 
+/// Return value: detected kernel version (enum)
 static int check_kernel(void)
 {
 	struct utsname kname;
@@ -315,20 +315,20 @@ static int num_threads = 1; // TODO: extend number of scan threads??
 static int smp = 0;  // TODO: add special configurations for SMP modes
 
 enum {
-	AFFINITY_UNSPECIFIED,
-	AFFINITY_SPECIFIED,
-	AFFINITY_USEALL
+	AFFINITY_UNSPECIFIED,	// use default settings
+	AFFINITY_SPECIFIED,	 	// user defined settings
+	AFFINITY_USEALL			// go for all!!
 };
 
 static int setaffinity = AFFINITY_UNSPECIFIED;
-static char * affinity = "1"; // default split, 0-0 SYS, Syscpus to end rest
+static char * affinity = NULL; // default split, 0-0 SYS, Syscpus to end rest
 
 /// parse_cpumask(): checks if the cpu bitmask is ok
 ///
 /// Arguments: - pointer to bitmask
 /// 		   - max number of cpus
 ///
-/// Return value: error code if present
+/// Return value: -
 ///
 static void parse_cpumask(const char *option, const int max_cpus)
 {
@@ -429,18 +429,27 @@ static int prepareEnvironment() {
 			if (!force) {
 				err_msg("SMT is enabled. Set -f (focre) flag to authorize disabling\n");
 				return -1;
-				}
-
+			}
 			if (setkernvar("smt/control", "off")){
 				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
-			cont("SMT is now disabled, as required\n");
+			cont("SMT is now disabled, as required. Refresh configurations..\n");
+			sleep(1); // leave time to refresh conf buffers -> immediate query fails
 			maxcpu = get_nprocs();	// update
 		}
 		else
 			cont("SMT is disabled, as required\n");
 	}
+
+	// no mask specified, generate default
+	if (AFFINITY_UNSPECIFIED == setaffinity){
+		affinity = malloc(10);
+		sprintf(affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
+		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
+	}
+	// prepare bitmask, no need to do it before
+	parse_cpumask(affinity, maxccpu);
 
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
@@ -467,22 +476,22 @@ static int prepareEnvironment() {
 				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
 				if (!getkernvar(fstring, str, sizeof(str))){
 					// value act read ok
-					if (strcmp(str, "performance")) {
+					if (strcmp(str, CPUGOVR)) {
 						// SMT - HT is on
 						cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
 						if (!force) {
-							err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"performance\"\n", str, i);
+							err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
 							return -1;
 							}
 
-						if (setkernvar(fstring, "performance")){
+						if (setkernvar(fstring, CPUGOVR)){
 							err_msg("CPU-freq change unsuccessful!\n");
 							return -1;
 						}
-						cont("CPU-freq on CPU%d is now set to \"performance\" as required\n", i);
+						cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required\n", i);
 					}
 					else
-						cont("CPU-freq on CPU%d is set as required\n", i);
+						cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required\n", i);
 				}
 			}
 
@@ -507,7 +516,7 @@ static int prepareEnvironment() {
 
 		// if CPU not online
 		else if (numa_bitmask_isbitset(affinity_mask, i)) {
-			// disabled processor set to affiinty
+			// disabled processor set to affinity
 			err_msg("Unavailable CPU set for affinity.\n");
 			return -1;
 		}
@@ -1040,15 +1049,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			break;
 		}
 	}
-
-	// create affinity mask, if default select SYSCPUS+1 to CPU-nos
-	if (!option_affinity){
-		affinity = malloc(10);
-		sprintf(affinity, "%d-%d", SYSCPUS+1, max_cpus-1);
-		setaffinity = AFFINITY_SPECIFIED;
-		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
-	}
-	parse_cpumask(affinity, max_cpus);
 
 	// option mismatch verification
 /*	if (option_affinity) {
