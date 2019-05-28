@@ -583,8 +583,10 @@ static int prepareEnvironment() {
 	else {
 		cont( "orchestrator scheduled as '%s'\n", policy_to_string(attr.sched_policy));
 
-		// TODO: set new attributes here
-		// TODO: maybe reset on fork.. and if DL is set, grub and overrun
+		// set new attributes here, avoid Realtime for this thread
+		attr.sched_nice = 20;
+		// reset on fork.. and if DL is set, grub and overrun
+		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
 
 		cont( "promoting process and setting attributes..\n");
 		if (sched_setattr (mpid, &attr, 0U))
