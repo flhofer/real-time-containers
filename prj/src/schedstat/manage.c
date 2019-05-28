@@ -439,7 +439,7 @@ int updateSched() {
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
 					CPU_ZERO(&cset);
-					CPU_SET(current->param->rscs.affinity & !(SCHED_FAFMSK), &cset);
+					CPU_SET(current->param->rscs.affinity & ~(SCHED_FAFMSK), &cset);
 				}
 				else {
 					// cpu affinity to all
