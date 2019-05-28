@@ -448,114 +448,131 @@ This way, thread one can drop any removed item simply from the list and add new 
 Thread two has to scan the PID list anyway.
 If new items are found, the settings are populated and resources allocated and scheduled.
 
-\section{Implementation performance tests}
+\section{The orchestrator}
 \label{sec:perftest}
 
-In this section we detail function, implementation and tests of the orchestrator.
-First we discuss implemented functionality and assumptions taken. 
-We developed the orchestrator in three iterations, extending gradually the functionality.
-Second, we detail a test setup and configuration we will use for performance tests.
-Third, for each of the three versions we detail implementation and performance tests in a separate sub-section. 
+In this section we detail function, implementation and tests.
+First, we discuss the assumptions taken for the implemented features. 
+We developed the orchestrator in three iterations, extending gradually its functionality.
+Second, we detail the test setup and configuration we use for performance tests.
+Third, we report these tests for each of the three versions in a separate sub-section. 
 
 \subsection{Function principle}
 \label{sub:funcdesc}
 
-
 %Description on what we want to achieve
-Having assessed the feasibility of real-time, low latency execution within bounds in \cite{Hoferetal2019}, we next address system efficiency.
-The efficiency of containerized applications can be increased by managing resources and mapping multiple containers onto shared resources.
-We will use an \emph{orchestrator} including the needed algorithms to perform this tasks.
+In \cite{Hoferetal2019} we assessed the feasibility of real-time tasks in the cloud. 
+Now we address the system efficiency of this bounded execution instead.
+If we place these tasks into containers, we can increase their efficiency by managing and sharing the latter's resources.
+We will use an \emph{orchestrator} including the needed algorithms to perform these tasks.
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
-To achieve this, containers and their running processes have to be confined in their execution context. 
+To achieve this, it has to confine containers, and their running processes in their execution context.
 We have seen in Section \ref{sec:mgmttest} a variety valid techniques to obtain such isolation.
-Section \ref{sec:testimp} used these techniques to explore the applications of those to check, maintain and monitor running containers.
+Section \ref{sec:testimp} used these techniques to explore their appliance to check, maintain and monitor running containers.
 In the following we will describe the final implementation and its functions.
 
-If we start from computing resources, we can define the following relationships.
+Each container will need three main resource allocations.
+It needs computing power to proceed with the algorithm, memory to store and manipulate data, and I/O to interact with the environment.
+If we start now by isolating computing resources, we can define the following relationships.
 A computation resource has a maximum utilization factor (limit) $U_l$ of $1$.
-The utilization factor for each processor is defined as the sum of run-times divided by their period, or
+The utilization factor for each processor has a value defined as the sum of run-times divided by their period, or
 \begin{equation}
 	U = \sum_{i \in T}^{}{\frac{c_i}{p_i}} \leq U_l = 1
 \end{equation}  
 where T is the set of all tasks, $p_i$ the period and $c_i$ the computation time.
-If we schedule our tasks, we try to maximize $U$ without exceeding, but the maximum amount is limited by the worst case computation time (WCET) $w_i$.
-To guarantee determinism, we have to account for the worst all the time.
-If then the worst case is rare, this results in a high waste of resources.
+When we schedule our tasks, we try to maximize $U$ without exceeding it (over-subscription).
+However, to guarantee determinism we have to account for the worst execution for each period, thus $c_i = w_i$.
+This means that the worst case execution time (WCET) $w_i$ of a task sets out the maximum amount that can be reclaimed or shared.
+If then this worst case is rare, this results in a high ``waste'' of resources.
 Our orchestration tool will try to optimize out this loss while moderating risks.
 
 Ideal resource management is hard to guarantee.
-To ease the process allocation and resource assignment, we start with simplifying assumptions.
-First, we suppose that the real-time software running in the various containers is all independent. 
-The processes will be considered as black boxes where we do neither have specifications, nor source code.
-If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units with dedicated memory and I/O, thus each has its own $U_l = 1$.
-Consequently, allocation algorithms might reach theoretical utilization rates converging to $69\%$ for Rate Monotonic (RM) scheduling and up to $100\%$ for Earliest Deadline First (EDF)~\cite{Buttazzo2011}. 
+To ease a process' allocation and resource assignment, we start with some simplifying assumptions.
+First, we suppose that the real-time software running in the various containers is all independent.
+We will consider processes as black boxes where we do neither have specifications, nor source code.
+If we do not consider interdependence of the threads, we might simplify the scheduling algorithm to operate on multiple single core units. 
+With dedicated memory and I/O, each unit has its own $U_l$ of $1$.
+Consequently, allocation might reach theoretical utilization rates converging to $69\%$ for Rate Monotonic (RM) scheduling and up to $100\%$ for Earliest Deadline First (EDF)~\cite{Buttazzo2011}. 
 Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
-Deadlines of tasks are equal to their period.
-We have thus the run-time values WCET $w_i$, period and deadline ($p_i = d_i$).
-With these two assumptions we perform the implementation of a first version. 
+For simplicity, task deadlines track their period.
+We have thus the run-time values of WCET $w_i$, period and deadline ($p_i = d_i$).
+Given these two assumptions we perform the implementation of a first version. 
 
-The static orchestrator works with a simple logic. 
-The real-time tasks that have to run are known. Where they have to run too, and the allocation schedule is computed online. 
+The static orchestrator is the simplest of the three and works with a plain logic. 
+It knows all real-time tasks that have to run, and where they have to run. 
+An offline computation writes schedule parameters to a file. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
-Successful implementation allows us to proceed to the next iteration.
+A successful implementation allows us to proceed to the next iteration.
 
-The adaptive static orchestrator comes into play if all existing applications are known, but which of them actually runs is unknown. 
-This combination requires a more complex algorithm.
-To ease the implementation, we limit the maximum allowance of shifting containers.
-If all containers would be allowed to shift to other resources, the schedule would get dynamic and  undecidable again.
+The adaptive static orchestrator is a variant of the first program.
+It comes into play if we still know all existing applications, but not which of them actually runs or will run. 
+This requires a more complex algorithm.
+To ease the implementation, we change the former solution in the following form.
+Instead of static assignments, the offline parameters set preferences. 
+If the preferred resource is not available, the orchestrator binds the container to the best fitting resource pair.
+The preference list will contain more entries than resources might allow, but we do not expect all of them to execute.
+To reduce dynamism, we limit the maximum allowance of shifting containers to the set preference, and the determined best fit.
+If all containers would be allowed to shift to other resources, the schedule would get dynamic and undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
 
-% Advantages
+% Advantages Why are we doing this
 The advantage of this version is that we can configure all possible containers that can run on all nodes of a group of servers upfront.
 No need to specify in detail, and offline, which is running where.
-% Why are we doing this
 This allows a management tool to dynamically decide the node that will run a new container.
-%TODO: what is the decision based on?
 % Introduction of kubernetes into the equation.
 An example of such a management tool is Kubernetes. 
 Kubernetes can manage nodes, pods (groups of containers) and decide deployment and resource allocation (count).
 In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.
 Therefore, also migration and node mixing is possible.
-
-What Kubernetes can't carry out is monitor  resource availability in real-time and with no delay.
-While container allocation is static, this makes no issue. 
-If we have to dynamically reallocate resources, real-time monitoring gets mandatory.
+% Where this stops
+What Kubernetes cannot carry out, is monitoring resources in real-time and with no delay.
+As long as container allocation remains static, this makes no issue. 
+If we have to reallocate resources dynamically, a real-time monitor gets mandatory.
 
 % Switch over to dynamic scheduling
-We have already seen that dynamic scheduling without any additional assumptions is undecideable . % TODO; check if that has been introduced.. actually
-Therefore, it will be done at best using the following additional considerations.
-All tasks are scheduled statically, with adaptive configuration.
-The difference to the previous scheduling algorithm is that we no longer set absolute peaks as worst case execution times. 
-To reduce the amount of unused resources, the worst case time programmed for a task will be obtained based on probability distribution and allowed risk.
-In such case the tasks may exceed the configured worst case run-time $w_{i_c}$, but the probability is low and contemporaneity factor even lower. %TODO: w_ic vs w_i explanation or graph
-We obtain run-time values and probability distributions through experimental measurements. 
-Those measurements give us an average ($\bar c_i$) and peak value ($c_{i_{max}} = \max c_i = w_{i_c} $). The closer we set our new $w_i$ to the average $\bar c_i$, the higher is the risk of exceeding it.
-However, monitoring the execution of tasks will allow the orchestrator to predict if the total computation time may exceed the maximum allowance.
-If so, some of the tasks closest to next in line will be rescheduled onto a different resource. 
+%We have already seen that, 
+Without any additional assumptions, dynamic scheduling is undecidable. % TODO; check if that has been introduced.. actually or add reference to it
+Therefore, we will implement it at best using a variation and the following additional considerations.
+All tasks have a static, adaptive configuration.
+A parameter that changes is that we no longer set execution peak times as WCET. 
+To reduce the amount of unused resources, we reduce the programmed WCET to a much lower value, $w_{i_c}$.
+Based on a maximum assumed risk, we retrieve the WCET from a task's probability distribution of execution times.
+We get these run-time values and probability distributions through experimental measurements. 
+Those measurements give us an average ($\bar c_i$) and peak value ($c_{i_{max}} = \max c_i = w_{i_c} $). 
+The closer we set our new $w_{i_c}$ to the average $\bar c_i$, the higher is the risk of exceeding it.
+A buffer time may hold for this, offloading the risk to a contemporaneity factor.
+In addition, monitoring the execution of tasks will allow the orchestrator to predict if the total computation time may exceed the maximum allowance.
+If so, some of the tasks closest to next in line will be rescheduled onto a different resource.
 The re-scheduling uses the adaptive static scheduler algorithm of the previous version.
 
-The outcome of this approach has multiple advantages. 
-While before the resource slot between average and peak is used with a low probability only, reducing the WCET increases resource utilization at a probability cost.
-If for example we have nine tasks with WCET 10, period $p_i$ 50 and $\bar c_i$ of 5 and probability of exceeding $\bar c_i$ of $10\exp {-10}$ we can take the following assumptions.
-We can put all tasks $w_i$ to 5, resulting in a total utilization factor $U$ of $0.9$.
-The 10\% margin can be used by any of the containers to bridge the gap between average $\bar c_i$ and WCET of 5.
-The risk is given by the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of their overtime is more than 10
-\% of $U$.
+This approach has one advantages. 
+Before a task used the resource slot between average and peak value only with a low probability.
+If we reduce the assigned WCET, we free part of this slot to the use of other tasks.
+This increases resource utilization at a cost of a probability $P$ to miss a deadline.
+Let us illustrate it with an example.
+If we have nine tasks with WCET $10ms$, period $p_i$ of $50ms$ and $\bar c_i$ of $5ms$, a static scheduler cannot allocate them. 
+The total utilization factor $U$ reaches a value $1.8$, way beyond the limit $U_l$.
+A probabilistic solution, yet, can handle this situation. 
+We can put all tasks WCET $w_i$ to $5ms$, resulting in a total utilization factor $U$ of $0.9$.
+The 10\% margin ($5ms$) can be used by any of the tasks as buffer ($U_B$) to bridge the gap between $\bar c_i$ and WCET ($w_{i_c}$).
+The risk depends on the contemporaneity factor, i.e., the probability that two or more tasks exceed their average value at the same time, and the sum of their overtime is more than 10\% of $U$.
 
-We have now given the following.
-Getting closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $wi$ decreases according to the PDF measured for the task. 
-The amount of buffer available for a task is defined as $B_l = 1 - U_l = 1 - \sum_{i \in T} \frac{w_i}{p_i}$, thus decreasing the higher the $w_i$ is set.
-Or put differently, if we set $w_i$ closer to the average than to the peak, the resources free and will not be used with a probability $P$. The utilization buffer is defined thus as 
+Based on this example, we can now lie out the following.
+Setting $w_{i_c}$ closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $w_{i_c}$ decreases according to the PDF measured for the task. 
+The relation in equation \ref{eq:buffer} gives the amount of buffer available for a task. It is the ``left-over'' computation time, decreasing the higher a task's $w_{i_c}$ is set.
+Or put differently, if we set $w_{i_c}$ closer to the average than to the peak, the resources freed will not be used with a probability $1-P$. 
 \begin{equation}
-	U_B = 1 - U
+	\label{eq:buffer}
+	U_B = 1 - U = 1 - \sum_{i \in T} \frac{w_{i_c}}{p_i}
 \end{equation}
-And the worst case utilization exceedance of a task $i$ is 
+Equation \ref{eq:delta} describes the amount a tasks frees for resource sharing. $c_{i_\delta}$ gives also the maximum amount of buffer time the task $i$ may reclaim. 
 \begin{equation}
-	U_{Ei} = \frac{c_{i_{max}}- w_i}{p_i}
+	\label{eq:delta}
+	U_{E_i} = c_{i_\delta} = \frac{w_{i}- w_{i_c}}{p_i}
 \end{equation}
-With this two utilization factors we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
+With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
 We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
 %TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
 %TODO: or an approximation might be average divide
@@ -569,23 +586,24 @@ We define it in equation \ref{eq:accrate} based on the average task overtime $\b
 	\label{eq:accrate}
 	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
 \end{equation}
-
-This probability, defined by two tasks exceeding the average, is given as
+The final probability of deadline failure depends on the following relation:
 \begin{equation}
+	\label{eq:prob}
 	P = \frac{n!}{c*(n-c)!} * p^c
 \end{equation}
 
-The risk taken is influenced by multiple factors. If the buffer time is big enough to accommodate more than one exceeding tasks, the probability of failure reduces even more.
-At the same time, the amout of exceeding time varies. 
-Even if there is only buffer enough for one task to fully run into WCET, there is space for multiple tasks exceeding a little.
-A set of tasks that in sum do not exceed $U_B$ are handled properly by the scheduler. 
-The overshoots will be accounted to the buffer until there is none left. Only then the GRUB scheduler preempts the task.
-As long as the mentioned parameters are respected, the task set remains thus schedulable with probability $P$ and resource savings $U_S$.
+Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
+If the buffer big enough to accommodate more than one exceeding tasks, the probability of failure reduces.
+At the same time, the amount of buffer reclaimed per task can also vary ($\bar U_E$). 
+Even if there is only buffer enough for one task to fully run for a duration of WCET, there is space for multiple tasks exceeding $w_{i_c}$ a little.
+A set of tasks that in sum do not exceed $U_B$ are thus handled properly by the EDF scheduler. 
+The overshoots will be accounted to the buffer until there is none left. Only then the GRUB algorithm preempts the task.
+The task set remains thus schedulable with probability of failure $P$ and resource savings as long as it complies with the mentioned parameters. %  $U_S$
 These savings expressed as utilization factor are defined as:
 \begin{equation}
-	U_S = \sum_{i \in T} \frac{c_{i_{max}} - w_i}{p_i}.
+	U_S = \sum_{i \in T} \frac{w_i - w_{i_c}}{p_i}.
 \end{equation}
-If we ceil the sum of all $U_S$ of all installed processing units, we get the number of CPUs that have been saved with the probability setting configured.
+If we apply the ceiling operator to the sum of all savings of all installed processing units, we get the number of CPUs that have been saved with the configured probability setting.
 
 
 %% Considerations
@@ -705,7 +723,7 @@ The second configured group includes two containers with $1.9ms$ runtime $t_i$, 
 Although this configuration has only two containers, scheduling consists a challenge in a relatively small period.
 The scheduler's refresh rate is limited to $1000\mu s$, making this configuration a scheduling challenge.
 Group number three consists of a mixed set of containers: one container set to $2.5/5ms$, one $900\mu s/10ms$, and one configured as $3/9ms$ for worst case computation time and deadline/period, respectively.
-The configuration and resource affinity is managed automatically by the orchestrator, based on a static schedule configuration file.
+The orchestrator manages configuration and resource affinity automatically based on a static scheduling file.
 The last test is the simulation of the parallel operation of the control programs. 
 For this test, all three groups are filled with instances of the test container. 
 The computation and period are set to $10$ and $100ms$, respectively.
@@ -744,16 +762,37 @@ The test scripts, the source code and a detailed description of the orchestrator
 
 \subsection{Static scheduler - structure}
 
-We implement the static scheduler as first of our solutions for this project. The solution divides into three code ``*.c'' files, each of them with a specific function. 
+We implement the static scheduler as the first of our solutions for this project. 
+The solution divides into three primary code ``*.c'' files, each of them with a specific function. 
 
-The main file, named ``schedstat.c''
+The main file, named ``schedstat.c'' prepares for execution.
+It configures the system and verifies if the running process has all required capabilities. 
+If successful, the main thread starts the linked threads and waits for interruption or termination.
 
-Divided in 3 files, one per thread. 
-The first is main the program start, defines environment parameters for run-time of the other tasks, the interval, and other optional run parameters. 
-It performs setup and configuration of system, cores etc.
-The second, the update thread, scans for containers and keeps statistics up to date.
-The third, manage thread, assigns resources to containers. Algorithm of allocation and container configuration resides here.
-%TODO: extend and add op details: loop execution ecc.
+Among its duties is also to test what detection mode is available.
+The latest version of the static orchestrator includes three detection modes:
+\begin{itemize}
+	\item via CGroup settings;
+	\item using the parent PID of the container daemon;
+	\item comparing the signature of the command line.
+\end{itemize}
+The default selection is the first in list. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
+
+The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time statistics current.  
+A linked list serves as memory database and all threads share it and may access it only if they get the corresponding lock.
+The scan executes periodically with a preset scan time of $5ms$. 
+By default, every $100^th$ scan the thread verifies if there are new containers present.
+The main thread parses these parameters from the CLI input at start-up.
+If the thread interrupts or stops, it prints a list of statistics for each real-time capable process.
+We placed the source code for this thread in ``update.c'' and the used linked lists in ``pidlist.c''. 
+
+The second started thread keeps track of resources. Its goal is to assign the configured resources to each container and set optional run-time parameters.
+The code in ``manage.c'' reads a configuration file for container settings.
+Like the update thread, this thread scans regularly for changes in the container linked list. 
+If it finds some new entry, the manager verifies for present parameters for the container and assigns them.
+For static orchestration this thread has not more duties. We add more advanced features for adaptive and dynamic scheduling. 
+
+This first implementation of the tool is simple and reduced in functionality. Although this simplicity, we will see in the performance tests if it allows some resource savings and to which extent.
 
 \subsection{Static scheduler - performance tests}
 
