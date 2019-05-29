@@ -426,7 +426,12 @@ int updateSched() {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	while (NULL != current) {
-		
+		// skip deactivated tracking items
+		if (current->pid<0){
+			current=current->next; 
+			continue;
+		}
+
 		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned

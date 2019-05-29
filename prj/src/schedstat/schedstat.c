@@ -56,6 +56,7 @@ int runtime = 0;			// total orchestrator runtime, 0 is infinite
 int psigscan = 0;			// scan for child threads, -n option only
 struct bitmask *affinity_mask = NULL; // default bitmask allocation of threads!!
 char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
+int trackpids = 0;			// keep track of left pids, do not delete from list
 //int negiszero = 0;
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
@@ -836,6 +837,7 @@ static void display_help(int error)
 	       "-f                         force execution with critical parameters\n"
 //	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
+	       "-k                         keep track of ended PIDs\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
 	       "-m       --mlockall        lock current and future memory allocations\n"
 	       "-n [CMD]                   use CMD signature on PID to identify containers\n"
@@ -918,7 +920,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:C:dDfFi:l:mn::p:Pqr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:C:dDfFi:kl:mn::p:Pqr:s::t:uUvw:?",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -972,6 +974,8 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'i':
 		case OPT_INTERVAL:
 			interval = atoi(optarg); break;
+		case 'k':
+			trackpids = 1; break;
 		case 'l':
 		case OPT_LOOPS:
 			loops = atoi(optarg); break;

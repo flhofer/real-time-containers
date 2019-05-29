@@ -54,8 +54,9 @@ void dumpStats (){
 	}
 	while (item) {
 		if (SCHED_DEADLINE == item->attr.sched_policy) 
-		(void)printf("%5d: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
-			item->pid, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+		(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+			abs(item->pid), item->pid<0 ? '*' : ' ', 
+			item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 			item->mon.dl_count, item->mon.dl_scanfail, 
 			item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
@@ -203,6 +204,11 @@ int updateStats ()
 	scount++; // increase scan-count
 	// for now does only a simple update
 	while (item != NULL) {
+		// skip deactivated tracking items
+		if (item->pid<0){
+			item=item->next; 
+			continue;
+		}
 
 		// update only when defaulting -> new entry
 		if (SCHED_NODATA == item->attr.sched_policy) {
@@ -471,7 +477,12 @@ void scanNew () {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 	while ((NULL != act) && (0 <= i )) {
-		
+		// skip deactivated tracking items
+		if (act->pid<0){
+			act=act->next;
+			continue; 
+		}
+
 		// insert a missing item		
 		if ((pidlst +i)->pid > (act->pid)) {
 			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
@@ -483,8 +494,11 @@ void scanNew () {
 		// delete a dopped item
 		if ((pidlst +i)->pid < (act->pid)) {
 			printDbg("\n... Delete %d", act->pid);		
+			if (trackpids) // deactivate only
+				act->pid*=-1;
 			act = act->next;
-			(void)drop_after(&head, &prev);
+			if (!trackpids)
+				(void)drop_after(&head, &prev);
 		} 
 		// ok, skip to next
 		else {
@@ -511,8 +525,11 @@ void scanNew () {
 		// drop missing items
 		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
 		// get next item, then drop old
+		if (trackpids)// deactivate only
+			act->pid = abs(act->pid)*-1;
 		act = act->next;
-		(void)drop_after(&head, &prev);
+		if (!trackpids)
+			(void)drop_after(&head, &prev);
 	}
 
 	// unlock data thread

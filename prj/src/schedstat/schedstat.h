@@ -23,7 +23,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.59f"
+	#define VERSION "0.60"
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
@@ -35,7 +35,7 @@
 	};
 
 	// Uncomment this line to enable high debug output
- 	#define DBG
+ 	//#define DBG
 
 	#ifdef DBG
 		#define printDbg (void)printf

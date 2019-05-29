@@ -48,6 +48,7 @@
 	extern int runtime; // test runtime -> 0 = infinite
 	extern int psigscan;// scan for child threads, -n option only
 	extern int quiet;	// quiet enabled
+	extern int trackpids;// keep track of left pids, do not delete from list
 
 
 	extern pthread_mutex_t dataMutex;
