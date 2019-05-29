@@ -35,7 +35,7 @@
 	};
 
 	// Uncomment this line to enable high debug output
- 	//#define DBG
+ 	#define DBG
 
 	#ifdef DBG
 		#define printDbg (void)printf
