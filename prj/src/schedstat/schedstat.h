@@ -23,7 +23,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.59e"
+	#define VERSION "0.59f"
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,

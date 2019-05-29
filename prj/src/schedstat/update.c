@@ -23,6 +23,16 @@ static inline void tsnorm(struct timespec *ts)
 	}
 }
 
+/// cmpPidItem(): compares two pidlist items for Qsort
+///
+/// Arguments: pointers to the items to check
+///
+/// Return value: difference PID
+int cmpPidItem (const void * a, const void * b) {
+	return (((pidinfo_t *)a)->pid - ((pidinfo_t *)b)->pid);
+}
+
+
 /// dumpStats(): prints thread statistics to out
 ///
 /// Arguments: -
@@ -441,6 +451,10 @@ void scanNew () {
 			else 
 				sprintf(pid, "-C %s", cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
+
+			if (psigscan)
+				// with thread scan, SPIDs arrive out of order
+				qsort(&pidlst[0], cnt, sizeof(pidinfo_t), cmpPidItem);
 			break;		
 	}
 
