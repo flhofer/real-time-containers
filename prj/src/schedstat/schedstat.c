@@ -1,6 +1,8 @@
 // main settings and header file
 #include "schedstat.h" 
 
+// TODO: fix free allocation release
+
 // header files of launched threads
 #include "update.h"
 #include "manage.h"

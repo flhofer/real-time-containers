@@ -78,7 +78,7 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 }
 
-static char *fileprefix; // Work variable for local things -> procfs & sysfs
+static char *fileprefix= NULL; // Work variable for local things -> procfs & sysfs
 static int dryrun = 0; // test only, no changes to environment
 
 static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
@@ -502,16 +502,6 @@ int updateSched() {
 
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
-/*					if (current->psig) 
-						free (current->psig);
-					if (current->contid)
-						free (current->contid);
-
-					current->psig = current->param->psig;
-					current->contid = current->param->contid;
-*/
-
-					// FIXME test, complete information instead
 					if (!current->psig) 
 						current->psig = current->param->psig;
 					if (!current->contid)
@@ -519,26 +509,29 @@ int updateSched() {
 
 					// TODO: track failed scheduling update?
 
+					// update CGroup setting of container if in CGROUP mode
 					if (DM_CGRP == use_cgroup && 
 						(0 <= current->param->rscs.affinity& ~(SCHED_FAFMSK))) {
 
-						fileprefix = NULL;
 						char affinity[5];
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
 
 						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
-						if (fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
+						if (fileprefix=malloc(strlen(cpusetdfileprefix)
 								+ strlen(current->contid)+1)) {
 							fileprefix[0] = '\0';   // ensures the memory is an empty string
 							// copy to new prefix
-							(void)strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
+							fileprefix = strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
 							
 							if (setkernvar("/cpuset.cpus", affinity)){
 								warn("Can not set cpu-affinity\n");
 							}
 						}
-						if (fileprefix)
-							free (fileprefix);
+						else 
+							warn("realloc failed!\n");
+
+						free (fileprefix);
+						fileprefix = NULL;
 					}
 					else {
 
