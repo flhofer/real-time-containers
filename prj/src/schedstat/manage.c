@@ -78,6 +78,55 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 }
 
+static char *fileprefix; // Work variable for local things -> procfs & sysfs
+static int dryrun = 0; // test only, no changes to environment
+
+static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
+{
+	char filename[128];
+	int retval = 1;
+	int path;
+	size_t len_prefix = strlen(fileprefix), len_name = strlen(name);
+
+	if (len_prefix + len_name + 1 > sizeof(filename)) {
+		errno = ENOMEM;
+		return 1;
+	}
+
+	memcpy(filename, fileprefix, len_prefix);
+	memcpy(filename + len_prefix, name, len_name + 1);
+
+	path = open(filename, mode);
+	if (0 <= path) {
+		if (O_RDONLY == mode) {
+			int got;
+			if ((got = read(path, value, sizeofvalue)) > 0) {
+				retval = 0;
+				value[got-1] = '\0';
+			}
+		} else if (O_WRONLY == mode) {
+			if (write(path, value, sizeofvalue) == sizeofvalue)
+				retval = 0;
+		}
+		close(path);
+	}
+	return retval;
+}
+
+static int setkernvar(const char *name, char *value)
+{
+	if (dryrun) // suppress system changes
+		return 0;
+
+	if (kernvar(O_WRONLY, name, value, strlen(value))){
+		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
+		return -1;
+	}
+	
+	return 0;
+
+}
+
 ////// TEMP ---------------------------------------------
 
 
@@ -453,15 +502,53 @@ int updateSched() {
 
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
-					if (current->psig) 
+/*					if (current->psig) 
 						free (current->psig);
 					if (current->contid)
 						free (current->contid);
 
 					current->psig = current->param->psig;
 					current->contid = current->param->contid;
+*/
+
+					// FIXME test, complete information instead
+					if (!current->psig) 
+						current->psig = current->param->psig;
+					if (!current->contid)
+						current->contid = current->param->contid;
 
 					// TODO: track failed scheduling update?
+
+					if (DM_CGRP == use_cgroup && 
+						(0 <= current->param->rscs.affinity& ~(SCHED_FAFMSK))) {
+
+						fileprefix = NULL;
+						char affinity[5];
+						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
+
+						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
+						if (fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
+								+ strlen(current->contid)+1)) {
+							fileprefix[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							(void)strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
+							
+							if (setkernvar("/cpuset.cpus", affinity)){
+								warn("Can not set cpu-affinity\n");
+							}
+						}
+						if (fileprefix)
+							free (fileprefix);
+					}
+					else {
+
+						if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+							err_msg_n(errno,"setting affinity for PID %d",
+								current->pid);
+						else
+							cont("PID %d reassigned to CPU%d\n", current->pid, 
+								current->param->rscs.affinity);
+					}
 
 					// only do if different than -1, <- not set values
 					if (SCHED_NODATA != current->param->attr.sched_policy) {
@@ -474,12 +561,6 @@ int updateSched() {
 					else
 						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
 
-					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg_n(errno,"setting affinity for PID %d",
-							current->pid);
-					else
-						cont("PID %d reassigned to CPU%d\n", current->pid, 
-							current->param->rscs.affinity);
 
 					// controlling resource limits
           			struct rlimit rlim;					
