@@ -610,12 +610,14 @@ static int prepareEnvironment() {
 			cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
 	}
 
+	/// -------------------- DOCKER & CGROUP CONFIGURATION
 	// create Docker CGroup prefix
 	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
 	*cpusetdfileprefix = '\0'; // set first chat to null
 	(void)strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
 
-	/// Docker CGROUP setup 
+	/// --------------------
+	/// Docker CGROUP setup - detection if present
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
 		struct stat s;
 
@@ -624,11 +626,13 @@ static int prepareEnvironment() {
 
 		int err = stat(fileprefix, &s);
 		if(-1 == err) {
+			// Docker Cgroup not found 
 			if(ENOENT == errno) {
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
 			} else {
 				perror("Stat encountered an error");
 			}
+			// exists -> goto PID detection, but first..
 			// check for sCHED_DEADLINE first-> stop!
 			if (SCHED_DEADLINE == policy) {
 				err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
@@ -637,11 +641,12 @@ static int prepareEnvironment() {
 			// otherwise switch to next mode
 			use_cgroup = DM_CNTPID;
 		} else {
+			// CGroup found, but is it a dir?
 			if(S_ISDIR(s.st_mode)) {
 				// it's a dir 
 				cont("using CGroups to detect processes..\n");
 			} else {
-				// exists but is no dir 
+				// exists but is no dir -> goto PID detection
 				// check for sCHED_DEADLINE first-> stop!
 				if (SCHED_DEADLINE == policy) {
 					err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
@@ -653,10 +658,24 @@ static int prepareEnvironment() {
 		}
 	}
 
+	// Display message according to detection mode set
 	if (DM_CNTPID == use_cgroup)
 		cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
 	if (DM_CMDLINE == use_cgroup)
 		cont( "will use PIDs of command signtaure '%s' to detect processes..\n", cont_pidc);
+	if (DM_CGRP != use_cgroup)
+		cont( "affinity only will be used to set PID execution..\n");
+
+	/// --------------------
+	/// detect numa configuration TODO: adapt for full support
+	char * numastr = "0"; // default numa string
+	if (-1 != numa_available()) {
+		int numanodes = numa_max_node();
+		numastr = calloc (5, 1); // WARN -> not unallocated
+		sprintf(numastr, "0-%d", numanodes);
+	}
+	else
+		warn("Numa not enabled, defaulting to memory node '0'\n");
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
@@ -672,6 +691,7 @@ static int prepareEnvironment() {
 			fileprefix = NULL; // clear pointer
 			if (d) {
 
+				/// Reassigning preexisting containers?
 				while ((dir = readdir(d)) != NULL) {
 				// scan trough docker cgroups, find them?
 					if ((strlen(dir->d_name)>60) && // container strings are very long!
@@ -692,12 +712,15 @@ static int prepareEnvironment() {
 				if (fileprefix)
 					free (fileprefix);
 
+				// Docker CGroup settings and affinity
 				fileprefix = cpusetdfileprefix; // set to docker directory
 
 				if (setkernvar("cpuset.cpus", affinity)){
 					warn("Can not set cpu-affinity\n");
 				}
-
+				if (setkernvar("cpuset.mems", numastr)){
+					warn("Can not set numa memory nodes\n");
+				}
 				if (setkernvar("cpuset.cpu_exclusive", "1")){
 					warn("Can not set cpu exclusive\n");
 				}
@@ -705,100 +728,91 @@ static int prepareEnvironment() {
 				closedir(d);
 			}
 		}
+	}
 
-		//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
-		// system CGroup, possible tasks are moved
+	//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
+	// system CGroup, possible tasks are moved -> do for all
 
-		fileprefix = NULL;
+	fileprefix = NULL;
 
-		cont("creating cgroup for system on %s\n", cpus);
+	cont("creating cgroup for system on %s\n", cpus);
 
-		// detect numa configuration TODO: adapt for full support
-		char * numastr = "0"; // default numa string
-		if (-1 != numa_available()) {
-			int numanodes = numa_max_node();
-			numastr = calloc (5, 1); // WARN -> not unallocated
-			sprintf(numastr, "0-%d", numanodes);
-		}
-		else
-			warn("Numa not enabled, defaulting to memory node '0'\n");
-
-		if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
-			fileprefix[0] = '\0';   // ensures the memory is an empty string
-			// copy to new prefix
-			strcat(fileprefix,cpusetfileprefix);
-			strcat(fileprefix,"system/");
-			// try to create directory
-			if(0 != mkdir(fileprefix, ACCESSPERMS))
-				switch (errno) {
-					case 0: // no error
-					case EEXIST: // cgroup (directory) exists
-						if (setkernvar("cpuset.cpus", cpus)){ 
-							warn("Can not set cpu-affinity\n");
-						}
-						if (setkernvar("cpuset.mems", numastr)){
-							warn("Can not set numa memory nodes\n");
-						}
-						if (setkernvar("cpuset.cpu_exclusive", "1")){
-							warn("Can not set cpu exclusive\n");
-						}
-						break;
-
-					default: // error otherwise
-						warn("Can not set cpu system group: %s\n", strerror(errno));
-			}
-			cont( "moving tasks..\n");
-
-			int mtask = 0;
-			char * nfileprefix = NULL;
-			if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
-				nfileprefix[0] = '\0';   // ensures the memory is an empty string
-				// copy to new prefix
-				(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
-
-				char pidline[BUFRD];
-				char *pid;
-				int nleft=0; // reading left counter
-				// prepare literal and open pipe request
-				pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
-				int path = open(nfileprefix,O_RDONLY);
-
-				// Scan through string and put in array, leave one byte extra, needed for strtok to work
-				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
-					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
-					printDbg("Pid string return %s\n", pidline);
-					pid = strtok (pidline,"\n");	
-					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
-
-						// fileprefix still pointing to system/
-						if (setkernvar("tasks", pid)){
-							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
-							mtask++;
-						}
-						nleft-=strlen(pid)+1;
-						pid = strtok (NULL,"\n");	
+	if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
+		fileprefix[0] = '\0';   // ensures the memory is an empty string
+		// copy to new prefix
+		strcat(fileprefix,cpusetfileprefix);
+		strcat(fileprefix,"system/");
+		// try to create directory
+		if(0 != mkdir(fileprefix, ACCESSPERMS))
+			switch (errno) {
+				case 0: // no error
+				case EEXIST: // cgroup (directory) exists
+					if (setkernvar("cpuset.cpus", cpus)){ 
+						warn("Can not set cpu-affinity\n");
 					}
-					if (pid) // copy leftover chars to beginning of string buffer
-						memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
-				}
-				if (mtask) 
-					warn("Could not move %d tasks\n", mtask);					
+					if (setkernvar("cpuset.mems", numastr)){
+						warn("Can not set numa memory nodes\n");
+					}
+					if (setkernvar("cpuset.cpu_exclusive", "1")){
+						warn("Can not set cpu exclusive\n");
+					}
+					break;
 
-				close(path);
-			}
-
-			// free string buffers
-			if (fileprefix)
-				free (fileprefix);
-
-			if (nfileprefix)
-				free (nfileprefix);
-
+				default: // error otherwise
+					warn("Can not set cpu system group: %s\n", strerror(errno));
 		}
-		else
-			return -1; //realloc issues
+		cont( "moving tasks..\n");
+
+		int mtask = 0;
+		char * nfileprefix = NULL;
+		if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
+			nfileprefix[0] = '\0';   // ensures the memory is an empty string
+			// copy to new prefix
+			(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
+
+			char pidline[BUFRD];
+			char *pid;
+			int nleft=0; // reading left counter
+			// prepare literal and open pipe request
+			pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
+			int path = open(nfileprefix,O_RDONLY);
+
+			// Scan through string and put in array, leave one byte extra, needed for strtok to work
+			while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
+				pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
+				printDbg("Pid string return %s\n", pidline);
+				pid = strtok (pidline,"\n");	
+				while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
+
+					// fileprefix still pointing to system/
+					if (setkernvar("tasks", pid)){
+						printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+						mtask++;
+					}
+					nleft-=strlen(pid)+1;
+					pid = strtok (NULL,"\n");	
+				}
+				if (pid) // copy leftover chars to beginning of string buffer
+					memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
+			}
+			if (mtask) 
+				warn("Could not move %d tasks\n", mtask);					
+
+			close(path);
+		}
+
+		// free string buffers
+		if (fileprefix)
+			free (fileprefix);
+
+		if (nfileprefix)
+			free (nfileprefix);
 
 	}
+	else
+		return -1; //realloc issues
+
+
 
 	/* lock all memory (prevent swapping) */
 	if (lockall)
