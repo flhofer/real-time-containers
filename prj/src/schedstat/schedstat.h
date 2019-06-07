@@ -23,7 +23,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.61a"
+	#define VERSION "0.61b"
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
@@ -60,6 +60,7 @@
 	static char *procfileprefix = "/proc/sys/kernel/";
 	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 	static char *cpusystemfileprefix = "/sys/devices/system/cpu/";
+	int setkernvar_ex(const char *prefix, const char *name, char *value);
 
 	// definition of container detection modes
 	enum det_mode {

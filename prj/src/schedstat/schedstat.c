@@ -290,6 +290,15 @@ static int setkernvar(const char *name, char *value)
 
 }
 
+// FIXME: WARN, can only be used one at a time. Main OR manage
+int setkernvar_ex(const char *prefix, const char *name, char *value)
+{
+	fileprefix = prefix;
+
+	return setkernvar(name, value);
+
+}
+
 static int getkernvar(const char *name, char *value, int size)
 {
 

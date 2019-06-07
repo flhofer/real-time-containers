@@ -12,6 +12,8 @@
 static parm_t * phead;
 static struct resTracer * rhead;
 
+static char *fileprefix; // Work variable for local things -> procfs & sysfs
+
 ////// TEMP ---------------------------------------------
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
@@ -76,55 +78,6 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	}
 
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
-}
-
-static char *fileprefix= NULL; // Work variable for local things -> procfs & sysfs
-static int dryrun = 0; // test only, no changes to environment
-
-static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
-{
-	char filename[128];
-	int retval = 1;
-	int path;
-	size_t len_prefix = strlen(fileprefix), len_name = strlen(name);
-
-	if (len_prefix + len_name + 1 > sizeof(filename)) {
-		errno = ENOMEM;
-		return 1;
-	}
-
-	memcpy(filename, fileprefix, len_prefix);
-	memcpy(filename + len_prefix, name, len_name + 1);
-
-	path = open(filename, mode);
-	if (0 <= path) {
-		if (O_RDONLY == mode) {
-			int got;
-			if ((got = read(path, value, sizeofvalue)) > 0) {
-				retval = 0;
-				value[got-1] = '\0';
-			}
-		} else if (O_WRONLY == mode) {
-			if (write(path, value, sizeofvalue) == sizeofvalue)
-				retval = 0;
-		}
-		close(path);
-	}
-	return retval;
-}
-
-static int setkernvar(const char *name, char *value)
-{
-	if (dryrun) // suppress system changes
-		return 0;
-
-	if (kernvar(O_WRONLY, name, value, strlen(value))){
-		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
-		return -1;
-	}
-	
-	return 0;
-
 }
 
 ////// TEMP ---------------------------------------------
@@ -511,7 +464,7 @@ int updateSched() {
 
 					// update CGroup setting of container if in CGROUP mode
 					if (DM_CGRP == use_cgroup && 
-						(0 <= current->param->rscs.affinity& ~(SCHED_FAFMSK))) {
+						(0 <= current->param->rscs.affinity & ~(SCHED_FAFMSK))) {
 
 						char affinity[5];
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
@@ -523,12 +476,12 @@ int updateSched() {
 							// copy to new prefix
 							fileprefix = strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
 							
-							if (setkernvar("/cpuset.cpus", affinity)){
+							if (setkernvar_ex(fileprefix, "/cpuset.cpus", affinity)){
 								warn("Can not set cpu-affinity\n");
 							}
 						}
 						else 
-							warn("realloc failed!\n");
+							warn("malloc failed!\n");
 
 						free (fileprefix);
 						fileprefix = NULL;
