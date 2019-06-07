@@ -642,26 +642,27 @@ If we apply the ceiling operator to the sum of all savings of all installed proc
 
 \subsection{Test configuration}
 
-To execute these tests we prepared a set of test configurations. 
-
 % test setup, IAAS Aws C5 and Bare metal Ubuntu Server 18.04 LTS, kernel 4.19.31-rt18
-%To consider also latest kernel updates and patches, we reconfigured both systems with the newest kernel.
-%TODO:
-For the results in this section, both our AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} have been re-configured with the latest LTS operating system release, Ubuntu Server 18.04.2.
-In addition, the kernel of all systems has been upgraded to and patched with the latest \texttt{PREEMPT-RT} release, 4.19.31-rt18.
-The installation and update steps were performed using the same build scripts of Section \ref{sub:ostest}, with only some minor changes.
-These changes should reduce interruption frequency and duration, important details when trying to measure system introduced runtime noise.
-To increase preemption performance, the configurations of the latest available official kernel releases have been applied (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively), the source code patched, and preemption set.
-Some debug features have been disabled, and the scheduler base tick frequency has been increased.
-%The performance of the kernel is increased as we change debugging and synchronization settings.
+%TODO: add introductory paragraph. 
+A set of tests allows us to validate the orchestrator and systems configuration.
+For these tests we first prepared all running systems with new kernels and patches.
+We prepared then a set of test configurations to validate different running scenarios. 
+The rest of this section details steps further.
 
+For the results in this section, we reconfigured both our AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} with the latest LTS operating system release, Ubuntu Server $18.04.2$.
+In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.31$, and patched it with the latest \texttt{PREEMPT-RT} release, $4.19.31-rt18$.
+For the installation and update steps we used the same build scripts of \cite{Hoferetal2019} with only some minor changes.
+These changes should reduce interruption frequency and duration, significant details when trying to measure system introduced runtime noise.
+To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
+
+In this configuration, we disabled some debug features and increased the scheduler base tick frequency.
 In particular, the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) is now disabled to reduce kernel preemption duration.
 We disabled the flag \texttt{CONFIG\_DEBUG\_SHIRQ} to prohibit generation of spurious debug interrupts.
 In addition, The configuration settings for the Read-Copy-Update synchronization kernel tracing  (\texttt{CONFIG\_RCU\_TRACE} and \texttt{CONFIG\_TREE\_RCU\_TRACE}) are disabled to reduce synchronization-induced latencies.
-Via the \texttt{CONFIG\_HZ\_1000} and \texttt{CONFIG\_HZ} flags, the tick has been changed from the default value of $250Hz$ (or $100Hz$ depending on the distribution) to $1000Hz$.
-Although introducing some scheduling overhead, this change allows schedule evaluation up to every millisecond. 
+Via the \texttt{CONFIG\_HZ\_1000} and \texttt{CONFIG\_HZ} flags, we changed the tick rate from the default value of $250Hz$ (or $100Hz$ depending on the distribution) to $1000Hz$.
+Although adding some scheduling overhead, this change allows schedule evaluation up to every millisecond. 
 In combination with high resolution timers (\texttt{CONFIG\_HIGH\_RES\_TIMERS}), this enables higher scheduling granularity and fractional allocation of computation time.
-Our system works with dynamic ticks enabled (\texttt{CONFIG\_NO\_HZ\_IDLE}) for the first round of test batches.
+Our system runs with dynamic ticks enabled (\texttt{CONFIG\_NO\_HZ\_IDLE}) for the first round of test batches.
 During this first round, the scheduler adapts the rescheduling of tasks to a minimum for each core with \texttt{CONFIG\_HZ} as upper bound. 
 The second batch runs with full ticks, a second recompiled kernel forcing scheduler evocation every millisecond (flag \texttt{CONFIG\_HZ\_FULL}).
 
@@ -669,65 +670,48 @@ All test use the EDF scheduler including the Greedy Reclamation of Unused Bandwi
 The latter is an improvement to Constant Bandwidth Servers (CBS) used to manage asynchronous tasks in a real-time setting. 
 In fact, the CBS algorithm is unable to manage WCET overshoots and task misbehaviour; for instance, an EDF real-time task going to sleep would risk starving a system. 
 The GRUB algorithm, yet, is able to manage such situations and preempt the starvation causing task. 
-In addition, it can reclaim the unused bandwidth of EDF tasks and reallocate it to other EDF processes, allowing them to continue over their WCET without throttling.
+In addition, it can reclaim the unused bandwidth of EDF tasks and reallocate it to other EDF processes, permitting them to continue over their WCET without throttling.
 
 % Advantages of EDF in general
 Another advantage of the EDF scheduler is the ease to determine feasibility of a schedule.
-Each task $i$ in an EDF schedule requires three parameters: programmed worst case runtime $w_i$, deadline $d_i$ and period $p_i$, where the relation is as follows:
+Each task $i$ in an EDF schedule requires three parameters: programmed worst case runtime $w_{i_c}$, deadline $d_i$ and period $p_i$, where the relation is as follows:
 \begin{equation}
-t_i \le d_i \le p_i
+w_{i_c} \le d_i \le p_i
 \end{equation}
-For a generic periodic task, the runtime $w$ is set to be equal to the WCET, $p$ is the repetition period, and the deadline $d$ is the relative point in time since period start where the computation must be finished. 
-During runtime, the scheduler will use these settings to compute the absolute deadline $D_i$ and the absolute period end $P_i$ based on the absolute start time $S_i$ of the new period.
-A partitioned or affinity managed system can furthermore be considered a set of isolated subsystems.
+
+For a generic periodic task, the run-time $w_{i_c}$ is set equal to the WCET $w_c$, $p$ is the repetition period. The deadline $d$ is the relative point in time since period start where the computation must be finished. 
+During run-time, the scheduler will use these settings to compute the absolute deadline $D_i$ and the absolute period end $P_i$ based on the absolute start time $S_i$ of the new period.
+A partitioned or affinity managed system can furthermore be considered equal to a set of isolated subsystems.
 If now the deadline of a task $d_i$ is equal to the period $p_i$ of a task, a schedule consisting of $n$ tasks running on one of the partitioned subsystems is feasible if
 \begin{equation}
-\sum_{i \in n} \frac{w_i}{p_i} \le 1 = U_l,
+\sum_{i \in n} \frac{w_{i_c}}{p_i} \le 1 = U_l,
 \end{equation}
 which also equals the theoretical utilization limit $U_l$~\cite{Buttazzo2011}. 
 
-% how is the run-time exe, CGroups, affinity, and period configuration 
-In preparation for execution, the static orchestrator identifies environment parameters and configures the kernel.
-In particular, the RT-containers are isolated via %``cpuset''
-\texttt{CGroups} from system tasks.
-A separate control group called \texttt{system} is created and before allocating containers, all possible system or user tasks are moved from the root into the new group.
-The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
-The division and size of the CPU-sets can be configured via command line parameters.
-In addition, at start-up, the orchestrator sets the maximum real-time run-time to $-1$. This is to avoid throttling of RT tasks and to enable CPU affinity for EDF scheduled processes.
-
-The test batch consists of a set of preliminary boundary tests and a simulation test.
+The selected test batch consists of a set of preliminary boundary tests and set of simulation tests.
 In particular, we have created the following preliminary test settings:
-
 \begin{itemize}
 	\item \textit{Test lower bound:} homogeneous period and run-time among all containers executing on the same resources with a WCET $w_i$ smaller than the scheduler's granularity ($1000\mu s$);
 	\item \textit{Test upper bound:} homogeneous period and run-time among containers executing on the same resources, with a runtime to period ratio $(\frac{t_i}{p_i})$ close to $0.5$.
 	\item \textit{Test diversity:} mixed periods and run-times each container executing on the same resources.
 \end{itemize}
-
 As a conclusive test, we emulate the scenario of our initial problem statement. 
 The parallel operation of multiple instances of the flow control software is verified creating an additional test set.
-The test configuration foresees a homogeneous period and run-time among all containers on the same resources, with timing based on the values of Section \ref{sec:bgnd} ($10ms$ run-time, $100ms$ deadline and period).
-
-Unfortunately, there is no direct access to the scheduler's kernel data.
-Therefore, the orchestrator scans continuously the kernel debug output for each process to analyze remaining runtime budget and verify period and deadline consistency. 
-If a deadline is missed, the reported absolute deadline will deviate from the programmed period. By definition, the absolute deadline $D_i$ of a task $i$ with execution period $j$ is given by:
-\begin{equation}
-D_i = \Phi_i + (j-1) p_i + d_i,
-\end{equation}
-where $\Phi_i$ is the task's absolute initial start time.
+The test configuration foresees a homogeneous period and run-time among all containers on the same resources, with timing based on the values of Section ``Problem Statement'' in \cite{Hoferetal2019} ($10ms$ run-time, $100ms$ deadline and period).
 
 For the first test batch, we set up one resource configuration for each of the tests discussed in the previous section.
 The first group consists of ten containers with a WCET $w_i$ of $900\mu s$ . 
 With a period and deadline of $10ms$, this results in a utilization factor $U_l$ of $0.9$.
-The second configured group includes two containers with $1.9ms$ runtime $t_i$, $2.5ms$ WCET and $5ms$ period.
+The second configured group includes two containers with $1.9ms$ run-time $t_i$, $2.5ms$ WCET and $5ms$ period.
 Although this configuration has only two containers, scheduling consists a challenge in a relatively small period.
-The scheduler's refresh rate is limited to $1000\mu s$, making this configuration a scheduling challenge.
+This configuration represents a scheduling challenge as the kernel setting (HZ\_1000) limits scheduler's refresh rate to $1000\mu s$.
 Group number three consists of a mixed set of containers: one container set to $2.5/5ms$, one $900\mu s/10ms$, and one configured as $3/9ms$ for worst case computation time and deadline/period, respectively.
 The orchestrator manages configuration and resource affinity automatically based on a static scheduling file.
-The last test is the simulation of the parallel operation of the control programs. 
-For this test, all three groups are filled with instances of the test container. 
-The computation and period are set to $10$ and $100ms$, respectively.
-Test results will be detailed after each implementation description.
+The last test is the simulation of the parallel operation of multiple containers running the flow-control program. 
+For this test, we fill all three groups with instances of the test container. 
+These instances set computation and period to $10$ and $100ms$, respectively.
+
+We will detail tests results and conclusions thereof after each implementation description.
 
 \subsubsection{rt-app}
 
@@ -777,6 +761,24 @@ The latest version of the static orchestrator includes three detection modes:
 	\item comparing the signature of the command line.
 \end{itemize}
 The default selection is the first in list. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
+
+%TODO: implement, extend this description.
+% how is the run-time exe, CGroups, affinity, and period configuration 
+In preparation for execution, the orchestrator identifies environment parameters and configures the kernel.
+In particular, the RT-containers are isolated via %``cpuset''
+%TODO: cpuset vs cgroups details
+\texttt{CGroups} from system tasks.
+A separate control group called \texttt{system} is created and before allocating containers, all possible system or user tasks are moved from the root into the new group.
+The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
+The division and size of the CPU-sets can be configured via command line parameters.
+In addition, at start-up, the orchestrator sets the maximum real-time run-time to $-1$. This is to avoid throttling of RT tasks and to enable CPU affinity for EDF scheduled processes.
+Unfortunately, there is no direct access to the scheduler's kernel data.
+Therefore, the orchestrator scans continuously the kernel debug output for each process to analyze remaining runtime budget and verify period and deadline consistency. 
+If a deadline is missed, the reported absolute deadline will deviate from the programmed period. By definition, the absolute deadline $D_i$ of a task $i$ with execution period $j$ is given by:
+\begin{equation}
+D_i = \Phi_i + (j-1) p_i + d_i,
+\end{equation}
+where $\Phi_i$ is the task's absolute initial start time.
 
 The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time statistics current.  
 A linked list serves as memory database and all threads share it and may access it only if they get the corresponding lock.
