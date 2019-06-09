@@ -643,8 +643,8 @@ If we apply the ceiling operator to the sum of all savings of all installed proc
 % Time syncronous network (TSN) maybe necessary
 
 \subsection{Test configuration}
+\label{sub:testcfg}
 
-% test setup, IAAS Aws C5 and Bare metal Ubuntu Server 18.04 LTS, kernel 4.19.31-rt18
 Theoretical aspects aside, the orchestrator created in this exploratory study needs also to be tested.
 A set of tests allows us to validate both the orchestrator and the various system configurations.
 For these tests we first prepare a set of systems with recent kernels and patches.
@@ -657,7 +657,7 @@ For the installation and update steps we used the same build scripts of \cite{Ho
 These changes should reduce interruption frequency and duration, significant details when trying to measure system introduced runtime noise.
 To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
 
-In this kernel configurations we disabled some debug features and increased the scheduler base tick frequency.
+In these kernel configurations we disabled some debug features and increased the scheduler base tick frequency.
 In particular, settings disable the the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) to reduce kernel preemption duration.
 We disabled the flag \texttt{CONFIG\_DEBUG\_SHIRQ} to prohibit generation of spurious debug interrupts.
 In addition, the configuration disables the settings for the Read-Copy-Update synchronization kernel tracing  (\texttt{CONFIG\_RCU\_TRACE} and \texttt{CONFIG\_TREE\_RCU\_TRACE}) to reduce synchronization-induced latencies.
@@ -717,8 +717,8 @@ Group number three consists of a mixed set of containers: one container set to $
 The orchestrator manages configuration and resource affinity automatically based on a static scheduling file.
 The last test in the batch is the simulation of the parallel operation of multiple containers running the flow-control program. 
 %TODO: this is not fitting. Only one group at a time.. hmm
-For this test, we fill all three groups with instances of the test container. 
-These instances set computation and period to $10$ and $100ms$, respectively.
+%For this test, we fill all three groups with instances of the test container. 
+%These instances set computation and period to $10$ and $100ms$, respectively.
 
 The execution of tests will be supported by test tools and scripts. 
 We describe in Section \ref{sub:rtapp} the tool we used for the application simulation and test. Furthermore, we created two bash scripts to support sequence and container management. Section \ref{sub:scripts} describes script details while Section \ref{sub:orchset} explains the used execution parameters of the orchestrator.
@@ -757,19 +757,37 @@ In addition, to align loop execution period among all containers and avoid anoma
 
 During test execution, the orchestrator and \emph{rt-app} monitor run-time behavior of the system.
 \emph{rt-app} creates a log file detailing each execution cycle to be inspected for possible deadline failures.
-The orchestrator reports scan times and run-time budgets. %TODO: add more details
+The orchestrator reports scan times and run-time budgets. 
+It can thus see anomalies in container behavior and report it.
 We detail the execution parameters for the orchestrator in the next section.
 The test scripts, the source code and a detailed description of the orchestrator can be found in the project repository, and in ~\cite{homep01}.
 
 \subsubsection{Orchestrator settings}
 \label{sub:orchset}
-%TODO :parameters: run, runtime -> consequent test overrun.
+
+For our tests we used the following command line parameters for the orchestrator:
+
+\begin{itemize} %TODO: Passivee!!
+	\item [-a] the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
+	\item[-f] the force flag is needed to allow the orchestrator to reconfigure the system. This is to ensure that all options such as Hyper-threading are disabled;
+	\item[-r] the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
+	\item[--policy]	sets the update thread policy of the container scan. With a default rate of $5000\mu s$ we use this setting to have a more reliable execution and continuous. The chosen policy is \texttt{FIFO};
+	\item[-d] enables the container deadline based threads to reclaim any unused bandwidth. This feature thus permits a task to grab all the free CPU-time there to not miss a deadline; 
+	%TODO: extend once done
+\end{itemize}
+
+In case of exceptions, we detail the additional parameters in the sections following.
 
 \subsubsection{Execution and automation scripts}
 \label{sub:scripts}
 
-%TODO :scripts and containers
-%TODO :scripts for tests and test-runs
+%TODO: maybe a bit short?
+During the tests we used two automation scripts. 
+The first one automates the container management. It systematically applies all commands to the configured containers for our test suite. The usage is very similar to docker itself and thus we do not detail it further.
+The second script contains all the tests to be executed, the preparatory and the final steps.
+It is the main script that is run when starting a test batch.
+%
+Again, the test scripts can be found in the project repository, and in ~\cite{homep01}.
 
 \subsection{Static scheduler - structure}
 
