@@ -831,8 +831,8 @@ static int prepareEnvironment() {
 
 				close(path);
 				
-				// some unmoveable tasks?
-				if (mtask_old != mtask)
+				// some unmoveable tasks?, one free try
+				if (mtask_old != mtask && mtask_old == 0)
 				{
 					warn("Could not move %d tasks\n", mtask);					
 					cont("retry..\n");
