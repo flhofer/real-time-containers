@@ -638,22 +638,34 @@ static int prepareEnvironment() {
 
 		int err = stat(fileprefix, &s);
 		if(-1 == err) {
-			// Docker Cgroup not found 
-			if(ENOENT == errno) {
+			// Docker Cgroup not found, force enabled = try creating
+			if(ENOENT == errno && force) {
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
-				if(force && 0 != mkdir(fileprefix, ACCESSPERMS))
-					warn("Can not create container group: %s\n", strerror(errno));
+				if (0 != mkdir(fileprefix, ACCESSPERMS))
+				{
+					err_msg("Can not create container group: %s\n", strerror(errno));
+					return -1;
+				}
+				// if it worked, stay in Container mode	
 			} else {
-				perror("Stat encountered an error");
+			// Docker Cgroup not found, force not enabled = try switching to pid
+				if(ENOENT == errno) 
+					err_msg("Can not create container group: %s\n", strerror(errno));
+
+				else {
+					perror("Stat encountered an error");
+
+					// exists -> goto PID detection, but first..
+					// check for sCHED_DEADLINE first-> stop!
+					if (SCHED_DEADLINE == policy) {
+						err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+						return -1;
+					}
+					// otherwise switch to next mode
+					use_cgroup = DM_CNTPID;
+				}
 			}
-			// exists -> goto PID detection, but first..
-			// check for sCHED_DEADLINE first-> stop!
-			if (SCHED_DEADLINE == policy) {
-				err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
-				return -1;
-			}
-			// otherwise switch to next mode
-			use_cgroup = DM_CNTPID;
+
 		} else {
 			// CGroup found, but is it a dir?
 			if(S_ISDIR(s.st_mode)) {
@@ -757,63 +769,80 @@ static int prepareEnvironment() {
 		strcat(fileprefix,cpusetfileprefix);
 		strcat(fileprefix,"system/");
 		// try to create directory
-		if(0 != mkdir(fileprefix, ACCESSPERMS))
-			switch (errno) {
-				case 0: // no error
-				case EEXIST: // cgroup (directory) exists
-					if (setkernvar("cpuset.cpus", cpus)){ 
-						warn("Can not set cpu-affinity\n");
-					}
-					if (setkernvar("cpuset.mems", numastr)){
-						warn("Can not set numa memory nodes\n");
-					}
-					if (setkernvar("cpuset.cpu_exclusive", "1")){
-						warn("Can not set cpu exclusive\n");
-					}
-					break;
-
-				default: // error otherwise
-					warn("Can not set cpu system group: %s\n", strerror(errno));
+		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
+		{
+			// error otherwise
+			warn("Can not set cpu system group: %s\n", strerror(errno));
+			goto sysend; // skip all system things 
+			// FIXME: might create unexpected behaviour
 		}
+
+		if (setkernvar("cpuset.cpus", cpus)){ 
+			warn("Can not set cpu-affinity\n");
+		}
+		if (setkernvar("cpuset.mems", numastr)){
+			warn("Can not set numa memory nodes\n");
+		}
+		if (setkernvar("cpuset.cpu_exclusive", "1")){
+			warn("Can not set cpu exclusive\n");
+		}
+
 		cont( "moving tasks..\n");
 
-		int mtask = 0;
 		char * nfileprefix = NULL;
 		if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 			nfileprefix[0] = '\0';   // ensures the memory is an empty string
 			// copy to new prefix
 			(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
 
-			char pidline[BUFRD];
-			char *pid;
-			int nleft=0; // reading left counter
-			// prepare literal and open pipe request
-			pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
-			int path = open(nfileprefix,O_RDONLY);
+			int mtask = 0,
+				mtask_old;
+			do
+			{
+				// update counters, start again
+				mtask_old = mtask;
+				mtask = 0;
 
-			// Scan through string and put in array, leave one byte extra, needed for strtok to work
-			while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
-				pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
-				printDbg("Pid string return %s\n", pidline);
-				pid = strtok (pidline,"\n");	
-				while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
+				char pidline[BUFRD];
+				char *pid;
+				int nleft=0; // reading left counter
+				// prepare literal and open pipe request
+				pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
+				int path = open(nfileprefix,O_RDONLY);
 
-					// fileprefix still pointing to system/
-					if (setkernvar("tasks", pid)){
-						printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
-						mtask++;
+				// Scan through string and put in array, leave one byte extra, needed for strtok to work
+				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
+					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
+					printDbg("Pid string return %s\n", pidline);
+					pid = strtok (pidline,"\n");	
+					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
+
+						// fileprefix still pointing to system/
+						if (setkernvar("tasks", pid)){
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+							mtask++;
+						}
+						nleft-=strlen(pid)+1;
+						pid = strtok (NULL,"\n");	
 					}
-					nleft-=strlen(pid)+1;
-					pid = strtok (NULL,"\n");	
+					if (pid) // copy leftover chars to beginning of string buffer
+						memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
 				}
-				if (pid) // copy leftover chars to beginning of string buffer
-					memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
-			}
-			if (mtask) 
-				warn("Could not move %d tasks\n", mtask);					
 
-			close(path);
+				close(path);
+				
+				// some unmoveable tasks?
+				if (mtask_old != mtask)
+				{
+					warn("Could not move %d tasks\n", mtask);					
+					cont("retry..\n");
+					sleep(5);
+				}
+			}
+			while (mtask_old != mtask);
 		}
+
+sysend: // jumped here if not possible to create system
 
 		// free string buffers
 		if (fileprefix)
