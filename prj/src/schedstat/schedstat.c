@@ -293,6 +293,7 @@ static int setkernvar(const char *name, char *value)
 // FIXME: WARN, can only be used one at a time. Main OR manage
 int setkernvar_ex(const char *prefix, const char *name, char *value)
 {
+	// FIXME: temporary, until kernel functions are changed
 	fileprefix = prefix;
 
 	return setkernvar(name, value);
@@ -640,6 +641,8 @@ static int prepareEnvironment() {
 			// Docker Cgroup not found 
 			if(ENOENT == errno) {
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
+				if(force && 0 != mkdir(fileprefix, ACCESSPERMS))
+					warn("Can not create container group: %s\n", strerror(errno));
 			} else {
 				perror("Stat encountered an error");
 			}
