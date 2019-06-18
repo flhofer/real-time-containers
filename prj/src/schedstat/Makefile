@@ -1,3 +1,3 @@
 schedstat.o: schedstat.c pidlist.c update.c manage.c jsmn.c
-	gcc -g -pthread schedstat.c pidlist.c update.c manage.c jsmn.c -o schedstat.o -I ../include/ -lrttest -lcap -lnuma -L ../../build/
+	gcc -g -pthread schedstat.c pidlist.c update.c manage.c jsmn.c -o schedstat -I ../include/ -lrttest -lcap -lnuma -L ../../build/
 

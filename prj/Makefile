@@ -4,16 +4,11 @@ AR?=$(CROSS_COMPILE)ar
 
 OBJDIR = build
 
-sources = schedstat.c \
-#			thread.c\
-			manage.c\
-			update.c\
-			pidlist.c\
-			jsmn.c
+sources = schedstat.c 
 
 TARGETS = $(sources:.c=)
 # rem -lpthread
-LIBS	= -lrt 
+LIBS	= -lrt -lcap -lrttest
 RTTESTLIB = -lrttest -L$(OBJDIR)
 EXTRA_LIBS ?= -ldl	# for get_cpu
 DESTDIR	?=
@@ -69,7 +64,6 @@ endif
 #include src/arch/android/Makefile
 
 VPATH	= src/schedstat:
-VPATH	+= src/testPosix:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
@@ -89,11 +83,12 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-schedstat: $(OBJDIR)/schedstat.o $(OBJDIR)/pidlist.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o $(OBJDIR)/librttest.a
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJDIR)/pidlist.o $(OBJDIR)/manage.o $(OBJDIR)/update.o $(OBJDIR)/jsmn.o -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+schedstat: $(addprefix $(OBJDIR)/,schedstat.o pidlist.o manage.o update.o jsmn.o librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, pidlist.o manage.o update.o jsmn.o) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
-testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+# Old test make
+#testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
+#	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 # lib containing include lib in one binary file
 LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o)
@@ -121,11 +116,11 @@ rebuild:
 	$(MAKE) all
 
 .PHONY: install
-install: all install_hwlatdetect
+install: all 
 	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
 	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
 	cp $(TARGETS) "$(DESTDIR)$(bindir)"
-	gzip -c src/shedstat/shedstat.8 >"$(DESTDIR)$(mandir)/man8/shedstat.8.gz"
+	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
 
 
 .PHONY: tarball
@@ -137,7 +132,7 @@ help:
 	@echo ""
 	@echo " rt-tests useful Makefile targets:"
 	@echo ""
-	@echo "    all       :  build all tests (default"
+	@echo "    all       :  build all tests (default)"
 	@echo "    install   :  install tests to local filesystem"
 	@echo "    clean     :  remove object files"
 	@echo "    distclean :  remove all generated files"
