@@ -437,7 +437,7 @@ int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 void scanNew () {
 	// get PIDs 
 	pidinfo_t pidlst[MAX_PIDS];
-	int cnt; // Count of found PID
+	int cnt = 0; // Count of found PID
 
 	switch (use_cgroup) {
 
@@ -457,12 +457,11 @@ void scanNew () {
 			else 
 				sprintf(pid, "-C %s", cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
-
-			if (psigscan)
-				// with thread scan, SPIDs arrive out of order
-				qsort(&pidlst[0], cnt, sizeof(pidinfo_t), cmpPidItem);
 			break;		
 	}
+
+	// SPIDs arrive out of order
+	qsort(&pidlst[0], cnt, sizeof(pidinfo_t), cmpPidItem);
 
 #ifdef DBG
 	for (int i=0; i<cnt; i++){

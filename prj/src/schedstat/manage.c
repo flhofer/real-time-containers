@@ -12,6 +12,8 @@
 static parm_t * phead;
 static struct resTracer * rhead;
 
+static char *fileprefix; // Work variable for local things -> procfs & sysfs
+
 ////// TEMP ---------------------------------------------
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
@@ -453,15 +455,46 @@ int updateSched() {
 
 				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
-					if (current->psig) 
-						free (current->psig);
-					if (current->contid)
-						free (current->contid);
-
-					current->psig = current->param->psig;
-					current->contid = current->param->contid;
+					if (!current->psig) 
+						current->psig = current->param->psig;
+					if (!current->contid)
+						current->contid = current->param->contid;
 
 					// TODO: track failed scheduling update?
+
+					// update CGroup setting of container if in CGROUP mode
+					if (DM_CGRP == use_cgroup && 
+						(0 <= current->param->rscs.affinity & ~(SCHED_FAFMSK))) {
+
+						char affinity[5];
+						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
+
+						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
+						if (fileprefix=malloc(strlen(cpusetdfileprefix)
+								+ strlen(current->contid)+1)) {
+							fileprefix[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							fileprefix = strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
+							
+							if (setkernvar_ex(fileprefix, "/cpuset.cpus", affinity)){
+								warn("Can not set cpu-affinity\n");
+							}
+						}
+						else 
+							warn("malloc failed!\n");
+
+						free (fileprefix);
+						fileprefix = NULL;
+					}
+					else {
+
+						if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+							err_msg_n(errno,"setting affinity for PID %d",
+								current->pid);
+						else
+							cont("PID %d reassigned to CPU%d\n", current->pid, 
+								current->param->rscs.affinity);
+					}
 
 					// only do if different than -1, <- not set values
 					if (SCHED_NODATA != current->param->attr.sched_policy) {
@@ -474,12 +507,6 @@ int updateSched() {
 					else
 						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
 
-					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
-						err_msg_n(errno,"setting affinity for PID %d",
-							current->pid);
-					else
-						cont("PID %d reassigned to CPU%d\n", current->pid, 
-							current->param->rscs.affinity);
 
 					// controlling resource limits
           			struct rlimit rlim;					

@@ -50,7 +50,6 @@
 	extern int quiet;	// quiet enabled
 	extern int trackpids;// keep track of left pids, do not delete from list
 
-
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;
 
