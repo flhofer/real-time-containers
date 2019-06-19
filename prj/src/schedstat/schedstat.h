@@ -18,6 +18,7 @@
 #include "pidlist.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "error.h"		// error and strerr print functions
+#include "kernutil.h"	// generic kernel utilities
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
