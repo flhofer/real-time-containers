@@ -17,7 +17,7 @@
 	#define PID_BUFFER			4096
 	#define MAX_PIDS 64 // max containers detectable
 
-	static int clocksources[] = {
+	int clocksources[] = {
 		CLOCK_MONOTONIC,
 		CLOCK_REALTIME,
 		CLOCK_PROCESS_CPUTIME_ID,

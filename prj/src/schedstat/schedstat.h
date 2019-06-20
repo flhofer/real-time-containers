@@ -11,7 +11,6 @@
 #include <linux/sched.h>	// linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
-#include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir enttry structure and expl
 #include <errno.h>			// error numbers and strings
 
@@ -25,15 +24,6 @@
 
 	#define PRGNAME "DC static orchestrator"
 	#define VERSION "0.61c"
-
-	enum kernelversion {
-		KV_NOT_SUPPORTED,
-		KV_314,
-		KV_40,
-		KV_413,	// includes full EDF for the first time
-		KV_416,	// includes full EDF with GRUB-PA for ARM
-		KV_50	// latest releases, now 5.1 (May 8th '19)
-	};
 
 	// Uncomment this line to enable high debug output
  	//#define DBG
@@ -58,10 +48,9 @@
 	#define CPUGOVR	"performance" // configuration for cpu governor	
 
 	// procfs and sysfs path constants
-	static char *procfileprefix = "/proc/sys/kernel/";
-	static char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
-	static char *cpusystemfileprefix = "/sys/devices/system/cpu/";
-	int setkernvar_ex(const char *prefix, const char *name, char *value);
+	const char *procfileprefix = "/proc/sys/kernel/";
+	const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
+	const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 
 	// definition of container detection modes
 	enum det_mode {

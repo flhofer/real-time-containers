@@ -476,7 +476,7 @@ int updateSched() {
 							// copy to new prefix
 							fileprefix = strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
 							
-							if (setkernvar_ex(fileprefix, "/cpuset.cpus", affinity)){
+							if (setkernvar(fileprefix, "/cpuset.cpus", affinity)){
 								warn("Can not set cpu-affinity\n");
 							}
 						}

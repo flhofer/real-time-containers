@@ -17,14 +17,6 @@
 #include <sys/sysinfo.h>	// system general information
 #include <cpuid.h>			// cpu information
 
-
-#if (defined(__i386__) || defined(__x86_64__))
-#define ARCH_HAS_SMI_COUNTER
-#endif
-
-#define MSR_SMI_COUNT		0x00000034
-#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
-
 static void display_help(int); // declaration for compat
 
 // -------------- Global variables for all the threads and programms ------------------
@@ -60,12 +52,12 @@ struct bitmask *affinity_mask = NULL; // default bitmask allocation of threads!!
 char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 int trackpids = 0;			// keep track of left pids, do not delete from list
 //int negiszero = 0;
+int dryrun = 0; // test only, no changes to environment
 
 static char *fileprefix; // Work variable for local things -> procfs & sysfs
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 static char * cont_cgrp = CONT_DCKR; // CGroup subdirectory configuration for container detection
-static int dryrun = 0; // test only, no changes to environment
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -76,240 +68,6 @@ static int dryrun = 0; // test only, no changes to environment
 /// Return value: -
 void inthand ( int signum ) {
 	stop = 1;
-}
-
-#ifdef ARCH_HAS_SMI_COUNTER
-static int open_msr_file(int cpu)
-{
-	int fd;
-	char pathname[32];
-
-	/* SMI needs thread affinity */
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
-	fd = open(pathname, O_RDONLY);
-	if (fd < 0)
-		warn("%s open failed, try modprobe msr, chown or chmod +r "
-		       "/dev/cpu/*/msr, or run as root\n", pathname);
-
-	return fd;
-}
-
-static int get_msr(int fd, off_t offset, unsigned long long *msr)
-{
-	ssize_t retval;
-
-	retval = pread(fd, msr, sizeof *msr, offset);
-
-	if (retval != sizeof *msr)
-		return 1;
-
-	return 0;
-}
-
-static int get_smi_counter(int fd, unsigned long *counter)
-{
-	int retval;
-	unsigned long long msr;
-
-	retval = get_msr(fd, MSR_SMI_COUNT, &msr);
-	if (retval)
-		return retval;
-
-	*counter = (unsigned long) (msr & MSR_SMI_COUNT_MASK);
-
-	return 0;
-}
-
-/* Based on turbostat's check */
-static int has_smi_counter(void)
-{
-	unsigned int ebx, ecx, edx, max_level;
-	unsigned int fms, family, model;
-
-	fms = family = model = ebx = ecx = edx = 0;
-
-	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
-
-	/* check genuine intel */
-	if (!(ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e))
-		return 0;
-
-	__get_cpuid(1, &fms, &ebx, &ecx, &edx);
-	family = (fms >> 8) & 0xf;
-
-	if (family != 6)
-		return 0;
-
-	/* no MSR */
-	if (!(edx & (1 << 5)))
-		return 0;
-
-	model = (((fms >> 16) & 0xf) << 4) + ((fms >> 4) & 0xf);
-
-	switch (model) {
-	case 0x1A:      /* Core i7, Xeon 5500 series - Bloomfield, Gainstown NHM-EP */
-	case 0x1E:      /* Core i7 and i5 Processor - Clarksfield, Lynnfield, Jasper Forest */
-	case 0x1F:      /* Core i7 and i5 Processor - Nehalem */
-	case 0x25:      /* Westmere Client - Clarkdale, Arrandale */
-	case 0x2C:      /* Westmere EP - Gulftown */
-	case 0x2E:      /* Nehalem-EX Xeon - Beckton */
-	case 0x2F:      /* Westmere-EX Xeon - Eagleton */
-	case 0x2A:      /* SNB */
-	case 0x2D:      /* SNB Xeon */
-	case 0x3A:      /* IVB */
-	case 0x3E:      /* IVB Xeon */
-	case 0x3C:      /* HSW */
-	case 0x3F:      /* HSX */
-	case 0x45:      /* HSW */
-	case 0x46:      /* HSW */
-	case 0x3D:      /* BDW */
-	case 0x47:      /* BDW */
-	case 0x4F:      /* BDX */
-	case 0x56:      /* BDX-DE */
-	case 0x4E:      /* SKL */
-	case 0x5E:      /* SKL */
-	case 0x8E:      /* KBL */
-	case 0x9E:      /* KBL */
-	case 0x55:      /* SKX */
-	case 0x37:      /* BYT */
-	case 0x4D:      /* AVN */
-	case 0x4C:      /* AMT */
-	case 0x57:      /* PHI */
-	case 0x5C:      /* BXT */
-		break;
-	default:
-		return 0;
-	}
-
-	return 1;
-}
-#else
-static int open_msr_file(int cpu)
-{
-	return -1;
-}
-
-static int get_smi_counter(int fd, unsigned long *counter)
-{
-	return 1;
-}
-static int has_smi_counter(void)
-{
-	return 0;
-}
-#endif
-
-
-/// check_kernel(): check the kernel version,
-///
-/// Arguments: - 
-///
-/// Return value: detected kernel version (enum)
-static int check_kernel(void)
-{
-	struct utsname kname;
-	int maj, min, sub, kv;
-
-	if (uname(&kname)) {
-		err_msg_n (errno, "Assuming not 2.6. uname failed");
-		return KV_NOT_SUPPORTED;
-	}
-	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
-	if (3 == maj) {
-		if (14  >min)
-			// EDF not implemented 
-			kv = KV_NOT_SUPPORTED;
-		else
-		// kernel 3.x standard LT kernel for embedded
-		kv = KV_314;
-
-	} else if (4 == maj) { // fil
-
-		// kernel 4.x introduces Deadline scheduling
-		if (13 > min)
-			// standard
-			kv = KV_40;
-		else if (16 > min)
-			// full EDF
-			kv = KV_413;
-		else 
-			// full EDF -PA
-			kv = KV_416;
-	} else if (5 == maj) { // fil
-		// full EDF -PA, newest kernel
-		kv = KV_50;
-	} else
-		kv = KV_NOT_SUPPORTED;
-
-	return kv;
-}
-
-static int kernvar(int mode, const char *name, char *value, size_t sizeofvalue)
-{
-	char filename[128];
-	int retval = 1;
-	int path;
-	size_t len_prefix = strlen(fileprefix), len_name = strlen(name);
-
-	if (len_prefix + len_name + 1 > sizeof(filename)) {
-		errno = ENOMEM;
-		return 1;
-	}
-
-	memcpy(filename, fileprefix, len_prefix);
-	memcpy(filename + len_prefix, name, len_name + 1);
-
-	path = open(filename, mode);
-	if (0 <= path) {
-		if (O_RDONLY == mode) {
-			int got;
-			if ((got = read(path, value, sizeofvalue)) > 0) {
-				retval = 0;
-				value[got-1] = '\0';
-			}
-		} else if (O_WRONLY == mode) {
-			if (write(path, value, sizeofvalue) == sizeofvalue)
-				retval = 0;
-		}
-		close(path);
-	}
-	return retval;
-}
-
-static int setkernvar(const char *name, char *value)
-{
-	if (dryrun) // suppress system changes
-		return 0;
-
-	if (kernvar(O_WRONLY, name, value, strlen(value))){
-		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
-		return -1;
-	}
-	
-	return 0;
-
-}
-
-// FIXME: WARN, can only be used one at a time. Main OR manage
-int setkernvar_ex(const char *prefix, const char *name, char *value)
-{
-	// FIXME: temporary, until kernel functions are changed
-	fileprefix = prefix;
-
-	return setkernvar(name, value);
-
-}
-
-static int getkernvar(const char *name, char *value, int size)
-{
-
-	if (kernvar(O_RDONLY, name, value, size)){
-		printDbg(KRED "Error!" KNRM " could not get %s\n", name);
-		return -1;
-	}
-	
-	return 0;
-
 }
 
 // -------------- LOCAL variables for all the threads and programms ------------------
@@ -436,7 +194,7 @@ static int prepareEnvironment() {
 	}
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (!getkernvar("smt/control", str, sizeof(str))){
+	if (!getkernvar(fileprefix, "smt/control", str, sizeof(str))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
@@ -444,7 +202,7 @@ static int prepareEnvironment() {
 				err_msg("SMT is enabled. Set -f (focre) flag to authorize disabling\n");
 				return -1;
 			}
-			if (setkernvar("smt/control", "off")){
+			if (setkernvar(fileprefix, "smt/control", "off")){
 				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
@@ -472,7 +230,7 @@ static int prepareEnvironment() {
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
 
 	// get online cpu's
-	if (!getkernvar("online", str, sizeof(str)))
+	if (!getkernvar(fileprefix, "online", str, sizeof(str)))
 		con = numa_parse_cpustring_all(str);
 
 	// mask affinity and invert for system map / readout of smi of online CPUs
@@ -485,10 +243,10 @@ static int prepareEnvironment() {
 
 			// verify if cpu-freq is on performance -> set it
 			(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-			if (!getkernvar(fstring, poss, sizeof(poss))){
+			if (!getkernvar(fileprefix, fstring, poss, sizeof(poss))){
 				// value possible read ok
 				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-				if (!getkernvar(fstring, str, sizeof(str))){
+				if (!getkernvar(fileprefix, fstring, str, sizeof(str))){
 					// value act read ok
 					if (strcmp(str, CPUGOVR)) {
 						// SMT - HT is on
@@ -498,7 +256,7 @@ static int prepareEnvironment() {
 							return -1;
 							}
 
-						if (setkernvar(fstring, CPUGOVR)){
+						if (setkernvar(fileprefix, fstring, CPUGOVR)){
 							err_msg("CPU-freq change unsuccessful!\n");
 							return -1;
 						}
@@ -584,14 +342,14 @@ static int prepareEnvironment() {
 
 	cont( "Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
-	if (setkernvar("sched_rt_runtime_us", "-1")){
+	if (setkernvar(fileprefix, "sched_rt_runtime_us", "-1")){
 		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
 	if (SCHED_RR == policy && 0 < rrtime) {
 		cont( "Set round robin interval to %dms..\n", rrtime);
 		(void)sprintf(str, "%d", rrtime);
-		if (setkernvar("sched_rr_timeslice_ms", str)){
+		if (setkernvar(fileprefix, "sched_rr_timeslice_ms", str)){
 			warn("RR timeslice not changed!\n");
 		}
 	}
@@ -728,7 +486,7 @@ static int prepareEnvironment() {
 						strcat(fileprefix,cpusetdfileprefix);
 						strcat(fileprefix,dir->d_name);
 
-						if (setkernvar("/cpuset.cpus", affinity)){
+						if (setkernvar(fileprefix, "/cpuset.cpus", affinity)){
 							warn("Can not set cpu-affinity\n");
 						}
 
@@ -741,13 +499,13 @@ static int prepareEnvironment() {
 				// Docker CGroup settings and affinity
 				fileprefix = cpusetdfileprefix; // set to docker directory
 
-				if (setkernvar("cpuset.cpus", affinity)){
+				if (setkernvar(fileprefix, "cpuset.cpus", affinity)){
 					warn("Can not set cpu-affinity\n");
 				}
-				if (setkernvar("cpuset.mems", numastr)){
+				if (setkernvar(fileprefix, "cpuset.mems", numastr)){
 					warn("Can not set numa memory nodes\n");
 				}
-				if (setkernvar("cpuset.cpu_exclusive", "1")){
+				if (setkernvar(fileprefix, "cpuset.cpu_exclusive", "1")){
 					warn("Can not set cpu exclusive\n");
 				}
 
@@ -777,13 +535,13 @@ static int prepareEnvironment() {
 			// FIXME: might create unexpected behaviour
 		}
 
-		if (setkernvar("cpuset.cpus", cpus)){ 
+		if (setkernvar(fileprefix, "cpuset.cpus", cpus)){ 
 			warn("Can not set cpu-affinity\n");
 		}
-		if (setkernvar("cpuset.mems", numastr)){
+		if (setkernvar(fileprefix, "cpuset.mems", numastr)){
 			warn("Can not set numa memory nodes\n");
 		}
-		if (setkernvar("cpuset.cpu_exclusive", "1")){
+		if (setkernvar(fileprefix, "cpuset.cpu_exclusive", "1")){
 			warn("Can not set cpu exclusive\n");
 		}
 
@@ -818,7 +576,7 @@ static int prepareEnvironment() {
 					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
 
 						// fileprefix still pointing to system/
-						if (setkernvar("tasks", pid)){
+						if (setkernvar(fileprefix, "tasks", pid)){
 							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
 							mtask++;
 						}
