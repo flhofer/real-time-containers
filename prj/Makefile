@@ -10,7 +10,7 @@ TARGETS = $(sources:.c=)
 # rem -lpthread
 LIBS	= -lrt -lcap -lrttest
 RTTESTLIB = -lrttest -L$(OBJDIR)
-EXTRA_LIBS ?= -ldl	# for get_cpu
+EXTRA_LIBS ?= -ldl -lrt	# for get_cpu
 DESTDIR	?=
 prefix  ?= /usr/local
 bindir  ?= $(prefix)/bin
@@ -67,7 +67,7 @@ VPATH	= src/schedstat:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -D VERSION=$(VERSION) -c $< $(CFLAGS) $(CPPFLAGS) -o $@
+	$(CC) -D VERSION=$(VERSION) -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
 
 # Pattern rule to generate dependency files from .c files
 $(OBJDIR)/%.d: %.c | $(OBJDIR)

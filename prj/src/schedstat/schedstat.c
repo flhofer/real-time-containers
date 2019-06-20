@@ -12,10 +12,8 @@
 #include <numa.h>			// numa node ident
 #include <getopt.h>			// command line parsing
 #include <sys/stat.h>		// directory and fs stat
-#include <sys/utsname.h>	// kernel info
 #include <sys/capability.h>	// cap exploration
 #include <sys/sysinfo.h>	// system general information
-#include <cpuid.h>			// cpu information
 
 static void display_help(int); // declaration for compat
 

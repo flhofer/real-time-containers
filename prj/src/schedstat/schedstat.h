@@ -11,6 +11,7 @@
 #include <linux/sched.h>	// linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
+#include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir enttry structure and expl
 #include <errno.h>			// error numbers and strings
 
@@ -23,10 +24,10 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.61c"
+	#define VERSION "0.61d"
 
 	// Uncomment this line to enable high debug output
- 	//#define DBG
+ 	#define DBG
 
 	#ifdef DBG
 		#define printDbg (void)printf
@@ -48,9 +49,9 @@
 	#define CPUGOVR	"performance" // configuration for cpu governor	
 
 	// procfs and sysfs path constants
-	const char *procfileprefix = "/proc/sys/kernel/";
-	const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
-	const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
+	static const char *procfileprefix = "/proc/sys/kernel/";
+	static const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
+	static const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 
 	// definition of container detection modes
 	enum det_mode {

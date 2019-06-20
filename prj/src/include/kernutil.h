@@ -1,20 +1,11 @@
-#include <fcntl.h>	// file control, new open/close functions
-#include <string.h> // used for string parsing
-
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h> // used for string parsing
-#include <pthread.h>// used for thread management
 #include <unistd.h> // used for POSIX XOPEN constants
+#include <fcntl.h>	// file control, new open/close functions
+#include <errno.h>	// error numbers and strings
+#include <sys/utsname.h>	// kernel info
+#include <cpuid.h>			// cpu information
 
-#include <sched.h>			// scheduler functions
-#include <linux/sched.h>	// linux specific scheduling
-#include <linux/types.h>	// data structure types, short names and linked list
-#include <signal.h> 		// for SIGs, handling in main, raise in update
-#include <dirent.h>			// dir enttry structure and expl
-#include <errno.h>			// error numbers and strings
-
-#include "rt-utils.h"	// trace and other utils
 #include "error.h"		// error and strerr print functions
 
 
@@ -27,6 +18,15 @@
 
 	#define MSR_SMI_COUNT		0x00000034
 	#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
+
+	// Uncomment this line to enable high debug output
+ 	//#define DBG
+
+	#ifdef DBG
+		#define printDbg (void)printf
+	#else
+		#define printDbg //
+	#endif
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
