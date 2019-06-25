@@ -131,8 +131,7 @@ static int prepareEnvironment() {
 				return -1;
 			}
 			if (setkernvar(fileprefix, "smt/control", "off")){
-				err_struct bitmask *parse_cpumask(const char *option, const int max_cpus)
-msg("SMT is enabled. Disabling was unsuccessful!\n");
+				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
 			cont("SMT is now disabled, as required. Refresh configurations..\n");
