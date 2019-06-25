@@ -58,7 +58,7 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
 	*prev = (*prev)->next; // shift to new
 }
 
-static int check_free(node_t * node) {
+static void check_free(node_t * node) {
 	// verify if we have to free things (pointing outside param
 	if ((long)node->psig < (long)node->param || // is it inside the param structure?? if not, free
 		(long)node->psig > (long)node->param + sizeof(parm_t))

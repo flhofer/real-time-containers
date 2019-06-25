@@ -17,13 +17,6 @@
 	#define PID_BUFFER			4096
 	#define MAX_PIDS 64 // max containers detectable
 
-	static int clocksources[] = {
-		CLOCK_MONOTONIC,
-		CLOCK_REALTIME,
-		CLOCK_PROCESS_CPUTIME_ID,
-		CLOCK_THREAD_CPUTIME_ID
-	};
-
 	typedef struct pid_info {
 		pid_t pid;
 		char * psig; 

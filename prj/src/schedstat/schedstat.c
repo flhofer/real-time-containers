@@ -1,8 +1,6 @@
 // main settings and header file
 #include "schedstat.h" 
 
-// TODO: fix free allocation release
-
 // header files of launched threads
 #include "update.h"
 #include "manage.h"
@@ -77,10 +75,10 @@ void inthand ( int signum ) {
 // -------------- LOCAL variables for all the threads and programms ------------------
 
 static int lockall = 0;
-static int numa = 0;
 static int force = 0;
 static int smi = 0;
 static int rrtime = 0;
+//static int numa = 0;
 
 // TODO:  implement fifo thread as in cycictest for readout
 //static int use_fifo = 0;
@@ -162,69 +160,69 @@ static int prepareEnvironment() {
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
 
 	// get online cpu's
-	if (!getkernvar(cpusystemfileprefix, "online", str, sizeof(str)))
+	if (!getkernvar(cpusystemfileprefix, "online", str, sizeof(str))) {
 		con = numa_parse_cpustring_all(str);
+		// mask affinity and invert for system map / readout of smi of online CPUs
+		for (int i=0;i<maxccpu;i++) {
 
-	// mask affinity and invert for system map / readout of smi of online CPUs
-	for (int i=0;i<maxccpu;i++) {
+			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
-		if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
+				char fstring[50]; // cpu string
+				char poss[50]; // cpu string
 
-			char fstring[50]; // cpu string
-			char poss[50]; // cpu string
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
+				if (!getkernvar(cpusystemfileprefix, fstring, poss, sizeof(poss))){
+					// value possible read ok
+					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
+					if (!getkernvar(cpusystemfileprefix, fstring, str, sizeof(str))){
+						// value act read ok
+						if (strcmp(str, CPUGOVR)) {
+							// SMT - HT is on
+							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
+							if (!force) {
+								err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
+								return -1;
+								}
 
-			// verify if cpu-freq is on performance -> set it
-			(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-			if (!getkernvar(cpusystemfileprefix, fstring, poss, sizeof(poss))){
-				// value possible read ok
-				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-				if (!getkernvar(cpusystemfileprefix, fstring, str, sizeof(str))){
-					// value act read ok
-					if (strcmp(str, CPUGOVR)) {
-						// SMT - HT is on
-						cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
-						if (!force) {
-							err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
-							return -1;
+							if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR)){
+								err_msg("CPU-freq change unsuccessful!\n");
+								return -1;
 							}
-
-						if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR)){
-							err_msg("CPU-freq change unsuccessful!\n");
-							return -1;
+							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required\n", i);
 						}
-						cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required\n", i);
+						else
+							cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required\n", i);
 					}
-					else
-						cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required\n", i);
 				}
+
+				// TODO: cpu-idle
+
+				// if smi is set, read SMI counter
+				if(smi) {
+					*(smi_msr_fd+i) = open_msr_file(i);
+					if (*(smi_msr_fd+i) < 0)
+						fatal("Could not open MSR interface, errno: %d\n",
+							errno);
+					// get current smi count to use as base value 
+					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
+						fatal("Could not read SMI counter, errno: %d\n",
+							0, errno);
+				}
+
+				// invert affinity for avaliable cpus only -> for system
+				if (!numa_bitmask_isbitset(affinity_mask, i))
+					numa_bitmask_setbit(naffinity, i);
 			}
 
-			// TODO: cpu-idle
-
-			// if smi is set, read SMI counter
-			if(smi) {
-				*(smi_msr_fd+i) = open_msr_file(i);
-				if (*(smi_msr_fd+i) < 0)
-					fatal("Could not open MSR interface, errno: %d\n",
-						errno);
-				// get current smi count to use as base value 
-				if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
-					fatal("Could not read SMI counter, errno: %d\n",
-						0, errno);
+			// if CPU not online
+			else if (numa_bitmask_isbitset(affinity_mask, i)) {
+				// disabled processor set to affinity
+				err_msg("Unavailable CPU set for affinity.\n");
+				return -1;
 			}
 
-			// invert affinity for avaliable cpus only -> for system
-			if (!numa_bitmask_isbitset(affinity_mask, i))
-				numa_bitmask_setbit(naffinity, i);
 		}
-
-		// if CPU not online
-		else if (numa_bitmask_isbitset(affinity_mask, i)) {
-			// disabled processor set to affinity
-			err_msg("Unavailable CPU set for affinity.\n");
-			return -1;
-		}
-
 	}
 
 	// parse to string	
@@ -429,8 +427,7 @@ static int prepareEnvironment() {
 
 					}
 				}
-				if (fileprefix)
-					free (fileprefix);
+				free (fileprefix);
 
 				// Docker CGroup settings and affinity
 				fileprefix = cpusetdfileprefix; // set to docker directory
@@ -457,7 +454,9 @@ static int prepareEnvironment() {
 
 	cont("creating cgroup for system on %s\n", cpus);
 
-	if ((fileprefix=realloc(fileprefix,strlen(cpusetfileprefix)+strlen("system/")+1))) {
+	if ((fileprefix=malloc(strlen(cpusetfileprefix)+strlen("system/")+1))) {
+		char * nfileprefix = NULL;
+
 		fileprefix[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
 		strcat(fileprefix,cpusetfileprefix);
@@ -483,8 +482,7 @@ static int prepareEnvironment() {
 
 		cont( "moving tasks..\n");
 
-		char * nfileprefix = NULL;
-		if ((nfileprefix=realloc(nfileprefix,strlen(cpusetfileprefix)+strlen("tasks")+1))) {
+		if ((nfileprefix=malloc(strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 			nfileprefix[0] = '\0';   // ensures the memory is an empty string
 			// copy to new prefix
 			(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
@@ -539,11 +537,8 @@ static int prepareEnvironment() {
 sysend: // jumped here if not possible to create system
 
 		// free string buffers
-		if (fileprefix)
-			free (fileprefix);
-
-		if (nfileprefix)
-			free (nfileprefix);
+		free (fileprefix);
+		free (nfileprefix);
 
 	}
 	else
@@ -879,7 +874,7 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	(void)printf("%s V %s\n", PRGNAME, VERSION);	
+	(void)printf("%s V %.2f\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
 

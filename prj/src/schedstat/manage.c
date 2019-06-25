@@ -464,13 +464,13 @@ int updateSched() {
 
 					// update CGroup setting of container if in CGROUP mode
 					if (DM_CGRP == use_cgroup && 
-						(0 <= current->param->rscs.affinity & ~(SCHED_FAFMSK))) {
+						((0 <= current->param->rscs.affinity) & ~(SCHED_FAFMSK))) {
 
 						char affinity[5];
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
 
 						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
-						if (fileprefix=malloc(strlen(cpusetdfileprefix)
+						if ((fileprefix=malloc(strlen(cpusetdfileprefix))
 								+ strlen(current->contid)+1)) {
 							fileprefix[0] = '\0';   // ensures the memory is an empty string
 							// copy to new prefix
@@ -484,7 +484,6 @@ int updateSched() {
 							warn("malloc failed!\n");
 
 						free (fileprefix);
-						fileprefix = NULL;
 					}
 					// should it be else??
 					else {
@@ -589,7 +588,7 @@ int createResTracer(){
 			rhead->affinity = i;
 			rhead->basePeriod = 1;
 	}		
-
+	return 0;
 }
 
 /// manageSched(): main function called to reassign resources
@@ -613,6 +612,8 @@ int manageSched(){
 
 
 	(void)pthread_mutex_unlock(&dataMutex); 
+
+	return 0;
 }
 
 /// thread_manage(): thread function call to manage schedule list
@@ -655,5 +656,7 @@ void *thread_manage (void *arg)
 	  }
 	  sleep(1);
 	}
+	// TODO: Start using return value
+	return EXIT_SUCCESS;
 }
 

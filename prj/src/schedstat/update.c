@@ -5,10 +5,16 @@
 #include <limits.h>
 #include <sys/vfs.h>
 
-// Global variables used here ->
+// localy globals variables used here ->
 static char *fileprefix;
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 static uint64_t scount = 0; // total scan count
+static int clocksources[] = {
+	CLOCK_MONOTONIC,
+	CLOCK_REALTIME,
+	CLOCK_PROCESS_CPUTIME_ID,
+	CLOCK_THREAD_CPUTIME_ID
+};
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
@@ -80,7 +86,6 @@ int get_sched_info(node_t * item)
     	*s;
 
 	FILE *fp;
-	struct stat st;
 
 	sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
 
@@ -109,30 +114,17 @@ int get_sched_info(node_t * item)
 	s = strtok (szStatBuff, "\n");
 	while (NULL != s) {
 		(void)sscanf(s,"%s %*c %ld", ltag, &num);
-//DBG		printf("%s - %lld\n", ltag, num);
-		
-//		printf("%s, %lld\n", ltag, num);
-		// first letter gets lost in scanf due to head
-/*		if (strncasecmp(ltag, "se.exec_start", 4) == 0)	{
-			long long x;
-			fscanf(fp,"%*c%lld", &x);		
-			item->mon.dl_start = num*1000000+x;
-//			printf("PID %d, %ld\n", item->pid, item->mon.dl_start);
-		}*/
 		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
 			// store last seen runtime
 			ltrt = num;
 			if (num != item->mon.dl_rt)
 				item->mon.dl_count++;
-//			if (num < 0)
-//					warn("PID %d negative left runtime %lldns\n", item->pid, item->mon.dl_rt); 
 		}
 		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
 			if (0 == item->mon.dl_deadline) 
 				item->mon.dl_deadline = num;
 			else if (num != item->mon.dl_deadline) {
 				// it's not, updated deadline found
-//				item->mon.dl_count++;
 
 				// calculate difference to last reading, should be 1 period
 				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
@@ -177,7 +169,6 @@ int get_sched_info(node_t * item)
 		s = strtok (NULL, "\n");	
 	}
 
-//  fclose (fp);
   return 0;
 }
 
@@ -193,7 +184,7 @@ int updateStats ()
 	static int prot = 0; // pipe rotation animation
 	static char const sp[4] = "/-\\|";
 
-	prot = (++prot) % 4;
+	prot = (prot+1) % 4;
 	if (!quiet)	
 		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
@@ -240,6 +231,7 @@ int updateStats ()
 		item=item->next; 
 	}
 
+	return 0;
 }
 
 /// getContPids(): utility function to get PID list of interrest from Cgroups
@@ -297,7 +289,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 							pidlst->psig = NULL;							
 							// find command string and copy to new allocation
-							if (pidlst->contid = calloc(1, strlen(dir->d_name)+1)) // alloc memory for string
+							if ((pidlst->contid = calloc(1, strlen(dir->d_name)+1))) // alloc memory for string
 								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
 							pidlst++;
 							i++;
@@ -318,11 +310,8 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 		closedir(d);
 
 		// free string buffers
-		if (fileprefix)
-			free (fileprefix);
-
-		if (nfileprefix)
-			free (nfileprefix);
+		free (fileprefix);
+		free (nfileprefix);
 
 		return i;
 	}
@@ -349,7 +338,7 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	char req[40]; // TODO: might overrun if signatures are too long
 	char *pid;
 	int i =0  ;
-	// prepare literal and open pipe request, request spid (thread) ids\
+	// prepare literal and open pipe request, request spid (thread) ids
 	// spid and pid coincide for main process
 	(void)sprintf (req,  "ps h -o spid,command %s", tag);
 	FILE *fp;
@@ -369,7 +358,7 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
-		if (pidlst->psig = calloc(1, SIG_LEN)) { // alloc memory for string
+		if ((pidlst->psig = calloc(1, SIG_LEN))) { // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
 			pidlst->psig[SIG_LEN-1] = '\0'; // safety trunc if too long
 		}
@@ -545,7 +534,7 @@ void scanNew () {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc, ret;
+	int cc = 0, ret;
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
@@ -559,6 +548,7 @@ void *thread_update (void *arg)
 
 	if (runtime)
 		cont("Runtime set to %d seconds\n", runtime);
+
 
 	// initialize the thread locals
 	while(1) {
@@ -579,7 +569,8 @@ void *thread_update (void *arg)
 				// clock settings found -> check for validity
 				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
 				if (500000/ticksps > interval)  
-					warn("-- scan time more than double the debug update rate. On purpose? (obsolete kernel value) -- \n");
+					warn("-- scan time more than double the debug update rate. On purpose?"
+							" (obsolete kernel value) -- \n");
 			}
 			if (SCHED_OTHER != policy && SCHED_IDLE != policy && SCHED_BATCH != policy) {
 				// set policy to thread
@@ -601,12 +592,12 @@ void *thread_update (void *arg)
 						// reset value -- not written in main anymore
 						policy = SCHED_OTHER;
 					}
-					else {
-						cont("set update thread to '%s', runtime %dus.\n", policy_to_string(policy), update_wcet);
-						}
+					else
+						cont("set update thread to '%s', runtime %dus.\n",
+							policy_to_string(policy), update_wcet);
 
 				}
-				else{
+				else {
 					struct sched_param schedp  = { priority };
 
 					if (sched_setscheduler(0, policy, &schedp)) {
@@ -614,9 +605,9 @@ void *thread_update (void *arg)
 						// reset value -- not written in main anymore
 						policy = SCHED_OTHER;
 					}
-					else {
-						cont("set update thread to '%s', priority %d.\n", policy_to_string(policy), priority);
-						}
+					else
+						cont("set update thread to '%s', priority %d.\n",
+							policy_to_string(policy), priority);
 				}
 			}
 			else if (SCHED_OTHER == policy && priority) {
@@ -626,9 +617,9 @@ void *thread_update (void *arg)
 				if (sched_setscheduler(0, policy, &schedp)) {
 					warn("Could not set thread policy!\n");
 				}
-				else {
-					cont("set update thread to '%s', niceness %d.\n", policy_to_string(policy), priority);
-					}
+				else 
+					cont("set update thread to '%s', niceness %d.\n",
+						policy_to_string(policy), priority);
 			}
 
 		case 1: 
@@ -715,5 +706,7 @@ void *thread_update (void *arg)
 		cc++;
 		cc%=loops;
 	}
+	// TODO: Start using return value
+	return EXIT_SUCCESS;
 }
 
