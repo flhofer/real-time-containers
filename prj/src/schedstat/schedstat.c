@@ -373,12 +373,17 @@ static int prepareEnvironment() {
 	}
 
 	// Display message according to detection mode set
-	if (DM_CNTPID == use_cgroup)
-		cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
-	if (DM_CMDLINE == use_cgroup)
-		cont( "will use PIDs of command signtaure '%s' to detect processes..\n", cont_pidc);
-	if (DM_CGRP != use_cgroup)
-		cont( "affinity only will be used to set PID execution..\n");
+	switch (use_cgroup) {
+
+		case DM_CNTPID:
+			cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
+			break;
+		case DM_CMDLINE:
+			cont( "will use PIDs of command signtaure '%s' to detect processes..\n", cont_pidc);
+			break;
+		default:		
+			cont( "container id will be used to set PID execution..\n");
+	}
 
 	/// --------------------
 	/// detect numa configuration TODO: adapt for full support

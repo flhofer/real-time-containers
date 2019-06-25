@@ -24,7 +24,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.61d"
+	#define VERSION "0.61e"
 
 	// Uncomment this line to enable high debug output
  	#define DBG
