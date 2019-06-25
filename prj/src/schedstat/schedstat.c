@@ -25,7 +25,8 @@ const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 
-FILE  * dbg_out; // debug output file
+// debug output file
+FILE  * dbg_out;
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
@@ -82,12 +83,9 @@ static int smi = 0;
 static int rrtime = 0;
 
 // TODO:  implement fifo thread as in cycictest for readout
-static int use_fifo = 0;
+//static int use_fifo = 0;
 //static pthread_t fifo_threadid;
-static char fifopath[MAX_PATH];
-
-static int num_threads = 1; // TODO: extend number of scan threads??
-static int smp = 0;  // TODO: add special configurations for SMP modes
+//static char fifopath[MAX_PATH];
 
 enum {
 	AFFINITY_UNSPECIFIED,	// use default settings
@@ -642,7 +640,6 @@ enum option_values {
 static void process_options (int argc, char *argv[], int max_cpus)
 {
 	int error = 0;
-	int option_affinity = 0;
 	int option_index = 0;
 	int optargs = 0;
 	int verbose = 0;
@@ -683,7 +680,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		switch (c) {
 		case 'a':
 		case OPT_AFFINITY:
-			option_affinity = 1;
 //			if (numa)
 //				break;
 			if (NULL != optarg) {
@@ -725,8 +721,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case OPT_FIFO:
 			use_fifo = 1;
 			strncpy(fifopath, optarg, strlen(optarg));
-			break;
-*/
+			break;*/
 		case 'i':
 		case OPT_INTERVAL:
 			interval = atoi(optarg); break;
@@ -789,18 +784,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 /*		case 'u':
 		case OPT_UNBUFFERED:
 			setvbuf(stdout, NULL, _IONBF, 0); break;*/
-/*		case 'U': //TODO: fix numa ??
-		case OPT_NUMA: // NUMA testing 
-			numa = 1;	// Turn numa on 
-			//numa_on_and_available();
-#ifdef NUMA
-			num_threads = max_cpus;
-			setaffinity = AFFINITY_USEALL;
-#else
-			warn("schedstat was not built with the numa option\n");
-			warn("ignoring --numa or -U\n");
-#endif
-			break; */ 
 		case 'v':
 		case OPT_VERBOSE: 
 			verbose = 1; 
@@ -869,10 +852,6 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		priority = 10;
 	}
 
-	// num theads must be > 0 
-	if (1 > num_threads)
-		error = 1;
-
 	// look for filename after options, we process only first
 	if (optind+optargs < argc)
 	{
@@ -916,11 +895,11 @@ int main(int argc, char **argv)
 	int  iret1, iret2;
 
 	/* Create independent threads each of which will execute function */ 
-	if (iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1)) {
+	if ((iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1))) {
 		err_msg_n (iret1, "could not start update thread");
 		t_stat1 = -1;
 	}
-	if (iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2)) {
+	if ((iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2))) {
 		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
 	}

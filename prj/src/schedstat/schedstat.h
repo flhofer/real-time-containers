@@ -26,7 +26,7 @@
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
-	#define VERSION "0.61e"
+	#define VERSION "0.61f"
 
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
