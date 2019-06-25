@@ -486,6 +486,7 @@ int updateSched() {
 						free (fileprefix);
 						fileprefix = NULL;
 					}
+					// should it be else??
 					else {
 
 						if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
@@ -509,7 +510,8 @@ int updateSched() {
 
 
 					// controlling resource limits
-          			struct rlimit rlim;					
+          			struct rlimit rlim;		
+					// TODO: upgrade to a list of parameters, looping through.			
 
 					// RT-Time limit
 					if (-1 != current->param->rscs.rt_timew || -1 != current->param->rscs.rt_time) {

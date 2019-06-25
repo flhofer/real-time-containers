@@ -5,6 +5,7 @@
 #include <errno.h>	// error numbers and strings
 #include <sys/utsname.h>	// kernel info
 #include <cpuid.h>			// cpu information
+#include <numa.h>			// numa node ident
 
 #include "error.h"		// error and strerr print functions
 
@@ -47,7 +48,9 @@
 	// Kernel detection and values
 	int check_kernel(void);
 	int setkernvar(const char *prefix, const char *name, char *value);
-	int getkernvar(const char *prefix, const char *name, char *value, int size);
 
+	// affinity and cpu bitmasks
+	int parse_bitmask(struct bitmask *mask, char * str);
+	struct bitmask *parse_cpumask(const char *option, const int max_cpus);
 #endif
 

@@ -93,76 +93,6 @@ enum {
 static int setaffinity = AFFINITY_UNSPECIFIED;
 static char * affinity = NULL; // default split, 0-0 SYS, Syscpus to end rest
 
-/// parse_cpumask(): checks if the cpu bitmask is ok
-///
-/// Arguments: - pointer to bitmask
-/// 		   - max number of cpus
-///
-/// Return value: -
-///
-static void parse_cpumask(const char *option, const int max_cpus)
-{
-	affinity_mask = numa_parse_cpustring_all(option);
-	if (affinity_mask) {
-		if (0==numa_bitmask_weight(affinity_mask)) {
-			numa_bitmask_free(affinity_mask);
-			affinity_mask = NULL;
-		}
-	}
-	if (!affinity_mask)
-		display_help(1);
-
-	if (verbose) {
-		info("%s: Using %u cpus.\n", __func__,
-			numa_bitmask_weight(affinity_mask));
-	}
-}
-
-/// parse_bitmask(): returns the matching bitmask string
-///
-/// Arguments: - pointer to bitmask
-/// 		   - returning string
-///
-/// Return value: error code if present
-///
-static int parse_bitmask(struct bitmask *mask, char * str){
-	// base case check
-	if (!mask || !str)
-		return -1;
- 
-	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
-	str [0] = '\0';
-
-	for (int i=0; i<sz; i++){
-		if (numa_bitmask_isbitset(mask, i)){
-			// set bit found
-
-			if (fd<0) {
-				// first of sequence?
-
-				fd = i; // found and start range bit number
-				if (!strlen(str))
-					// first at all?
-					sprintf(str, "%d", fd);
-				else
-					sprintf(str, "%s,%d", str,fd);
-				rg = fd; // end range bit number 
-			}
-			else 
-				// not first in sequence, add to end-range value
-				rg++;
-		}
-		else {
-			if (rg != fd)
-				// end of 1-bit sequence, print end of range
-				sprintf(str, "%s-%d", str,rg);
-			fd = rg = -1; // reset range
-		}
-	}
-	printDbg("Parsed bitmask: %s\n", str);
-	return 0;
-}
-
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
 /// and populates initial state of pid list
@@ -201,7 +131,8 @@ static int prepareEnvironment() {
 				return -1;
 			}
 			if (setkernvar(fileprefix, "smt/control", "off")){
-				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
+				err_struct bitmask *parse_cpumask(const char *option, const int max_cpus)
+msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
 			cont("SMT is now disabled, as required. Refresh configurations..\n");
@@ -219,7 +150,9 @@ static int prepareEnvironment() {
 		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
 	}
 	// prepare bitmask, no need to do it before
-	parse_cpumask(affinity, maxccpu);
+	affinity_mask = parse_cpumask(affinity, maxccpu);
+	if (!affinity_mask)
+		display_help(1);
 
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);

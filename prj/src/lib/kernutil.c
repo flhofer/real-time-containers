@@ -225,3 +225,71 @@ int getkernvar(const char *prefix, const char *name, char *value, int size)
 
 }
 
+/// parse_cpumask(): checks if the cpu bitmask is ok
+///
+/// Arguments: - pointer to bitmask
+/// 		   - max number of cpus
+///
+/// Return value: a bitmask containing the required values
+///
+struct bitmask *parse_cpumask(const char *option, const int max_cpus)
+{
+	struct bitmask * mask = numa_parse_cpustring_all(option);
+	if (mask) {
+		if (0==numa_bitmask_weight(mask)) {
+			numa_bitmask_free(mask);
+			mask = NULL;
+		}
+		else
+		{
+		info("%s: Using %u cpus.\n", __func__,
+			numa_bitmask_weight(mask));
+		}
+	}
+	return mask;
+}
+
+/// parse_bitmask(): returns the matching bitmask string
+///
+/// Arguments: - pointer to bitmask
+/// 		   - returning string
+///
+/// Return value: error code if present
+///
+int parse_bitmask(struct bitmask *mask, char * str){
+	// base case check
+	if (!mask || !str)
+		return -1;
+ 
+	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
+	str [0] = '\0';
+
+	for (int i=0; i<sz; i++){
+		if (numa_bitmask_isbitset(mask, i)){
+			// set bit found
+
+			if (fd<0) {
+				// first of sequence?
+
+				fd = i; // found and start range bit number
+				if (!strlen(str))
+					// first at all?
+					sprintf(str, "%d", fd);
+				else
+					sprintf(str, "%s,%d", str,fd);
+				rg = fd; // end range bit number 
+			}
+			else 
+				// not first in sequence, add to end-range value
+				rg++;
+		}
+		else {
+			if (rg != fd)
+				// end of 1-bit sequence, print end of range
+				sprintf(str, "%s-%d", str,rg);
+			fd = rg = -1; // reset range
+		}
+	}
+	printDbg("Parsed bitmask: %s\n", str);
+	return 0;
+}
