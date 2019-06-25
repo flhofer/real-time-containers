@@ -1,4 +1,6 @@
-#define _GNU_SOURCE 
+#ifndef _GNU_SOURCE 
+	#define _GNU_SOURCE 
+#endif
 
 // Default stuff, needed form main operation
 #include <stdio.h>
@@ -17,23 +19,14 @@
 
 #include "pidlist.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
-#include "error.h"		// error and strerr print functions
 #include "kernutil.h"	// generic kernel utilities
+#include "error.h"		// error and strerr print functions
 
 #ifndef __SCHEDSTAT_
 	#define __SCHEDSTAT_
 
 	#define PRGNAME "DC static orchestrator"
 	#define VERSION "0.61e"
-
-	// Uncomment this line to enable high debug output
- 	#define DBG
-
-	#ifdef DBG
-		#define printDbg (void)printf
-	#else
-		#define printDbg //
-	#endif
 
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
@@ -47,11 +40,6 @@
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
 	#define CPUGOVR	"performance" // configuration for cpu governor	
-
-	// procfs and sysfs path constants
-	static const char *procfileprefix = "/proc/sys/kernel/";
-	static const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
-	static const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 
 	// definition of container detection modes
 	enum det_mode {

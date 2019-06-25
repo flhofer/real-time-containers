@@ -19,6 +19,13 @@ static void display_help(int); // declaration for compat
 
 // -------------- Global variables for all the threads and programms ------------------
 
+// procfs and sysfs path constants
+const char *procfileprefix = "/proc/sys/kernel/";
+const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
+const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
+char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
+
+FILE  * dbg_out; // debug output file
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
@@ -28,7 +35,6 @@ node_t * head = NULL;
 // configuration of detection mode of containers
 int use_cgroup = DM_CGRP; // identify processes via cgroup
 
-int verbose = 0;
 int kernelversion; // kernel version -> opts based on this
 char * config = "config.json";
 char * cont_ppidc = CONT_PPID;
@@ -47,7 +53,6 @@ int loops = TDETM;			// determinism
 int runtime = 0;			// total orchestrator runtime, 0 is infinite
 int psigscan = 0;			// scan for child threads, -n option only
 struct bitmask *affinity_mask = NULL; // default bitmask allocation of threads!!
-char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 int trackpids = 0;			// keep track of left pids, do not delete from list
 //int negiszero = 0;
 int dryrun = 0; // test only, no changes to environment
@@ -108,7 +113,6 @@ static int prepareEnvironment() {
 	int maxcpu = get_nprocs();	
 	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
 
-	fileprefix = cpusystemfileprefix;
 	char cpus[10]; // cpu allocation string
 	char str[100]; // generic string... 
 
@@ -122,7 +126,7 @@ static int prepareEnvironment() {
 	}
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (!getkernvar(fileprefix, "smt/control", str, sizeof(str))){
+	if (!getkernvar(cpusystemfileprefix, "smt/control", str, sizeof(str))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
@@ -130,7 +134,7 @@ static int prepareEnvironment() {
 				err_msg("SMT is enabled. Set -f (focre) flag to authorize disabling\n");
 				return -1;
 			}
-			if (setkernvar(fileprefix, "smt/control", "off")){
+			if (setkernvar(cpusystemfileprefix, "smt/control", "off")){
 				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
 				return -1;
 			}
@@ -160,7 +164,7 @@ static int prepareEnvironment() {
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
 
 	// get online cpu's
-	if (!getkernvar(fileprefix, "online", str, sizeof(str)))
+	if (!getkernvar(cpusystemfileprefix, "online", str, sizeof(str)))
 		con = numa_parse_cpustring_all(str);
 
 	// mask affinity and invert for system map / readout of smi of online CPUs
@@ -173,10 +177,10 @@ static int prepareEnvironment() {
 
 			// verify if cpu-freq is on performance -> set it
 			(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-			if (!getkernvar(fileprefix, fstring, poss, sizeof(poss))){
+			if (!getkernvar(cpusystemfileprefix, fstring, poss, sizeof(poss))){
 				// value possible read ok
 				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-				if (!getkernvar(fileprefix, fstring, str, sizeof(str))){
+				if (!getkernvar(cpusystemfileprefix, fstring, str, sizeof(str))){
 					// value act read ok
 					if (strcmp(str, CPUGOVR)) {
 						// SMT - HT is on
@@ -186,7 +190,7 @@ static int prepareEnvironment() {
 							return -1;
 							}
 
-						if (setkernvar(fileprefix, fstring, CPUGOVR)){
+						if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR)){
 							err_msg("CPU-freq change unsuccessful!\n");
 							return -1;
 						}
@@ -265,21 +269,20 @@ static int prepareEnvironment() {
 	/// Kernel variables, disable bandwidth management and RT-throttle
 	/// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	kernelversion = check_kernel();
-	fileprefix = procfileprefix; // set working prefix for vfs
 
 	if (KV_NOT_SUPPORTED == kernelversion)
 		warn("Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
 
 	cont( "Set realtime bandwith limit to (unconstrained)..\n");
 	// disable bandwidth control and realtime throttle
-	if (setkernvar(fileprefix, "sched_rt_runtime_us", "-1")){
+	if (setkernvar(procfileprefix, "sched_rt_runtime_us", "-1")){
 		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
 	if (SCHED_RR == policy && 0 < rrtime) {
 		cont( "Set round robin interval to %dms..\n", rrtime);
 		(void)sprintf(str, "%d", rrtime);
-		if (setkernvar(fileprefix, "sched_rr_timeslice_ms", str)){
+		if (setkernvar(procfileprefix, "sched_rr_timeslice_ms", str)){
 			warn("RR timeslice not changed!\n");
 		}
 	}
@@ -611,7 +614,9 @@ static void display_help(int error)
 #ifdef NUMA
 //	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
-//	       "-v       --verbose         output values on stdout for statistics\n"
+#ifdef DBG
+	       "-v       --verbose         verbose output for debug purposes\n"
+#endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);
@@ -624,7 +629,7 @@ enum option_values {
 	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, OPT_THREADS, 
-	OPT_SMP, OPT_RTIME, OPT_RRTIME, OPT_UNBUFFERED, OPT_NUMA, 
+	OPT_RTIME, OPT_RRTIME, OPT_UNBUFFERED, OPT_NUMA, 
 	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
 };
 
@@ -640,6 +645,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	int option_affinity = 0;
 	int option_index = 0;
 	int optargs = 0;
+	int verbose = 0;
 
 	for (;;) {
 		//option_index = 0;
@@ -678,7 +684,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'a':
 		case OPT_AFFINITY:
 			option_affinity = 1;
-//			if (smp || numa)
+//			if (numa)
 //				break;
 			if (NULL != optarg) {
 				affinity = optarg;
@@ -744,9 +750,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'p':
 		case OPT_PRIORITY:
 			priority = atoi(optarg);
-			if (SCHED_FIFO != policy && SCHED_RR != policy)
+			if (SCHED_FIFO != policy && SCHED_RR != policy) {
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
 				policy = SCHED_FIFO;
+}
 			break;
 		case 'P':
 			psigscan = 1; break;
@@ -779,28 +786,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				optargs++;
 			}
 			break;
-/*		case 't':
-		case OPT_THREADS:
-			if (smp) {
-				warn("-t ignored due to --smp\n");
-				break;
-			}
-			if (NULL != optarg)
-				num_threads = atoi(optarg);
-			else if (optind<argc && atoi(argv[optind]))
-				num_threads = atoi(argv[optind]);
-				optargs++;
-			else
-				num_threads = max_cpus;
-			break;*/
 /*		case 'u':
 		case OPT_UNBUFFERED:
 			setvbuf(stdout, NULL, _IONBF, 0); break;*/
 /*		case 'U': //TODO: fix numa ??
 		case OPT_NUMA: // NUMA testing 
 			numa = 1;	// Turn numa on 
-			if (smp)
-				fatal("numa and smp options are mutually exclusive\n");
 			//numa_on_and_available();
 #ifdef NUMA
 			num_threads = max_cpus;
@@ -810,9 +801,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			warn("ignoring --numa or -U\n");
 #endif
 			break; */ 
-/*		case 'v':
+		case 'v':
 		case OPT_VERBOSE: 
-			verbose = 1; break;*/
+			verbose = 1; 
+			break;
 		case 'w':
 		case OPT_WCET:
 			update_wcet = atoi(optarg); break;
@@ -831,15 +823,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		}
 	}
 
-	// option mismatch verification
-/*	if (option_affinity) {
-		if (smp) {
-			warn("-a ignored due to --smp\n");
-		} else if (numa) {
-			warn("-a ignored due to --numa\n");
-		}
-	}
-*/
+	if (verbose)
+		dbg_out = stderr;
+	else
+		dbg_out = fopen("/dev/null", "w");
 
 	if (smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)

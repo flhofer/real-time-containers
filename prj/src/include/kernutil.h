@@ -20,15 +20,6 @@
 	#define MSR_SMI_COUNT		0x00000034
 	#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
-	// Uncomment this line to enable high debug output
- 	//#define DBG
-
-	#ifdef DBG
-		#define printDbg (void)printf
-	#else
-		#define printDbg //
-	#endif
-
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
 		KV_314,
@@ -48,6 +39,7 @@
 	// Kernel detection and values
 	int check_kernel(void);
 	int setkernvar(const char *prefix, const char *name, char *value);
+	int getkernvar(const char *prefix, const char *name, char *value, int size);
 
 	// affinity and cpu bitmasks
 	int parse_bitmask(struct bitmask *mask, char * str);

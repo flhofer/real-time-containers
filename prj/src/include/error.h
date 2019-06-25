@@ -6,6 +6,9 @@
 #include <stdarg.h>
 #include <string.h>
 
+extern FILE * dbg_out; // debug output file, defined in main
+#define printDbg(...) (void)fprintf (dbg_out, __VA_ARGS__)
+
 void err_exit(int err, char *fmt, ...) __attribute__((noreturn));
 void err_msg(char *fmt, ...);
 void err_msg_n(int err, char *fmt, ...);

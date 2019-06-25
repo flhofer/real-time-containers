@@ -241,10 +241,8 @@ struct bitmask *parse_cpumask(const char *option, const int max_cpus)
 			mask = NULL;
 		}
 		else
-		{
-		info("%s: Using %u cpus.\n", __func__,
+		printDbg("%s: Using %u cpus.\n", __func__,
 			numa_bitmask_weight(mask));
-		}
 	}
 	return mask;
 }
