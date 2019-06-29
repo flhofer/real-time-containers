@@ -6,7 +6,6 @@
 #include <sys/vfs.h>
 
 // localy globals variables used here ->
-static char *fileprefix;
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 static uint64_t scount = 0; // total scan count
 static int clocksources[] = {
@@ -242,76 +241,62 @@ int updateStats ()
 ///
 int getContPids (pidinfo_t *pidlst, size_t cnt)
 {
-
-	// no memory has been allocated yet
-	fileprefix = cpusetdfileprefix; // set to docker directory
-
 	struct dirent *dir;
-	DIR *d = opendir(fileprefix);// -> pointing to global
+	DIR *d = opendir(cpusetdfileprefix);// -> pointing to global
 	if (d) {
-		fileprefix = NULL; // clear pointer again
-		char * nfileprefix = NULL;
+		char *fname = NULL; // clear pointer again
 		char pidline[PID_BUFFER];
 		char *pid;
 		int i =0;
 
+		printDbg( "\nContainer detection!\n");
+
 		while ((dir = readdir(d)) != NULL) {
 		// scan trough docker cgroups, find them?
 			if ((strlen(dir->d_name)>60) && // container strings are very long!
-					(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)+strlen(dir->d_name)+1))) {
-				fileprefix[0] = '\0';   // ensures the memory is an empty string
+					(fname=realloc(fname,strlen(cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
+				fname[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				strcat(fileprefix,cpusetdfileprefix);
-				strcat(fileprefix,dir->d_name);
+				(void)strcat(strcat(fname,cpusetdfileprefix),dir->d_name);
+				(void)strcat(fname,"/tasks");
 
-				printDbg( "\nContainer detection!\n");
+				// prepare literal and open pipe request
+				pidline[PID_BUFFER-1] = '\0'; // safety to avoid overrun
+				int path = open(fname,O_RDONLY);
 
-				if ((nfileprefix=realloc(nfileprefix,strlen(fileprefix)+strlen("/tasks")+1))) {
-					nfileprefix[0] = '\0';   // ensures the memory is an empty string
-					// copy to new prefix
-					strcat(nfileprefix,fileprefix);
-					strcat(nfileprefix,"/tasks");
+				// Scan through string and put in array
+				int nleft = 0;
+				while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft-1)) {
+					printDbg("Pid string return %s\n", pidline);
+					pidline[PID_BUFFER-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
+					pid = strtok (pidline,"\n");	
+					while (pid != NULL && nleft && ( '\0' != pidline[PID_BUFFER-2])) { // <6 = 5 pid no + \n 
+						// pid found
+						pidlst->pid = atoi(pid);
+						printDbg("%d\n",pidlst->pid);
 
-					// prepare literal and open pipe request
-					pidline[PID_BUFFER-1] = '\0'; // safety to avoid overrun
-					int path = open(nfileprefix,O_RDONLY);
+						pidlst->psig = NULL;							
+						// find command string and copy to new allocation
+						if ((pidlst->contid = calloc(1, strlen(dir->d_name)+1))) // alloc memory for string
+							(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+						pidlst++;
+						i++;
 
-					// Scan through string and put in array
-					int nleft = 0;
-					while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft-1)) {
-						printDbg("Pid string return %s\n", pidline);
-						pidline[PID_BUFFER-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
-						pid = strtok (pidline,"\n");	
-						while (pid != NULL && nleft && ( '\0' != pidline[PID_BUFFER-2])) { // <6 = 5 pid no + \n 
-							// pid found
-							pidlst->pid = atoi(pid);
-							printDbg("%d\n",pidlst->pid);
+						nleft -= strlen(pid)+1;
+						pid = strtok (NULL,"\n");	
 
-							pidlst->psig = NULL;							
-							// find command string and copy to new allocation
-							if ((pidlst->contid = calloc(1, strlen(dir->d_name)+1))) // alloc memory for string
-								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
-							pidlst++;
-							i++;
-
-							nleft -= strlen(pid)+1;
-							pid = strtok (NULL,"\n");	
-
-						}
-						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pidline+PID_BUFFER-nleft-2, nleft); 
 					}
-
-					close(path);
+					if (pid) // copy leftover chars to beginning of string buffer
+						memcpy(pidline, pidline+PID_BUFFER-nleft-2, nleft); 
 				}
 
+				close(path);
 			}
 		}
 		closedir(d);
 
 		// free string buffers
-		free (fileprefix);
-		free (nfileprefix);
+		free (fname);
 
 		return i;
 	}
