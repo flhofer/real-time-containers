@@ -872,7 +872,7 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	(void)printf("%s V %.2f\n", PRGNAME, VERSION);	
+	(void)printf("%s V %s\n", PRGNAME, VERSION);	
 	(void)printf("Source compilation date: %s\n", __DATE__);
 	(void)printf("This software comes with no waranty. Please be careful\n\n");
 

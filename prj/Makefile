@@ -1,4 +1,5 @@
 VERSION = 0.62
+GIT_VERSION := "$(shell git describe --abbrev=4 --dirty --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 
@@ -67,7 +68,7 @@ VPATH	= src/schedstat:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -D VERSION=$(VERSION) -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
+	$(CC) -D VERSION=\"$(VERSION)\ $(GIT_VERSION)\" -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
 
 # Pattern rule to generate dependency files from .c files
 $(OBJDIR)/%.d: %.c | $(OBJDIR)
