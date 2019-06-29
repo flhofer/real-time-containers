@@ -607,9 +607,7 @@ static void display_help(int error)
 #ifdef NUMA
 //	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
-#ifdef DBG
 	       "-v       --verbose         verbose output for debug purposes\n"
-#endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);

@@ -488,6 +488,15 @@ int updateSched() {
 					// should it be else??
 					else {
 
+						// add pid to docker CGroup
+						char pid[5];
+						(void)sprintf(pid, "%d", current->pid);
+
+						if (setkernvar(cpusetdfileprefix , "tasks", pid)){
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+						}
+
+						// Set affinity
 						if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 							err_msg_n(errno,"setting affinity for PID %d",
 								current->pid);
