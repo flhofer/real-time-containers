@@ -257,8 +257,8 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 					(fname=realloc(fname,strlen(cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
 				fname[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				(void)strcat(strcat(fname,cpusetdfileprefix),dir->d_name);
-				(void)strcat(fname,"/tasks");
+				fname = strcat(strcat(fname,cpusetdfileprefix),dir->d_name);
+				fname = strcat(fname,"/tasks");
 
 				// prepare literal and open pipe request
 				pidline[PID_BUFFER-1] = '\0'; // safety to avoid overrun
@@ -279,6 +279,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 						// find command string and copy to new allocation
 						if ((pidlst->contid = calloc(1, strlen(dir->d_name)+1))) // alloc memory for string
 							(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+						// TODO else
 						pidlst++;
 						i++;
 
@@ -292,6 +293,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 				close(path);
 			}
+// TODO: else
 		}
 		closedir(d);
 
@@ -347,6 +349,7 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
 			pidlst->psig[SIG_LEN-1] = '\0'; // safety trunc if too long
 		}
+		// TODO: else
 		pidlst->contid = NULL;							
 
 		pidlst++;

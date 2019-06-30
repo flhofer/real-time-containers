@@ -312,7 +312,7 @@ static int prepareEnvironment() {
 	// create Docker CGroup prefix
 	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
 	*cpusetdfileprefix = '\0'; // set first chat to null
-	(void)strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
+	cpusetdfileprefix = strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
 
 	/// --------------------
 	/// Docker CGROUP setup - detection if present
@@ -413,8 +413,7 @@ static int prepareEnvironment() {
 							+ strlen(dir->d_name)+1))) {
 						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
-						strcat(contp,cpusetdfileprefix);
-						strcat(contp,dir->d_name);
+						contp = strcat(strcat(contp,cpusetdfileprefix),dir->d_name);
 
 						if (setkernvar(contp, "/cpuset.cpus", affinity)){
 							warn("Can not set cpu-affinity\n");
@@ -453,8 +452,7 @@ static int prepareEnvironment() {
 
 		fileprefix[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
-		strcat(fileprefix,cpusetfileprefix);
-		strcat(fileprefix,"system/");
+		fileprefix = strcat(strcat(fileprefix,cpusetfileprefix),"system/");
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -479,7 +477,7 @@ static int prepareEnvironment() {
 		if ((nfileprefix=malloc(strlen(cpusetfileprefix)+strlen("tasks")+1))) {
 			nfileprefix[0] = '\0';   // ensures the memory is an empty string
 			// copy to new prefix
-			(void)strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
+			nfileprefix = strcat(strcat(nfileprefix,cpusetfileprefix),"tasks");
 
 			int mtask = 0,
 				mtask_old;
