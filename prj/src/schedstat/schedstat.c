@@ -23,8 +23,10 @@ const char *cpusetfileprefix = "/sys/fs/cgroup/cpuset/";
 const char *cpusystemfileprefix = "/sys/devices/system/cpu/";
 char *cpusetdfileprefix = NULL; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 
+#ifdef DEBUG
 // debug output file
-FILE  * dbg_out;
+	FILE  * dbg_out;
+#endif
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
@@ -126,7 +128,7 @@ static int prepareEnvironment() {
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
 			if (!force) {
-				err_msg("SMT is enabled. Set -f (focre) flag to authorize disabling\n");
+				err_msg("SMT is enabled. Set -f (force) flag to authorize disabling\n");
 				return -1;
 			}
 			if (setkernvar(cpusystemfileprefix, "smt/control", "off")){
@@ -581,6 +583,7 @@ sysend: // jumped here if not possible to create system
 /// Return value: - 
 static void display_help(int error)
 {
+	(void)
 	printf("Usage:\n"
 	       "schedstat <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run container threads on specified cpu range,\n"
@@ -625,21 +628,32 @@ static void display_help(int error)
 #ifdef NUMA
 //	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
+#ifdef DEBUG
 	       "-v       --verbose         verbose output for debug purposes\n"
+#endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);
+
+	// For --help query only
+
+	(void)
+	printf("Report bugs to: info@florianhofer.it\n"
+	       "pkg home page: <https://www.github.com/flhofer/real-time-containers/>"
+	       "-General help using GNU software: <https://www.gnu.org/gethelp/>\n");
+
 	exit(EXIT_SUCCESS);
 }
 
 enum option_values {
 	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
 	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
-	OPT_NSECS, OPT_PRIORITY, OPT_QUIET, OPT_THREADS, 
-	OPT_RTIME, OPT_RRTIME, OPT_UNBUFFERED, OPT_NUMA, 
-	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, OPT_HELP,
+	OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET, 
+	OPT_RRTIME, OPT_THREADS, OPT_UNBUFFERED, OPT_RTIME, 
+	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, 
+	OPT_HELP, OPT_VERSION
 };
 
 /// process_options(): Process commandline options 
@@ -653,7 +667,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	int error = 0;
 	int option_index = 0;
 	int optargs = 0;
+#ifdef DEBUG
 	int verbose = 0;
+#endif
 
 	for (;;) {
 		//option_index = 0;
@@ -678,13 +694,14 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
+			{"version",			 no_argument,		NULL, OPT_VERSION},
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
 			{"wcet",             required_argument, NULL, OPT_WCET },
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:C:dDfFi:kl:mn::p:Pqr:s::t:uUvw:?",
+		int c = getopt_long(argc, argv, "a:bc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -799,14 +816,23 @@ static void process_options (int argc, char *argv[], int max_cpus)
 /*		case 'u':
 		case OPT_UNBUFFERED:
 			setvbuf(stdout, NULL, _IONBF, 0); break;*/
+#ifdef DEBUG
 		case 'v':
 		case OPT_VERBOSE: 
 			verbose = 1; 
 			break;
+#endif
+		case OPT_VERSION:
+			(void)printf("Source compilation date: %s\n", __DATE__);
+			(void)printf("Copyright (C) 2019 Siemens Corporate Technologies, Inc.\n"
+						 "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>\n"
+						 "This is free software: you are free to change and redistribute it.\n"
+						 "There is NO WARRANTY, to the extent permitted by law.\n");
+			exit(EXIT_SUCCESS);
 		case 'w':
 		case OPT_WCET:
 			update_wcet = atoi(optarg); break;
-		case '?':
+		case 'h':
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
@@ -821,10 +847,12 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		}
 	}
 
+#ifdef DEBUG
 	if (verbose)
 		dbg_out = stderr;
 	else
 		dbg_out = fopen("/dev/null", "w");
+#endif
 
 	if (smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)
@@ -894,9 +922,8 @@ int main(int argc, char **argv)
 {
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	(void)printf("%s V %s\n", PRGNAME, VERSION);	
-	(void)printf("Source compilation date: %s\n", __DATE__);
-	(void)printf("This software comes with no waranty. Please be careful\n\n");
+	(void)printf("%s V %s\n", PRGNAME, VERSION);
+	(void)printf("This software comes with no waranty. Please be careful\n");
 
 	process_options(argc, argv, max_cpus);
 	

@@ -440,10 +440,9 @@ void scanNew () {
 	// SPIDs arrive out of order
 	qsort(&pidlst[0], cnt, sizeof(pidinfo_t), cmpPidItem);
 
-#ifdef DBG
-	for (int i=0; i<cnt; i++){
-		(void)printf("Result update pid %d\n", (pidlst+i)->pid);		
-	}
+#ifdef DEBUG
+	for (int i=0; i<cnt; i++)
+		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
 #endif
 
 	node_t *act = head, *prev = NULL;
