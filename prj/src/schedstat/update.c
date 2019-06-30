@@ -477,10 +477,8 @@ void scanNew () {
 		else {
 			printDbg("\nNo change");		
 			// free allocated items
-			if ((pidlst +i)->psig)
-				free((pidlst +i)->psig);
-			if ((pidlst +i)->contid)
-				free((pidlst +i)->contid);
+			free((pidlst +i)->psig);
+			free((pidlst +i)->contid);
 
 			i--;
 			prev = act; // update prev 

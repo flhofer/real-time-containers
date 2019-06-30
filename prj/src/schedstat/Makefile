@@ -1,4 +1,4 @@
-VERSION = 0.62
+VERSION = "0.62"
 CC?=$(CROSS_COMPILE)gcc
 
 OBJDIR = ../../build/
@@ -13,7 +13,7 @@ EXTRA_LIBS ?= -ldl -lrt	# for get_cpu
 
 #added prthread
 CFLAGS ?= -Wall -Wno-nonnull -pthread -O2
-CPPFLAGS += -D_GNU_SOURCE -D VERSION=$(VERSION) -I ../include/
+CPPFLAGS += -D_GNU_SOURCE -D VERSION=\"$(VERSION)\" -I ../include/
 
 schedstat.o: schedstat.c pidlist.c update.c manage.c 
 	$(CC) $(CFLAGS) schedstat.c pidlist.c update.c manage.c -o schedstat $(CPPFLAGS) $(RTTESTLIB)

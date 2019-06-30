@@ -56,7 +56,6 @@ int trackpids = 0;			// keep track of left pids, do not delete from list
 //int negiszero = 0;
 int dryrun = 0; // test only, no changes to environment
 
-static char *fileprefix; // Work variable for local things -> procfs & sysfs
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 static char * cont_cgrp = CONT_DCKR; // CGroup subdirectory configuration for container detection
@@ -320,15 +319,12 @@ static int prepareEnvironment() {
 	if (DM_CGRP == use_cgroup) { // option enabled, test for it
 		struct stat s;
 
-		// no memory has been allocated yet
-		fileprefix = cpusetdfileprefix; // set to docker directory
-
-		int err = stat(fileprefix, &s);
+		int err = stat(cpusetdfileprefix, &s);
 		if(-1 == err) {
 			// Docker Cgroup not found, force enabled = try creating
 			if(ENOENT == errno && force) {
 				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
-				if (0 != mkdir(fileprefix, ACCESSPERMS))
+				if (0 != mkdir(cpusetdfileprefix, ACCESSPERMS))
 				{
 					err_msg("Can not create container group: %s\n", strerror(errno));
 					return -1;
@@ -405,40 +401,38 @@ static int prepareEnvironment() {
 
 			DIR *d;
 			struct dirent *dir;
-			d = opendir(fileprefix);// -> pointing to global
-			fileprefix = NULL; // clear pointer
+			d = opendir(cpusetdfileprefix);// -> pointing to global
 			if (d) {
 
+				char *contp = NULL; // clear pointer
 				/// Reassigning preexisting containers?
 				while ((dir = readdir(d)) != NULL) {
 				// scan trough docker cgroups, find them?
 					if ((strlen(dir->d_name)>60) && // container strings are very long!
-							(fileprefix=realloc(fileprefix,strlen(cpusetdfileprefix)
+							(contp=realloc(contp,strlen(cpusetdfileprefix)
 							+ strlen(dir->d_name)+1))) {
-						fileprefix[0] = '\0';   // ensures the memory is an empty string
+						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
-						strcat(fileprefix,cpusetdfileprefix);
-						strcat(fileprefix,dir->d_name);
+						strcat(contp,cpusetdfileprefix);
+						strcat(contp,dir->d_name);
 
-						if (setkernvar(fileprefix, "/cpuset.cpus", affinity)){
+						if (setkernvar(contp, "/cpuset.cpus", affinity)){
 							warn("Can not set cpu-affinity\n");
 						}
 
 
 					}
 				}
-				free (fileprefix);
+				free (contp);
 
 				// Docker CGroup settings and affinity
-				fileprefix = cpusetdfileprefix; // set to docker directory
-
-				if (setkernvar(fileprefix, "cpuset.cpus", affinity)){
+				if (setkernvar(cpusetdfileprefix, "cpuset.cpus", affinity)){
 					warn("Can not set cpu-affinity\n");
 				}
-				if (setkernvar(fileprefix, "cpuset.mems", numastr)){
+				if (setkernvar(cpusetdfileprefix, "cpuset.mems", numastr)){
 					warn("Can not set numa memory nodes\n");
 				}
-				if (setkernvar(fileprefix, "cpuset.cpu_exclusive", "1")){
+				if (setkernvar(cpusetdfileprefix, "cpuset.cpu_exclusive", "1")){
 					warn("Can not set cpu exclusive\n");
 				}
 
@@ -450,7 +444,7 @@ static int prepareEnvironment() {
 	//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	// system CGroup, possible tasks are moved -> do for all
 
-	fileprefix = NULL;
+	char *fileprefix = NULL;
 
 	cont("creating cgroup for system on %s\n", cpus);
 

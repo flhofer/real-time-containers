@@ -12,8 +12,6 @@
 static parm_t * phead;
 static struct resTracer * rhead;
 
-static char *fileprefix; // Work variable for local things -> procfs & sysfs
-
 ////// TEMP ---------------------------------------------
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
@@ -466,24 +464,25 @@ int updateSched() {
 					if (DM_CGRP == use_cgroup && 
 						((0 <= current->param->rscs.affinity) & ~(SCHED_FAFMSK))) {
 
+						char *contp = NULL;
 						char affinity[5];
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
 
 						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
-						if ((fileprefix=malloc(strlen(cpusetdfileprefix))
+						if ((contp=malloc(strlen(cpusetdfileprefix))
 								+ strlen(current->contid)+1)) {
-							fileprefix[0] = '\0';   // ensures the memory is an empty string
+							contp[0] = '\0';   // ensures the memory is an empty string
 							// copy to new prefix
-							fileprefix = strcat(strcat(fileprefix,cpusetdfileprefix), current->contid);		
+							contp = strcat(strcat(contp,cpusetdfileprefix), current->contid);		
 							
-							if (setkernvar(fileprefix, "/cpuset.cpus", affinity)){
+							if (setkernvar(contp, "/cpuset.cpus", affinity)){
 								warn("Can not set cpu-affinity\n");
 							}
 						}
 						else 
 							warn("malloc failed!\n");
 
-						free (fileprefix);
+						free (contp);
 					}
 					// should it be else??
 					else {
