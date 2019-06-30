@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rt-sched.h" // temporary as libc does not include new sched yet
+#include "error.h"		// error and strerr print functions
 
 #ifndef __PIDLIST_
 	#define __PIDLIST_

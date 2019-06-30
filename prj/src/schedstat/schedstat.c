@@ -143,7 +143,10 @@ static int prepareEnvironment() {
 
 	// no mask specified, generate default
 	if (AFFINITY_UNSPECIFIED == setaffinity){
-		affinity = malloc(10);
+		if (!(affinity = malloc(10))){
+			err_msg("could not allocate memory!\n");
+			return -1;
+		}
 		sprintf(affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
 		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
 	}
@@ -154,9 +157,17 @@ static int prepareEnvironment() {
 
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
+	if (!smi_counter || !smi_msr_fd){
+		err_msg("could not allocate memory!\n");
+		return -1;
+	}
 
 	struct bitmask * con;
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
+	if (!naffinity){
+		err_msg("could not allocate memory!\n");
+		return -1;
+	}
 
 	// get online cpu's
 	if (!getkernvar(cpusystemfileprefix, "online", str, sizeof(str))) {
@@ -311,6 +322,10 @@ static int prepareEnvironment() {
 	/// -------------------- DOCKER & CGROUP CONFIGURATION
 	// create Docker CGroup prefix
 	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
+	if (!cpusetdfileprefix){
+		err_msg("could not allocate memory!\n");
+		return -1;
+	}
 	*cpusetdfileprefix = '\0'; // set first chat to null
 	cpusetdfileprefix = strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
 
@@ -385,7 +400,10 @@ static int prepareEnvironment() {
 	char * numastr = "0"; // default numa string
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
-		numastr = calloc (5, 1); // WARN -> not unallocated
+		if (!(numastr = calloc (5, 1))){
+			err_msg("could not allocate memory!\n");
+			return -1;
+		}
 		sprintf(numastr, "0-%d", numanodes);
 	}
 	else
@@ -420,6 +438,10 @@ static int prepareEnvironment() {
 						}
 
 
+					}
+					else if (!contp) { // realloc error
+						err_msg("could not allocate memory!\n");
+						return -1;
 					}
 				}
 				free (contp);
@@ -533,10 +555,14 @@ sysend: // jumped here if not possible to create system
 		free (nfileprefix);
 
 	}
-	else
-		return -1; //realloc issues
+	else { //realloc issues
+		err_msg("could not allocate memory!\n");
+		return -1;
+	}
 
-
+	// composed static or generated numa string? if generated > 1
+	if (1 < strlen(numastr))
+		free(numastr);
 
 	/* lock all memory (prevent swapping) */
 	if (lockall)
@@ -676,6 +702,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 				setaffinity = AFFINITY_SPECIFIED;
 			} else {
 				affinity = malloc(10);
+				if (!affinity){
+					err_msg("could not allocate memory!\n");
+					exit(EXIT_FAILURE);
+				}
 				sprintf(affinity, "0-%d", max_cpus-1);
 				setaffinity = AFFINITY_USEALL;
 			}

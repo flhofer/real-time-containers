@@ -1,5 +1,5 @@
 #include "pidlist.h" // memory structure to store information
-
+// TODO: FIXME: neeed return value to deal with memory allocation problems
 
 static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
@@ -15,6 +15,10 @@ static const struct sched_rscs _rscs_default = { -1,
 void ppush(parm_t ** head) {
     parm_t * new_node;
     new_node = calloc(sizeof(parm_t), 1);
+	if (!new_node){
+		err_msg("could not allocate memory!\n");
+		return;
+	}
 	// if any sched parameter is set, policy must also be set
 	new_node->attr.sched_policy = SCHED_NODATA; // default for not set.
 	new_node->rscs = _rscs_default;
@@ -25,6 +29,10 @@ void ppush(parm_t ** head) {
 
 void rpush(struct resTracer ** head) {
     struct resTracer * new_node = calloc(sizeof(struct resTracer), 1);
+	if (!new_node){
+		err_msg("could not allocate memory!\n");
+		return;
+	}
 
     new_node->next = *head;
     *head = new_node;
@@ -32,6 +40,10 @@ void rpush(struct resTracer ** head) {
 
 void push(node_t ** head, pid_t pid, char * psig, char * contid) {
     node_t * new_node = malloc(sizeof(node_t));
+	if (!new_node){
+		err_msg("could not allocate memory!\n");
+		return;
+	}
 	*new_node = _node_default;
 
     new_node->pid = pid;
@@ -48,6 +60,10 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
 		return;
 	}
    	node_t * new_node = malloc(sizeof(node_t));
+	if (!new_node){
+		err_msg("could not allocate memory!\n");
+		return;
+	}
 	*new_node = _node_default;
 
     new_node->pid = pid;
