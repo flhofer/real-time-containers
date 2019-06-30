@@ -2,6 +2,7 @@ VERSION = 0.62
 GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
+#DEBUG=1
 
 OBJDIR = build
 
@@ -26,8 +27,10 @@ LDFLAGS ?= -pthread
 # If debug is defined, disable optimization level
 ifndef DEBUG
 	CFLAGS	+= -O2
+	CPPFLAGS += -D VERSION=\"$(VERSION)\"
 else
 	CFLAGS	+= -O0 -g
+	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)\ $(GIT_VERSION)\"
 endif
 
 # We make some gueses on how to compile rt-tests based on the machine type
@@ -68,7 +71,7 @@ VPATH	= src/schedstat:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -D VERSION=\"$(VERSION)\ $(GIT_VERSION)\" -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
+	$(CC) -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
 
 # Pattern rule to generate dependency files from .c files
 $(OBJDIR)/%.d: %.c | $(OBJDIR)
