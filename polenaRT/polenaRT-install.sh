@@ -117,6 +117,7 @@ GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
 ' >> grub
 sudo mv grub /etc/default/grub
+sudo update-grub2
 
 #echo "## Installing Balena"
 #url="https://github.com/resin-os/balena/releases/download/${balena_tag}/balena-${balena_tag}-${arch}.tar.gz"
