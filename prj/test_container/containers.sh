@@ -46,28 +46,43 @@ if [[ "$cmd" == "build" ]]; then
 
 	eval "docker build . -t testcnt"
 
-elif [[ "$cmd" == "run" ]]; then
-# START ALL CONTAINERS OF GRP
+elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
+# CREATE CONTAINERS OF GRP
 
 	eval "mkdir log"
 	eval "chown 1000:1000 log"
 
-	for filename in rt-app-tst-${grp}*.json; do
-		filen="${filename%%.*}"
-		#create directory for log output and then symlink
-		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
-		eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
-		# start new container
-		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+	while [ "$2" != "" ]; do
+		# all matching files
+
+		for filename in rt-app-tst-${grp}*.json; do
+			filen="${filename%%.*}"
+			#create directory for log output and then symlink
+			eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
+			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
+			# start new container
+			eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+		done
+
+	    # Shift all the parameters down by one
+	    shift
 	done
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
-# START ALL CONTAINERS OF GRP
+# APPLY CMD TO ALL CONTAINERS OF GRP
 
-	for filename in rt-app-tst-${grp}*.json; do
-		filen="${filename%%.*}"
-		eval "docker container ${cmd} ${filen}"
+	while [ "$2" != "" ]; do
+		# all matching files
+
+		for filename in rt-app-tst-${grp}*.json; do
+			filen="${filename%%.*}"
+			eval "docker container ${cmd} ${filen}"
+		done
+
+	    # Shift all the parameters down by one
+	    shift
 	done
+
 elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
 	# remove old log file first 
