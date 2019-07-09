@@ -5,6 +5,7 @@
 int open_msr_file(int cpu)
 {
 	int fd;
+	// TODO: check dynamic variable allocation
 	char pathname[32];
 
 	/* SMI needs thread affinity */
@@ -169,6 +170,7 @@ int check_kernel(void)
 
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
+	// TODO: check dynamic variable allocation
 	char filename[128];
 	int retval = 1;
 	int path;

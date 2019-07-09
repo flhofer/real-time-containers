@@ -641,8 +641,7 @@ static void display_help(int error)
 
 	(void)
 	printf("Report bugs to: info@florianhofer.it\n"
-	       "pkg home page: <https://www.github.com/flhofer/real-time-containers/>"
-	       "-General help using GNU software: <https://www.gnu.org/gethelp/>\n");
+	       "Project home page: <https://www.github.com/flhofer/real-time-containers/>\n");
 
 	exit(EXIT_SUCCESS);
 }
