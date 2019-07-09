@@ -58,10 +58,10 @@ elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 		for filename in rt-app-tst-${grp}*.json; do
 			filen="${filename%%.*}"
 			#create directory for log output and then symlink
-			eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
+			eval "mkdir log-${filen} && chown -R 1000:1000 log-${filen}"
 			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
 			# start new container
-			eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+			eval "docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
 		done
 
 	    # Shift all the parameters down by one
@@ -103,7 +103,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
 	# start orchestrator and wait for termination
 	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 -nrt-app -P > log/orchestrator.txt
-	eval "chown 1000:1000 log/*"
+	eval "chown -R 1000:1000 log/*"
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 
