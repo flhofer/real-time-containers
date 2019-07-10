@@ -1,6 +1,6 @@
 #!/bin/bash 
 
-if [[ "$1" == "quiet" ]]; then
+if [[ ! "$1" == "quiet" ]]; then
 
 cat <<EOF
 
@@ -19,7 +19,8 @@ simply real-time containers
 ######################################
 
 EOF
-shift
+else 
+	shift
 fi
 
 # by default does all tests
@@ -32,8 +33,8 @@ function testc () {
 	# agruments grp - test count 
 
 	for ((i=0; i<$2; i++)); do
-		echo ./containers.sh test $(seq -s " " ${1}0 $1$i )
-		echo ./containers.sh stop ${1}*
+		./containers.sh quiet test $(seq -s " " ${1}0 $1$i )
+		./containers.sh stop ${1}*
 		mkdir -p log/${1}-$(($i+1))
 		cp log/rt-app-tst-${1}* log/${1}-$(($i+1))
 		mv log/orchestrator.txt log/${1}-$(($i+1))

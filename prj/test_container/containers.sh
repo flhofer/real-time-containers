@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ "$1" == "quiet" ]]; then
+if [[ ! "$1" == "quiet" ]]; then
 
 cat <<EOF
 
@@ -19,7 +19,8 @@ simply real-time containers
 ######################################
 
 EOF
-shift
+else 
+	shift
 fi
 
 ##################### DETERMINE CLI PARAMETERS ##########################
@@ -91,6 +92,11 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
 	# remove old log file first 
 	eval "rm log/orchestrator.txt"
+
+	# start orchestrator and wait for termination
+	eval ./schedstat -b --policy=fifo -nrt-app -P > log/orchestrator.txt &
+	SPID=$(ps h -o pid -C schedstat)
+
 	# start containers -> test group
 	while [ "$2" != "" ]; do
 		# start all matching files
@@ -104,10 +110,15 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	    # Shift all the parameters down by one
 	    shift
 	done
+	sleep 60
 
-	# start orchestrator and wait for termination
-	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 -nrt-app -P > log/orchestrator.txt
+	# end orchestrator
+	kill -SIGINT $SPID
+	sleep 1
+
+	# move stuff 
 	eval "chown -R 1000:1000 log/*"
+
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 
