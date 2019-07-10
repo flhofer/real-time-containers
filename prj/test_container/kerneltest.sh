@@ -107,8 +107,8 @@ function update_kernel () {
 	fi
 
 	# update grub menu
-	res=$(update-grub2)
-	if [[ ! "$res" -eq 0 ]]; then
+	update-grub2
+	if [ ! "$?" -eq 0 ]; then
 		exit 1
 	fi
 }
