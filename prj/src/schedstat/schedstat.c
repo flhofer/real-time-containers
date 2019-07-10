@@ -428,23 +428,22 @@ static int prepareEnvironment() {
 				/// Reassigning preexisting containers?
 				while ((dir = readdir(d)) != NULL) {
 				// scan trough docker cgroups, find them?
-					if ((strlen(dir->d_name)>60) && // container strings are very long!
-							(contp=realloc(contp,strlen(cpusetdfileprefix)
+					if (strlen(dir->d_name)>60) {
+						if ((contp=realloc(contp,strlen(cpusetdfileprefix)  // container strings are very long!
 							+ strlen(dir->d_name)+1))) {
-						contp[0] = '\0';   // ensures the memory is an empty string
-						// copy to new prefix
-						contp = strcat(strcat(contp,cpusetdfileprefix),dir->d_name);
+							contp[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							contp = strcat(strcat(contp,cpusetdfileprefix),dir->d_name);
 
-						if (setkernvar(contp, "/cpuset.cpus", affinity)){
-							warn("Can not set cpu-affinity\n");
+							if (setkernvar(contp, "/cpuset.cpus", affinity)){
+								warn("Can not set cpu-affinity\n");
+							}
 						}
-
-
-					}
-					else if (!contp) { // realloc error
-						err_msg("could not allocate memory!\n");
-						return -1;
-					}
+						else { // realloc error
+							err_msg("could not allocate memory!\n");
+							return -1;
+						}
+					}	
 				}
 				free (contp);
 
