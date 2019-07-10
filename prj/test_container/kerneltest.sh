@@ -6,7 +6,7 @@ cat <<EOF
 
 ######################################
 
-Test container execution
+Kernel test execution
 ______     _
 | ___ \   | |
 | |_/ /__ | | ___ _ __   __ _ 
@@ -25,12 +25,12 @@ fi
 
 cmd=${1:-'cont'}
 
-if [ $# -eq 0 ]; then
+if [ $# -ge 3 ]; then
 
 cat <<EOF
 Not enough arguments supplied!
-Usag: ./$0 start [number]
- or   ./$0 cont
+Usag: $0 start [number]
+ or   $0 cont
 
 Defaults are:
 number = *		all cpus used
@@ -38,18 +38,21 @@ EOF
         exit 1
 fi
 
-maxcpu=${1:-$(($(nproc)-1))}
+maxcpu=${2:-$(($(nproc --all)-1))}
 
-#shut down cores not used
-for ((i=$(($maxcpu+1));i<$(nproc);i++))
-do 
-	echo "Setting CPU"$i" offline..."
-	$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
-	sleep 1
-done
+if [[ ! "$cmd" == "start" ]]; then
 
-# disable smt
-$(echo off > /sys/devices/system/cpu/smt/control)
+	#shut down cores not used
+	for ((i=$(($maxcpu+1));i<$(nproc --all);i++))
+	do 
+		echo "Setting CPU"$i" offline..."
+		$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+		sleep 1
+	done
+
+	# disable smt
+	$(echo off > /sys/devices/system/cpu/smt/control)
+fi
 
 runno=0 # changed_in_run
 
@@ -58,7 +61,7 @@ function update_kernel () {
 	if [ "$runno" -eq 1 ]; then
 		# Dyntick
 
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 2 ]; then
 		# backoff
@@ -83,12 +86,23 @@ function update_kernel () {
 	elif [ "$runno" -eq 6 ]; then
 		# Dyntick + isolation
 
-		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/splash nohz_full=1-$maxcpu rcu_nocb=1-$maxcpu/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/nohz_full=1-$maxcpu/' /etc/default/grub"
 
+	elif [ "$runno" -eq 7 ]; then
+		# reset
+
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
+
+		# remove start script
+		crontab -u root -r
+		rm $0
 	fi
 
 	# update grub menu
-	update-grub2
+	res=$(update-grub2)
+	if [[ ! "$res" -eq 0 ]]; then
+		exit 1
+	fi
 }
 
 function update_runno () {
@@ -103,6 +117,9 @@ if [[ "$cmd" == "start" ]]; then
 
 	runno=0 # reset 
 	cp $0 ./kernelrun.sh
+
+	# add to startup 
+	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh' | sudo crontab -u root -"
 else 
 	echo "...waiting"
 	sleep 60
@@ -115,8 +132,6 @@ else
 fi
 
 update_runno
-
-exit
 
 update_kernel
 
