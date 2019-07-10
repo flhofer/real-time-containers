@@ -333,28 +333,28 @@ static int prepareEnvironment() {
 
 	/// --------------------
 	/// Docker CGROUP setup - detection if present
-	if (DM_CGRP == use_cgroup) { // option enabled, test for it
-		struct stat s;
+	struct stat s;
 
-		int err = stat(cpusetdfileprefix, &s);
-		if(-1 == err) {
-			// Docker Cgroup not found, force enabled = try creating
-			if(ENOENT == errno && force) {
-				warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
-				if (0 != mkdir(cpusetdfileprefix, ACCESSPERMS))
-				{
-					err_msg("Can not create container group: %s\n", strerror(errno));
-					return -1;
-				}
-				// if it worked, stay in Container mode	
-			} else {
-			// Docker Cgroup not found, force not enabled = try switching to pid
-				if(ENOENT == errno) 
-					err_msg("Can not create container group: %s\n", strerror(errno));
+	int err = stat(cpusetdfileprefix, &s);
+	if(-1 == err) {
+		// Docker Cgroup not found, force enabled = try creating
+		if(ENOENT == errno && force) {
+			warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
+			if (0 != mkdir(cpusetdfileprefix, ACCESSPERMS))
+			{
+				err_msg("Can not create container group: %s\n", strerror(errno));
+				return -1;
+			}
+			// if it worked, stay in Container mode	
+		} else {
+		// Docker Cgroup not found, force not enabled = try switching to pid
+			if(ENOENT == errno) 
+				err_msg("No force. Can not create container group: %s\n", strerror(errno));
 
-				else {
-					perror("Stat encountered an error");
+			else {
+				perror("Stat encountered an error");
 
+				if (DM_CGRP == use_cgroup) {
 					// exists -> goto PID detection, but first..
 					// check for sCHED_DEADLINE first-> stop!
 					if (SCHED_DEADLINE == policy) {
@@ -365,22 +365,22 @@ static int prepareEnvironment() {
 					use_cgroup = DM_CNTPID;
 				}
 			}
+		}
 
-		} else {
-			// CGroup found, but is it a dir?
-			if(S_ISDIR(s.st_mode)) {
-				// it's a dir 
-				cont("using CGroups to detect processes..\n");
-			} else {
-				// exists but is no dir -> goto PID detection
-				// check for sCHED_DEADLINE first-> stop!
-				if (SCHED_DEADLINE == policy) {
-					err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
-					return -1;
-				}
-				// otherwise switch to next mode
-				use_cgroup = DM_CNTPID;
+	} else {
+		// CGroup found, but is it a dir?
+		if(S_ISDIR(s.st_mode)) {
+			// it's a dir 
+//			cont("using CGroups to detect processes..\n");
+		} else if (DM_CGRP == use_cgroup) {
+			// exists but is no dir -> goto PID detection
+			// check for sCHED_DEADLINE first-> stop!
+			if (SCHED_DEADLINE == policy) {
+				err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+				return -1;
 			}
+			// otherwise switch to next mode
+			use_cgroup = DM_CNTPID;
 		}
 	}
 
@@ -413,53 +413,50 @@ static int prepareEnvironment() {
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
-	if (DM_CGRP == use_cgroup) {
+	if (AFFINITY_USEALL != setaffinity){ // useall = ignore setting of exclusive
 
-		if (AFFINITY_USEALL != setaffinity){ // useall = ignore setting of exclusive
+		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
 
-			cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", affinity);
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(cpusetdfileprefix);// -> pointing to global
+		if (d) {
 
-			DIR *d;
-			struct dirent *dir;
-			d = opendir(cpusetdfileprefix);// -> pointing to global
-			if (d) {
+			char *contp = NULL; // clear pointer
+			/// Reassigning preexisting containers?
+			while ((dir = readdir(d)) != NULL) {
+			// scan trough docker cgroups, find them?
+				if (strlen(dir->d_name)>60) {
+					if ((contp=realloc(contp,strlen(cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1))) {
+						contp[0] = '\0';   // ensures the memory is an empty string
+						// copy to new prefix
+						contp = strcat(strcat(contp,cpusetdfileprefix),dir->d_name);
 
-				char *contp = NULL; // clear pointer
-				/// Reassigning preexisting containers?
-				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker cgroups, find them?
-					if (strlen(dir->d_name)>60) {
-						if ((contp=realloc(contp,strlen(cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							contp[0] = '\0';   // ensures the memory is an empty string
-							// copy to new prefix
-							contp = strcat(strcat(contp,cpusetdfileprefix),dir->d_name);
-
-							if (setkernvar(contp, "/cpuset.cpus", affinity)){
-								warn("Can not set cpu-affinity\n");
-							}
+						if (setkernvar(contp, "/cpuset.cpus", affinity)){
+							warn("Can not set cpu-affinity\n");
 						}
-						else { // realloc error
-							err_msg("could not allocate memory!\n");
-							return -1;
-						}
-					}	
-				}
-				free (contp);
-
-				// Docker CGroup settings and affinity
-				if (setkernvar(cpusetdfileprefix, "cpuset.cpus", affinity)){
-					warn("Can not set cpu-affinity\n");
-				}
-				if (setkernvar(cpusetdfileprefix, "cpuset.mems", numastr)){
-					warn("Can not set numa memory nodes\n");
-				}
-				if (setkernvar(cpusetdfileprefix, "cpuset.cpu_exclusive", "1")){
-					warn("Can not set cpu exclusive\n");
-				}
-
-				closedir(d);
+					}
+					else { // realloc error
+						err_msg("could not allocate memory!\n");
+						return -1;
+					}
+				}	
 			}
+			free (contp);
+
+			// Docker CGroup settings and affinity
+			if (setkernvar(cpusetdfileprefix, "cpuset.cpus", affinity)){
+				warn("Can not set cpu-affinity\n");
+			}
+			if (setkernvar(cpusetdfileprefix, "cpuset.mems", numastr)){
+				warn("Can not set numa memory nodes\n");
+			}
+			if (setkernvar(cpusetdfileprefix, "cpuset.cpu_exclusive", "1")){
+				warn("Can not set cpu exclusive\n");
+			}
+
+			closedir(d);
 		}
 	}
 
