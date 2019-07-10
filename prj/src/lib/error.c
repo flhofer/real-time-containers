@@ -6,17 +6,6 @@
  */
 #include "error.h"
 
-/* Print an error message, plus a message for err and exit with error err */
-void err_exit(int err, char *fmt, ...)
-{
-	va_list ap;
-	va_start(ap, fmt);
-	fputs("FATAL: ", stderr);
-	err_doit(err, fmt, ap);
-	va_end(ap);
-	exit(err);
-}
-
 /* print an error message and return */
 void err_msg(char *fmt, ...)
 {
@@ -49,6 +38,18 @@ void err_quit(char *fmt, ...)
 	exit(1);
 }
 
+/* Print an error message, plus a message for err and exit with error err */
+void err_exit(int err, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	fputs("FATAL: ", stderr);
+	err_doit(err, fmt, ap);
+	va_end(ap);
+	exit(err);
+}
+
+/* logging only, print messange DEBUG */
 void debug(char *fmt, ...)
 {
 	va_list ap;
@@ -59,6 +60,7 @@ void debug(char *fmt, ...)
 	va_end(ap);
 }
 
+/* logging only, print messange Continuation INFO */
 void cont(char *fmt, ...)
 {
 	va_list ap;
@@ -69,6 +71,7 @@ void cont(char *fmt, ...)
 	va_end(ap);
 }
 
+/* logging only, print messange INFO */
 void info(char *fmt, ...)
 {
 	va_list ap;
@@ -79,6 +82,7 @@ void info(char *fmt, ...)
 	va_end(ap);
 }
 
+/* logging only, print messange WARNING */
 void warn(char *fmt, ...)
 {
 	va_list ap;
@@ -89,13 +93,24 @@ void warn(char *fmt, ...)
 	va_end(ap);
 }
 
+/* FATAL error, print error and stop immediately */
 void fatal(char *fmt, ...)
 {
 	va_list ap;
-
 	va_start(ap, fmt);
 	fputs("FATAL: ", stderr);
 	err_doit(0, fmt, ap);
+	va_end(ap);
+	exit(EXIT_FAILURE);
+}
+
+/* FATAL error, print error and error description, and stop immediately */
+void fatal_n(int err, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	fputs("FATAL: ", stderr);
+	err_doit(err, fmt, ap);
 	va_end(ap);
 	exit(EXIT_FAILURE);
 }

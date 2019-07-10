@@ -13,15 +13,21 @@
 	#define printDbg(...) //
 #endif
 
-void err_exit(int err, char *fmt, ...) __attribute__((noreturn));
-void err_msg(char *fmt, ...);
-void err_msg_n(int err, char *fmt, ...);
-void err_quit(char *fmt, ...) __attribute__((noreturn));
+// general log information
 void debug(char *fmt, ...);
 void cont(char *fmt, ...);
 void info(char *fmt, ...);
 void warn(char *fmt, ...);
+// error only printing
+void err_msg(char *fmt, ...);
+void err_msg_n(int err, char *fmt, ...);
+// normal exit on error
+void err_quit(char *fmt, ...) __attribute__((noreturn));
+void err_exit(int err, char *fmt, ...) __attribute__((noreturn));
+// fatal errors, immediate exit
 void fatal(char *fmt, ...) __attribute__((noreturn));
+void fatal_n(int err, char *fmt, ...) __attribute__((noreturn));
+// interal error print function
 void err_doit(int err, const char *fmt, va_list ap);
 
 // general default
