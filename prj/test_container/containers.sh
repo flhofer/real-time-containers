@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if [[ "$1" == "quiet" ]]; then
+
 cat <<EOF
 
 ######################################
@@ -17,6 +19,8 @@ simply real-time containers
 ######################################
 
 EOF
+shift
+fi
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 

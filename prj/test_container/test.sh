@@ -1,5 +1,30 @@
 #!/bin/bash 
 
+if [[ "$1" == "quiet" ]]; then
+
+cat <<EOF
+
+######################################
+
+Test container execution
+______     _
+| ___ \   | |
+| |_/ /__ | | ___ _ __   __ _ 
+|  __/ _ \| |/ _ \ '_ \ / _' |
+| | | (_) | |  __/ | | | (_| |
+\_|  \___/|_|\___|_| |_|\__,_|
+
+simply real-time containers
+
+######################################
+
+EOF
+shift
+fi
+
+# by default does all tests
+tests=${1:-'4'}
+
 # cleanup and prepare environment
 rm log-rt-app-tst-*/log-thread1-0.log
 
@@ -15,8 +40,15 @@ function testc () {
 	done
 }
 
-testc 1 10 # test batch 1, < 1ms
-testc 2 2  # test batch 2, ~50%, 2.5ms
-testc 3 3  # test batch 3, mixed period <= 10ms
-testc 4 10 # test batch 4, industry sample case
-
+if [[ "$tests" -ge 1 ]]; then
+	testc 1 10 # test batch 1, < 1ms
+fi
+if [[ "$tests" -ge 2 ]]; then
+	testc 2 2  # test batch 2, ~50%, 2.5ms
+fi
+if [[ "$tests" -ge 3 ]]; then
+	testc 3 3  # test batch 3, mixed period <= 10ms
+fi
+if [[ "$tests" -ge 4 ]]; then
+	testc 4 10 # test batch 4, industry sample case
+fi

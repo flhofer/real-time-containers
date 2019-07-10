@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if [[ "$1" == "quiet" ]]; then
+
 cat <<EOF
 
 ######################################
@@ -16,8 +18,9 @@ simply real-time containers
 
 ######################################
 
-
 EOF
+shift
+fi
 
 maxcpu=${1:-'7'}
 
@@ -73,19 +76,21 @@ cmd=${1:-'cont'}
 if [[ "$cmd" == "start" ]]; then
 
 	runno=0 # reset 
+else 
+	echo "...waiting"
+	sleep 60
+	echo "...run test"
+	#execute test
+	./test.sh quiet 1
+	#move tests to their directory
+	mkdir -p log/test${runno}
+	mv log/?-* log/test${runno}/
 fi
-
-#execute test
-#./test.sh
-#move tests to their directory
-
-###
 
 update_runno
 
 update_kernel
 
 #reboot system
-eval reboot
-
+reboot
 
