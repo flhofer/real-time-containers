@@ -114,8 +114,8 @@ function update_kernel () {
 }
 
 function update_runno () {
-	eval "sed -i '0,/maxcpu=/{s/=.*/='${maxcpu}'/}' ./kernelrun.sh"
-	eval "sed -i '0,/changed_in_run/{s/'${runno}'/'$(($runno+1))'/}' ./kernelrun.sh"
+	eval "sed -i '0,/maxcpu=/{s/maxcpu=.*/maxcpu='${maxcpu}'/}' ./kernelrun.sh"
+	eval "sed -i '0,/changed_in_run/{s/runno='${runno}'/runno='$(($runno+1))'/}' ./kernelrun.sh"
 	runno=$((runno+1))
 }
 
