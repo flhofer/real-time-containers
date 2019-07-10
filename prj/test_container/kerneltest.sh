@@ -38,7 +38,9 @@ EOF
         exit 1
 fi
 
-maxcpu=${2:-$(($(nproc --all)-1))}
+maxcpu=$((${2:-$(($(nproc --all)))}-1))
+std=${3:-'4.19.50-rt22'}
+fult=${4:-'4.19.50-rt22loji'}
 
 if [[ ! "$cmd" == "start" ]]; then
 
@@ -60,37 +62,43 @@ function update_kernel () {
 
 	if [ "$runno" -eq 1 ]; then
 		# Dyntick
-
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 2 ]; then
 		# backoff
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/nohz_full=1-$maxcpu/rcu_nocb=1-$maxcpu/' /etc/default/grub"
 
 	elif [ "$runno" -eq 3 ]; then
 		# isolation
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/isocpu=1-$maxcpu/' /etc/default/grub"
 
 	elif [ "$runno" -eq 4 ]; then
 		# Dyntick + backoff
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/isocpu=1-$maxcpu/nohz_full=1-$maxcpu rcu_nocb=1-$maxcpu/' /etc/default/grub"
 
 	elif [ "$runno" -eq 5 ]; then
 		# isolation + backoff
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/nohz_full=1-$maxcpu/isocpu=1-$maxcpu/' /etc/default/grub"
 
 	elif [ "$runno" -eq 6 ]; then
 		# Dyntick + isolation
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/nohz_full=1-$maxcpu/' /etc/default/grub"
 
 	elif [ "$runno" -eq 7 ]; then
 		# reset
 
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
 		# remove start script
@@ -106,8 +114,8 @@ function update_kernel () {
 }
 
 function update_runno () {
-	eval "sed -i '/maxcpu=/s/=.*/='${maxcpu}'/' ./kernelrun.sh"
-	eval "sed -i '/changed_in_run/s/'${runno}'/'$(($runno+1))'/' ./kernelrun.sh"
+	eval "sed -i '0,/maxcpu=/{s/=.*/='${maxcpu}'/}' ./kernelrun.sh"
+	eval "sed -i '0,/changed_in_run/{s/'${runno}'/'$(($runno+1))'/}' ./kernelrun.sh"
 	runno=$((runno+1))
 }
 
@@ -123,7 +131,7 @@ if [[ "$cmd" == "start" ]]; then
 else 
 	echo "...waiting"
 	sleep 60
-	echo "...run test"
+	echo "... run test"
 	#execute test
 	./test.sh quiet 1
 	#move tests to their directory
