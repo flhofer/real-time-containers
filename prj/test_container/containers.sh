@@ -94,7 +94,8 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./schedstat -b --policy=fifo -nrt-app -P > log/orchestrator.txt &
+	eval ./schedstat -bfPn rt-app --policy=fifo > log/orchestrator.txt &
+	sleep 10
 	SPID=$(ps h -o pid -C schedstat)
 
 	# start containers -> test group
