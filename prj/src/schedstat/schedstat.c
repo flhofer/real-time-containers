@@ -103,7 +103,7 @@ static char * affinity = NULL; // default split, 0-0 SYS, Syscpus to end rest
 ///
 /// Return value: error code if present
 ///
-static int prepareEnvironment() {
+static void prepareEnvironment() {
 
 	/// --------------------
 	/// verify 	cpu topology and distribution
@@ -117,24 +117,20 @@ static int prepareEnvironment() {
         "%d processors available.\n",
         maxccpu, maxcpu);
 
-	if (numa_available()){
-		err_msg( "NUMA is not available but mandatory for the orchestration\n");		
-		return -1;
-	}
+	if (numa_available())
+		err_exit( "NUMA is not available but mandatory for the orchestration\n");		
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
 	if (!getkernvar(cpusystemfileprefix, "smt/control", str, sizeof(str))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
-			if (!force) {
-				err_msg("SMT is enabled. Set -f (force) flag to authorize disabling\n");
-				return -1;
-			}
-			if (setkernvar(cpusystemfileprefix, "smt/control", "off")){
-				err_msg("SMT is enabled. Disabling was unsuccessful!\n");
-				return -1;
-			}
+			if (!force) 
+				err_exit("SMT is enabled. Set -f (force) flag to authorize disabling\n");
+
+			if (setkernvar(cpusystemfileprefix, "smt/control", "off"))
+				err_exit("SMT is enabled. Disabling was unsuccessful!\n");
+
 			cont("SMT is now disabled, as required. Refresh configurations..\n");
 			sleep(1); // leave time to refresh conf buffers -> immediate query fails
 			maxcpu = get_nprocs();	// update
@@ -145,10 +141,9 @@ static int prepareEnvironment() {
 
 	// no mask specified, generate default
 	if (AFFINITY_UNSPECIFIED == setaffinity){
-		if (!(affinity = malloc(10))){
-			err_msg("could not allocate memory!\n");
-			return -1;
-		}
+		if (!(affinity = malloc(10)))
+			err_exit("could not allocate memory!\n");
+
 		sprintf(affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
 		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, affinity);
 	}
@@ -159,17 +154,13 @@ static int prepareEnvironment() {
 
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
-	if (!smi_counter || !smi_msr_fd){
-		err_msg("could not allocate memory!\n");
-		return -1;
-	}
+	if (!smi_counter || !smi_msr_fd)
+		err_exit("could not allocate memory!\n");
 
 	struct bitmask * con;
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
-	if (!naffinity){
-		err_msg("could not allocate memory!\n");
-		return -1;
-	}
+	if (!naffinity)
+		err_exit("could not allocate memory!\n");
 
 	// get online cpu's
 	if (!getkernvar(cpusystemfileprefix, "online", str, sizeof(str))) {
@@ -192,15 +183,12 @@ static int prepareEnvironment() {
 						if (strcmp(str, CPUGOVR)) {
 							// SMT - HT is on
 							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
-							if (!force) {
-								err_msg("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
-								return -1;
-								}
+							if (!force)
+								err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
 
-							if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR)){
-								err_msg("CPU-freq change unsuccessful!\n");
-								return -1;
-							}
+							if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR))
+								err_exit("CPU-freq change unsuccessful!\n");
+
 							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required\n", i);
 						}
 						else
@@ -214,11 +202,11 @@ static int prepareEnvironment() {
 				if(smi) {
 					*(smi_msr_fd+i) = open_msr_file(i);
 					if (*(smi_msr_fd+i) < 0)
-						fatal("Could not open MSR interface, errno: %d\n",
+						err_exit("Could not open MSR interface, errno: %d\n",
 							errno);
 					// get current smi count to use as base value 
 					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
-						fatal("Could not read SMI counter, errno: %d\n",
+						err_exit("Could not read SMI counter, errno: %d\n",
 							0, errno);
 				}
 
@@ -228,49 +216,38 @@ static int prepareEnvironment() {
 			}
 
 			// if CPU not online
-			else if (numa_bitmask_isbitset(affinity_mask, i)) {
+			else if (numa_bitmask_isbitset(affinity_mask, i))
 				// disabled processor set to affinity
-				err_msg("Unavailable CPU set for affinity.\n");
-				return -1;
-			}
+				err_exit("Unavailable CPU set for affinity.\n");
 
 		}
 	}
 
 	// parse to string	
-	if (parse_bitmask (naffinity, cpus)){
-		err_msg ("can not determine inverse affinity mask!\n");
-		return -1;
-	}
+	if (parse_bitmask (naffinity, cpus))
+		err_exit ("can not determine inverse affinity mask!\n");
 
 	/// --------------------
 	/// verify executable permissions	
+	{
 	info( "Verifying for process capabilities..\n");
 	cap_t cap = cap_get_proc(); // get capability map of proc
-	if (!cap) {
-		err_msg_n(errno, "Can not get capability map");
-		return errno;
-	}
-	cap_flag_value_t v = 0; // flag to store return value
-	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) {// check for effective NICE cap
-		err_msg_n(errno, "Capability test failed");
-		return errno;
-	}
+	if (!cap) 
+		err_exit_n(errno, "Can not get capability map");
 
-	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)) {
-		err_msg("CAP_SYS_NICE capability mandatory to operate properly!\n");
-		return -1;
-	}
+	cap_flag_value_t v = 0; // flag to store return value
+	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) // check for effective NICE cap
+		err_exit_n(errno, "Capability test failed");
+
+	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v))
+		err_exit("CAP_SYS_NICE capability mandatory to operate properly!\n");
 
 	v=0;
-	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) {// check for effective RESOURCE cap
-		err_msg_n(errno, "Capability test failed");
-		return errno;
-	}
+	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) // check for effective RESOURCE cap
+		err_exit_n(errno, "Capability test failed");
 
-	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v)) {
-		err_msg("CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
-		return -1;
+	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v))
+		err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
 	}
 
 	/// --------------------
@@ -324,15 +301,16 @@ static int prepareEnvironment() {
 	/// -------------------- DOCKER & CGROUP CONFIGURATION
 	// create Docker CGroup prefix
 	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
-	if (!cpusetdfileprefix){
-		err_msg("could not allocate memory!\n");
-		return -1;
-	}
+	if (!cpusetdfileprefix)
+		err_exit("could not allocate memory!\n");
+
 	*cpusetdfileprefix = '\0'; // set first chat to null
 	cpusetdfileprefix = strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
 
 	/// --------------------
 	/// Docker CGROUP setup - detection if present
+
+	{ // start environment detection CGroup
 	struct stat s;
 
 	int err = stat(cpusetdfileprefix, &s);
@@ -341,51 +319,36 @@ static int prepareEnvironment() {
 		if(ENOENT == errno && force) {
 			warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
 			if (0 != mkdir(cpusetdfileprefix, ACCESSPERMS))
-			{
-				err_msg("Can not create container group: %s\n", strerror(errno));
-				return -1;
-			}
+				err_exit_n(errno, "Can not create container group");
 			// if it worked, stay in Container mode	
 		} else {
 		// Docker Cgroup not found, force not enabled = try switching to pid
 			if(ENOENT == errno) 
 				err_msg("No force. Can not create container group: %s\n", strerror(errno));
-
-			else {
-				perror("Stat encountered an error");
-
-				if (DM_CGRP == use_cgroup) {
-					// exists -> goto PID detection, but first..
-					// check for sCHED_DEADLINE first-> stop!
-					if (SCHED_DEADLINE == policy) {
-						err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
-						return -1;
-					}
-					// otherwise switch to next mode
-					use_cgroup = DM_CNTPID;
-				}
-			}
+			else 
+				err_exit_n(errno, "Stat encountered an error");
 		}
-
 	} else {
 		// CGroup found, but is it a dir?
-		if(S_ISDIR(s.st_mode)) {
-			// it's a dir 
-//			cont("using CGroups to detect processes..\n");
-		} else if (DM_CGRP == use_cgroup) {
+		if(!(S_ISDIR(s.st_mode))) 
 			// exists but is no dir -> goto PID detection
-			// check for sCHED_DEADLINE first-> stop!
-			if (SCHED_DEADLINE == policy) {
-				err_msg("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
-				return -1;
-			}
-			// otherwise switch to next mode
-			use_cgroup = DM_CNTPID;
-		}
+			err_exit("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
 	}
 
 	// Display message according to detection mode set
 	switch (use_cgroup) {
+		default:
+			// all fine?
+			if (!err) {
+				cont( "container id will be used to set PID execution..\n");
+				break;
+			}
+			// error occurred, check for sCHED_DEADLINE first-> stop!
+			if (SCHED_DEADLINE == policy) 
+				err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+
+			// otherwise switch to container PID detection
+			use_cgroup = DM_CNTPID;
 
 		case DM_CNTPID:
 			cont( "will use PIDs of '%s' to detect processes..\n", cont_ppidc);
@@ -393,19 +356,17 @@ static int prepareEnvironment() {
 		case DM_CMDLINE:
 			cont( "will use PIDs of command signtaure '%s' to detect processes..\n", cont_pidc);
 			break;
-		default:		
-			cont( "container id will be used to set PID execution..\n");
 	}
+	} // end environment detection CGroup
 
 	/// --------------------
 	/// detect numa configuration TODO: adapt for full support
 	char * numastr = "0"; // default numa string
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
-		if (!(numastr = calloc (5, 1))){
-			err_msg("could not allocate memory!\n");
-			return -1;
-		}
+		if (!(numastr = calloc (5, 1)))
+			err_exit("could not allocate memory!\n");
+
 		sprintf(numastr, "0-%d", numanodes);
 	}
 	else
@@ -437,10 +398,8 @@ static int prepareEnvironment() {
 							warn("Can not set cpu-affinity\n");
 						}
 					}
-					else { // realloc error
-						err_msg("could not allocate memory!\n");
-						return -1;
-					}
+					else // realloc error
+						err_exit("could not allocate memory!\n");
 				}	
 			}
 			free (contp);
@@ -553,10 +512,8 @@ sysend: // jumped here if not possible to create system
 		free (nfileprefix);
 
 	}
-	else { //realloc issues
-		err_msg("could not allocate memory!\n");
-		return -1;
-	}
+	else //realloc issues
+		err_exit("could not allocate memory!\n");
 
 	// composed static or generated numa string? if generated > 1
 	if (1 < strlen(numastr))
@@ -564,12 +521,9 @@ sysend: // jumped here if not possible to create system
 
 	/* lock all memory (prevent swapping) */
 	if (lockall)
-		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) {
-			perror("mlockall");
-			return -1;
-		}
+		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) 
+			err_exit_n(errno, "Mlockall failed");
 
-	return 0;
 }
 
 /// display_help(): Print usage information 
@@ -836,7 +790,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 #ifdef ARCH_HAS_SMI_COUNTER
 			smi = 1;
 #else
-			fatal("--smi is not available on your arch\n");
+			err_exit("--smi is not available on your arch\n");
 #endif
 			break;
 		}
@@ -851,10 +805,10 @@ static void process_options (int argc, char *argv[], int max_cpus)
 
 	if (smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)
-			fatal("SMI counter relies on thread affinity\n");
+			err_exit("SMI counter relies on thread affinity\n");
 
 		if (!has_smi_counter())
-			fatal("SMI counter is not supported "
+			err_exit("SMI counter is not supported "
 			      "on this processor\n");
 	}
 
@@ -923,8 +877,7 @@ int main(int argc, char **argv)
 	process_options(argc, argv, max_cpus);
 	
 	// gather actual information at startup, prepare environment
-	if (prepareEnvironment()) 
-		err_quit("Hard HALT.\n");
+	prepareEnvironment();
 
 	pthread_t thread1, thread2;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
@@ -975,8 +928,7 @@ int main(int argc, char **argv)
 			if (*(smi_msr_fd+i)) {
 				/* get current smi count to use as base value */
 				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
-					fatal("Could not read SMI counter, errno: %d\n",
-						0, errno);
+					err_exit_n( errno, "Could not read SMI counter");
 				cont("CPU%d: %ld\n", i, smi_old-*(smi_counter+i));
 			}
 	}
