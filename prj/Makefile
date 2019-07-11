@@ -10,7 +10,7 @@ sources = schedstat.c
 
 TARGETS = $(sources:.c=)
 # rem -lpthread
-LIBS	= -lrt -lcap -lrttest
+LIBS	= -lrt -lcap -lrttest -ljson-c
 RTTESTLIB = -lrttest -L$(OBJDIR)
 EXTRA_LIBS ?= -ldl -lrt	# for get_cpu
 DESTDIR	?=

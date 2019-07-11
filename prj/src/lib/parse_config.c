@@ -44,10 +44,8 @@
 		if (have_def) {						\
 			info(PIN "key: %s <default> %d", key, def_value);\
 			return def_value;				\
-		} else {						\
-			log_critical(PFX "Key %s not found", key);	\
-			exit(EXIT_INV_CONFIG);				\
-		}							\
+		} else 						\
+			err_exit_n(EXIT_INV_CONFIG, PFX "Key %s not found", key);	\
 	}								\
 } while(0)
 
@@ -63,10 +61,8 @@
 			info(PIN "key: %s <default> %s",		\
 				  key, def_value);			\
 			return strdup(def_value);			\
-		} else {						\
-			log_critical(PFX "Key %s not found", key);	\
-			exit(EXIT_INV_CONFIG);				\
-		}							\
+		} else 						\
+			err_exit_n(EXIT_INV_CONFIG, PFX "Key %s not found", key);	\
 	}								\
 }while (0)
 
@@ -80,9 +76,8 @@ assure_type_is(struct json_object *obj,
 	       enum json_type type)
 {
 	if (!json_object_is_type(obj, type)) {
-		log_critical("Invalid type for key %s", key);
-		log_critical("%s", json_object_to_json_string(parent));
-		exit(EXIT_INV_CONFIG);
+		err_msg("Invalid type for key %s", key);
+		err_exit_n(EXIT_INV_CONFIG, "%s", json_object_to_json_string(parent));
 	}
 }
 
@@ -96,14 +91,11 @@ get_in_object(struct json_object *where,
 	struct json_object *to;
 	json_bool ret;
 	ret = json_object_object_get_ex(where, what, &to);
-	if (!nullable && !ret) {
-		log_critical(PFX "Error while parsing config\n" PFL);
-		exit(EXIT_INV_CONFIG);
-	}
-	if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) {
-		log_critical(PFX "Cannot find key %s", what);
-		exit(EXIT_INV_CONFIG);
-	}
+	if (!nullable && !ret)
+		err_exit_n(EXIT_INV_CONFIG, PFX "Error while parsing config\n" PFL);
+
+	if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) 
+		err_exit_n(EXIT_INV_CONFIG, PFX "Cannot find key %s", what);
 	return to;
 }
 

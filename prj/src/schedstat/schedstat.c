@@ -20,6 +20,7 @@ static void display_help(int); // declaration for compat
 
 // -------------- Global variables for all the threads and programms ------------------
 
+const parm_t * contparm; // read only container parameter settings
 const prgset_t * prgset; // read only programm setings structure
 
 // procfs and sysfs path constants
@@ -868,8 +869,13 @@ int main(int argc, char **argv)
 	(void)printf("This software comes with no waranty. Please be careful\n");
 
 	prgset_t *tmpset;
-	if (!(tmpset = malloc (sizeof(prgset_t))))
+	parm_t *tmpparm;
+	if (!(tmpset = malloc (sizeof(prgset_t))) || 
+		!(tmpparm = malloc (sizeof(parm_t))))
 		err_exit("Unable to allocate memory");
+
+	// parse json configuration
+	parse_config(strdup("./config.json"), tmpset, tmpparm);
 
 	process_options(tmpset, argc, argv, max_cpus);
 	
