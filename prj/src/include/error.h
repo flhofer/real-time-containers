@@ -22,9 +22,9 @@ void warn(char *fmt, ...);
 void err_msg(char *fmt, ...);
 void err_msg_n(int err, char *fmt, ...);
 // normal exit on error
-void err_quit(char *fmt, ...) __attribute__((noreturn));
-void err_exit(int err, char *fmt, ...) __attribute__((noreturn));
-// fatal errors, immediate exit
+void err_exit(char *fmt, ...) __attribute__((noreturn));
+void err_exit_n(int err, char *fmt, ...) __attribute__((noreturn));
+// fatal errors, immediate exit (abort)
 void fatal(char *fmt, ...) __attribute__((noreturn));
 void fatal_n(int err, char *fmt, ...) __attribute__((noreturn));
 // interal error print function

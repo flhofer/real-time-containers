@@ -29,17 +29,17 @@ void err_msg_n(int err, char *fmt, ...)
 }
 
 /* print an error message and quit */
-void err_quit(char *fmt, ...)
+void err_exit(char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
 	err_doit(0, fmt, ap);
 	va_end(ap);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 /* Print an error message, plus a message for err and exit with error err */
-void err_exit(int err, char *fmt, ...)
+void err_exit_n(int err, char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -101,7 +101,7 @@ void fatal(char *fmt, ...)
 	fputs("FATAL: ", stderr);
 	err_doit(0, fmt, ap);
 	va_end(ap);
-	exit(EXIT_FAILURE);
+	abort();
 }
 
 /* FATAL error, print error and error description, and stop immediately */
@@ -112,7 +112,7 @@ void fatal_n(int err, char *fmt, ...)
 	fputs("FATAL: ", stderr);
 	err_doit(err, fmt, ap);
 	va_end(ap);
-	exit(EXIT_FAILURE);
+	abort();
 }
 
 void err_doit(int err, const char *fmt, va_list ap)
@@ -120,5 +120,6 @@ void err_doit(int err, const char *fmt, va_list ap)
 	vfprintf(stderr, fmt, ap);
 	if (err)
 		fprintf(stderr, ": %s\n", strerror(err));
+	fflush(stderr);
 	return;
 }
