@@ -313,7 +313,7 @@ uint32_t string_to_policy(const char *str)
 	else if (!strcmp(str, "deadline"))
 		return SCHED_DEADLINE;
 
-	return 0;
+	return 0; // default to other
 }
 
 pid_t gettid(void)

@@ -5,6 +5,9 @@
 #include "update.h"
 #include "manage.h"
 
+// header file of configuration parser
+#include "parse_config.h"
+
 // Things that should be needed only here
 #include <sys/mman.h>		// mlock
 #include <numa.h>			// numa node ident
@@ -16,6 +19,8 @@
 static void display_help(int); // declaration for compat
 
 // -------------- Global variables for all the threads and programms ------------------
+
+const prgset_t * prgset; // read only programm setings structure
 
 // procfs and sysfs path constants
 const char *procfileprefix = "/proc/sys/kernel/";
@@ -60,7 +65,6 @@ int dryrun = 0; // test only, no changes to environment
 
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
-static char * cont_cgrp = CONT_DCKR; // CGroup subdirectory configuration for container detection
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -75,22 +79,10 @@ void inthand ( int signum ) {
 
 // -------------- LOCAL variables for all the threads and programms ------------------
 
-static int lockall = 0;
-static int force = 0;
-static int smi = 0;
-static int rrtime = 0;
-//static int numa = 0;
-
 // TODO:  implement fifo thread as in cycictest for readout
 //static int use_fifo = 0;
 //static pthread_t fifo_threadid;
 //static char fifopath[MAX_PATH];
-
-enum {
-	AFFINITY_UNSPECIFIED,	// use default settings
-	AFFINITY_SPECIFIED,	 	// user defined settings
-	AFFINITY_USEALL			// go for all!!
-};
 
 static int setaffinity = AFFINITY_UNSPECIFIED;
 static char * affinity = NULL; // default split, 0-0 SYS, Syscpus to end rest
@@ -99,11 +91,11 @@ static char * affinity = NULL; // default split, 0-0 SYS, Syscpus to end rest
 /// a CPU-shield if not present, prepares kernel settings for DL operation
 /// and populates initial state of pid list
 ///
-/// Arguments: 
+/// Arguments: - structure with parameter set
 ///
 /// Return value: error code if present
 ///
-static void prepareEnvironment() {
+static void prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify 	cpu topology and distribution
@@ -125,7 +117,7 @@ static void prepareEnvironment() {
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
-			if (!force) 
+			if (!set->force) 
 				err_exit("SMT is enabled. Set -f (force) flag to authorize disabling\n");
 
 			if (setkernvar(cpusystemfileprefix, "smt/control", "off"))
@@ -183,7 +175,7 @@ static void prepareEnvironment() {
 						if (strcmp(str, CPUGOVR)) {
 							// SMT - HT is on
 							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
-							if (!force)
+							if (!set->force)
 								err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
 
 							if (setkernvar(cpusystemfileprefix, fstring, CPUGOVR))
@@ -199,7 +191,7 @@ static void prepareEnvironment() {
 				// TODO: cpu-idle
 
 				// if smi is set, read SMI counter
-				if(smi) {
+				if(set->smi) {
 					*(smi_msr_fd+i) = open_msr_file(i);
 					if (*(smi_msr_fd+i) < 0)
 						err_exit("Could not open MSR interface, errno: %d\n",
@@ -264,9 +256,9 @@ static void prepareEnvironment() {
 		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
-	if (SCHED_RR == policy && 0 < rrtime) {
-		cont( "Set round robin interval to %dms..\n", rrtime);
-		(void)sprintf(str, "%d", rrtime);
+	if (SCHED_RR == policy && 0 < set->rrtime) {
+		cont( "Set round robin interval to %dms..\n", set->rrtime);
+		(void)sprintf(str, "%d", set->rrtime);
 		if (setkernvar(procfileprefix, "sched_rr_timeslice_ms", str)){
 			warn("RR timeslice not changed!\n");
 		}
@@ -300,12 +292,12 @@ static void prepareEnvironment() {
 
 	/// -------------------- DOCKER & CGROUP CONFIGURATION
 	// create Docker CGroup prefix
-	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(cont_cgrp)+1);
+	cpusetdfileprefix = malloc(strlen(cpusetfileprefix) + strlen(set->cont_cgrp)+1);
 	if (!cpusetdfileprefix)
 		err_exit("could not allocate memory!\n");
 
 	*cpusetdfileprefix = '\0'; // set first chat to null
-	cpusetdfileprefix = strcat(strcat(cpusetdfileprefix, cpusetfileprefix), cont_cgrp);		
+	cpusetdfileprefix = strcat(strcat(cpusetdfileprefix, cpusetfileprefix), set->cont_cgrp);		
 
 	/// --------------------
 	/// Docker CGROUP setup - detection if present
@@ -315,16 +307,16 @@ static void prepareEnvironment() {
 
 	int err = stat(cpusetdfileprefix, &s);
 	if(-1 == err) {
-		// Docker Cgroup not found, force enabled = try creating
-		if(ENOENT == errno && force) {
-			warn("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
+		// Docker Cgroup not found, set->force enabled = try creating
+		if(ENOENT == errno && set->force) {
+			warn("CGroup '%s' does not exist. Is the daemon running?\n", set->cont_cgrp);
 			if (0 != mkdir(cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
 			// if it worked, stay in Container mode	
 		} else {
-		// Docker Cgroup not found, force not enabled = try switching to pid
+		// Docker Cgroup not found, set->force not enabled = try switching to pid
 			if(ENOENT == errno) 
-				err_msg("No force. Can not create container group: %s\n", strerror(errno));
+				err_msg("No set->force. Can not create container group: %s\n", strerror(errno));
 			else 
 				err_exit_n(errno, "Stat encountered an error");
 		}
@@ -332,7 +324,7 @@ static void prepareEnvironment() {
 		// CGroup found, but is it a dir?
 		if(!(S_ISDIR(s.st_mode))) 
 			// exists but is no dir -> goto PID detection
-			err_exit("CGroup '%s' does not exist. Is the daemon running?\n", cont_cgrp);
+			err_exit("CGroup '%s' does not exist. Is the daemon running?\n", set->cont_cgrp);
 	}
 
 	// Display message according to detection mode set
@@ -520,7 +512,7 @@ sysend: // jumped here if not possible to create system
 		free(numastr);
 
 	/* lock all memory (prevent swapping) */
-	if (lockall)
+	if (set->lock_pages)
 		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) 
 			err_exit_n(errno, "Mlockall failed");
 
@@ -607,11 +599,12 @@ enum option_values {
 
 /// process_options(): Process commandline options 
 ///
-/// Arguments: - passed command line variables
+/// Arguments: - structure with parameter set
+///			   - passed command line variables
 ///			   - number of cpus
 ///
 /// Return value: -
-static void process_options (int argc, char *argv[], int max_cpus)
+static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus)
 {
 	int error = 0;
 	int option_index = 0;
@@ -685,9 +678,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'C':
 			use_cgroup = DM_CGRP;
 			if (NULL != optarg) {
-				cont_cgrp = optarg;
+				set->cont_cgrp = optarg;
 			} else if (optind<argc) {
-				cont_cgrp = argv[optind];
+				set->cont_cgrp = argv[optind];
 				optargs++;
 			}
 			break;
@@ -697,7 +690,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		case 'D':
 			dryrun = 1; break;
 		case 'f':
-			force = 1; break;
+			set->force = 1; break;
 /*		case 'F':
 		case OPT_FIFO:
 			use_fifo = 1;
@@ -713,7 +706,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			loops = atoi(optarg); break;
 		case 'm':
 		case OPT_MLOCKALL:
-			lockall = 1; break;
+			set->lock_pages = 1; break;
 		case 'n':
 			use_cgroup = DM_CMDLINE;
 			if (NULL != optarg) {
@@ -747,9 +740,9 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			break;
 		case OPT_RRTIME:
 			if (NULL != optarg) {
-				rrtime = atoi(optarg);
+				set->rrtime = atoi(optarg);
 			} else if (optind<argc && atoi(argv[optind])) {
-				rrtime = atoi(argv[optind]);
+				set->rrtime = atoi(argv[optind]);
 				optargs++;
 			}
 			break;
@@ -788,7 +781,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 			policy = string_to_policy(optarg); break;
 		case OPT_SMI:
 #ifdef ARCH_HAS_SMI_COUNTER
-			smi = 1;
+			set->smi = 1;
 #else
 			err_exit("--smi is not available on your arch\n");
 #endif
@@ -803,7 +796,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 		dbg_out = fopen("/dev/null", "w");
 #endif
 
-	if (smi) { // TODO: verify this statements, I just put them all
+	if (set->smi) { // TODO: verify this statements, I just put them all
 		if (setaffinity == AFFINITY_UNSPECIFIED)
 			err_exit("SMI counter relies on thread affinity\n");
 
@@ -827,7 +820,7 @@ static void process_options (int argc, char *argv[], int max_cpus)
 	}
 
 	// deadline and high refresh might starve the system. require force
-	if (SCHED_DEADLINE == policy && interval < 1000 && !force) {
+	if (SCHED_DEADLINE == policy && interval < 1000 && !set->force) {
 		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
 		error = 1;
 	}
@@ -874,10 +867,16 @@ int main(int argc, char **argv)
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
 	(void)printf("This software comes with no waranty. Please be careful\n");
 
-	process_options(argc, argv, max_cpus);
+	prgset_t *tmpset;
+	if (!(tmpset = malloc (sizeof(prgset_t))))
+		err_exit("Unable to allocate memory");
+
+	process_options(tmpset, argc, argv, max_cpus);
 	
 	// gather actual information at startup, prepare environment
-	prepareEnvironment();
+	prepareEnvironment(tmpset);
+
+	prgset = tmpset; // move to make write protected
 
 	pthread_t thread1, thread2;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
@@ -917,7 +916,7 @@ int main(int argc, char **argv)
 
     info("exiting safely\n");
 
-	if(smi) {
+	if(prgset->smi) {
 
 		unsigned long smi_old;
 		int maxccpu = numa_num_configured_cpus();
@@ -934,7 +933,7 @@ int main(int argc, char **argv)
 	}
 
 	/* unlock everything */
-	if (lockall)
+	if (prgset->lock_pages)
 		munlockall();
 
     return 0;

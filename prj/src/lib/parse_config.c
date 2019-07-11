@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <sched.h>			// scheduler functions
+#include <errno.h>			// error numbers and strings
 #include <json-c/json.h>
 
 #define PFX "[json] "
@@ -157,6 +159,7 @@ get_string_value_from(struct json_object *where,
 	return s_value;
 }
 
+/*
 static void init_mutex_resource(rtapp_resource_t *data, const parm_t *parm)
 {
 	info(PIN3 "Init: %s mutex", data->name);
@@ -209,7 +212,7 @@ static void init_barrier_resource(rtapp_resource_t *data, const parm_t *parm)
 	/* each task waiting for this resource will increment this counter.
 	 * start at -1 so that when we see this is zero we are the last man
 	 * to enter the sync point and should wake everyone else.
-	 */
+	 *//*
 	data->res.barrier.waiting = -1;
 	pthread_mutexattr_init(&data->res.barrier.m_attr);
 	if (parm->pi_enabled) {
@@ -229,7 +232,7 @@ init_resource_data(const char *name, int type, rtapp_resources_t *resources_tabl
 {
 	rtapp_resource_t *data = &(resources_table->resources[idx]);
 
-	/* common and defaults */
+	/* common and defaults *//*
 	data->index = idx;
 	data->name = strdup(name);
 	data->type = type;
@@ -268,7 +271,7 @@ parse_resource_data(const char *name, struct json_object *obj, int idx,
 
 	info(PFX "Parsing resources %s [%d]", name, idx);
 
-	/* resource type */
+	/* resource type *//*
 	resource_to_string(0, def_type);
 	type = get_string_value_from(obj, "type", TRUE, def_type);
 	if (string_to_resource(type, &data->type) != 0) {
@@ -279,7 +282,7 @@ parse_resource_data(const char *name, struct json_object *obj, int idx,
 	/*
 	 * get_string_value_from allocate the string so with have to free it
 	 * once useless
-	 */
+	 *//*
 	free(type);
 
 	init_resource_data(name, data->type, parm->resources, idx, parm);
@@ -309,7 +312,7 @@ add_resource_data(const char *name, int type, rtapp_resources_t **resources_tabl
 	/*
 	 * We can't reuse table as *resources_table might have changed following
 	 * realloc
-	 */
+	 *//*
 	init_resource_data(name, type, *resources_table, idx, parm);
 
 	return idx;
@@ -326,7 +329,7 @@ parse_resources(struct json_object *resources, parm_t *parm)
 	/*
 	 * Create at least an "empty" struct that will then be filled either will
 	 * parsing resources table or when parsing task's event
-	 */
+	 *//*
 	parm->resources = malloc(sizeof(rtapp_resources_t));
 	if (!parm->resources) {
 		log_error("Failed to allocate memory for resources");
@@ -419,13 +422,13 @@ parse_task_event_data(char *name, struct json_object *obj,
 		if (!json_object_is_type(obj, json_type_int))
 			goto unknown_event;
 
-		/* create an unique name for per-thread buffer */
+		/* create an unique name for per-thread buffer *//*
 		ref = create_unique_name(unique_name, sizeof(unique_name), "mem", tag);
 		i = get_resource_index(ref, rtapp_mem, resources_table, parm);
 		data->res = i;
 		data->count = json_object_get_int(obj);
 
-		/* A single IO devices for all threads */
+		/* A single IO devices for all threads *//*
 		if (strncmp(name, "iorun", strlen("iorun")) == 0) {
 			i = get_resource_index("io_device", rtapp_iorun, resources_table, parm);
 			data->dep = i;
@@ -497,7 +500,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		/*
 		 * get_string_value_from allocate the string so with have to free it
 		 * once useless
-		 */
+		 *//*
 		free(tmp);
 
 		data->res = i;
@@ -507,7 +510,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		/*
 		 * get_string_value_from allocate the string so with have to free it
 		 * once useless
-		 */
+		 *//*
 		free(tmp);
 
 		data->dep = i;
@@ -555,7 +558,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		/*
 		 * get_string_value_from allocate the string so with have to free it
 		 * once useless
-		 */
+		 *//*
 		free(tmp);
 
 		data->duration = get_int_value_from(obj, "period", TRUE, 0);
@@ -703,7 +706,7 @@ static void parse_cpuset_data(struct json_object *obj, cpuset_data_t *data)
 	struct json_object *cpuset_obj, *cpu;
 	unsigned int max_cpu = sysconf(_SC_NPROCESSORS_CONF) - 1;
 
-	/* cpuset */
+	/* cpuset *//*
 	cpuset_obj = get_in_object(obj, "cpus", TRUE);
 	if (cpuset_obj) {
 		unsigned int i;
@@ -740,10 +743,10 @@ static sched_data_t *parse_sched_data(struct json_object *obj, int def_policy)
 	char *policy;
 	int prior_def = -1;
 
-	/* Get default policy */
+	/* Get default policy *//*
 	def_str_policy = policy_to_string(def_policy);
 
-	/* Get Policy */
+	/* Get Policy *//*
 	policy = get_string_value_from(obj, "policy", TRUE, def_str_policy);
 	if (policy ){
 		if (string_to_policy(policy, &tmp_data.policy) != 0) {
@@ -754,7 +757,7 @@ static sched_data_t *parse_sched_data(struct json_object *obj, int def_policy)
 		tmp_data.policy = -1;
 	}
 
-	/* Get priority */
+	/* Get priority *//*
 	if (tmp_data.policy == -1)
 		prior_def = -1;
 	else if (tmp_data.policy == other || tmp_data.policy == idle)
@@ -764,14 +767,14 @@ static sched_data_t *parse_sched_data(struct json_object *obj, int def_policy)
 
 	tmp_data.prio = get_int_value_from(obj, "priority", TRUE, prior_def);
 
-	/* deadline params */
+	/* deadline params *//*
 	tmp_data.runtime = get_int_value_from(obj, "dl-runtime", TRUE, 0);
 	tmp_data.period = get_int_value_from(obj, "dl-period", TRUE, tmp_data.runtime);
 	tmp_data.deadline = get_int_value_from(obj, "dl-deadline", TRUE, tmp_data.period);
 
 
 	if (def_policy != -1) {
-		/* Support legacy grammar for thread object */
+		/* Support legacy grammar for thread object *//*
 		if (!tmp_data.runtime)
 			tmp_data.runtime = get_int_value_from(obj, "runtime", TRUE, 0);
 		if (!tmp_data.period)
@@ -780,16 +783,16 @@ static sched_data_t *parse_sched_data(struct json_object *obj, int def_policy)
 			tmp_data.deadline = get_int_value_from(obj, "deadline", TRUE, tmp_data.period);
 	}
 
-	/* Move from usec to nanosec */
+	/* Move from usec to nanosec *//*
 	tmp_data.runtime *= 1000;
 	tmp_data.period *= 1000;
 	tmp_data.deadline *= 1000;
 
-	/* Check if we found at least one meaningful scheduler parameter */
+	/* Check if we found at least one meaningful scheduler parameter *//*
 	if (tmp_data.prio != -1 || tmp_data.runtime || tmp_data.period || tmp_data.period) {
 		sched_data_t *new_data;
 
-		/* At least 1 parameters has been set in the object */
+		/* At least 1 parameters has been set in the object *//*
 		new_data = malloc(sizeof(sched_data_t));
 		memcpy( new_data, &tmp_data,sizeof(sched_data_t));
 
@@ -830,18 +833,18 @@ static taskgroup_data_t *parse_taskgroup_data(struct json_object *obj)
 
 static void check_taskgroup_policy_dep(phase_data_t *pdata, thread_data_t *tdata)
 {
-	/* Save sched_data as thread's current sched_data. */
+	/* Save sched_data as thread's current sched_data. *//*
 	if (pdata->sched_data)
 		tdata->curr_sched_data = pdata->sched_data;
 
-	/* Save taskgroup_data as thread's current taskgroup_data. */
+	/* Save taskgroup_data as thread's current taskgroup_data. *//*
 	if (pdata->taskgroup_data)
 		tdata->curr_taskgroup_data = pdata->taskgroup_data;
 
 	/*
 	 * Detect policy/taskgroup misconfiguration: a task which specifies a
 	 * taskgroup should not run in a policy other than SCHED_OTHER.
-	 */
+	 *//*
 	if (tdata->curr_sched_data && tdata->curr_sched_data->policy != other &&
 	    tdata->curr_taskgroup_data) {
 		log_critical(PIN2 "No taskgroup support for policy %s",
@@ -854,16 +857,16 @@ static void
 parse_task_phase_data(struct json_object *obj,
 		  phase_data_t *data, thread_data_t *tdata, parm_t *parm)
 {
-	/* used in the foreach macro */
+	/* used in the foreach macro *//*
 	struct lh_entry *entry; char *key; struct json_object *val; int idx;
 	int i;
 
 	info(PFX "Parsing phase");
 
-	/* loop */
+	/* loop *//*
 	data->loop = get_int_value_from(obj, "loop", TRUE, 1);
 
-	/* Count number of events */
+	/* Count number of events *//*
 	data->nbevents = 0;
 	foreach(obj, entry, key, val, idx) {
 		if (obj_is_event(key))
@@ -880,7 +883,7 @@ parse_task_phase_data(struct json_object *obj,
 
 	data->events = malloc(data->nbevents * sizeof(event_data_t));
 
-	/* Parse events */
+	/* Parse events *//*
 	i = 0;
 	foreach(obj, entry, key, val, idx) {
 		if (obj_is_event(key)) {
@@ -902,17 +905,17 @@ parse_task_data(char *name, struct json_object *obj, int index,
 
 	info(PFX "Parsing task %s [%d]", name, index);
 
-	/* common and defaults */
+	/* common and defaults *//*
 	/*
 	 * Set a pointer to opt entry as we might end up to modify the localtion of
 	 * global resources during realloc
-	 */
+	 *//*
 	data->global_resources = &(parm->resources);
 
 	/*
 	 * Create at least an "empty" struct that will then be filled either will
 	 * parsing resources table or when parsing task's event
-	 */
+	 *//*
 	data->local_resources = malloc(sizeof(rtapp_resources_t));
 	if (!data->local_resources) {
 		log_error("Failed to allocate memory for local resources");
@@ -930,31 +933,31 @@ parse_task_data(char *name, struct json_object *obj, int index,
 	data->def_cpu_data.cpuset = NULL;
 	data->def_cpu_data.cpuset_str = NULL;
 
-	/* cpuset */
+	/* cpuset *//*
 	parse_cpuset_data(obj, &data->cpu_data);
-	/* Scheduling policy */
+	/* Scheduling policy *//*
 	data->sched_data = parse_sched_data(obj, parm->policy);
-	/* Taskgroup */
+	/* Taskgroup *//*
 	data->taskgroup_data = parse_taskgroup_data(obj);
 
 	/*
 	 * Thread's current sched_data and taskgroup_data are used to detect
 	 * policy/taskgroup misconfiguration.
-	 */
+	 *//*
 	data->curr_sched_data = data->sched_data;
 	data->curr_taskgroup_data = data->taskgroup_data;
 
-	/* initial delay */
+	/* initial delay *//*
 	data->delay = get_int_value_from(obj, "delay", TRUE, 0);
 
-	/* It's the responsibility of the caller to set this if we were forked */
+	/* It's the responsibility of the caller to set this if we were forked *//*
 	data->forked = 0;
 	data->num_instances = get_int_value_from(obj, "instance", TRUE, 1);
 
-	/* Get phases */
+	/* Get phases *//*
 	phases_obj = get_in_object(obj, "phases", TRUE);
 	if (phases_obj) {
-		/* used in the foreach macro */
+		/* used in the foreach macro *//*
 		struct lh_entry *entry; char *key; struct json_object *val; int idx;
 
 		assure_type_is(phases_obj, obj, "phases",
@@ -975,11 +978,11 @@ parse_task_data(char *name, struct json_object *obj, int index,
 			/*
 			 * Uses thread's current sched_data and taskgroup_data
 			 * to detect policy/taskgroup misconfiguration.
-			 */
+			 *//*
 			check_taskgroup_policy_dep(&data->phases[idx], data);
 		}
 
-		/* Get loop number */
+		/* Get loop number *//*
 		data->loop = get_int_value_from(obj, "loop", TRUE, -1);
 
 	} else {
@@ -991,14 +994,14 @@ parse_task_data(char *name, struct json_object *obj, int index,
 		 * use same scheduling parameters. But thread object looks for default
 		 * value when parameters are not defined whereas phase doesn't.
 		 * We remove phase's scheduling policy which is a subset of thread's one
-		 */
+		 *//*
 		free(data->phases[0].sched_data);
 		data->phases[0].sched_data = NULL;
 
 		/*
 		 * Uses thread's current sched_data and taskgroup_data
 		 * to detect policy/taskgroup misconfiguration.
-		 */
+		 *//*
 		check_taskgroup_policy_dep(&data->phases[0], data);
 		/*
 		 * Get loop number:
@@ -1009,14 +1012,14 @@ parse_task_data(char *name, struct json_object *obj, int index,
 		 *
 		 * If not specified we want to loop forever.
 		 *
-		 */
+		 *//*
 		if (get_in_object(obj, "loop", TRUE))
 			data->loop = 1;
 		else
 			data->loop = -1;
 	}
 
-	/* Reset thread's current sched_data and taskgroup_data after parsing. */
+	/* Reset thread's current sched_data and taskgroup_data after parsing. *//*
 	data->curr_sched_data = NULL;
 	data->curr_taskgroup_data = NULL;
 }
@@ -1024,7 +1027,7 @@ parse_task_data(char *name, struct json_object *obj, int index,
 static void
 parse_containers(struct json_object *containers, parm_t *parm)
 {
-	/* used in the foreach macro */
+	/* used in the foreach macro *//*
 	struct lh_entry *entry; char *key; struct json_object *val; int idx;
 
 	int i = 0;
@@ -1045,19 +1048,20 @@ parse_containers(struct json_object *containers, parm_t *parm)
 	/*
 	 * Parse thread data of defined containers so that we can use them later
 	 * when creating the containers at main() and fork event.
-	 */
+	 *//*
 	parm->threads_data = malloc(sizeof(thread_data_t) * parm->num_tasks);
 	foreach (containers, entry, key, val, idx)
 		parse_task_data(key, val, -1, &parm->threads_data[i++], parm);
 }
+*/
 
 /// parse_global(): extract parameter values from JSON tokens
 ///
 /// Arguments: - json object of tree containing global configuration
 /// 		   - structure to store values in
 ///
-/// Return value: number of tokens parsed
-static void parse_global(struct json_object *global, parm_t *parm)
+/// Return value: no return value, exits on error
+static void parse_global(struct json_object *global, prgset_t *set)
 {
 	char *policy, *tmp_str;
 	struct json_object *tmp_obj;
@@ -1067,114 +1071,148 @@ static void parse_global(struct json_object *global, parm_t *parm)
 
 	if (!global) {
 		info(PFX " No global section Found: Use default value");
-		parm->duration = -1;
-		parm->gnuplot = 0;
-		parm->policy = other;
-		parm->calib_cpu = 0;
-		parm->calib_ns_per_loop = 0;
-		parm->logdir = strdup("./");
-		parm->logbasename = strdup("rt-app");
-		parm->logsize = 0;
-		parm->ftrace = 0;
-		parm->lock_pages = 1;
-		parm->pi_enabled = 0;
-		parm->io_device = strdup("/dev/null");
-		parm->mem_buffer_size = DEFAULT_MEM_BUF_SIZE;
-		parm->cumulative_slack = 0;
+
+		// logging TODO:
+		if (!(set->logdir = strdup("./")) || 
+			!(set->logbasename = strdup("orchestrator.txt")))
+			err_exit_n(errno, "Can not set parameter");
+		set->logsize = 0;
+
+		// signatures and folders
+		if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
+			!(set->cont_pidc = strdup(CONT_PID)) ||
+			!(set->cont_cgrp = strdup(CONT_DCKR)))
+			err_exit_n(errno, "Can not set parameter");
+
+		// filepaths virtual file system
+		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
+			!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
+			!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
+			err_exit_n(errno, "Can not set parameter");
+
+		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
+		if (!set->cpusetdfileprefix)
+			err_exit_n(errno, "Could not allocate memory");
+
+		*set->cpusetdfileprefix = '\0'; // set first chat to null
+		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+
+		// generic parameters
+		set->priority=0;
+		set->clocksel = 0;
+		set->policy = SCHED_OTHER;
+		set->quiet = 0;
+		set->affother = 0;
+		set->setdflag = 0;
+		set->interval = TSCAN;
+		set->update_wcet = TWCET;
+		set->loops = TDETM;
+		set->runtime = 0;
+		set->psigscan = 0;
+		set->affinity_mask = NULL;
+		set->trackpids = 0;
+		//set->negiszero = 0;
+		set->dryrun = 0;
+		set->lock_pages = 0;
+		set->force = 0;
+		set->smi = 0;
+		set->rrtime = 0;
+
+		// TODO:
+		set->gnuplot = 0;
+		set->ftrace = 0;
+
+		set->use_cgroup = DM_CGRP;
 		return;
 	}
 
-	parm->duration = get_int_value_from(global, "duration", TRUE, -1);
-	parm->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
+	/*
+	set->duration = get_int_value_from(global, "duration", TRUE, -1);
+	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
 	policy = get_string_value_from(global, "default_policy",
 				       TRUE, "SCHED_OTHER");
-	if (string_to_policy(policy, &parm->policy) != 0) {
+	if (string_to_policy(policy, &set->policy) == 0) {
 		log_critical(PFX "Invalid policy %s", policy);
 		exit(EXIT_INV_CONFIG);
 	}
 	/*
 	 * get_string_value_from allocate the string so with have to free it
 	 * once useless
-	 */
+	 *//*
 	free(policy);
 
 	tmp_obj = get_in_object(global, "calibration", TRUE);
 	if (tmp_obj == NULL) {
-		/* no setting ? Calibrate CPU0 */
-		parm->calib_cpu = 0;
-		parm->calib_ns_per_loop = 0;
+		/* no setting ? Calibrate CPU0 *//*
+		set->calib_cpu = 0;
+		set->calib_ns_per_loop = 0;
 		log_error("missing calibration setting force CPU0");
 	} else {
 		if (json_object_is_type(tmp_obj, json_type_int)) {
-			/* integer (no " ") detected. */
-			parm->calib_ns_per_loop = json_object_get_int(tmp_obj);
-			log_debug("ns_per_loop %d", parm->calib_ns_per_loop);
+			/* integer (no " ") detected. *//*
+			set->calib_ns_per_loop = json_object_get_int(tmp_obj);
+			log_debug("ns_per_loop %d", set->calib_ns_per_loop);
 		} else {
-			/* Get CPU number */
+			/* Get CPU number *//*
 			tmp_str = get_string_value_from(global, "calibration",
 					 TRUE, "CPU0");
-			scan_cnt = sscanf(tmp_str, "CPU%d", &parm->calib_cpu);
+			scan_cnt = sscanf(tmp_str, "CPU%d", &set->calib_cpu);
 			/*
 			 * get_string_value_from allocate the string so with have to free it
 			 * once useless
-			 */
+			 *//*
 			free(tmp_str);
 			if (!scan_cnt) {
-				log_critical(PFX "Invalid calibration CPU%d", parm->calib_cpu);
+				log_critical(PFX "Invalid calibration CPU%d", set->calib_cpu);
 				exit(EXIT_INV_CONFIG);
 			}
-			log_debug("calibrating CPU%d", parm->calib_cpu);
+			log_debug("calibrating CPU%d", set->calib_cpu);
 		}
 	}
 
 	tmp_obj = get_in_object(global, "log_size", TRUE);
 	if (tmp_obj == NULL) {
-		/* no size ? use file system */
-		parm->logsize = -2;
+		/* no size ? use file system *//*
+		set->logsize = -2;
 	} else {
 		if (json_object_is_type(tmp_obj, json_type_int)) {
-			/* integer (no " ") detected. */
-			/* buffer size is set in MB */
-			parm->logsize = json_object_get_int(tmp_obj) << 20;
-			log_notice("Log buffer size fixed to %dMB per threads", (parm->logsize >> 20));
+			/* integer (no " ") detected. *//*
+			/* buffer size is set in MB *//*
+			set->logsize = json_object_get_int(tmp_obj) << 20;
+			log_notice("Log buffer size fixed to %dMB per threads", (set->logsize >> 20));
 		} else {
-			/* Get CPU number */
+			/* Get CPU number *//*
 			tmp_str = get_string_value_from(global, "log_size",
 					 TRUE, "disable");
 
 			if (!strcmp(tmp_str, "disable"))
-				parm->logsize = 0;
+				set->logsize = 0;
 			else if (!strcmp(tmp_str, "file"))
-				parm->logsize = -2;
+				set->logsize = -2;
 			else if (!strcmp(tmp_str, "auto"))
-				parm->logsize = -2; /* Automatic buffer size computation is not supported yet so we fall back on file system mode */
+				set->logsize = -2; /* Automatic buffer size computation is not supported yet so we fall back on file system mode *//*
 			log_debug("Log buffer set to %s mode", tmp_str);
 
 			/*
 			 * get_string_value_from allocate the string so with have to free it
 			 * once useless
-			 */
+			 *//*
 			free(tmp_str);
 		}
 	}
 
-	parm->logdir = get_string_value_from(global, "logdir", TRUE, "./");
-	parm->logbasename = get_string_value_from(global, "log_basename",
+	set->logdir = get_string_value_from(global, "logdir", TRUE, "./");
+	set->logbasename = get_string_value_from(global, "log_basename",
 						  TRUE, "rt-app");
-	parm->ftrace = get_bool_value_from(global, "ftrace", TRUE, 0);
-	parm->lock_pages = get_bool_value_from(global, "lock_pages", TRUE, 1);
-	parm->pi_enabled = get_bool_value_from(global, "pi_enabled", TRUE, 0);
-	parm->io_device = get_string_value_from(global, "io_device", TRUE,
+	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, 0);
+	set->lock_pages = get_bool_value_from(global, "lock_pages", TRUE, 1);
+	set->pi_enabled = get_bool_value_from(global, "pi_enabled", TRUE, 0);
+	set->io_device = get_string_value_from(global, "io_device", TRUE,
 						"/dev/null");
-	parm->mem_buffer_size = get_int_value_from(global, "mem_buffer_size",
+	set->mem_buffer_size = get_int_value_from(global, "mem_buffer_size",
 							TRUE, DEFAULT_MEM_BUF_SIZE);
-	parm->cumulative_slack = get_bool_value_from(global, "cumulative_slack", TRUE, 0);
-
-}
-
-static void get_parm_from_json_object(struct json_object *root, parm_t *parm)
-{
-
+	set->cumulative_slack = get_bool_value_from(global, "cumulative_slack", TRUE, 0);
+	*/
 }
 
 /// parse_config(): parse the json configuration file and push back results
@@ -1183,7 +1221,7 @@ static void get_parm_from_json_object(struct json_object *root, parm_t *parm)
 /// 		   - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config(const char *filename, parm_t *parm)
+void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 {
 	char *fn = strdup(filename); // TODO: why?
 	struct json_object *root;
@@ -1191,10 +1229,9 @@ void parse_config(const char *filename, parm_t *parm)
 	root = json_object_from_file(fn);
 
 	// root read successfully?
-	if (root == NULL) {
+	if (root == NULL) 
 		err_exit_n(EXIT_INV_CONFIG, PFX "Error while parsing input JSON");
-		exit(EXIT_INV_CONFIG);
-	}
+	
 	cont(PFX "Successfully parsed input JSON");
 	cont(PFX "root     : %s", json_object_to_json_string(root));
 
@@ -1208,7 +1245,7 @@ void parse_config(const char *filename, parm_t *parm)
 		if (global)
 			cont(PFX "global   : %s", json_object_to_json_string(global));
 
-		// get container settings
+/*		// get container settings
 		containers = get_in_object(root, "containers", FALSE);
 		cont(PFX "containers    : %s", json_object_to_json_string(containers));
 
@@ -1216,17 +1253,17 @@ void parse_config(const char *filename, parm_t *parm)
 		resources = get_in_object(root, "resources", TRUE);
 		if (resources)
 			info(PFX "resources: %s", json_object_to_json_string(resources));
-
-		cont(PFX "Parsing global");
-		parse_global(global, parm);
+*/
+		info(PFX "Parsing global");
+		parse_global(global, set);
 		json_object_put(global);
-		cont(PFX "Parsing resources");
+	/*	info(PFX "Parsing resources");
 		parse_resources(resources, parm);
 		json_object_put(resources);
-		cont(PFX "Parsing containers");
+		info(PFX "Parsing containers");
 		parse_containers(containers, parm);
-		json_object_put(containers);
-		cont(PFX "Free json objects");
+		json_object_put(containers);*/
+		info(PFX "Free json objects");
 
 	} // end parsing JSON
 }
