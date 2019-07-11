@@ -40,4 +40,10 @@ void err_doit(int err, const char *fmt, va_list ap);
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
+/* exit codes */
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+#define EXIT_INV_CONFIG 2
+#define EXIT_INV_COMMANDLINE 3
+
 #endif	/* __ERROR_H */

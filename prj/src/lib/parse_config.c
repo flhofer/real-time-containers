@@ -1022,7 +1022,7 @@ parse_task_data(char *name, struct json_object *obj, int index,
 }
 
 static void
-parse_tasks(struct json_object *tasks, parm_t *parm)
+parse_containers(struct json_object *containers, parm_t *parm)
 {
 	/* used in the foreach macro */
 	struct lh_entry *entry; char *key; struct json_object *val; int idx;
@@ -1030,29 +1030,34 @@ parse_tasks(struct json_object *tasks, parm_t *parm)
 	int i = 0;
 	int instance;
 
-	info(PFX "Parsing tasks section");
+	info(PFX "Parsing containers section");
 	parm->nthreads = 0;
 	parm->num_tasks = 0;
-	foreach(tasks, entry, key, val, idx) {
+	foreach(containers, entry, key, val, idx) {
 		instance = get_int_value_from(val, "instance", TRUE, 1);
 		parm->nthreads += instance;
 
 		parm->num_tasks++;
 	}
 
-	info(PFX "Found %d threads of %d tasks", parm->nthreads, parm->num_tasks);
+	info(PFX "Found %d threads of %d containers", parm->nthreads, parm->num_tasks);
 
 	/*
-	 * Parse thread data of defined tasks so that we can use them later
-	 * when creating the tasks at main() and fork event.
+	 * Parse thread data of defined containers so that we can use them later
+	 * when creating the containers at main() and fork event.
 	 */
 	parm->threads_data = malloc(sizeof(thread_data_t) * parm->num_tasks);
-	foreach (tasks, entry, key, val, idx)
+	foreach (containers, entry, key, val, idx)
 		parse_task_data(key, val, -1, &parm->threads_data[i++], parm);
 }
 
-static void
-parse_global(struct json_object *global, parm_t *parm)
+/// parse_global(): extract parameter values from JSON tokens
+///
+/// Arguments: - json object of tree containing global configuration
+/// 		   - structure to store values in
+///
+/// Return value: number of tokens parsed
+static void parse_global(struct json_object *global, parm_t *parm)
 {
 	char *policy, *tmp_str;
 	struct json_object *tmp_obj;
@@ -1169,8 +1174,23 @@ parse_global(struct json_object *global, parm_t *parm)
 
 static void get_parm_from_json_object(struct json_object *root, parm_t *parm)
 {
-	struct json_object *global, *tasks, *resources;
 
+}
+
+/// parse_config(): parse the json configuration file and push back results
+///
+/// Arguments: - filename of the configuration file
+/// 		   - struct to store the read parameters in
+///
+/// Return value: void (exits with error if needed)
+void parse_config(const char *filename, parm_t *parm)
+{
+	char *fn = strdup(filename); // TODO: why?
+	struct json_object *root;
+	info(PFX "Reading JSON config from %s", fn);
+	root = json_object_from_file(fn);
+
+	// root read successfully?
 	if (root == NULL) {
 		err_exit_n(EXIT_INV_CONFIG, PFX "Error while parsing input JSON");
 		exit(EXIT_INV_CONFIG);
@@ -1178,35 +1198,35 @@ static void get_parm_from_json_object(struct json_object *root, parm_t *parm)
 	cont(PFX "Successfully parsed input JSON");
 	cont(PFX "root     : %s", json_object_to_json_string(root));
 
-	global = get_in_object(root, "global", TRUE);
-	if (global)
-		cont(PFX "global   : %s", json_object_to_json_string(global));
+	{ // begin parsing JSON
 
-	tasks = get_in_object(root, "tasks", FALSE);
-	cont(PFX "tasks    : %s", json_object_to_json_string(tasks));
+		// Sections of settings
+		struct json_object *global, *containers, *resources;
 
-	resources = get_in_object(root, "resources", TRUE);
-	if (resources)
-		info(PFX "resources: %s", json_object_to_json_string(resources));
+		// get program settings
+		global = get_in_object(root, "global", TRUE);
+		if (global)
+			cont(PFX "global   : %s", json_object_to_json_string(global));
 
-	cont(PFX "Parsing global");
-	parse_global(global, parm);
-	json_object_put(global);
-	cont(PFX "Parsing resources");
-	parse_resources(resources, parm);
-	json_object_put(resources);
-	cont(PFX "Parsing tasks");
-	parse_tasks(tasks, parm);
-	json_object_put(tasks);
-	cont(PFX "Free json objects");
-}
+		// get container settings
+		containers = get_in_object(root, "containers", FALSE);
+		cont(PFX "containers    : %s", json_object_to_json_string(containers));
 
-void parse_config(const char *filename, parm_t *parm)
-{
-	char *fn = strdup(filename); // TODO: why?
-	struct json_object *js;
-	info(PFX "Reading JSON config from %s", fn);
-	js = json_object_from_file(fn);
-	get_parm_from_json_object(js, parm);
-	return;
+		// get global resource limits
+		resources = get_in_object(root, "resources", TRUE);
+		if (resources)
+			info(PFX "resources: %s", json_object_to_json_string(resources));
+
+		cont(PFX "Parsing global");
+		parse_global(global, parm);
+		json_object_put(global);
+		cont(PFX "Parsing resources");
+		parse_resources(resources, parm);
+		json_object_put(resources);
+		cont(PFX "Parsing containers");
+		parse_containers(containers, parm);
+		json_object_put(containers);
+		cont(PFX "Free json objects");
+
+	} // end parsing JSON
 }
