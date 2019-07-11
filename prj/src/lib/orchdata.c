@@ -1,4 +1,4 @@
-#include "pidlist.h" // memory structure to store information
+#include "orchdata.h" // memory structure to store information
 // TODO: FIXME: neeed return value to deal with memory allocation problems
 
 static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid

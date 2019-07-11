@@ -13,7 +13,7 @@
 #include <dirent.h>			// dir enttry structure and expl
 #include <errno.h>			// error numbers and strings
 
-#include "pidlist.h"	// memory structure to store information
+#include "orchdata.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and strerr print functions
