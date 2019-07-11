@@ -88,14 +88,14 @@ $(OBJDIR):
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
 schedstat: $(addprefix $(OBJDIR)/,schedstat.o pidlist.o manage.o update.o librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, pidlist.o manage.o update.o) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 # lib containing include lib in one binary file
-LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o jsmn.o)
+LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o jsmn.o pidlist.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 

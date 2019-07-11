@@ -97,6 +97,9 @@ static inline void *realloc_it(void *ptrmem, size_t size) {
 	return p;
 }
 
+// https://rawgit.com/miloyip/nativejson-benchmark/master/sample/conformance.html
+// substitution of library ongoing. jsmn is good for small code only
+
 const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity", "rt-soft", "rt-hard", "data-soft", "data-hard"};
 
 /// extractJSON(): extract parameter values from JSON tokens
@@ -297,7 +300,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 ///
 /// Arguments: - 
 ///
-/// Return value: Code - o for no error - EXIT_SUCCESS
+/// Return value: Code - o for no error 
 int readParams() {
 	int r;
 	int eof_expected = 0; // ok to have end of file
@@ -628,7 +631,7 @@ int manageSched(){
 ///
 /// Arguments: - thread state/state machine, passed on to allow main thread stop
 ///
-/// Return value: Exit Code - o for no error - EXIT_SUCCESS
+/// Return value: Exit Code - o for no error
 void *thread_manage (void *arg)
 {
 	// be explicit!
@@ -665,6 +668,5 @@ void *thread_manage (void *arg)
 	  sleep(1);
 	}
 	// TODO: Start using return value
-	return EXIT_SUCCESS;
 }
 
