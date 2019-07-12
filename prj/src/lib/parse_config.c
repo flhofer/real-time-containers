@@ -1060,63 +1060,11 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	int scan_cnt;
 
 	info(PFX "Parsing global section");
-
 	if (!global) {
 		info(PFX " No global section Found: Use default value");
-
-		// logging TODO:
-		if (!(set->logdir = strdup("./")) || 
-			!(set->logbasename = strdup("orchestrator.txt")))
-			err_exit_n(errno, "Can not set parameter");
-		set->logsize = 0;
-
-		// signatures and folders
-		if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
-			!(set->cont_pidc = strdup(CONT_PID)) ||
-			!(set->cont_cgrp = strdup(CONT_DCKR)))
-			err_exit_n(errno, "Can not set parameter");
-
-		// filepaths virtual file system
-		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
-			!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
-			!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
-			err_exit_n(errno, "Can not set parameter");
-
-		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-		if (!set->cpusetdfileprefix)
-			err_exit_n(errno, "Could not allocate memory");
-
-		*set->cpusetdfileprefix = '\0'; // set first chat to null
-		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
-
-		// generic parameters
-		set->priority=0;
-		set->clocksel = 0;
-		set->policy = SCHED_OTHER;
-		set->quiet = 0;
-		set->affother = 0;
-		set->setdflag = 0;
-		set->interval = TSCAN;
-		set->update_wcet = TWCET;
-		set->loops = TDETM;
-		set->runtime = 0;
-		set->psigscan = 0;
-		set->affinity_mask = NULL;
-		set->trackpids = 0;
-		//set->negiszero = 0;
-		set->dryrun = 0;
-		set->lock_pages = 0;
-		set->force = 0;
-		set->smi = 0;
-		set->rrtime = 0;
-
-		// TODO:
-		set->gnuplot = 0;
-		set->ftrace = 0;
-
-		set->use_cgroup = DM_CGRP;
 		return;
 	}
+
 
 	/*
 	set->duration = get_int_value_from(global, "duration", TRUE, -1);
@@ -1205,6 +1153,70 @@ static void parse_global(struct json_object *global, prgset_t *set)
 							TRUE, DEFAULT_MEM_BUF_SIZE);
 	set->cumulative_slack = get_bool_value_from(global, "cumulative_slack", TRUE, 0);
 	*/
+}
+
+/// config_set_default(): set default program parameters
+///
+/// Arguments: - structure to store values in
+///
+/// Return value: no return value, exits on error
+void config_set_default(prgset_t *set) {
+
+	// logging TODO:
+	if (!(set->logdir = strdup("./")) || 
+		!(set->logbasename = strdup("orchestrator.txt")))
+		err_exit_n(errno, "Can not set parameter");
+	set->logsize = 0;
+
+	// signatures and folders
+	if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
+		!(set->cont_pidc = strdup(CONT_PID)) ||
+		!(set->cont_cgrp = strdup(CONT_DCKR)))
+		err_exit_n(errno, "Can not set parameter");
+
+	// filepaths virtual file system
+	if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
+		!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
+		!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
+		err_exit_n(errno, "Can not set parameter");
+
+	set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
+	if (!set->cpusetdfileprefix)
+		err_exit_n(errno, "Could not allocate memory");
+
+	*set->cpusetdfileprefix = '\0'; // set first chat to null
+	set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+
+	// generic parameters
+	set->priority=0;
+	set->clocksel = 0;
+	set->policy = SCHED_OTHER;
+	set->quiet = 0;
+	set->affother = 0;
+	set->setdflag = 0;
+	set->interval = TSCAN;
+	set->update_wcet = TWCET;
+	set->loops = TDETM;
+	set->runtime = 0;
+	set->psigscan = 0;
+	set->trackpids = 0;
+	//set->negiszero = 0;
+	set->dryrun = 0;
+	set->lock_pages = 0;
+	set->force = 0;
+	set->smi = 0;
+	set->rrtime = 0;
+
+	// affinity specification for system vs RT
+	set->setaffinity = AFFINITY_UNSPECIFIED;
+	set->affinity = NULL;
+	set->affinity_mask = NULL;
+
+	// TODO:
+	set->gnuplot = 0;
+	set->ftrace = 0;
+
+	set->use_cgroup = DM_CGRP;
 }
 
 /// parse_config(): parse the json configuration file and push back results

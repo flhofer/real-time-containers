@@ -121,7 +121,6 @@
 		int loops;					// repetition loop count for container check
 		int runtime;				// total orchestrator runtime, 0 is infinite
 		int psigscan;				// scan for child threads, -n option only
-		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
 		int trackpids;				// keep track of left pids, do not delete from list
 		//int negiszero;
 		int dryrun;					// test only, no changes to environment
@@ -130,17 +129,18 @@
 		int smi;					// enable smi counter check
 		int rrtime;					// round robin slice time. 0=no change
 
+		// affinity specification for system vs RT
+		int setaffinity;			// affinty mode enumeration
+		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
+		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
+
+
 		int logsize;				// TODO: limit for logsize
 		int gnuplot; 				// TODO: enable gnuplot output at the end
 		int ftrace; 				// TODO: enable ftrace kernel trace output at the end
 
 		// runtime settings
 		int use_cgroup;				// identify processes via cgroup
-
-		#ifdef DEBUG
-		// debug output file
-			FILE  * dbg_out;
-		#endif
 
 	} prgset_t;
 

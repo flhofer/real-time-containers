@@ -48,10 +48,6 @@ char * cont_ppidc = CONT_PPID;
 char * cont_pidc = CONT_PID;
 
 // parameters
-int priority=0;				// priority parameter for FIFO and RR
-int clocksel = 0;			// selected clock 
-int policy = SCHED_OTHER;	// default policy if not specified
-int quiet = 0;				// quiet enabled
 int affother = 0;			// set affinity of parent as well
 int setdflag = 0;			// set deadline overrun flag
 int interval = TSCAN;		// scan interval
@@ -257,7 +253,7 @@ static void prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.\n");
 	}
 
-	if (SCHED_RR == policy && 0 < set->rrtime) {
+	if (SCHED_RR == set->policy && 0 < set->rrtime) {
 		cont( "Set round robin interval to %dms..\n", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (setkernvar(procfileprefix, "sched_rr_timeslice_ms", str)){
@@ -337,7 +333,7 @@ static void prepareEnvironment(prgset_t *set) {
 				break;
 			}
 			// error occurred, check for sCHED_DEADLINE first-> stop!
-			if (SCHED_DEADLINE == policy) 
+			if (SCHED_DEADLINE == set->policy) 
 				err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
 
 			// otherwise switch to container PID detection
@@ -614,6 +610,9 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	int verbose = 0;
 #endif
 
+	// preset configuration default values
+	config_set_default(set);
+
 	for (;;) {
 		//option_index = 0;
 		/*
@@ -675,12 +674,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			affother = 1; break;
 		case 'c':
 		case OPT_CLOCK:
-			clocksel = atoi(optarg); break;
+			set->clocksel = atoi(optarg); break;
 		case 'C':
 			use_cgroup = DM_CGRP;
 			if (NULL != optarg) {
+				free(set->cont_cgrp);
 				set->cont_cgrp = optarg;
 			} else if (optind<argc) {
+				free(set->cont_cgrp);
 				set->cont_cgrp = argv[optind];
 				optargs++;
 			}
@@ -719,17 +720,17 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'p':
 		case OPT_PRIORITY:
-			priority = atoi(optarg);
-			if (SCHED_FIFO != policy && SCHED_RR != policy) {
+			set->priority = atoi(optarg);
+			if (SCHED_FIFO != set->policy && SCHED_RR != set->policy) {
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
-				policy = SCHED_FIFO;
+				set->policy = SCHED_FIFO;
 }
 			break;
 		case 'P':
 			psigscan = 1; break;
 		case 'q':
 		case OPT_QUIET:
-			quiet = 1; break;
+			set->quiet = 1; break;
 		case 'r':
 		case OPT_RTIME:
 			if (NULL != optarg) {
@@ -779,7 +780,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
-			policy = string_to_policy(optarg); break;
+			set->policy = string_to_policy(optarg); break;
 		case OPT_SMI:
 #ifdef ARCH_HAS_SMI_COUNTER
 			set->smi = 1;
@@ -789,6 +790,27 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		}
 	}
+
+	// look for filename after options, we process only first
+	if (optind+optargs < argc)
+	{
+	    config = argv[argc-1];
+	}
+
+	// allways verify for config file -> segmentation fault??
+	if ( access( config, F_OK )) {
+		err_msg("configuration file '%s' not found\n", config);
+		error = 1;
+	}
+
+	// create parameter structure
+	parm_t *tmpparm;
+	if (!(tmpparm = malloc (sizeof(parm_t))))
+		err_exit("Unable to allocate memory");
+
+	if (!error)
+		// parse json configuration
+		parse_config(strdup(config), set, tmpparm);
 
 #ifdef DEBUG
 	if (verbose)
@@ -807,47 +829,35 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 
 	// check clock sel boundaries
-	if (0 > clocksel || 3 < clocksel)
+	if (0 > set->clocksel || 3 < set->clocksel)
 		error = 1;
 
 	// check priority boundary
-	if (0 > priority || 99 < priority)
+	if (0 > set->priority || 99 < set->priority)
 		error = 1;
 
 	// check detection mode and policy -> deadline does not allow fork!
-	if (SCHED_DEADLINE == policy && (DM_CNTPID == use_cgroup || DM_CMDLINE == use_cgroup)) {
+	if (SCHED_DEADLINE == set->policy && (DM_CNTPID == use_cgroup || DM_CMDLINE == use_cgroup)) {
 		warn("can not use SCHED_DEADLINE with PID detection modes: setting policy to SCHED_FIFO\n");
-		policy = SCHED_FIFO;	
+		set->policy = SCHED_FIFO;	
 	}
 
 	// deadline and high refresh might starve the system. require force
-	if (SCHED_DEADLINE == policy && interval < 1000 && !set->force) {
+	if (SCHED_DEADLINE == set->policy && interval < 1000 && !set->force) {
 		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
 		error = 1;
 	}
 
 	// check priority and policy match
-	if (priority && (SCHED_FIFO != policy && SCHED_RR != policy)) {
+	if (set->priority && (SCHED_FIFO != set->policy && SCHED_RR != set->policy)) {
 		warn("policy and priority don't match: setting policy to SCHED_FIFO\n");
-		policy = SCHED_FIFO;
+		set->policy = SCHED_FIFO;
 	}
 
 	// check policy with priority match 
-	if ((SCHED_FIFO == policy || SCHED_RR == policy) && 0 == priority) {
+	if ((SCHED_FIFO == set->policy || SCHED_RR == set->policy) && 0 == set->priority) {
 		warn("defaulting realtime priority to %d\n", 10);
-		priority = 10;
-	}
-
-	// look for filename after options, we process only first
-	if (optind+optargs < argc)
-	{
-	    config = argv[argc-1];
-	}
-
-	// allways verify for config file -> segmentation fault??
-	if ( access( config, F_OK )) {
-		err_msg("configuration file '%s' not found\n", config);
-		error = 1;
+		set->priority = 10;
 	}
 
 	// error present? print help message and exit
@@ -873,9 +883,6 @@ int main(int argc, char **argv)
 	if (!(tmpset = malloc (sizeof(prgset_t))) || 
 		!(tmpparm = malloc (sizeof(parm_t))))
 		err_exit("Unable to allocate memory");
-
-	// parse json configuration
-	parse_config(strdup("./config.json"), tmpset, tmpparm);
 
 	process_options(tmpset, argc, argv, max_cpus);
 	
