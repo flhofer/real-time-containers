@@ -1,3 +1,5 @@
+#include "orchdata.h" // memory structure to store information
+
 #include <stdio.h>
 #include <string.h> // used for string parsing
 #include <unistd.h> // used for POSIX XOPEN constants
@@ -29,7 +31,7 @@
 		KV_50	// latest releases, now 5.1 (May 8th '19)
 	};
 
-	extern int dryrun; // test only, no changes to environment
+	extern prgset_t * prgset; // read only programm setings structure
 
 	// MSR 
 	int open_msr_file(int cpu);

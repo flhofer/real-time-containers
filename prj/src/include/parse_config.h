@@ -1,4 +1,5 @@
-#include "orchdata.h"
+// static library includes
+#include "orchdata.h"		// orchestrator data structures and types
 
 #ifndef _PARSE_CONFIG_H
 	#define _PARSE_CONFIG_H 

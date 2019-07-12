@@ -184,7 +184,7 @@ int updateStats ()
 	static char const sp[4] = "/-\\|";
 
 	prot = (prot+1) % 4;
-	if (!quiet)	
+	if (!prgset->quiet)	
 		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
@@ -208,7 +208,7 @@ int updateStats ()
 			}
 
 			// set the flag for deadline notification if not enabled yet -- TEST
-			if ((setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= prgset->kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
 				cont("Set dl_overrun flag for PID %d\n", item->pid);		
 
@@ -242,7 +242,7 @@ int updateStats ()
 int getContPids (pidinfo_t *pidlst, size_t cnt)
 {
 	struct dirent *dir;
-	DIR *d = opendir(cpusetdfileprefix);// -> pointing to global
+	DIR *d = opendir(prgset->cpusetdfileprefix);// -> pointing to global
 	if (d) {
 		char *fname = NULL; // clear pointer again
 		char pidline[PID_BUFFER];
@@ -254,10 +254,10 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 		while ((dir = readdir(d)) != NULL) {
 		// scan trough docker cgroups, find them?
 			if ((strlen(dir->d_name)>60) && // container strings are very long!
-					(fname=realloc(fname,strlen(cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
+					(fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
 				fname[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				fname = strcat(strcat(fname,cpusetdfileprefix),dir->d_name);
+				fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
 				fname = strcat(fname,"/tasks");
 
 				// prepare literal and open pipe request
@@ -305,7 +305,7 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 	else {
 		warn("Can not open Docker CGroups - is the daemon still running?\n");
 		cont( "switching to container PID detection mode\n");
-		use_cgroup = DM_CNTPID; // switch to container pid detection mode
+		prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 		return 0; // count of items found
 
 	}
@@ -416,23 +416,23 @@ void scanNew () {
 	pidinfo_t pidlst[MAX_PIDS];
 	int cnt = 0; // Count of found PID
 
-	switch (use_cgroup) {
+	switch (prgset->use_cgroup) {
 
 		case DM_CGRP: // detect by cgroup
 			cnt = getContPids(&pidlst[0], MAX_PIDS);
 			break;
 
 		case DM_CNTPID: // detect by container shim pid
-			cnt = getpPids(&pidlst[0], MAX_PIDS, cont_ppidc);
+			cnt = getpPids(&pidlst[0], MAX_PIDS, prgset->cont_ppidc);
 			break;
 
 		default: ;// detect by pid signature
 			// cmdline of own thread
 			char pid[SIG_LEN];
-			if (psigscan)
-				sprintf(pid, "-TC %s", cont_pidc);
+			if (prgset->psigscan)
+				sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else 
-				sprintf(pid, "-C %s", cont_pidc);
+				sprintf(pid, "-C %s", prgset->cont_pidc);
 			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
 			break;		
 	}
@@ -469,10 +469,10 @@ void scanNew () {
 		// delete a dopped item
 		if ((pidlst +i)->pid < (act->pid)) {
 			printDbg("\n... Delete %d", act->pid);		
-			if (trackpids) // deactivate only
+			if (prgset->trackpids) // deactivate only
 				act->pid*=-1;
 			act = act->next;
-			if (!trackpids)
+			if (!prgset->trackpids)
 				(void)drop_after(&head, &prev);
 		} 
 		// ok, skip to next
@@ -498,10 +498,10 @@ void scanNew () {
 		// drop missing items
 		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
 		// get next item, then drop old
-		if (trackpids)// deactivate only
+		if (prgset->trackpids)// deactivate only
 			act->pid = abs(act->pid)*-1;
 		act = act->next;
-		if (!trackpids)
+		if (!prgset->trackpids)
 			(void)drop_after(&head, &prev);
 	}
 
@@ -523,7 +523,7 @@ void *thread_update (void *arg)
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
-	ret = clock_gettime(clocksources[clocksel], &intervaltv);
+	ret = clock_gettime(clocksources[prgset->clocksel], &intervaltv);
 	if (0 != ret) {
 		if (EINTR != ret)
 			warn("clock_gettime() failed: %s", strerror(errno));
@@ -531,8 +531,8 @@ void *thread_update (void *arg)
 	}
 	old = intervaltv;
 
-	if (runtime)
-		cont("Runtime set to %d seconds\n", runtime);
+	if (prgset->runtime)
+		cont("Runtime set to %d seconds\n", prgset->runtime);
 
 
 	// initialize the thread locals
@@ -543,7 +543,7 @@ void *thread_update (void *arg)
 		case 0:			
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
-			cont("Sample time set to %dus.\n", interval);
+			cont("Sample time set to %dus.\n", prgset->interval);
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (1 > ticksps) { // must always be greater 0 
@@ -553,65 +553,65 @@ void *thread_update (void *arg)
 			else{ 
 				// clock settings found -> check for validity
 				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
-				if (500000/ticksps > interval)  
+				if (500000/ticksps > prgset->interval)  
 					warn("-- scan time more than double the debug update rate. On purpose?"
 							" (obsolete kernel value) -- \n");
 			}
-			if (SCHED_OTHER != policy && SCHED_IDLE != policy && SCHED_BATCH != policy) {
+			if (SCHED_OTHER != prgset->policy && SCHED_IDLE != prgset->policy && SCHED_BATCH != prgset->policy) {
 				// set policy to thread
-				if (SCHED_DEADLINE == policy) {
+				if (SCHED_DEADLINE == prgset->policy) {
 					struct sched_attr scheda  = { 48, 
 												SCHED_DEADLINE,
 												SCHED_FLAG_RESET_ON_FORK,
 												0,
 												0,
-												update_wcet*1000, interval*1000, interval*1000
+												prgset->update_wcet*1000, prgset->interval*1000, prgset->interval*1000
 												};
 
 					// enable bandwith reclaim if supported, allow to reduce impact.. 
-					if (KV_413 <= kernelversion) 
+					if (KV_413 <= prgset->kernelversion) 
 						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 
 					if (sched_setattr(0, &scheda, 0L)) {
 						warn("Could not set thread policy!\n");
 						// reset value -- not written in main anymore
-						policy = SCHED_OTHER;
+						prgset->policy = SCHED_OTHER;
 					}
 					else
 						cont("set update thread to '%s', runtime %dus.\n",
-							policy_to_string(policy), update_wcet);
+							policy_to_string(prgset->policy), prgset->update_wcet);
 
 				}
 				else {
-					struct sched_param schedp  = { priority };
+					struct sched_param schedp  = { prgset->priority };
 
-					if (sched_setscheduler(0, policy, &schedp)) {
+					if (sched_setscheduler(0, prgset->policy, &schedp)) {
 						warn("Could not set thread policy!\n");
 						// reset value -- not written in main anymore
-						policy = SCHED_OTHER;
+						prgset->policy = SCHED_OTHER;
 					}
 					else
 						cont("set update thread to '%s', priority %d.\n",
-							policy_to_string(policy), priority);
+							policy_to_string(prgset->policy), prgset->priority);
 				}
 			}
-			else if (SCHED_OTHER == policy && priority) {
+			else if (SCHED_OTHER == prgset->policy && prgset->priority) {
 				// SCHED_OTHER only, BATCH or IDLE are static to 0
-				struct sched_param schedp  = { priority };
+				struct sched_param schedp  = { prgset->priority };
 
-				if (sched_setscheduler(0, policy, &schedp)) {
+				if (sched_setscheduler(0, prgset->policy, &schedp)) {
 					warn("Could not set thread policy!\n");
 				}
 				else 
 					cont("set update thread to '%s', niceness %d.\n",
-						policy_to_string(policy), priority);
+						policy_to_string(prgset->policy), prgset->priority);
 			}
 
 		case 1: 
 			// startup-refresh: this should be executed only once every td
 			*pthread_state=2; // must be first thing! -> main writes -1 to stop
 			scanNew(); 
-			if (!quiet)	
+			if (!prgset->quiet)	
 				(void)printf("\rNode Stats update  ");		
 		case 2: // normal thread loop
 			if (!cc)
@@ -620,14 +620,14 @@ void *thread_update (void *arg)
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
-			if (!quiet)	
+			if (!prgset->quiet)	
 				(void)printf("\n");
 			// tidy or whatever is necessary
 			dumpStats();
 
 			// update time if not in runtime mode - has not been read yet
-			if (!runtime) {
-				ret = clock_gettime(clocksources[clocksel], &now);
+			if (!prgset->runtime) {
+				ret = clock_gettime(clocksources[prgset->clocksel], &now);
 				if (0 != ret) 
 					if (EINTR != ret)
 						warn("clock_gettime() failed: %s", strerror(errno));
@@ -643,7 +643,7 @@ void *thread_update (void *arg)
 			break;
 		}
 
-		if (SCHED_DEADLINE == policy){
+		if (SCHED_DEADLINE == prgset->policy){
 			// perfect sync with period here, allow replenish 
 			if (pthread_yield()){
 				warn("pthread_yield() failed. errno: %s\n",strerror (ret));
@@ -656,12 +656,12 @@ void *thread_update (void *arg)
 			// abs-time relative interval shift
 
 			// calculate next execution intervall
-			intervaltv.tv_sec += interval / USEC_PER_SEC;
-			intervaltv.tv_nsec+= (interval % USEC_PER_SEC) * 1000;
+			intervaltv.tv_sec += prgset->interval / USEC_PER_SEC;
+			intervaltv.tv_nsec+= (prgset->interval % USEC_PER_SEC) * 1000;
 			tsnorm(&intervaltv);
 
 			// sleep for interval nanoseconds
-			ret = clock_nanosleep(clocksources[clocksel], TIMER_ABSTIME, &intervaltv, NULL);
+			ret = clock_nanosleep(clocksources[prgset->clocksel], TIMER_ABSTIME, &intervaltv, NULL);
 			if (0 != ret) {
 				// Set warning only.. shouldn't stop working
 				// probably overrun, restarts immediately in attempt to catch up
@@ -674,22 +674,22 @@ void *thread_update (void *arg)
 		}
 
 		// we have a max runtime. Stop! -> after the clock_nanosleep time will be intervaltv
-		if (runtime) {
-			ret = clock_gettime(clocksources[clocksel], &now);
+		if (prgset->runtime) {
+			ret = clock_gettime(clocksources[prgset->clocksel], &now);
 			if (0 != ret) {
 				if (EINTR != ret)
 					warn("clock_gettime() failed: %s", strerror(errno));
 				*pthread_state=-1;
 			}
 
-			if (old.tv_sec + runtime <= now.tv_sec
+			if (old.tv_sec + prgset->runtime <= now.tv_sec
 				&& old.tv_nsec <= now.tv_nsec) 
 				// set stop sig
 				raise (SIGTERM); // tell main to stop
 		}
 
 		cc++;
-		cc%=loops;
+		cc%=prgset->loops;
 	}
 	// TODO: Start using return value
 	return EXIT_SUCCESS;

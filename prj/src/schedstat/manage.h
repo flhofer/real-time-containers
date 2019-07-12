@@ -7,11 +7,7 @@
 	// Parameters and runtime values ----- 
 	// values set at startup in main thread, never changed there anymore
 	extern char * config; // filename of configuration file
-	extern int affother; // set affinity of all pids in container?
-	extern struct bitmask *affinity_mask; // default bitmask allocation of threads!!
-	extern int quiet;	// quiet enabled
-	extern int use_cgroup; // processes identificatiom mode, written before startup of thread
-	extern char * cpusetdfileprefix; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
+	extern prgset_t * prgset; // read only programm setings structure
 
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;

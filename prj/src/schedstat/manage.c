@@ -438,7 +438,7 @@ int updateSched() {
 		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
-			if (!quiet)
+			if (!prgset->quiet)
 				(void)printf("\n");
 			info("new pid in list %d\n", current->pid);
 
@@ -464,7 +464,7 @@ int updateSched() {
 					// TODO: track failed scheduling update?
 
 					// update CGroup setting of container if in CGROUP mode
-					if (DM_CGRP == use_cgroup && 
+					if (DM_CGRP == prgset->use_cgroup && 
 						((0 <= current->param->rscs.affinity) & ~(SCHED_FAFMSK))) {
 
 						char *contp = NULL;
@@ -472,11 +472,11 @@ int updateSched() {
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
 
 						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
-						if ((contp=malloc(strlen(cpusetdfileprefix))
+						if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
 								+ strlen(current->contid)+1)) {
 							contp[0] = '\0';   // ensures the memory is an empty string
 							// copy to new prefix
-							contp = strcat(strcat(contp,cpusetdfileprefix), current->contid);		
+							contp = strcat(strcat(contp,prgset->cpusetdfileprefix), current->contid);		
 							
 							if (setkernvar(contp, "/cpuset.cpus", affinity)){
 								warn("Can not set cpu-affinity\n");
@@ -494,7 +494,7 @@ int updateSched() {
 						char pid[5];
 						(void)sprintf(pid, "%d", current->pid);
 
-						if (setkernvar(cpusetdfileprefix , "tasks", pid)){
+						if (setkernvar(prgset->cpusetdfileprefix , "tasks", pid)){
 							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
 						}
 
@@ -560,7 +560,7 @@ int updateSched() {
 					}
 
 				}
-				else if (affother) {
+				else if (prgset->affother) {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 						err_msg_n(errno, "setting affinity for PID %d",
 							current->pid);
@@ -592,9 +592,9 @@ int updateSched() {
 ///
 int createResTracer(){
 	// mask affinity and invert for system map / readout of smi of online CPUs
-	for (int i=0;i<(affinity_mask->size);i++) 
+	for (int i=0;i<(prgset->affinity_mask->size);i++) 
 
-		if (numa_bitmask_isbitset(affinity_mask, i)){ // filter by selected only
+		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			rpush ( &rhead);
 			rhead->affinity = i;
 			rhead->basePeriod = 1;

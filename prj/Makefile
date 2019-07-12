@@ -1,8 +1,10 @@
-VERSION = 0.62
+VERSION = 0.63
+VERSUFF = "-beta"
 GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
-#DEBUG=1
+#uncomment the line below to create debug versions by default
+DEBUG=1
 
 OBJDIR = build
 
@@ -30,7 +32,7 @@ ifndef DEBUG
 	CPPFLAGS += -D VERSION=\"$(VERSION)\"
 else
 	CFLAGS	+= -O0 -g
-	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)\ $(GIT_VERSION)\"
+	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
 endif
 
 # We make some gueses on how to compile rt-tests based on the machine type

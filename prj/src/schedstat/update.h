@@ -26,22 +26,7 @@
 	// settings from schedstat.h
 	// Parameters and runtime values ----- 
 	// values set at startup in main thread, never changed there anymore
-	extern int use_cgroup; // processes identificatiom mode, written before startup of thread
-	extern int interval; // settting, default to SCAN
-	extern int update_wcet; // worst case execution time for deadline scheduled task
-	extern int loops; // once every x interval the containers are checked again
-	extern int priority; // priority for eventual RT policy
-	extern int policy;	/* default policy if not specified */
-	extern int clocksel; // clock selection for intervals
-	extern char * cont_ppidc; // container pid signature to look for
-	extern char * cont_pidc; // command line pid signature to look for
-	extern char * cpusetdfileprefix; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
-	extern int kernelversion; // using kernel version.. 
-	extern int setdflag; // set deadline overrun flag? for DL processes?
-	extern int runtime; // test runtime -> 0 = infinite
-	extern int psigscan;// scan for child threads, -n option only
-	extern int quiet;	// quiet enabled
-	extern int trackpids;// keep track of left pids, do not delete from list
+	extern prgset_t * prgset; // read only programm setings structure
 
 	extern pthread_mutex_t dataMutex;
 	extern node_t * head;

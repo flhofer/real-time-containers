@@ -6,7 +6,7 @@
 #ifndef __PIDLIST_
 	#define __PIDLIST_
 
-	#define SIG_LEN 65			// increased to 64 -> standard lenght of container IDs for docker
+	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker
 	// TODO: limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 	#define SCHED_FAFMSK 0xE000	// flexible affinity mask
@@ -128,7 +128,10 @@
 		int force;					// force environment changes if needed
 		int smi;					// enable smi counter check
 		int rrtime;					// round robin slice time. 0=no change
+		int use_fifo;				// TODO: use fifo buffer for output
 
+		// runtime values
+		int kernelversion; // kernel version -> opts based on this
 		// affinity specification for system vs RT
 		int setaffinity;			// affinty mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest

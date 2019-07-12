@@ -203,7 +203,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 
 int setkernvar(const char *prefix, const char *name, char *value)
 {
-	if (dryrun) // suppress system changes
+	if (prgset->dryrun) // suppress system changes
 		return 0;
 
 	if (kernvar(O_WRONLY, prefix, name, value, strlen(value))){

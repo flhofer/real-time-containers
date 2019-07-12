@@ -4,13 +4,16 @@
 
 #include "parse_config.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-#include <fcntl.h>
+#include <stdio.h>			// STD IO print and file operations
+#include <string.h>			// string operations
+#include <stdbool.h>		// for bool defition and operation
+#include <fcntl.h>			// file control 
 #include <sched.h>			// scheduler functions
 #include <errno.h>			// error numbers and strings
-#include <json-c/json.h>
+#include <json-c/json.h>	// libjson-c for parsing
+
+// static library includes
+#include "kernutil.h"		// kernel util data types and functions
 
 #define PFX "[json] "
 #define PFL "         "PFX
@@ -1206,7 +1209,10 @@ void config_set_default(prgset_t *set) {
 	set->force = 0;
 	set->smi = 0;
 	set->rrtime = 0;
+	set->use_fifo=0; // TODO
 
+	// runtime values
+	set->kernelversion = KV_NOT_SUPPORTED;
 	// affinity specification for system vs RT
 	set->setaffinity = AFFINITY_UNSPECIFIED;
 	set->affinity = NULL;
