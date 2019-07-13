@@ -101,14 +101,6 @@ static void prepareEnvironment(prgset_t *set) {
 			cont("SMT is disabled, as required\n");
 	}
 
-	// no mask specified, generate default
-	if (AFFINITY_UNSPECIFIED == set->setaffinity){
-		if (!(set->affinity = malloc(10))) // has never been set
-			err_exit("could not allocate memory!\n");
-
-		sprintf(set->affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
-		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, set->affinity);
-	}
 	// prepare bitmask, no need to do it before
 	set->affinity_mask = parse_cpumask(set->affinity, maxccpu);
 	if (!set->affinity_mask)

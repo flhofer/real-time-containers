@@ -1101,20 +1101,21 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		be able to have an override switch */
 
 	// filepaths
-	set->logdir = get_string_value_from(global, "logdir", TRUE, 
-		set->logdir ? set->logdir : "./");
-	set->logbasename = get_string_value_from(global, "log_basename", TRUE,
-		set->logbasename ? set->logbasename : "orchestrator.txt");
+	if (!set->logdir)
+		set->logdir = get_string_value_from(global, "logdir", TRUE, "./");
+	if (!set->logbasename)
+		set->logbasename = get_string_value_from(global, "log_basename", TRUE,
+			"orchestrator.txt");
 
 	// signatures and folders
-	set->cont_ppidc = get_string_value_from(global, "cont_ppidc", TRUE,
-		set->cont_ppidc ? set->cont_ppidc : CONT_PPID);
-	set->cont_pidc = get_string_value_from(global, "cont_pidc", TRUE,
-		set->cont_pidc ? set->cont_pidc : CONT_PID);
-
+	if (!set->cont_ppidc)
+		set->cont_ppidc = get_string_value_from(global, "cont_ppidc", TRUE, CONT_PPID);
+	if (!set->cont_pidc)
+		set->cont_pidc = get_string_value_from(global, "cont_pidc", TRUE, CONT_PID);
 	if (!set->cont_cgrp){
 		set->cont_cgrp = get_string_value_from(global, "cont_cgrp", TRUE, CONT_DCKR);
-
+	
+		// create depending virtual file system entry
 		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
 		if (!set->cpusetdfileprefix)
 			err_exit_n(errno, "Could not allocate memory");
@@ -1123,14 +1124,16 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 	}
 
-
 	// filepaths virtual file system
-	set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
-		"/proc/sys/kernel/");
-	set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
+	if (!set->procfileprefix)
+		set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
+			"/proc/sys/kernel/");
+	if (!set->cpusetfileprefix)
+		set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
 		"/sys/fs/cgroup/cpuset/");
-	set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
-		"/sys/devices/system/cpu/";
+	if (!set->cpusystemfileprefix)
+		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
+		"/sys/devices/system/cpu/");
 
 	set->priority = get_int_value_from(global, "duration", TRUE, set->priority);
 
@@ -1138,6 +1141,21 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
 	policy = get_string_value_from(global, "default_policy",
 				       TRUE, "SCHED_OTHER");
+
+
+	// TODO: affinity
+	if (!set->cpusystemfileprefix)
+		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
+		"/sys/devices/system/cpu/");
+
+	// no mask specified, generate default
+	if (AFFINITY_UNSPECIFIED == set->setaffinity){
+		if (!(set->affinity = malloc(10))) // has never been set
+			err_exit("could not allocate memory!\n");
+
+		sprintf(set->affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
+		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, set->affinity);
+	}
 
 	set->logsize = 0;
 
