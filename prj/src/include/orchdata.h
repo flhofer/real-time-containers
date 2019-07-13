@@ -98,16 +98,16 @@
 		char *logdir;				// TODO: path to put log data in
 		char *logbasename;			// TODO: file prefix for logging data
 
+		// signatures and folders
+		char * cont_ppidc;
+		char * cont_pidc;
+		char * cont_cgrp; // CGroup subdirectory configuration for container detection
+
 		// filepaths virtual file system
 		char *procfileprefix;
 		char *cpusetfileprefix;
 		char *cpusystemfileprefix;
 		char *cpusetdfileprefix; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
-
-		// signatures and folders
-		char * cont_ppidc;
-		char * cont_pidc;
-		char * cont_cgrp; // CGroup subdirectory configuration for container detection
 
 		// parameters
 		int priority;				// priority parameter for FIFO and RR

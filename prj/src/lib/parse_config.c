@@ -1065,16 +1065,83 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	info(PFX "Parsing global section");
 	if (!global) {
 		info(PFX " No global section Found: Use default value");
+
+		// TODO set only if NULL
+
+		// logging TODO:
+		if (!(set->logdir = strdup("./")) || 
+			!(set->logbasename = strdup("orchestrator.txt")))
+			err_exit_n(errno, "Can not set parameter");
+		set->logsize = 0;
+
+		// signatures and folders
+		if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
+			!(set->cont_pidc = strdup(CONT_PID)) ||
+			!(set->cont_cgrp = strdup(CONT_DCKR)))
+			err_exit_n(errno, "Can not set parameter");
+
+		// filepaths virtual file system
+		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
+			!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
+			!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
+			err_exit_n(errno, "Can not set parameter");
+
+		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
+		if (!set->cpusetdfileprefix)
+			err_exit_n(errno, "Could not allocate memory");
+
+		*set->cpusetdfileprefix = '\0'; // set first chat to null
+		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+
 		return;
 	}
 
 
-	/*
-	set->duration = get_int_value_from(global, "duration", TRUE, -1);
+	/* Will use default value as set by command line parameters, so to
+		be able to have an override switch */
+
+	// filepaths
+	set->logdir = get_string_value_from(global, "logdir", TRUE, 
+		set->logdir ? set->logdir : "./");
+	set->logbasename = get_string_value_from(global, "log_basename", TRUE,
+		set->logbasename ? set->logbasename : "orchestrator.txt");
+
+	// signatures and folders
+	set->cont_ppidc = get_string_value_from(global, "cont_ppidc", TRUE,
+		set->cont_ppidc ? set->cont_ppidc : CONT_PPID);
+	set->cont_pidc = get_string_value_from(global, "cont_pidc", TRUE,
+		set->cont_pidc ? set->cont_pidc : CONT_PID);
+
+	if (!set->cont_cgrp){
+		set->cont_cgrp = get_string_value_from(global, "cont_cgrp", TRUE, CONT_DCKR);
+
+		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
+		if (!set->cpusetdfileprefix)
+			err_exit_n(errno, "Could not allocate memory");
+
+		*set->cpusetdfileprefix = '\0'; // set first chat to null
+		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+	}
+
+
+	// filepaths virtual file system
+	set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
+		"/proc/sys/kernel/");
+	set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
+		"/sys/fs/cgroup/cpuset/");
+	set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
+		"/sys/devices/system/cpu/";
+
+	set->priority = get_int_value_from(global, "duration", TRUE, set->priority);
+
+	set->interval = get_int_value_from(global, "interval", TRUE, -1);
 	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
 	policy = get_string_value_from(global, "default_policy",
 				       TRUE, "SCHED_OTHER");
-	if (string_to_policy(policy, &set->policy) == 0) {
+
+	set->logsize = 0;
+
+/*	if (string_to_policy(policy, &set->policy) == 0) {
 		log_critical(PFX "Invalid policy %s", policy);
 		exit(EXIT_INV_CONFIG);
 	}
@@ -1144,9 +1211,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		}
 	}
 
-	set->logdir = get_string_value_from(global, "logdir", TRUE, "./");
-	set->logbasename = get_string_value_from(global, "log_basename",
-						  TRUE, "rt-app");
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, 0);
 	set->lock_pages = get_bool_value_from(global, "lock_pages", TRUE, 1);
 	set->pi_enabled = get_bool_value_from(global, "pi_enabled", TRUE, 0);
@@ -1166,29 +1230,20 @@ static void parse_global(struct json_object *global, prgset_t *set)
 void config_set_default(prgset_t *set) {
 
 	// logging TODO:
-	if (!(set->logdir = strdup("./")) || 
-		!(set->logbasename = strdup("orchestrator.txt")))
-		err_exit_n(errno, "Can not set parameter");
+	set->logdir = NULL; 
+	set->logbasename = NULL;
 	set->logsize = 0;
 
-	// signatures and folders
-	if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
-		!(set->cont_pidc = strdup(CONT_PID)) ||
-		!(set->cont_cgrp = strdup(CONT_DCKR)))
-		err_exit_n(errno, "Can not set parameter");
+	set->cont_ppidc = NULL;
+	set->cont_pidc = NULL;
+	set->cont_cgrp = NULL;
 
 	// filepaths virtual file system
-	if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
-		!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
-		!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
-		err_exit_n(errno, "Can not set parameter");
+	set->procfileprefix = NULL;
+	set->cpusetfileprefix = NULL;
+	set->cpusystemfileprefix = NULL;
 
-	set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-	if (!set->cpusetdfileprefix)
-		err_exit_n(errno, "Could not allocate memory");
-
-	*set->cpusetdfileprefix = '\0'; // set first chat to null
-	set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+	set->cpusetdfileprefix = NULL;
 
 	// generic parameters
 	set->priority=0;
@@ -1233,10 +1288,19 @@ void config_set_default(prgset_t *set) {
 /// Return value: void (exits with error if needed)
 void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 {
+
+	if (!set) {
+		// empty pointer, create and init structure
+		if ((set=malloc(sizeof(prgset_t))))
+			err_msg("Error allocatinging memory!"); 
+		config_set_default(set);	
+	}
+
 	char *fn = strdup(filename); // TODO: why?
 	struct json_object *root;
 	info(PFX "Reading JSON config from %s", fn);
 	root = json_object_from_file(fn);
+	free(fn);
 
 	// root read successfully?
 	if (root == NULL) 
@@ -1274,6 +1338,5 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 		parse_containers(containers, parm);
 		json_object_put(containers);*/
 		info(PFX "Free json objects");
-
 	} // end parsing JSON
 }
