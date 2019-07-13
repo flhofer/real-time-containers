@@ -11,9 +11,11 @@
 #include <sched.h>			// scheduler functions
 #include <errno.h>			// error numbers and strings
 #include <json-c/json.h>	// libjson-c for parsing
+#include <sys/sysinfo.h>	// system general information
 
 // static library includes
 #include "kernutil.h"		// kernel util data types and functions
+#include "rt-utils.h"	// trace and other utils
 
 #define PFX "[json] "
 #define PFL "         "PFX
@@ -1058,9 +1060,6 @@ parse_containers(struct json_object *containers, parm_t *parm)
 /// Return value: no return value, exits on error
 static void parse_global(struct json_object *global, prgset_t *set)
 {
-	char *policy, *tmp_str;
-	struct json_object *tmp_obj;
-	int scan_cnt;
 
 	info(PFX "Parsing global section");
 	if (!global) {
@@ -1135,18 +1134,36 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
 		"/sys/devices/system/cpu/");
 
-	set->priority = get_int_value_from(global, "duration", TRUE, set->priority);
+	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);
+	set->clocksel = get_int_value_from(global, "clock", TRUE, set->clocksel);
 
-	set->interval = get_int_value_from(global, "interval", TRUE, -1);
-	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
+	{  // char policy block
 
-	policy = get_string_value_from(global, "default_policy",
-				       TRUE, "SCHED_OTHER");
-/*	if (string_to_policy(policy, &set->policy) == 0) {
-		log_critical(PFX "Invalid policy %s", policy);
-		exit(EXIT_INV_CONFIG);
-	}
-	*/
+		char *policy;
+		policy = get_string_value_from(global, "default_policy",
+						   TRUE, "SCHED_OTHER");
+		if (string_to_policy(policy) == 0)
+				err_exit_n(EXIT_INV_CONFIG, PFX "Invalid policy %s", policy);
+		free(policy);
+
+	} // END policy block
+
+	set->quiet = get_int_value_from(global, "quiet", TRUE, set->quiet);
+	set->affother = get_int_value_from(global, "affother", TRUE, set->affother);
+	set->setdflag = get_int_value_from(global, "setdflag", TRUE, set->setdflag);
+	set->interval = get_int_value_from(global, "interval", TRUE, set->interval);
+	set->update_wcet = get_int_value_from(global, "dl_wcet", TRUE, set->update_wcet);
+	set->loops = get_int_value_from(global, "loops", TRUE, set->loops);
+	set->runtime = get_int_value_from(global, "runtime", TRUE, set->runtime);
+	set->psigscan = get_int_value_from(global, "psigscan", TRUE, set->psigscan);
+	set->trackpids = get_int_value_from(global, "trackpids", TRUE, set->trackpids);
+	// dryrun, cli only
+	set->lock_pages = get_int_value_from(global, "lock_pages", TRUE, set->lock_pages);
+	// force, cli only
+	set->smi = get_int_value_from(global, "smi", TRUE, set->smi);
+	set->rrtime = get_int_value_from(global, "rrtime", TRUE, set->rrtime);
+	set->use_fifo = get_int_value_from(global, "use_fifo", TRUE, set->use_fifo);
+	//kernelversion -> runtime parameter
 
 	{ // affinity selection switch block
 		char *setaffinity;
@@ -1154,8 +1171,8 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		setaffinity = get_string_value_from(global, "setaffinity",
 					       TRUE, "AFFINITY_UNSPECIFIED");
 
-		// TODO: function to evaluate string value!
-
+		// function to evaluate string value!
+		set->setaffinity = string_to_affinity(setaffinity);
 		free(setaffinity);
 
 	} // END affinity selection switch block
@@ -1183,87 +1200,10 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	} // END default affinity block 
 
 
-	set->logsize = 0;
+	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, set->gnuplot);
+	set->logsize = get_bool_value_from(global, "logsize", TRUE, set->logsize);
+	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
 
-/*	if (string_to_policy(policy, &set->policy) == 0) {
-		log_critical(PFX "Invalid policy %s", policy);
-		exit(EXIT_INV_CONFIG);
-	}
-	/*
-	 * get_string_value_from allocate the string so with have to free it
-	 * once useless
-	 *//*
-	free(policy);
-
-	tmp_obj = get_in_object(global, "calibration", TRUE);
-	if (tmp_obj == NULL) {
-		/* no setting ? Calibrate CPU0 *//*
-		set->calib_cpu = 0;
-		set->calib_ns_per_loop = 0;
-		log_error("missing calibration setting force CPU0");
-	} else {
-		if (json_object_is_type(tmp_obj, json_type_int)) {
-			/* integer (no " ") detected. *//*
-			set->calib_ns_per_loop = json_object_get_int(tmp_obj);
-			log_debug("ns_per_loop %d", set->calib_ns_per_loop);
-		} else {
-			/* Get CPU number *//*
-			tmp_str = get_string_value_from(global, "calibration",
-					 TRUE, "CPU0");
-			scan_cnt = sscanf(tmp_str, "CPU%d", &set->calib_cpu);
-			/*
-			 * get_string_value_from allocate the string so with have to free it
-			 * once useless
-			 *//*
-			free(tmp_str);
-			if (!scan_cnt) {
-				log_critical(PFX "Invalid calibration CPU%d", set->calib_cpu);
-				exit(EXIT_INV_CONFIG);
-			}
-			log_debug("calibrating CPU%d", set->calib_cpu);
-		}
-	}
-
-	tmp_obj = get_in_object(global, "log_size", TRUE);
-	if (tmp_obj == NULL) {
-		/* no size ? use file system *//*
-		set->logsize = -2;
-	} else {
-		if (json_object_is_type(tmp_obj, json_type_int)) {
-			/* integer (no " ") detected. *//*
-			/* buffer size is set in MB *//*
-			set->logsize = json_object_get_int(tmp_obj) << 20;
-			log_notice("Log buffer size fixed to %dMB per threads", (set->logsize >> 20));
-		} else {
-			/* Get CPU number *//*
-			tmp_str = get_string_value_from(global, "log_size",
-					 TRUE, "disable");
-
-			if (!strcmp(tmp_str, "disable"))
-				set->logsize = 0;
-			else if (!strcmp(tmp_str, "file"))
-				set->logsize = -2;
-			else if (!strcmp(tmp_str, "auto"))
-				set->logsize = -2; /* Automatic buffer size computation is not supported yet so we fall back on file system mode *//*
-			log_debug("Log buffer set to %s mode", tmp_str);
-
-			/*
-			 * get_string_value_from allocate the string so with have to free it
-			 * once useless
-			 *//*
-			free(tmp_str);
-		}
-	}
-
-	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, 0);
-	set->lock_pages = get_bool_value_from(global, "lock_pages", TRUE, 1);
-	set->pi_enabled = get_bool_value_from(global, "pi_enabled", TRUE, 0);
-	set->io_device = get_string_value_from(global, "io_device", TRUE,
-						"/dev/null");
-	set->mem_buffer_size = get_int_value_from(global, "mem_buffer_size",
-							TRUE, DEFAULT_MEM_BUF_SIZE);
-	set->cumulative_slack = get_bool_value_from(global, "cumulative_slack", TRUE, 0);
-	*/
 }
 
 /// config_set_default(): set default program parameters
@@ -1353,34 +1293,51 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 	cont(PFX "Successfully parsed input JSON");
 	cont(PFX "root     : %s", json_object_to_json_string(root));
 
-	{ // begin parsing JSON
+	// begin parsing JSON
 
-		// Sections of settings
-		struct json_object *global, *containers, *resources;
+	// Sections of settings
+	{	// program settings block
 
-		// get program settings
+		struct json_object *global;
 		global = get_in_object(root, "global", TRUE);
 		if (global)
 			cont(PFX "global   : %s", json_object_to_json_string(global));
+		info(PFX "Parsing global");
+		parse_global(global, set);
+		if (!json_object_put(global))
+			err_msg(PFX "Could not free object!");
 
-/*		// get container settings
+	} // END program settings block
+
+	/*
+	{ // container settings block
+
+		struct json_object *containers;
 		containers = get_in_object(root, "containers", FALSE);
 		cont(PFX "containers    : %s", json_object_to_json_string(containers));
+		info(PFX "Parsing containers");
+		parse_containers(containers, parm);
+		if (!json_object_put(containers))
+			err_msg(PFX "Could not free object!");
 
-		// get global resource limits
+	} // END container settings block
+
+	{ // global resource limits block
+
+		struct json_object *resources;
 		resources = get_in_object(root, "resources", TRUE);
 		if (resources)
 			info(PFX "resources: %s", json_object_to_json_string(resources));
-*/
-		info(PFX "Parsing global");
-		parse_global(global, set);
-		json_object_put(global);
-	/*	info(PFX "Parsing resources");
+		info(PFX "Parsing resources");
 		parse_resources(resources, parm);
-		json_object_put(resources);
-		info(PFX "Parsing containers");
-		parse_containers(containers, parm);
-		json_object_put(containers);*/
-		info(PFX "Free json objects");
-	} // end parsing JSON
+		if (!json_object_put(resources))
+			err_msg(PFX "Could not free object!");
+
+	} // END resource limits block
+	*/
+
+	// end parsing JSON
+	if (!json_object_put(root))
+		err_exit(PFX "Could not free objects!");
+
 }

@@ -7,6 +7,9 @@
  * (C) 2008-2009 Clark Williams <williams@redhat.com>
  * (C) 2005-2007 Thomas Gleixner <tglx@linutronix.de>
  */
+
+#include "rt-utils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,13 +17,13 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/syscall.h> /* For SYS_gettid definitions */
-#include "rt-utils.h"
+
 #include "rt-sched.h"
 #include "error.h"
+#include "orchdata.h"
 
 static char debugfileprefix[MAX_PATH];
 
@@ -315,6 +318,19 @@ uint32_t string_to_policy(const char *str)
 
 	return 0; // default to other
 }
+
+uint32_t string_to_affinity(const char *str)
+{
+	if (!strcmp(str, "unspecified"))
+		return AFFINITY_UNSPECIFIED;
+	else if (!strcmp(str, "specified"))
+		return AFFINITY_SPECIFIED;
+	else if (!strcmp(str, "useall"))
+		return AFFINITY_USEALL;
+
+	return 0; // default to other
+}
+
 
 pid_t gettid(void)
 {
