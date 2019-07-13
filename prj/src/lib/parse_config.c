@@ -1139,23 +1139,49 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 	set->interval = get_int_value_from(global, "interval", TRUE, -1);
 	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, 0);
+
 	policy = get_string_value_from(global, "default_policy",
 				       TRUE, "SCHED_OTHER");
+/*	if (string_to_policy(policy, &set->policy) == 0) {
+		log_critical(PFX "Invalid policy %s", policy);
+		exit(EXIT_INV_CONFIG);
+	}
+	*/
 
+	{ // affinity selection switch block
+		char *setaffinity;
 
-	// TODO: affinity
-	if (!set->cpusystemfileprefix)
-		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
-		"/sys/devices/system/cpu/");
+		setaffinity = get_string_value_from(global, "setaffinity",
+					       TRUE, "AFFINITY_UNSPECIFIED");
 
-	// no mask specified, generate default
-	if (AFFINITY_UNSPECIFIED == set->setaffinity){
-		if (!(set->affinity = malloc(10))) // has never been set
+		// TODO: function to evaluate string value!
+
+		free(setaffinity);
+
+	} // END affinity selection switch block
+
+	{  // default affinity mask and selection block
+
+		char *defafin;
+		if (!(defafin = malloc(10))) // has never been set
 			err_exit("could not allocate memory!\n");
 
-		sprintf(set->affinity, "%d-%d", SYSCPUS+1, maxcpu-1);
-		info("using default setting, affinity '%d' and '%s'.\n", SYSCPUS, set->affinity);
-	}
+		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
+
+		// no mask specified, use default
+		if (AFFINITY_UNSPECIFIED == set->setaffinity
+			&& !set->affinity){
+			info("Using default setting, affinity '%d' and '%s'.\n", SYSCPUS, defafin);
+
+			set->affinity = strdup(defafin);
+		}
+		else
+			// read from file
+			set->cpusystemfileprefix = get_string_value_from(global, "affinity", TRUE, defafin);
+
+		free(defafin);
+	} // END default affinity block 
+
 
 	set->logsize = 0;
 
