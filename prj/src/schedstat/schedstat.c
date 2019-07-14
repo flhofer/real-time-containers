@@ -8,7 +8,29 @@
 // header file of configuration parser
 #include "parse_config.h"
 
+// Default stuff, needed form main operation
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> // used for string parsing
+#include <pthread.h>// used for thread management
+#include <unistd.h> // used for POSIX XOPEN constants
+
+#include <sched.h>			// scheduler functions
+#include <linux/sched.h>	// linux specific scheduling
+#include <linux/types.h>	// data structure types, short names and linked list
+#include <signal.h> 		// for SIGs, handling in main, raise in update
+#include <fcntl.h>			// file control, new open/close functions
+#include <dirent.h>			// dir enttry structure and expl
+#include <errno.h>			// error numbers and strings
+
+// Custmom includes
+#include "rt-utils.h"	// trace and other utils
+#include "kernutil.h"	// generic kernel utilities
+#include "error.h"		// error and strerr print functions
+
 // Things that should be needed only here
+#include <pthread.h>// used for thread management
+
 #include <sys/mman.h>		// mlock
 #include <numa.h>			// numa node ident
 #include <getopt.h>			// command line parsing

@@ -1,3 +1,5 @@
+#include "orchdata.h"	// memory structure to store information
+
 #ifndef __UPDATE_H_
 	#define __UPDATE_H_
 
@@ -22,14 +24,6 @@
 		char * psig; 
 		char * contid;
 	} pidinfo_t;
-
-	// settings from schedstat.h
-	// Parameters and runtime values ----- 
-	// values set at startup in main thread, never changed there anymore
-	extern prgset_t * prgset; // read only programm setings structure
-
-	extern pthread_mutex_t dataMutex;
-	extern node_t * head;
 
 	void *thread_update (void *arg); // thread that verifies status and allocates new threads
 

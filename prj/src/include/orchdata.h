@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+
+// Custmom includes
 #include "rt-sched.h" // temporary as libc does not include new sched yet
 #include "error.h"		// error and strerr print functions
 
@@ -39,7 +41,6 @@
 		AFFINITY_SPECIFIED,	 	// user defined settings
 		AFFINITY_USEALL			// go for all!!
 	};
-
 
 	struct sched_rscs { // resources 
 		int32_t affinity; // exclusive cpu-num

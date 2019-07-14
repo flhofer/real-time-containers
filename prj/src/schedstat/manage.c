@@ -1,12 +1,34 @@
-#include "schedstat.h"
 #include "manage.h"
+#include "schedstat.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> // used for string parsing
+#include <pthread.h>// used for thread management
+#include <unistd.h> // used for POSIX XOPEN constants
+
+#include <sched.h>			// scheduler functions
+#include <linux/sched.h>	// linux specific scheduling
+#include <linux/types.h>	// data structure types, short names and linked list
+#include <signal.h> 		// for SIGs, handling in main, raise in update
+#include <fcntl.h>			// file control, new open/close functions
+#include <dirent.h>			// dir enttry structure and expl
+#include <errno.h>			// error numbers and strings
+
+// Custmom includes
+#include "rt-utils.h"	// trace and other utils
+#include "kernutil.h"	// generic kernel utilities
+#include "error.h"		// error and strerr print functions
+#include "jsmn.h"
 
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <numa.h>			// numa node ident
 
-// Global variables used here ->
+#define JSMN_STRICT // force json conformance when parsing
+#define MAX_UL 0.90
+#define JSN_READ 65	// Json string value read length, must be longer than SIG_LEN
 
 // parameter tree linked list head, resource linked list head
 static parm_t * phead;

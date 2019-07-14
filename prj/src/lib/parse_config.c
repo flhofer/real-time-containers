@@ -1304,7 +1304,7 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 			cont(PFX "global   : %s", json_object_to_json_string(global));
 		info(PFX "Parsing global");
 		parse_global(global, set);
-		if (!json_object_put(global))
+		if (global && !json_object_put(global))
 			err_msg(PFX "Could not free object!");
 
 	} // END program settings block
@@ -1330,7 +1330,7 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 			info(PFX "resources: %s", json_object_to_json_string(resources));
 		info(PFX "Parsing resources");
 		parse_resources(resources, parm);
-		if (!json_object_put(resources))
+		if (resources && !json_object_put(resources))
 			err_msg(PFX "Could not free object!");
 
 	} // END resource limits block
