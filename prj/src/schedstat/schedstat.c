@@ -585,6 +585,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	int option_index = 0;
 	int optargs = 0;
 #ifdef DEBUG
+	dbg_out = fopen("/dev/null", "w");
 	int verbose = 0;
 #endif
 
@@ -782,6 +783,13 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		}
 	}
 
+#ifdef DEBUG
+	if (verbose) {
+		fclose(dbg_out);
+		dbg_out = stderr;
+	}
+#endif
+
 	// look for filename after options, we process only first
 	if (optind+optargs < argc)
 	{
@@ -802,13 +810,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	if (!error)
 		// parse json configuration
 		parse_config(strdup(config), set, tmpparm);
-
-#ifdef DEBUG
-	if (verbose)
-		dbg_out = stderr;
-	else
-		dbg_out = fopen("/dev/null", "w");
-#endif
 
 	if (set->smi) { // TODO: verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)

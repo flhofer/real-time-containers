@@ -47,7 +47,7 @@
 #define set_default_if_needed(key, value, have_def, def_value) do {	\
 	if (!value) {							\
 		if (have_def) {						\
-			info(PIN "key: %s <default> %d", key, def_value);\
+			printDbg(PIN "key: %s <default> %d\n", key, def_value);\
 			return def_value;				\
 		} else {						\
 			err_msg(PFX "Key %s not found", key);	\
@@ -62,10 +62,10 @@
 	if (!value) {							\
 		if (have_def) {						\
 			if (!def_value) {				\
-				info(PIN "key: %s <default> NULL", key);\
+				printDbg(PIN "key: %s <default> NULL\n", key);\
 				return NULL;						\
 			}										\
-			info(PIN "key: %s <default> %s",		\
+			printDbg(PIN "key: %s <default> %s\n",		\
 				  key, def_value);					\
 			return strdup(def_value);				\
 		} else {									\
@@ -127,7 +127,7 @@ get_int_value_from(struct json_object *where,
 	set_default_if_needed(key, value, have_def, def_value);
 	assure_type_is(value, where, key, json_type_int);
 	i_value = json_object_get_int(value);
-	info(PIN "key: %s, value: %d, type <int>", key, i_value);
+	printDbg(PIN "key: %s, value: %d, type <int>\n", key, i_value);
 	return i_value;
 }
 
@@ -143,7 +143,7 @@ get_bool_value_from(struct json_object *where,
 	set_default_if_needed(key, value, have_def, def_value);
 	assure_type_is(value, where, key, json_type_boolean);
 	b_value = json_object_get_boolean(value);
-	info(PIN "key: %s, value: %d, type <bool>", key, b_value);
+	printDbg(PIN "key: %s, value: %d, type <bool>\n", key, b_value);
 	return b_value;
 }
 
@@ -158,19 +158,19 @@ get_string_value_from(struct json_object *where,
 	value = get_in_object(where, key, have_def);
 	set_default_if_needed_str(key, value, have_def, def_value);
 	if (json_object_is_type(value, json_type_null)) {
-		info(PIN "key: %s, value: NULL, type <string>", key);
+		printDbg(PIN "key: %s, value: NULL, type <string>\n", key);
 		return NULL;
 	}
 	assure_type_is(value, where, key, json_type_string);
 	s_value = strdup(json_object_get_string(value));
-	info(PIN "key: %s, value: %s, type <string>", key, s_value);
+	printDbg(PIN "key: %s, value: %s, type <string>\n", key, s_value);
 	return s_value;
 }
 
 /*
 static void init_mutex_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s mutex", data->name);
+	printDbg(PIN3 "Init: %s mutex\n", data->name);
 
 	pthread_mutexattr_init(&data->res.mtx.attr);
 	if (parm->pi_enabled) {
@@ -184,14 +184,14 @@ static void init_mutex_resource(rtapp_resource_t *data, const parm_t *parm)
 
 static void init_timer_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s timer", data->name);
+	printDbg(PIN3 "Init: %s timer\n", data->name);
 	data->res.timer.init = 0;
 	data->res.timer.relative = 1;
 }
 
 static void init_cond_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s wait", data->name);
+	printDbg(PIN3 "Init: %s wait\n", data->name);
 
 	pthread_condattr_init(&data->res.cond.attr);
 	pthread_cond_init(&data->res.cond.obj,
@@ -200,7 +200,7 @@ static void init_cond_resource(rtapp_resource_t *data, const parm_t *parm)
 
 static void init_membuf_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s membuf", data->name);
+	printDbg(PIN3 "Init: %s membuf\n", data->name);
 
 	data->res.buf.ptr = malloc(parm->mem_buffer_size);
 	data->res.buf.size = parm->mem_buffer_size;
@@ -208,14 +208,14 @@ static void init_membuf_resource(rtapp_resource_t *data, const parm_t *parm)
 
 static void init_iodev_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s io device", data->name);
+	printDbg(PIN3 "Init: %s io device\n", data->name);
 
 	data->res.dev.fd = open(parm->io_device, O_CREAT | O_WRONLY, 0644);
 }
 
 static void init_barrier_resource(rtapp_resource_t *data, const parm_t *parm)
 {
-	info(PIN3 "Init: %s barrier", data->name);
+	printDbg(PIN3 "Init: %s barrier\n", data->name);
 
 	/* each task waiting for this resource will increment this counter.
 	 * start at -1 so that when we see this is zero we are the last man
@@ -277,7 +277,7 @@ parse_resource_data(const char *name, struct json_object *obj, int idx,
 	char *type;
 	char def_type[RTAPP_RESOURCE_DESCR_LENGTH];
 
-	info(PFX "Parsing resources %s [%d]", name, idx);
+	printDbg(PFX "Parsing resources %s [%d]\n", name, idx);
 
 	/* resource type *//*
 	resource_to_string(0, def_type);
@@ -304,7 +304,7 @@ add_resource_data(const char *name, int type, rtapp_resources_t **resources_tabl
 
 	idx = table->nresources;
 
-	info(PIN2 "Add new resource %s [%d] type %d", name, idx, type);
+	printDbg(PIN2 "Add new resource %s [%d] type %d\n", name, idx, type);
 
 	table->nresources++;
 
@@ -313,7 +313,7 @@ add_resource_data(const char *name, int type, rtapp_resources_t **resources_tabl
 	*resources_table = realloc(*resources_table, size);
 
 	if (!*resources_table) {
-		log_error("Failed to allocate memory for resource %s", name);
+		err_msg("Failed to allocate memory for resource %s", name);
 		return -1;
 	}
 
@@ -332,7 +332,7 @@ parse_resources(struct json_object *resources, parm_t *parm)
 	struct lh_entry *entry; char *key; struct json_object *val; int idx;
 	int size;
 
-	info(PFX "Parsing resource section");
+	printDbg(PFX "Parsing resource section\n");
 
 	/*
 	 * Create at least an "empty" struct that will then be filled either will
@@ -340,14 +340,14 @@ parse_resources(struct json_object *resources, parm_t *parm)
 	 *//*
 	parm->resources = malloc(sizeof(rtapp_resources_t));
 	if (!parm->resources) {
-		log_error("Failed to allocate memory for resources");
+		err_msg("Failed to allocate memory for resources");
 		exit(EXIT_FAILURE);
 	}
 
 	parm->resources->nresources = 0;
 
 	if (!resources) {
-		info(PFX "No resource section Found");
+		printDbg(PFX "No resource section Found\n");
 		return;
 	}
 
@@ -357,12 +357,12 @@ parse_resources(struct json_object *resources, parm_t *parm)
 			parm->resources->nresources++;
 		}
 
-		info(PFX "Found %d Resources", parm->resources->nresources);
+		printDbg(PFX "Found %d Resources\n", parm->resources->nresources);
 		size = sizeof(rtapp_resources_t) + sizeof(rtapp_resource_t) * parm->resources->nresources;
 
 		parm->resources = realloc(parm->resources, size);
 		if (!parm->resources) {
-				log_error("Failed to allocate memory for resources");
+				err_msg("Failed to allocate memory for resources");
 				exit(EXIT_FAILURE);
 		}
 
@@ -377,7 +377,7 @@ static int get_resource_index(const char *name, int type, rtapp_resources_t **re
 	int nresources = (*resources_table)->nresources;
 	rtapp_resource_t *resources = (*resources_table)->resources;
 	int i = 0;
-	info(PIN "get_resource_index %d events", nresources);
+	printDbg(PIN "get_resource_index %d events\n", nresources);
 
 	while ((i < nresources) && ((strcmp(resources[i].name, name) != 0) || (resources[i].type != type)))
 		i++;
@@ -421,7 +421,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		else
 			data->type = rtapp_run;
 
-		info(PIN2 "type %d duration %d", data->type, data->duration);
+		printDbg(PIN2 "type %d duration %d\n", data->type, data->duration);
 		return;
 	}
 
@@ -447,7 +447,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		else
 			data->type = rtapp_iorun;
 
-		info(PIN2 "type %d count %d", data->type, data->count);
+		printDbg(PIN2 "type %d count %d\n", data->type, data->count);
 		return;
 	}
 
@@ -469,7 +469,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 
 		rdata = &((*resources_table)->resources[data->res]);
 
-		info(PIN2 "type %d target %s [%d]", data->type, rdata->name, rdata->index);
+		printDbg(PIN2 "type %d target %s [%d]\n", data->type, rdata->name, rdata->index);
 		return;
 	}
 
@@ -491,7 +491,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 
 		rdata = &((*resources_table)->resources[data->res]);
 
-		info(PIN2 "type %d target %s [%d]", data->type, rdata->name, rdata->index);
+		printDbg(PIN2 "type %d target %s [%d]\n", data->type, rdata->name, rdata->index);
 		return;
 	}
 
@@ -526,7 +526,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		rdata = &((*resources_table)->resources[data->res]);
 		ddata = &((*resources_table)->resources[data->dep]);
 
-		info(PIN2 "type %d target %s [%d] mutex %s [%d]", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
+		printDbg(PIN2 "type %d target %s [%d] mutex %s [%d]\n", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
 		return;
 	}
 
@@ -544,7 +544,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		rdata = &((*resources_table)->resources[data->res]);
 		rdata->res.barrier.waiting += 1;
 
-		info(PIN2 "type %d target %s [%d] %d users so far", data->type, rdata->name, rdata->index, rdata->res.barrier.waiting);
+		printDbg(PIN2 "type %d target %s [%d] %d users so far\n", data->type, rdata->name, rdata->index, rdata->res.barrier.waiting);
 		return;
 	}
 
@@ -578,7 +578,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 			rdata->res.timer.relative = 0;
 		free(tmp);
 
-		info(PIN2 "type %d target %s [%d] period %d", data->type, rdata->name, rdata->index, data->duration);
+		printDbg(PIN2 "type %d target %s [%d] period %d\n", data->type, rdata->name, rdata->index, data->duration);
 		return;
 	}
 
@@ -602,7 +602,7 @@ parse_task_event_data(char *name, struct json_object *obj,
 		rdata = &((*resources_table)->resources[data->res]);
 		ddata = &((*resources_table)->resources[data->dep]);
 
-		info(PIN2 "type %d target %s [%d] mutex %s [%d]", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
+		printDbg(PIN2 "type %d target %s [%d] mutex %s [%d]\n", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
 		return;
 	}
 
@@ -626,13 +626,13 @@ parse_task_event_data(char *name, struct json_object *obj,
 		rdata = &((*resources_table)->resources[data->res]);
 		ddata = &((*resources_table)->resources[data->dep]);
 
-		info(PIN2 "type %d target %s [%d] mutex %s [%d]", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
+		printDbg(PIN2 "type %d target %s [%d] mutex %s [%d]\n", data->type, rdata->name, rdata->index, ddata->name, ddata->index);
 		return;
 	}
 
 	if (!strncmp(name, "yield", strlen("yield"))) {
 		data->type = rtapp_yield;
-		info(PIN2 "type %d", data->type);
+		printDbg(PIN2 "type %d\n", data->type);
 		return;
 	}
 
@@ -656,21 +656,21 @@ parse_task_event_data(char *name, struct json_object *obj,
 		rdata->res.fork.nforks = 0;
 
 		if (!rdata->res.fork.ref) {
-			log_error("Failed to duplicate ref");
+			err_msg("Failed to duplicate ref");
 			exit(EXIT_FAILURE);
 		}
 
-		info(PIN2 "type %d target %s [%d]", data->type, rdata->name, rdata->index);
+		printDbg(PIN2 "type %d target %s [%d]\n", data->type, rdata->name, rdata->index);
 		return;
 	}
 
-	log_error(PIN2 "Resource %s not found in the resource section !!!", ref);
-	log_error(PIN2 "Please check the resource name or the resource section");
+	err_msg(PIN2 "Resource %s not found in the resource section !!!", ref);
+	err_msg(PIN2 "Please check the resource name or the resource section");
 
 unknown_event:
 	data->duration = 0;
 	data->type = rtapp_run;
-	log_error(PIN2 "Unknown or mismatch %s event type !!!", name);
+	err_msg(PIN2 "Unknown or mismatch %s event type !!!", name);
 
 }
 
@@ -741,7 +741,7 @@ static void parse_cpuset_data(struct json_object *obj, cpuset_data_t *data)
 		data->cpuset = NULL;
 		data->cpusetsize = 0;
 	}
-	info(PIN "key: cpus %s", data->cpuset_str);
+	printDbg(PIN "key: cpus %s\n", data->cpuset_str);
 }
 
 static sched_data_t *parse_sched_data(struct json_object *obj, int def_policy)
@@ -869,7 +869,7 @@ parse_task_phase_data(struct json_object *obj,
 	struct lh_entry *entry; char *key; struct json_object *val; int idx;
 	int i;
 
-	info(PFX "Parsing phase");
+	printDbg(PFX "Parsing phase\n");
 
 	/* loop *//*
 	data->loop = get_int_value_from(obj, "loop", TRUE, 1);
@@ -887,7 +887,7 @@ parse_task_phase_data(struct json_object *obj,
 
 	}
 
-	info(PIN "Found %d events", data->nbevents);
+	printDbg(PIN "Found %d events\n", data->nbevents);
 
 	data->events = malloc(data->nbevents * sizeof(event_data_t));
 
@@ -895,7 +895,7 @@ parse_task_phase_data(struct json_object *obj,
 	i = 0;
 	foreach(obj, entry, key, val, idx) {
 		if (obj_is_event(key)) {
-			info(PIN "Parsing event %s", key);
+			printDbg(PIN "Parsing event %s", key);
 			parse_task_event_data(key, val, &data->events[i], tdata, parm);
 			i++;
 		}
@@ -911,7 +911,7 @@ parse_task_data(char *name, struct json_object *obj, int index,
 {
 	struct json_object *phases_obj, *resources;
 
-	info(PFX "Parsing task %s [%d]", name, index);
+	printDbg(PFX "Parsing task %s [%d]\n", name, index);
 
 	/* common and defaults *//*
 	/*
@@ -926,7 +926,7 @@ parse_task_data(char *name, struct json_object *obj, int index,
 	 *//*
 	data->local_resources = malloc(sizeof(rtapp_resources_t));
 	if (!data->local_resources) {
-		log_error("Failed to allocate memory for local resources");
+		err_msg("Failed to allocate memory for local resources");
 		exit(EXIT_FAILURE);
 	}
 
@@ -971,16 +971,16 @@ parse_task_data(char *name, struct json_object *obj, int index,
 		assure_type_is(phases_obj, obj, "phases",
 					json_type_object);
 
-		info(PIN "Parsing phases section");
+		printDbg(PIN "Parsing phases section\n");
 		data->nphases = 0;
 		foreach(phases_obj, entry, key, val, idx) {
 			data->nphases++;
 		}
 
-		info(PIN "Found %d phases", data->nphases);
+		printDbg(PIN "Found %d phases\n", data->nphases);
 		data->phases = malloc(sizeof(phase_data_t) * data->nphases);
 		foreach(phases_obj, entry, key, val, idx) {
-			info(PIN "Parsing phase %s", key);
+			printDbg(PIN "Parsing phase %s\n", key);
 			assure_type_is(val, phases_obj, key, json_type_object);
 			parse_task_phase_data(val, &data->phases[idx], data, parm);
 			/*
@@ -1041,7 +1041,7 @@ parse_containers(struct json_object *containers, parm_t *parm)
 	int i = 0;
 	int instance;
 
-	info(PFX "Parsing containers section");
+	printDbg(PFX "Parsing containers section\n");
 	parm->nthreads = 0;
 	parm->num_tasks = 0;
 	foreach(containers, entry, key, val, idx) {
@@ -1051,7 +1051,7 @@ parse_containers(struct json_object *containers, parm_t *parm)
 		parm->num_tasks++;
 	}
 
-	info(PFX "Found %d threads of %d containers", parm->nthreads, parm->num_tasks);
+	printDbg(PFX "Found %d threads of %d containers\n", parm->nthreads, parm->num_tasks);
 
 	/*
 	 * Parse thread data of defined containers so that we can use them later
@@ -1072,9 +1072,9 @@ parse_containers(struct json_object *containers, parm_t *parm)
 static void parse_global(struct json_object *global, prgset_t *set)
 {
 
-	info(PFX "Parsing global section");
+	printDbg(PFX "Parsing global section\n");
 	if (!global) {
-		info(PFX " No global section Found: Use default value");
+		printDbg(PFX " No global section Found: Use default value\n");
 
 		// TODO set only if NULL
 
@@ -1202,7 +1202,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		// no mask specified, use default
 		if (AFFINITY_UNSPECIFIED == set->setaffinity
 			&& !set->affinity){
-			info("Using default setting, affinity '%d' and '%s'.\n", SYSCPUS, defafin);
+			printDbg(PIN2 "Using default setting, affinity '%d' and '%s'.\n", SYSCPUS, defafin);
 
 			set->affinity = strdup(defafin);
 		}
@@ -1296,7 +1296,7 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 
 	char *fn = strdup(filename); // TODO: why?
 	struct json_object *root;
-	info(PFX "Reading JSON config from %s", fn);
+	printDbg(PFX "Reading JSON config from %s\n", fn);
 	root = json_object_from_file(fn);
 	free(fn);
 
@@ -1306,8 +1306,8 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 		exit(EXIT_INV_CONFIG);
 	}
 	
-	cont(PFX "Successfully parsed input JSON");
-	cont(PFX "root     : %s", json_object_to_json_string(root));
+	printDbg(PFX "Successfully parsed input JSON\n");
+	printDbg(PFX "root     : %s\n", json_object_to_json_string(root));
 
 	// begin parsing JSON
 
@@ -1317,8 +1317,8 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 		struct json_object *global;
 		global = get_in_object(root, "global", TRUE);
 		if (global)
-			cont(PFX "global   : %s", json_object_to_json_string(global));
-		info(PFX "Parsing global");
+			printDbg(PFX "global   : %s\n", json_object_to_json_string(global));
+		printDbg(PFX "Parsing global\n");
 		parse_global(global, set);
 		if (global && !json_object_put(global))
 			err_msg(PFX "Could not free object!");
@@ -1330,8 +1330,8 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 
 		struct json_object *containers;
 		containers = get_in_object(root, "containers", FALSE);
-		cont(PFX "containers    : %s", json_object_to_json_string(containers));
-		info(PFX "Parsing containers");
+		printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
+		printDbg(PFX "Parsing containers\n");
 		parse_containers(containers, parm);
 		if (!json_object_put(containers))
 			err_msg(PFX "Could not free object!");
@@ -1343,8 +1343,8 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 		struct json_object *resources;
 		resources = get_in_object(root, "resources", TRUE);
 		if (resources)
-			info(PFX "resources: %s", json_object_to_json_string(resources));
-		info(PFX "Parsing resources");
+			printDbg(PFX "resources: %s\n", json_object_to_json_string(resources));
+		printDbg(PFX "Parsing resources\n");
 		parse_resources(resources, parm);
 		if (resources && !json_object_put(resources))
 			err_msg(PFX "Could not free object!");
