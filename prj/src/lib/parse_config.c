@@ -49,8 +49,10 @@
 		if (have_def) {						\
 			info(PIN "key: %s <default> %d", key, def_value);\
 			return def_value;				\
-		} else 						\
-			err_exit_n(EXIT_INV_CONFIG, PFX "Key %s not found", key);	\
+		} else {						\
+			err_msg(PFX "Key %s not found", key);	\
+			exit(EXIT_INV_CONFIG);	\
+		}							\
 	}								\
 } while(0)
 
@@ -61,14 +63,16 @@
 		if (have_def) {						\
 			if (!def_value) {				\
 				info(PIN "key: %s <default> NULL", key);\
-				return NULL;				\
-			}						\
+				return NULL;						\
+			}										\
 			info(PIN "key: %s <default> %s",		\
-				  key, def_value);			\
-			return strdup(def_value);			\
-		} else 						\
-			err_exit_n(EXIT_INV_CONFIG, PFX "Key %s not found", key);	\
-	}								\
+				  key, def_value);					\
+			return strdup(def_value);				\
+		} else {									\
+			err_msg(PFX "Key %s not found", key);	\
+			exit(EXIT_INV_CONFIG);					\
+		}											\
+	}												\
 }while (0)
 
 /* get an object obj and check if its type is <type>. If not, print a message
@@ -82,7 +86,8 @@ assure_type_is(struct json_object *obj,
 {
 	if (!json_object_is_type(obj, type)) {
 		err_msg("Invalid type for key %s", key);
-		err_exit_n(EXIT_INV_CONFIG, "%s", json_object_to_json_string(parent));
+		err_msg("%s", json_object_to_json_string(parent));
+		exit(EXIT_INV_CONFIG);
 	}
 }
 
@@ -96,11 +101,17 @@ get_in_object(struct json_object *where,
 	struct json_object *to;
 	json_bool ret;
 	ret = json_object_object_get_ex(where, what, &to);
-	if (!nullable && !ret)
-		err_exit_n(EXIT_INV_CONFIG, PFX "Error while parsing config\n" PFL);
+	if (!nullable && !ret){
+		err_msg(PFX "Error while parsing config\n" PFL);
+		exit(EXIT_INV_CONFIG);
+	}
 
-	if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) 
-		err_exit_n(EXIT_INV_CONFIG, PFX "Cannot find key %s", what);
+
+	if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) {
+		err_msg(PFX "Cannot find key %s", what);
+		exit(EXIT_INV_CONFIG);
+	}
+
 	return to;
 }
 
@@ -1106,6 +1117,18 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->logbasename = get_string_value_from(global, "log_basename", TRUE,
 			"orchestrator.txt");
 
+	// filepaths virtual file system
+	if (!set->procfileprefix)
+		set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
+			"/proc/sys/kernel/");
+	if (!set->cpusetfileprefix)
+		set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
+		"/sys/fs/cgroup/cpuset/");
+	if (!set->cpusystemfileprefix)
+		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
+		"/sys/devices/system/cpu/");
+	// one comes later
+
 	// signatures and folders
 	if (!set->cont_ppidc)
 		set->cont_ppidc = get_string_value_from(global, "cont_ppidc", TRUE, CONT_PPID);
@@ -1123,17 +1146,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 	}
 
-	// filepaths virtual file system
-	if (!set->procfileprefix)
-		set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
-			"/proc/sys/kernel/");
-	if (!set->cpusetfileprefix)
-		set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
-		"/sys/fs/cgroup/cpuset/");
-	if (!set->cpusystemfileprefix)
-		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
-		"/sys/devices/system/cpu/");
-
 	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);
 	set->clocksel = get_int_value_from(global, "clock", TRUE, set->clocksel);
 
@@ -1142,27 +1154,29 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		char *policy;
 		policy = get_string_value_from(global, "default_policy",
 						   TRUE, "SCHED_OTHER");
-		if (string_to_policy(policy) == 0)
-				err_exit_n(EXIT_INV_CONFIG, PFX "Invalid policy %s", policy);
+		if (string_to_policy(policy, &set->policy)) {
+			err_msg(PFX "Invalid policy %s", policy);
+			exit(EXIT_INV_CONFIG);
+		}
 		free(policy);
 
 	} // END policy block
 
-	set->quiet = get_int_value_from(global, "quiet", TRUE, set->quiet);
-	set->affother = get_int_value_from(global, "affother", TRUE, set->affother);
-	set->setdflag = get_int_value_from(global, "setdflag", TRUE, set->setdflag);
+	set->quiet = get_bool_value_from(global, "quiet", TRUE, set->quiet);
+	set->affother = get_bool_value_from(global, "affother", TRUE, set->affother);
+	set->setdflag = get_bool_value_from(global, "setdflag", TRUE, set->setdflag);
 	set->interval = get_int_value_from(global, "interval", TRUE, set->interval);
 	set->update_wcet = get_int_value_from(global, "dl_wcet", TRUE, set->update_wcet);
 	set->loops = get_int_value_from(global, "loops", TRUE, set->loops);
 	set->runtime = get_int_value_from(global, "runtime", TRUE, set->runtime);
-	set->psigscan = get_int_value_from(global, "psigscan", TRUE, set->psigscan);
-	set->trackpids = get_int_value_from(global, "trackpids", TRUE, set->trackpids);
+	set->psigscan = get_bool_value_from(global, "psigscan", TRUE, set->psigscan);
+	set->trackpids = get_bool_value_from(global, "trackpids", TRUE, set->trackpids);
 	// dryrun, cli only
-	set->lock_pages = get_int_value_from(global, "lock_pages", TRUE, set->lock_pages);
+	set->lock_pages = get_bool_value_from(global, "lock_pages", TRUE, set->lock_pages);
 	// force, cli only
-	set->smi = get_int_value_from(global, "smi", TRUE, set->smi);
+	set->smi = get_bool_value_from(global, "smi", TRUE, set->smi);
 	set->rrtime = get_int_value_from(global, "rrtime", TRUE, set->rrtime);
-	set->use_fifo = get_int_value_from(global, "use_fifo", TRUE, set->use_fifo);
+	set->use_fifo = get_bool_value_from(global, "use_fifo", TRUE, set->use_fifo);
 	//kernelversion -> runtime parameter
 
 	{ // affinity selection switch block
@@ -1181,7 +1195,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 		char *defafin;
 		if (!(defafin = malloc(10))) // has never been set
-			err_exit("could not allocate memory!\n");
+			err_exit("could not allocate memory!");
 
 		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
 
@@ -1287,8 +1301,10 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 	free(fn);
 
 	// root read successfully?
-	if (root == NULL) 
-		err_exit_n(EXIT_INV_CONFIG, PFX "Error while parsing input JSON");
+	if (root == NULL) {
+		err_msg(PFX "Error while parsing input JSON");
+		exit(EXIT_INV_CONFIG);
+	}
 	
 	cont(PFX "Successfully parsed input JSON");
 	cont(PFX "root     : %s", json_object_to_json_string(root));

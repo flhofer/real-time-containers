@@ -768,7 +768,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
-			set->policy = string_to_policy(optarg); break;
+			if (string_to_policy(optarg, &set->policy) == 0)
+				err_exit("Invalid policy %s", optarg);
+
+			break;
 		case OPT_SMI:
 #ifdef ARCH_HAS_SMI_COUNTER
 			set->smi = 1;

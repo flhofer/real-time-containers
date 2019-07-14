@@ -269,7 +269,7 @@ static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, in
 			case 3: ; // schedule policy 
 					char c[JSN_READ]; // buffer size for tem
 					sprintf(c, "%.*s", t->end - t->start, js+t->start);
-					phead->attr.sched_policy = string_to_policy(c);
+					(void)string_to_policy(c, &phead->attr.sched_policy);
 					printDbg("JSON: setting scheduler to '%s'", policy_to_string(phead->attr.sched_policy));
 					break;
 

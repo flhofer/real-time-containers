@@ -1,38 +1,42 @@
 {
- "containers" :
-[
-{
-	"contid" : "d7408531a3b4",
-	"res" : {
-		"affinity" : 2,
+ "global" : {
+	"lock_pages" : true,
+	"setdflag" : true,
+	"interval" : 6000,
 	},
-},
-{
-	"contid" : "a2aa8c37ce4c",
-	"res" : {
-		"affinity" : 2,
-	},
-},
-{
-	"contid" : "4efcb6c965de",
-	"params" : {
-		"policy" : "deadline",
-		"flags"  : 0,
-		"nice"   : 0,
-		"prio"   : 0,
-		"runtime": 1000000,
-		"deadline": 4000000,
-		"period" : 4000000
-	},
-	"res" : {
-		"affinity" : -1,
-	},
-},
-{
-	"cmd" : "rt-app",
-	"res" : {
-		"affinity" : -1,
-	},
-}
-]
+ "containers" : [
+		{
+			"contid" : "d7408531a3b4",
+			"res" : {
+				"affinity" : 2,
+			},
+		},
+		{
+			"contid" : "a2aa8c37ce4c",
+			"res" : {
+				"affinity" : 2,
+			},
+		},
+		{
+			"contid" : "4efcb6c965de",
+			"params" : {
+				"policy" : "deadline",
+				"flags"  : 0,
+				"nice"   : 0,
+				"prio"   : 0,
+				"runtime": 1000000,
+				"deadline": 4000000,
+				"period" : 4000000
+			},
+			"res" : {
+				"affinity" : -1,
+			},
+		},
+		{
+			"cmd" : "rt-app",
+			"res" : {
+				"affinity" : -1,
+			},
+		}
+	]
 }

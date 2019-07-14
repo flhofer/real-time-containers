@@ -301,22 +301,23 @@ const char *policy_to_string(int policy)
 	return "unknown";
 }
 
-uint32_t string_to_policy(const char *str)
+int string_to_policy(const char *policy_name, uint32_t *policy)
 {
-	if (!strcmp(str, "other"))
-		return SCHED_OTHER;
-	else if (!strcmp(str, "fifo"))
-		return SCHED_FIFO;
-	else if (!strcmp(str, "rr"))
-		return SCHED_RR;
-	else if (!strcmp(str, "batch"))
-		return SCHED_BATCH;
-	else if (!strcmp(str, "idle"))
-		return SCHED_IDLE;
-	else if (!strcmp(str, "deadline"))
-		return SCHED_DEADLINE;
-
-	return 0; // default to other
+	if (strcmp(policy_name, "SCHED_OTHER") == 0)
+		*policy = SCHED_OTHER;
+	else if (strcmp(policy_name, "SCHED_IDLE") == 0)
+		*policy = SCHED_IDLE;
+	else if (strcmp(policy_name, "SCHED_BATCH") == 0)
+		*policy = SCHED_BATCH;
+	else if (strcmp(policy_name, "SCHED_RR") == 0)
+		*policy =  SCHED_RR;
+	else if (strcmp(policy_name, "SCHED_FIFO") == 0)
+		*policy =  SCHED_FIFO;
+	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
+		*policy =  SCHED_DEADLINE;
+	else
+		return -1;
+	return 0;
 }
 
 uint32_t string_to_affinity(const char *str)
