@@ -1,5 +1,3 @@
-#include "orchdata.h"	// memory structure to store information
-
 #ifndef __MANAGE_H_
 	#define __MANAGE_H_
 

@@ -1,5 +1,4 @@
 #include "manage.h"
-#include "schedstat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +15,9 @@
 #include <errno.h>			// error numbers and strings
 
 // Custmom includes
+#include "schedstat.h"
+
+#include "orchdata.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and strerr print functions

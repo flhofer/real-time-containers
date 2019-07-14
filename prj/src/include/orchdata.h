@@ -1,12 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef __ORCHDATA_H_
+	#define __ORCHDATA_H_
 
-// Custmom includes
-#include "rt-sched.h" // temporary as libc does not include new sched yet
-#include "error.h"		// error and strerr print functions
+	#include <stdio.h>
+	#include <stdlib.h>
 
-#ifndef __PIDLIST_
-	#define __PIDLIST_
+	// Custmom includes
+	#include "rt-sched.h" // temporary as libc does not include new sched yet
+	#include "error.h"		// error and strerr print functions
 
 	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker
 	// TODO: limited to 32k processors ;)
