@@ -120,6 +120,8 @@ void err_doit(int err, const char *fmt, va_list ap)
 	vfprintf(stderr, fmt, ap);
 	if (err)
 		fprintf(stderr, ": %s\n", strerror(err));
+	else
+		fprintf(stderr, "\n");
 	fflush(stderr);
 	return;
 }

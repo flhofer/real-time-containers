@@ -98,11 +98,11 @@ static void prepareEnvironment(prgset_t *set) {
 	char str[100]; // generic string... 
 
 	info("This system has %d processors configured and "
-        "%d processors available.\n",
+        "%d processors available.",
         maxccpu, maxcpu);
 
 	if (numa_available())
-		err_exit( "NUMA is not available but mandatory for the orchestration\n");		
+		err_exit( "NUMA is not available but mandatory for the orchestration");		
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
 	if (!getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str))){
@@ -110,17 +110,17 @@ static void prepareEnvironment(prgset_t *set) {
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
 			if (!set->force) 
-				err_exit("SMT is enabled. Set -f (force) flag to authorize disabling\n");
+				err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
 
 			if (setkernvar(set->cpusystemfileprefix, "smt/control", "off"))
-				err_exit("SMT is enabled. Disabling was unsuccessful!\n");
+				err_exit("SMT is enabled. Disabling was unsuccessful!");
 
-			cont("SMT is now disabled, as required. Refresh configurations..\n");
+			cont("SMT is now disabled, as required. Refresh configurations..");
 			sleep(1); // leave time to refresh conf buffers -> immediate query fails
 			maxcpu = get_nprocs();	// update
 		}
 		else
-			cont("SMT is disabled, as required\n");
+			cont("SMT is disabled, as required");
 	}
 
 	// prepare bitmask, no need to do it before
@@ -131,12 +131,12 @@ static void prepareEnvironment(prgset_t *set) {
 	smi_counter = calloc (sizeof(long), maxccpu);
 	smi_msr_fd = calloc (sizeof(int), maxccpu);
 	if (!smi_counter || !smi_msr_fd)
-		err_exit("could not allocate memory!\n");
+		err_exit("could not allocate memory!");
 
 	struct bitmask * con;
 	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long)); 
 	if (!naffinity)
-		err_exit("could not allocate memory!\n");
+		err_exit("could not allocate memory!");
 
 	// get online cpu's
 	if (!getkernvar(set->cpusystemfileprefix, "online", str, sizeof(str))) {
@@ -158,17 +158,17 @@ static void prepareEnvironment(prgset_t *set) {
 						// value act read ok
 						if (strcmp(str, CPUGOVR)) {
 							// SMT - HT is on
-							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.\n", poss, i);
+							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
 							if (!set->force)
-								err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"\n", str, i);
+								err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"", str, i);
 
 							if (setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR))
-								err_exit("CPU-freq change unsuccessful!\n");
+								err_exit("CPU-freq change unsuccessful!");
 
-							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required\n", i);
+							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
 						}
 						else
-							cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required\n", i);
+							cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
 					}
 				}
 
@@ -178,11 +178,11 @@ static void prepareEnvironment(prgset_t *set) {
 				if(set->smi) {
 					*(smi_msr_fd+i) = open_msr_file(i);
 					if (*(smi_msr_fd+i) < 0)
-						err_exit("Could not open MSR interface, errno: %d\n",
+						err_exit("Could not open MSR interface, errno: %d",
 							errno);
 					// get current smi count to use as base value 
 					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
-						err_exit("Could not read SMI counter, errno: %d\n",
+						err_exit("Could not read SMI counter, errno: %d",
 							0, errno);
 				}
 
@@ -194,19 +194,19 @@ static void prepareEnvironment(prgset_t *set) {
 			// if CPU not online
 			else if (numa_bitmask_isbitset(set->affinity_mask, i))
 				// disabled processor set to affinity
-				err_exit("Unavailable CPU set for affinity.\n");
+				err_exit("Unavailable CPU set for affinity.");
 
 		}
 	}
 
 	// parse to string	
 	if (parse_bitmask (naffinity, cpus))
-		err_exit ("can not determine inverse affinity mask!\n");
+		err_exit ("can not determine inverse affinity mask!");
 
 	/// --------------------
 	/// verify executable permissions	
 	{
-	info( "Verifying for process capabilities..\n");
+	info( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of proc
 	if (!cap) 
 		err_exit_n(errno, "Can not get capability map");
@@ -216,14 +216,14 @@ static void prepareEnvironment(prgset_t *set) {
 		err_exit_n(errno, "Capability test failed");
 
 	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v))
-		err_exit("CAP_SYS_NICE capability mandatory to operate properly!\n");
+		err_exit("CAP_SYS_NICE capability mandatory to operate properly!");
 
 	v=0;
 	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) // check for effective RESOURCE cap
 		err_exit_n(errno, "Capability test failed");
 
 	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v))
-		err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!\n");
+		err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!");
 	}
 
 	/// --------------------
@@ -232,19 +232,19 @@ static void prepareEnvironment(prgset_t *set) {
 	set->kernelversion = check_kernel();
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
-		warn("Running on unknown kernel version...YMMV\nTrying generic configuration..\n");
+		warn("Running on unknown kernel version...YMMVTrying generic configuration..");
 
-	cont( "Set realtime bandwith limit to (unconstrained)..\n");
+	cont( "Set realtime bandwith limit to (unconstrained)..");
 	// disable bandwidth control and realtime throttle
 	if (setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1")){
-		warn("RT-throttle still enabled. Limitations apply.\n");
+		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
 	if (SCHED_RR == set->policy && 0 < set->rrtime) {
-		cont( "Set round robin interval to %dms..\n", set->rrtime);
+		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str)){
-			warn("RR timeslice not changed!\n");
+			warn("RR timeslice not changed!");
 		}
 	}
 
@@ -253,25 +253,25 @@ static void prepareEnvironment(prgset_t *set) {
 	struct sched_attr attr; 
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
-		warn("could not read orchestrator attributes: %s\n", strerror(errno));
+		warn("could not read orchestrator attributes: %s", strerror(errno));
 	else {
-		cont( "orchestrator scheduled as '%s'\n", policy_to_string(attr.sched_policy));
+		cont( "orchestrator scheduled as '%s'", policy_to_string(attr.sched_policy));
 
 		// set new attributes here, avoid Realtime for this thread
 		attr.sched_nice = 20;
 		// reset on fork.. and if DL is set, grub and overrun
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
 
-		cont( "promoting process and setting attributes..\n");
+		cont( "promoting process and setting attributes..");
 		if (sched_setattr (mpid, &attr, 0U))
-			warn("could not set orchestrator schedulig attributes, %s\n", strerror(errno));
+			warn("could not set orchestrator schedulig attributes, %s", strerror(errno));
 	}
 
 	if (AFFINITY_USEALL != set->setaffinity){ // set affinity only if not useall
 		if (numa_sched_setaffinity(mpid, naffinity))
-			warn("could not set orchestrator affinity: %s\n", strerror(errno));
+			warn("could not set orchestrator affinity: %s", strerror(errno));
 		else
-			cont("Orchestrator's PID reassigned to CPU's %s\n", cpus);
+			cont("Orchestrator's PID reassigned to CPU's %s", cpus);
 	}
 
 	/// --------------------
@@ -284,14 +284,14 @@ static void prepareEnvironment(prgset_t *set) {
 	if(-1 == err) {
 		// Docker Cgroup not found, set->force enabled = try creating
 		if(ENOENT == errno && set->force) {
-			warn("CGroup '%s' does not exist. Is the daemon running?\n", set->cont_cgrp);
+			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
 			// if it worked, stay in Container mode	
 		} else {
 		// Docker Cgroup not found, set->force not enabled = try switching to pid
 			if(ENOENT == errno) 
-				err_msg("No set->force. Can not create container group: %s\n", strerror(errno));
+				err_msg("No set->force. Can not create container group: %s", strerror(errno));
 			else 
 				err_exit_n(errno, "Stat encountered an error");
 		}
@@ -299,7 +299,7 @@ static void prepareEnvironment(prgset_t *set) {
 		// CGroup found, but is it a dir?
 		if(!(S_ISDIR(s.st_mode))) 
 			// exists but is no dir -> goto PID detection
-			err_exit("CGroup '%s' does not exist. Is the daemon running?\n", set->cont_cgrp);
+			err_exit("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 	}
 
 	// Display message according to detection mode set
@@ -307,21 +307,21 @@ static void prepareEnvironment(prgset_t *set) {
 		default:
 			// all fine?
 			if (!err) {
-				cont( "container id will be used to set PID execution..\n");
+				cont( "container id will be used to set PID execution..");
 				break;
 			}
 			// error occurred, check for sCHED_DEADLINE first-> stop!
 			if (SCHED_DEADLINE == set->policy) 
-				err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!\n");
+				err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!");
 
 			// otherwise switch to container PID detection
 			set->use_cgroup = DM_CNTPID;
 
 		case DM_CNTPID:
-			cont( "will use PIDs of '%s' to detect processes..\n", set->cont_ppidc);
+			cont( "will use PIDs of '%s' to detect processes..", set->cont_ppidc);
 			break;
 		case DM_CMDLINE:
-			cont( "will use PIDs of command signtaure '%s' to detect processes..\n", set->cont_pidc);
+			cont( "will use PIDs of command signtaure '%s' to detect processes..", set->cont_pidc);
 			break;
 	}
 	} // end environment detection CGroup
@@ -332,18 +332,18 @@ static void prepareEnvironment(prgset_t *set) {
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
 		if (!(numastr = calloc (5, 1)))
-			err_exit("could not allocate memory!\n");
+			err_exit("could not allocate memory!");
 
 		sprintf(numastr, "0-%d", numanodes);
 	}
 	else
-		warn("Numa not enabled, defaulting to memory node '0'\n");
+		warn("Numa not enabled, defaulting to memory node '0'");
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
 	if (AFFINITY_USEALL != set->setaffinity){ // useall = ignore setting of exclusive
 
-		cont( "reassigning Docker's CGroups CPU's to %s exclusively\n", set->affinity);
+		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
 
 		DIR *d;
 		struct dirent *dir;
@@ -362,24 +362,24 @@ static void prepareEnvironment(prgset_t *set) {
 						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
 						if (setkernvar(contp, "/cpuset.cpus", set->affinity)){
-							warn("Can not set cpu-affinity\n");
+							warn("Can not set cpu-affinity");
 						}
 					}
 					else // realloc error
-						err_exit("could not allocate memory!\n");
+						err_exit("could not allocate memory!");
 				}	
 			}
 			free (contp);
 
 			// Docker CGroup settings and affinity
 			if (setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity)){
-				warn("Can not set cpu-affinity\n");
+				warn("Can not set cpu-affinity");
 			}
 			if (setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr)){
-				warn("Can not set numa memory nodes\n");
+				warn("Can not set numa memory nodes");
 			}
 			if (setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1")){
-				warn("Can not set cpu exclusive\n");
+				warn("Can not set cpu exclusive");
 			}
 
 			closedir(d);
@@ -391,7 +391,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 	char *fileprefix = NULL;
 
-	cont("creating cgroup for system on %s\n", cpus);
+	cont("creating cgroup for system on %s", cpus);
 
 	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("system/")+1))) {
 		char * nfileprefix = NULL;
@@ -403,22 +403,22 @@ static void prepareEnvironment(prgset_t *set) {
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
 			// error otherwise
-			warn("Can not set cpu system group: %s\n", strerror(errno));
+			warn("Can not set cpu system group: %s", strerror(errno));
 			goto sysend; // skip all system things 
 			// FIXME: might create unexpected behaviour
 		}
 
 		if (setkernvar(fileprefix, "cpuset.cpus", cpus)){ 
-			warn("Can not set cpu-affinity\n");
+			warn("Can not set cpu-affinity");
 		}
 		if (setkernvar(fileprefix, "cpuset.mems", numastr)){
-			warn("Can not set numa memory nodes\n");
+			warn("Can not set numa memory nodes");
 		}
 		if (setkernvar(fileprefix, "cpuset.cpu_exclusive", "1")){
-			warn("Can not set cpu exclusive\n");
+			warn("Can not set cpu exclusive");
 		}
 
-		cont( "moving tasks..\n");
+		cont( "moving tasks..");
 
 		if ((nfileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("tasks")+1))) {
 			nfileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -443,13 +443,13 @@ static void prepareEnvironment(prgset_t *set) {
 				// Scan through string and put in array, leave one byte extra, needed for strtok to work
 				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) {
 					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
-					printDbg("Pid string return %s\n", pidline);
+					printDbg("Pid string return %s", pidline);
 					pid = strtok (pidline,"\n");	
 					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
 
 						// fileprefix still pointing to system/
 						if (setkernvar(fileprefix, "tasks", pid)){
-							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s", pid);
 							mtask++;
 						}
 						nleft-=strlen(pid)+1;
@@ -464,8 +464,8 @@ static void prepareEnvironment(prgset_t *set) {
 				// some unmoveable tasks?, one free try
 				if (mtask_old != mtask && mtask_old == 0)
 				{
-					warn("Could not move %d tasks\n", mtask);					
-					cont("retry..\n");
+					warn("Could not move %d tasks", mtask);					
+					cont("retry..");
 					sleep(5);
 				}
 			}
@@ -640,7 +640,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			} else {
 				set->affinity = malloc(10);
 				if (!set->affinity){
-					err_msg("could not allocate memory!\n");
+					err_msg("could not allocate memory!");
 					exit(EXIT_FAILURE);
 				}
 				sprintf(set->affinity, "0-%d", max_cpus-1);
@@ -668,7 +668,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			// create Docker CGroup prefix
 			set->cpusetdfileprefix = realloc(set->cpusetdfileprefix, strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
 			if (!set->cpusetdfileprefix)
-				err_exit("could not allocate memory!\n");
+				err_exit("could not allocate memory!");
 
 			*set->cpusetdfileprefix = '\0'; // set first chat to null
 			set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
@@ -710,7 +710,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_PRIORITY:
 			set->priority = atoi(optarg);
 			if (SCHED_FIFO != set->policy && SCHED_RR != set->policy) {
-				warn(" policy and priority don't match: setting policy to SCHED_FIFO\n");
+				warn(" policy and priority don't match: setting policy to SCHED_FIFO");
 				set->policy = SCHED_FIFO;
 }
 			break;
@@ -773,7 +773,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 #ifdef ARCH_HAS_SMI_COUNTER
 			set->smi = 1;
 #else
-			err_exit("--smi is not available on your arch\n");
+			err_exit("--smi is not available on your arch");
 #endif
 			break;
 		}
@@ -787,7 +787,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 	// allways verify for config file -> segmentation fault??
 	if ( access( config, F_OK )) {
-		err_msg("configuration file '%s' not found\n", config);
+		err_msg("configuration file '%s' not found", config);
 		error = 1;
 	}
 
@@ -809,11 +809,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 	if (set->smi) { // TODO: verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)
-			err_exit("SMI counter relies on thread affinity\n");
+			err_exit("SMI counter relies on thread affinity");
 
 		if (!has_smi_counter())
 			err_exit("SMI counter is not supported "
-			      "on this processor\n");
+			      "on this processor");
 	}
 
 	// check clock sel boundaries
@@ -826,25 +826,25 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 	// check detection mode and policy -> deadline does not allow fork!
 	if (SCHED_DEADLINE == set->policy && (DM_CNTPID == set->use_cgroup || DM_CMDLINE == set->use_cgroup)) {
-		warn("can not use SCHED_DEADLINE with PID detection modes: setting policy to SCHED_FIFO\n");
+		warn("can not use SCHED_DEADLINE with PID detection modes: setting policy to SCHED_FIFO");
 		set->policy = SCHED_FIFO;	
 	}
 
 	// deadline and high refresh might starve the system. require force
 	if (SCHED_DEADLINE == set->policy && set->interval < 1000 && !set->force) {
-		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.\n");
+		warn("Using SCHED_DEADLINE with such low intervals can starve a system. Use force (-f) to start anyway.");
 		error = 1;
 	}
 
 	// check priority and policy match
 	if (set->priority && (SCHED_FIFO != set->policy && SCHED_RR != set->policy)) {
-		warn("policy and priority don't match: setting policy to SCHED_FIFO\n");
+		warn("policy and priority don't match: setting policy to SCHED_FIFO");
 		set->policy = SCHED_FIFO;
 	}
 
 	// check policy with priority match 
 	if ((SCHED_FIFO == set->policy || SCHED_RR == set->policy) && 0 == set->priority) {
-		warn("defaulting realtime priority to %d\n", 10);
+		warn("defaulting realtime priority to %d", 10);
 		set->priority = 10;
 	}
 
@@ -915,13 +915,13 @@ int main(int argc, char **argv)
 	if (!iret2)	// thread started successfully
 		iret2 = pthread_join( thread2, NULL); 
 
-    info("exiting safely\n");
+    info("exiting safely");
 
 	if(prgset->smi) {
 
 		unsigned long smi_old;
 		int maxccpu = numa_num_configured_cpus();
-		info("SMI counters for the CPUs\n");
+		info("SMI counters for the CPUs");
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++) 
 			// if smi is set, read SMI counter
@@ -929,7 +929,7 @@ int main(int argc, char **argv)
 				/* get current smi count to use as base value */
 				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
 					err_exit_n( errno, "Could not read SMI counter");
-				cont("CPU%d: %ld\n", i, smi_old-*(smi_counter+i));
+				cont("CPU%d: %ld", i, smi_old-*(smi_counter+i));
 			}
 	}
 

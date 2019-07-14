@@ -53,7 +53,7 @@ int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 		uint64_t max_Value = MAX (base, par->sched_period);
 
 		if (base % 1000 != 0 || par->sched_period % 1000 != 0)
-			fatal("Nanosecond resolution periods not supported!\n");
+			fatal("Nanosecond resolution periods not supported!");
 			// temporary solution to avoid very long loops
 
 		while(1) //Alway True
@@ -82,7 +82,7 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 		uint64_t max_Value = MAX (res->basePeriod, par->sched_period);
 
 		if (res->basePeriod % 1000 != 0 || par->sched_period % 1000 != 0)
-			fatal("Nanosecond resolution periods not supported!\n");
+			fatal("Nanosecond resolution periods not supported!");
 			// temporary solution to avoid very long loops
 
 		while(1) //Alway True
@@ -464,7 +464,7 @@ int updateSched() {
 			// params unassigned
 			if (!prgset->quiet)
 				(void)printf("\n");
-			info("new pid in list %d\n", current->pid);
+			info("new pid in list %d", current->pid);
 
 			if (!findParams(current)) { // parameter set found in list -> assign and update
 				// precompute affinity
@@ -495,7 +495,7 @@ int updateSched() {
 						char affinity[5];
 						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
 
-						cont( "reassigning %.12s's CGroups CPU's to %s\n", current->contid, affinity);
+						cont( "reassigning %.12s's CGroups CPU's to %s", current->contid, affinity);
 						if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
 								+ strlen(current->contid)+1)) {
 							contp[0] = '\0';   // ensures the memory is an empty string
@@ -503,11 +503,11 @@ int updateSched() {
 							contp = strcat(strcat(contp,prgset->cpusetdfileprefix), current->contid);		
 							
 							if (setkernvar(contp, "/cpuset.cpus", affinity)){
-								warn("Can not set cpu-affinity\n");
+								warn("Can not set cpu-affinity");
 							}
 						}
 						else 
-							warn("malloc failed!\n");
+							warn("malloc failed!");
 
 						free (contp);
 					}
@@ -527,20 +527,20 @@ int updateSched() {
 							err_msg_n(errno,"setting affinity for PID %d",
 								current->pid);
 						else
-							cont("PID %d reassigned to CPU%d\n", current->pid, 
+							cont("PID %d reassigned to CPU%d", current->pid, 
 								current->param->rscs.affinity);
 					}
 
 					// only do if different than -1, <- not set values
 					if (SCHED_NODATA != current->param->attr.sched_policy) {
-						cont("Setting Scheduler of PID %d to '%s'\n", current->pid,
+						cont("Setting Scheduler of PID %d to '%s'", current->pid,
 							policy_to_string(current->param->attr.sched_policy));
 						if (sched_setattr (current->pid, &current->param->attr, 0U))
 							err_msg_n(errno, "setting attributes for PID %d",
 								current->pid);
 					}
 					else
-						cont("Skipping setting of scheduler for PID %d\n", current->pid);  
+						cont("Skipping setting of scheduler for PID %d", current->pid);  
 
 
 					// controlling resource limits
@@ -561,7 +561,7 @@ int updateSched() {
 								err_msg_n(errno,"setting RT-Limit for PID %d",
 									current->pid);
 							else
-								cont("PID %d RT-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+								cont("PID %d RT-Limit set to %d-%d", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
 						}
 					}
 
@@ -579,7 +579,7 @@ int updateSched() {
 								err_msg_n(errno, "setting Data-Limit for PID %d",
 									current->pid);
 							else
-								cont("PID %d Data-Limit set to %d-%d\n", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+								cont("PID %d Data-Limit set to %d-%d", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
 						}
 					}
 
@@ -589,11 +589,11 @@ int updateSched() {
 						err_msg_n(errno, "setting affinity for PID %d",
 							current->pid);
 					else
-						cont("non-RT PID %d reassigned to CPU%d\n\n", current->pid,
+						cont("non-RT PID %d reassigned to CPU%d", current->pid,
 							current->param->rscs.affinity);
 				}
 				else
-					cont("Skipping non-RT PID %d from rescheduling\n", current->pid);
+					cont("Skipping non-RT PID %d from rescheduling", current->pid);
 			}
 		}
 
@@ -668,7 +668,7 @@ void *thread_manage (void *arg)
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
 		if (readParams() != 0){
-			err_msg("JSON configuration read failed!\n" KRED "Thread stopped.\n" KNRM);
+			err_msg("JSON configuration read failed!" KRED "Thread stopped." KNRM);
 			*pthread_state=-1;
 			break;
 		}

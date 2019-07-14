@@ -249,13 +249,13 @@ int updateStats ()
 		if (SCHED_NODATA == item->attr.sched_policy) {
 			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
 
-				warn("Unable to read params for PID %d: %s\n", item->pid, strerror(errno));		
+				warn("Unable to read params for PID %d: %s", item->pid, strerror(errno));		
 			}
 
 			// set the flag for deadline notification if not enabled yet -- TEST
 			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= prgset->kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
-				cont("Set dl_overrun flag for PID %d\n", item->pid);		
+				cont("Set dl_overrun flag for PID %d", item->pid);		
 
 				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
 				if (sched_setattr (item->pid, &item->attr, 0U))
@@ -268,7 +268,7 @@ int updateStats ()
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
-				err_msg ("reading thread debug details %d\n", ret);
+				err_msg ("reading thread debug details %d", ret);
 			} 
 		}
 
@@ -348,8 +348,8 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 		return i;
 	}
 	else {
-		warn("Can not open Docker CGroups - is the daemon still running?\n");
-		cont( "switching to container PID detection mode\n");
+		warn("Can not open Docker CGroups - is the daemon still running?");
+		cont( "switching to container PID detection mode");
 		prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 		return 0; // count of items found
 
@@ -577,7 +577,7 @@ void *thread_update (void *arg)
 	old = intervaltv;
 
 	if (prgset->runtime)
-		cont("Runtime set to %d seconds\n", prgset->runtime);
+		cont("Runtime set to %d seconds", prgset->runtime);
 
 
 	// initialize the thread locals
@@ -588,19 +588,19 @@ void *thread_update (void *arg)
 		case 0:			
 			// setup of thread, configuration of scheduling and priority
 			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
-			cont("Sample time set to %dus.\n", prgset->interval);
+			cont("Sample time set to %dus.", prgset->interval);
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
 			if (1 > ticksps) { // must always be greater 0 
-				warn("could not read clock tick config!\n");
+				warn("could not read clock tick config!");
 				break;
 			}
 			else{ 
 				// clock settings found -> check for validity
-				cont("clock tick used for scheduler debug found to be %ldHz.\n", ticksps);
+				cont("clock tick used for scheduler debug found to be %ldHz.", ticksps);
 				if (500000/ticksps > prgset->interval)  
 					warn("-- scan time more than double the debug update rate. On purpose?"
-							" (obsolete kernel value) -- \n");
+							" (obsolete kernel value) -- ");
 			}
 			if (SCHED_OTHER != prgset->policy && SCHED_IDLE != prgset->policy && SCHED_BATCH != prgset->policy) {
 				// set policy to thread
@@ -618,12 +618,12 @@ void *thread_update (void *arg)
 						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 
 					if (sched_setattr(0, &scheda, 0L)) {
-						warn("Could not set thread policy!\n");
+						warn("Could not set thread policy!");
 						// reset value -- not written in main anymore
 						prgset->policy = SCHED_OTHER;
 					}
 					else
-						cont("set update thread to '%s', runtime %dus.\n",
+						cont("set update thread to '%s', runtime %dus.",
 							policy_to_string(prgset->policy), prgset->update_wcet);
 
 				}
@@ -631,12 +631,12 @@ void *thread_update (void *arg)
 					struct sched_param schedp  = { prgset->priority };
 
 					if (sched_setscheduler(0, prgset->policy, &schedp)) {
-						warn("Could not set thread policy!\n");
+						warn("Could not set thread policy!");
 						// reset value -- not written in main anymore
 						prgset->policy = SCHED_OTHER;
 					}
 					else
-						cont("set update thread to '%s', priority %d.\n",
+						cont("set update thread to '%s', priority %d.",
 							policy_to_string(prgset->policy), prgset->priority);
 				}
 			}
@@ -645,10 +645,10 @@ void *thread_update (void *arg)
 				struct sched_param schedp  = { prgset->priority };
 
 				if (sched_setscheduler(0, prgset->policy, &schedp)) {
-					warn("Could not set thread policy!\n");
+					warn("Could not set thread policy!");
 				}
 				else 
-					cont("set update thread to '%s', niceness %d.\n",
+					cont("set update thread to '%s', niceness %d.",
 						policy_to_string(prgset->policy), prgset->priority);
 			}
 
@@ -679,7 +679,7 @@ void *thread_update (void *arg)
 			}
 
 			// Done -> print total runtime, now updated every cycle
-			info("Total test runtime is %ld seconds\n", now.tv_sec - old.tv_sec);
+			info("Total test runtime is %ld seconds", now.tv_sec - old.tv_sec);
 
 			break;
 		case -2:
@@ -691,7 +691,7 @@ void *thread_update (void *arg)
 		if (SCHED_DEADLINE == prgset->policy){
 			// perfect sync with period here, allow replenish 
 			if (pthread_yield()){
-				warn("pthread_yield() failed. errno: %s\n",strerror (ret));
+				warn("pthread_yield() failed. errno: %s",strerror (ret));
 				*pthread_state=-1;
 				break;				
 			}
@@ -711,7 +711,7 @@ void *thread_update (void *arg)
 				// Set warning only.. shouldn't stop working
 				// probably overrun, restarts immediately in attempt to catch up
 				if (EINTR != ret) {
-					warn("clock_nanosleep() failed. errno: %s\n",strerror (ret));
+					warn("clock_nanosleep() failed. errno: %s",strerror (ret));
 				}
 			}
 
