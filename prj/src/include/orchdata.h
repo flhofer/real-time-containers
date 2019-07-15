@@ -55,15 +55,37 @@
 		char psig[SIG_LEN]; 	// matching signatures -> target pids
 		char contid[SIG_LEN]; 	// matching signatures -> container IDs
 		struct sched_attr attr; // standard linux pid attributes
-		struct sched_rscs rscs;   // additional resource settings 
+		struct sched_rscs rscs; // additional resource settings 
 		struct pid_parm* next;
 	} parm_t;
 
+	typedef struct pidc_parm {
+		char *psig; 			// matching signatures -> container IDs
+		struct sched_attr* attr;// standard linux pid attributes
+		struct sched_rscs* rscs;// additional resource settings 
+		struct cont_parm* cont; // pointer to the container settings
+		struct pidc_parm* next; 
+	} pidc_t;
+
+	typedef struct pids_parm {
+		struct pidc_parm *pid; 	// matching pid, one entry
+		struct pids_parm* next; // list to next entry
+	} pids_t;
+
 	typedef struct cont_parm {
-		struct pid_parm* cont;
+		char *contid; 			// matching signatures -> container IDs
+		struct sched_attr* attr;// standard linux pid attributes
+		struct sched_rscs* rscs;// additional resource settings 
+		struct pids_parm* pids;	// linked list pointing to the pids	
+		struct cont_parm* next; 
+	} cont_t;
+
+	typedef struct containers {
+		struct cont_parm* cont; // linked list of containers_t
+		struct pidc_parm* pid;	// linked list of pids
 		uint32_t nthreads;		// number of configured containers pids-threads
 		uint32_t num_cont;		// number of configured containers
-	} contparm_t;
+	} containers_t;
 
 	struct resTracer { // resource tracers
 		int32_t affinity; 		// exclusive cpu-num
@@ -159,7 +181,9 @@
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
 
+	void pcpush(pidc_t ** head);
 	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);
+	void cpush(cont_t ** head);
 
 #endif

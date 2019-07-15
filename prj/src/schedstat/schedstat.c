@@ -803,8 +803,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 
 	// create parameter structure
-	contparm_t *tmpparm;
-	if (!(tmpparm = malloc (sizeof(contparm_t))))
+	containers_t *tmpparm;
+	if (!(tmpparm = malloc (sizeof(containers_t))))
 		err_exit("Unable to allocate memory");
 
 	if (!error)
