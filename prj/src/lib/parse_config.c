@@ -17,6 +17,9 @@
 #include "kernutil.h"		// kernel util data types and functions
 #include "rt-utils.h"	// trace and other utils
 
+
+//// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
+
 #define PFX "[json] "
 #define PFL "         "PFX
 #define PIN PFX"    "
@@ -155,27 +158,41 @@ get_string_value_from(struct json_object *where,
 	return s_value;
 }
 
-static void parse_resource_data(struct json_object *obj,
-		  struct sched_rscs *data){
+//// -------------------------------- FROM RT-APP, END ---------------------------------
 
-	data = malloc(sizeof(struct sched_rscs));
-	data->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
-	data->rt_timew = get_int_value_from(obj, "rt-soft", TRUE, -1);
-	data->rt_time = get_int_value_from(obj, "rt-hard", TRUE, -1);
-	data->mem_dataw = get_int_value_from(obj, "data-soft", TRUE, -1);
-	data->mem_data = get_int_value_from(obj, "data-hard", TRUE, -1);
+/// parse_resource_data(): extract parameter values from JSON tokens for resource limits
+///
+/// Arguments: - json object of tree containing resource information
+/// 		   - structure to store values in, resources of section (pid,container,global)
+///
+/// Return value: no return value, exits on error
+static void parse_resource_data(struct json_object *obj,
+		  struct sched_rscs **data){
+
+	*data = malloc(sizeof(struct sched_rscs));
+	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
+	(*data)->rt_timew = get_int_value_from(obj, "rt-soft", TRUE, -1);
+	(*data)->rt_time = get_int_value_from(obj, "rt-hard", TRUE, -1);
+	(*data)->mem_dataw = get_int_value_from(obj, "data-soft", TRUE, -1);
+	(*data)->mem_data = get_int_value_from(obj, "data-hard", TRUE, -1);
 }
 
+/// parse_scheduling_data(): extract parameter values from JSON tokens for resource limits
+///
+/// Arguments: - json object of tree containing scheduling information
+/// 		   - structure to store values in, scheduling of section (pid,container,global)
+///
+/// Return value: no return value, exits on error
 static void parse_scheduling_data(struct json_object *obj,
-		  struct sched_attr *data){
+		  struct sched_attr **data){
 
-	data = malloc(sizeof(struct sched_attr));
+	*data = malloc(sizeof(struct sched_attr));
 	{  // char policy block
 
 		char *policy;
 		policy = get_string_value_from(obj, "policy",
 						   TRUE, "SCHED_OTHER");
-		if (string_to_policy(policy, &data->sched_policy)) {
+		if (string_to_policy(policy, &(*data)->sched_policy)) {
 			err_msg(PFX "Invalid policy %s", policy);
 			exit(EXIT_INV_CONFIG);
 		}
@@ -183,15 +200,22 @@ static void parse_scheduling_data(struct json_object *obj,
 
 	} // END policy block
 	
-	data->sched_flags = get_int_value_from(obj, "flags", TRUE, 0);
-	data->sched_nice = get_int_value_from(obj, "nice", TRUE, 0);
-	data->sched_priority = get_int_value_from(obj, "prio", TRUE, 0);
-	data->sched_runtime = get_int_value_from(obj, "runtime", TRUE, 0);
-	data->sched_deadline = get_int_value_from(obj, "deadline", TRUE, data->sched_runtime);
-	data->sched_period = get_int_value_from(obj, "period", TRUE, data->sched_deadline);
+	(*data)->sched_flags = get_int_value_from(obj, "flags", TRUE, 0);
+	(*data)->sched_nice = get_int_value_from(obj, "nice", TRUE, 0);
+	(*data)->sched_priority = get_int_value_from(obj, "prio", TRUE, 0);
+	(*data)->sched_runtime = get_int_value_from(obj, "runtime", TRUE, 0);
+	(*data)->sched_deadline = get_int_value_from(obj, "deadline", TRUE, (*data)->sched_runtime);
+	(*data)->sched_period = get_int_value_from(obj, "period", TRUE, (*data)->sched_deadline);
 }
 
-
+/// parse_pid_data(): extract parameter values from JSON tokens for pid
+///
+/// Arguments: - json object of tree containing pid information
+///			   - index in array list
+/// 		   - structure to store values in, for this pid
+///			   - structure containing container configuration, parent
+///
+/// Return value: no return value, exits on error
 static void parse_pid_data(struct json_object *obj, int index, 
 		pidc_t *data, cont_t *cont)
 {
@@ -204,7 +228,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 		struct json_object *attr;
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
-			parse_scheduling_data(attr,	data->attr);
+			parse_scheduling_data(attr,	&data->attr);
 		else {
 			// set to container default
 			data->attr = cont->attr;
@@ -216,7 +240,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 		struct json_object *rscs;
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
-			parse_resource_data(rscs, data->rscs);
+			parse_resource_data(rscs, &data->rscs);
 		else { 
 			// set to container default
 			data->rscs = cont->rscs;
@@ -227,7 +251,14 @@ static void parse_pid_data(struct json_object *obj, int index,
 	data->cont = cont;
 }
 
-
+/// parse_container_data(): extract parameter values from JSON tokens for container
+///
+/// Arguments: - json object of tree containing container data
+///			   - index in array list
+/// 		   - structure to store values in, for this container
+///			   - structure containig containers (all) information, parent
+///
+/// Return value: no return value, exits on error
 static void parse_container_data(struct json_object *obj, int index, 
 		cont_t *data, containers_t *conts)
 {
@@ -240,7 +271,7 @@ static void parse_container_data(struct json_object *obj, int index,
 		struct json_object *attr;
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
-			parse_scheduling_data(attr,	data->attr);
+			parse_scheduling_data(attr,	&data->attr);
 		else {
 			data->attr = conts->attr;
 			printDbg(PIN "defaulting to global scheduling settings\n");
@@ -251,7 +282,7 @@ static void parse_container_data(struct json_object *obj, int index,
 		struct json_object *rscs;
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
-			parse_resource_data(rscs, data->rscs);
+			parse_resource_data(rscs, &data->rscs);
 		else {
 			data->rscs = conts->rscs;
 			printDbg(PIN "defaulting to global scheduling settings\n");
@@ -266,12 +297,7 @@ static void parse_container_data(struct json_object *obj, int index,
 		if ((pidslist = get_in_object(obj, "pids", TRUE)))
 			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
 
-				pcpush(&conts->pid);
-				pids_t *new_node = malloc (sizeof(pids_t));
-				new_node->pid = conts->pid;
-				new_node->next = data->pids;
-				data->pids = new_node;
-
+				pcpush(&conts->pid, &data->pids);
 				parse_pid_data(pidobj, idx, conts->pid, data);
 				
 				idx++;
@@ -279,6 +305,12 @@ static void parse_container_data(struct json_object *obj, int index,
 	}
 } 
 
+/// parse_containers(): extract parameter values from JSON tokens for containers
+///
+/// Arguments: - json object of tree containing container array
+/// 		   - structure to store values in
+///
+/// Return value: no return value, exits on error
 static void parse_containers(struct json_object *containers, containers_t *conts)
 {
 	
@@ -606,7 +638,7 @@ void parse_config(const char *filename, prgset_t *set, containers_t *conts)
 			printDbg(PFX "scheduling: %s\n", json_object_to_json_string(scheduling));
 		printDbg(PFX "Parsing scheduling\n");
 //		parse_scheduling(scheduling, conts);
-		parse_scheduling_data(scheduling, conts->attr);
+		parse_scheduling_data(scheduling, &conts->attr);
 
 		if (scheduling && !json_object_put(scheduling))
 			err_msg(PFX "Could not free object!");
@@ -621,7 +653,7 @@ void parse_config(const char *filename, prgset_t *set, containers_t *conts)
 			printDbg(PFX "resources: %s\n", json_object_to_json_string(resources));
 		printDbg(PFX "Parsing resources\n");
 //		parse_resources(resources, conts);
-		parse_resource_data(resources, conts->rscs);
+		parse_resource_data(resources, &conts->rscs);
 
 		if (resources && !json_object_put(resources))
 			err_msg(PFX "Could not free object!");

@@ -183,7 +183,7 @@
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
 
-	void pcpush(pidc_t ** head);
+	void pcpush(pidc_t ** head, struct pids_parm** phead);
 	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);
 	void cpush(cont_t ** head);

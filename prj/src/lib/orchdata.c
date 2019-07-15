@@ -12,7 +12,7 @@ static const struct sched_rscs _rscs_default = { -1,
 												-1, -1,	
 												-1, -1};
 
-void pcpush(pidc_t ** head) {
+void pcpush(pidc_t ** head, struct pids_parm** phead){
     pidc_t * new_node;
     new_node = calloc(sizeof(pidc_t), 1);
 	if (!new_node)
@@ -20,6 +20,12 @@ void pcpush(pidc_t ** head) {
 
     new_node->next = *head;
     *head = new_node;
+
+	// chain new element to container pids list, pointing to this pid
+	pids_t *new_pnode = malloc (sizeof(pids_t));
+	new_pnode->pid = *head;
+	new_pnode->next = *phead;
+	*phead = new_pnode;
 }
 
 void cpush(cont_t ** head) {
