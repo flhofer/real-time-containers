@@ -42,8 +42,8 @@ static void display_help(int); // declaration for compat
 
 /* --------------------------- Global variables for all the threads and programms ------------------ */
 
-const parm_t * contparm; // read only container parameter settings
-prgset_t * prgset; // read only programm setings structure
+containers_t * contparm; // container parameter settings
+prgset_t * prgset; // programm setings structure
 
 #ifdef DEBUG
 // debug output file
@@ -803,13 +803,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 
 	// create parameter structure
-	containers_t *tmpparm;
-	if (!(tmpparm = malloc (sizeof(containers_t))))
+	if (!(contparm = malloc (sizeof(containers_t))))
 		err_exit("Unable to allocate memory");
 
 	if (!error)
 		// parse json configuration
-		parse_config(strdup(config), set, tmpparm);
+		parse_config(strdup(config), set, contparm);
 
 	if (set->smi) { // TODO: verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)

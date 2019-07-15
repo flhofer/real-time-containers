@@ -21,22 +21,19 @@
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and strerr print functions
-#include "jsmn.h"
 
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <numa.h>			// numa node ident
 
-#define JSMN_STRICT // force json conformance when parsing
-#define MAX_UL 0.90
-#define JSN_READ 65	// Json string value read length, must be longer than SIG_LEN
 
 // parameter tree linked list head, resource linked list head
-static parm_t * phead;
 static struct resTracer * rhead;
 
 ////// TEMP ---------------------------------------------
+
+#define MAX_UL 0.90
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
@@ -102,339 +99,7 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 }
 
-////// TEMP ---------------------------------------------
-
-
-
-/* Function realloc_it() is a wrapper function for standard realloc()
- * with one difference - it frees old memory pointer in case of realloc
- * failure. Thus, DO NOT use old data pointer in anyway after call to
- * realloc_it(). If your code has some kind of fallback algorithm if
- * memory can't be re-allocated - use standard realloc() instead.
- */
-static inline void *realloc_it(void *ptrmem, size_t size) {
-	void *p = realloc(ptrmem, size);
-	if (!p)  {
-		free (ptrmem);
-		fprintf(stderr, "realloc(): errno=%d\n", errno);
-	}
-	return p;
-}
-
-// https://rawgit.com/miloyip/nativejson-benchmark/master/sample/conformance.html
-// substitution of library ongoing. jsmn is good for small code only
-
-const char *keys[] = {"cmd", "contid", "params", "policy", "flags", "nice", "prio", "runtime", "deadline", "period", "res", "affinity", "rt-soft", "rt-hard", "data-soft", "data-hard"};
-
-/// extractJSON(): extract parameter values from JSON tokens
-///
-/// Arguments: js - input token string, t token position, count token count (object)
-/// 			depth (mostly for printout only), key - identifies key the parsed value belongs to 
-///
-/// Return value: number of tokens parsed
-static int extractJSON(const char *js, jsmntok_t *t, size_t count, int depth, int key) {
-	int i, j, k;
-
-	// TODO: len check and case not matching type, also key > than values
-
-	// base case, no elements in the object
-	if (0 == count) {
-		warn("JSON: faulty object data! No element count in this object");
-		return 0;
-	}
-
-	// setting value, primitive
-	if (JSMN_PRIMITIVE == t->type) {
-		// enter here if a primitive value (int?) has been identified
-
-		if (-1 == key || (t->end - t->start) > JSN_READ) { // no key value yet or value too long
-			warn("JSON: faulty key selection data! %.*s", t->end - t->start, js+t->start);
-			return 1; // 0 or 1? or count? check?
-		}
-
-		if (!phead) {
-			warn("JSON: no element! %.*s", t->end - t->start, js+t->start);
-			return 1;
-		}
-
-		// here len must be shorter than JSN_READ 
-		char c[JSN_READ]; // buffer size for tem
-		sprintf(c, "%.*s", t->end - t->start, js+t->start);
-
-		switch (key) {
-
-		case 4: // schedule flags
-				phead->attr.sched_flags = strtol(c,NULL,10);
-				printDbg("JSON: setting scheduler flags to '%ld'", phead->attr.sched_flags);
-				break;
-
-		case 5: // schedule niceness
-				phead->attr.sched_nice = (uint32_t)strtol(c,NULL,10);
-				printDbg("JSON: setting scheduler niceness to '%d'", phead->attr.sched_nice);// PDB
-				break;
-
-		case 6: // schedule rt priority
-				phead->attr.sched_priority = (uint32_t)strtol(c,NULL,10);
-				printDbg("JSON: setting rt-priority to '%d'", phead->attr.sched_priority);
-				break;
-		case 7: // schedule rt runtime
-				phead->attr.sched_runtime = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-runtime to '%ld'", phead->attr.sched_runtime);
-				break;
-		
-		case 8: // schedule rt deadline
-				phead->attr.sched_deadline = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-deadline to '%ld'", phead->attr.sched_deadline);
-				break;
-
-		case 9: // schedule rt period
-				phead->attr.sched_period = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-period to '%ld'", phead->attr.sched_period);
-				break;
-
-		case 11: // task affinity
-				phead->rscs.affinity = strtol(c,NULL,10);
-				printDbg("JSON: setting affinity to '%d'", phead->rscs.affinity);
-				break;
-		case 12: // rt-time soft limit
-				phead->rscs.rt_timew = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-time Slimit to '%d'", phead->rscs.rt_timew);
-				break;
-		case 13: // rt-time hard limit
-				phead->rscs.rt_time = strtol(c,NULL,10);
-				printDbg("JSON: setting rt-time limit to '%d'", phead->rscs.rt_time);
-				break;
-		case 14: // data hard limit
-				phead->rscs.mem_dataw = strtol(c,NULL,10);
-				printDbg("JSON: setting data Slimit to '%d'", phead->rscs.mem_dataw);
-				break;
-		case 15: // data soft limit
-				phead->rscs.mem_data = strtol(c,NULL,10);
-				printDbg("JSON: setting data limit to '%d'", phead->rscs.mem_data);
-				break;
-		}
-
-		printDbg("%.*s", t->end - t->start, js+t->start);
-		return 1;
-	
-	// setting value or label
-	} else if (JSMN_STRING == t->type) {
-		// here len must be shorter than JSN_READ
-		if ((t->end - t->start) > JSN_READ-1){
-			warn("JSON: faulty key value! Too long '%.*s'", t->end - t->start, js+t->start);
-			return 1; // 0 or 1? or count? check?
-		}
-
-		// a key has been identified
-		if (0 > key){
-			char c[JSN_READ]; // buffer size for temp storage
-			size_t len = sizeof(keys)/sizeof(keys[0]); // count of keys
-
-			// copy key to temp string buffer
-			sprintf(c ,"%.*s", t->end - t->start, js+t->start);
-
-			for (i=0; i<len; i++) 
-				if (!strcasecmp(c, keys[i])){
-					// key match.. find value for it
-					printDbg("'%.*s': ", t->end - t->start, js+t->start);
-					j = 0;					
-					j += extractJSON(js, t+1+j, count-j, depth+1, i);   // key evaluation
-					return j+1;
-					break;
-				}
-			// if it get's here, key has not been found in list
-			warn("NOT FOUND '%.*s'", t->end - t->start, js+t->start);
-			return 1;
-		}
-		else
-		{
-
-			if (!phead) { // !! no object defined !!!
-				warn("JSON: no element! '%.*s'", t->end - t->start, js+t->start);
-				return 1;
-			}
-
-			switch (key) {
-			
-			case 0: // process/command signature found
-					sprintf(phead->psig, "%.*s", t->end - t->start, js+t->start);
-					printDbg("JSON: setting cmd to '%s'", phead->psig);
-					break;
-
-			case 1: // ID signature found
-					sprintf(phead->contid, "%.*s", t->end - t->start, js+t->start);
-					printDbg("JSON: setting cmd to '%s'", phead->psig);
-					break;
-
-			case 3: ; // schedule policy 
-					char c[JSN_READ]; // buffer size for tem
-					sprintf(c, "%.*s", t->end - t->start, js+t->start);
-					(void)string_to_policy(c, &phead->attr.sched_policy);
-					printDbg("JSON: setting scheduler to '%s'", policy_to_string(phead->attr.sched_policy));
-					break;
-
-			}
-
-			// all string values end up here
-			printDbg("'%.*s'", t->end - t->start, js+t->start);
-
-			return 1;
-		}
-
-	// Process composed objects ( {} }
-	} else if (JSMN_OBJECT == t->type) {
-
-		// add a new settings item at head
-		// depth 2 is fixed, 0 = main object, 1 = configuration array
-		if (2 == depth) {
-			printDbg("Adding new item:\n");
-			ppush (&phead);
-		}
-
-		// printout 
-		printDbg("\n");
-		j = 0;
-		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < depth; k++) printDbg("  "); // print depth
-
-			// we evaluate only the key here, value is taken in cascade
-			j += extractJSON(js, t+1+j, count-j, depth+1, -1);   // key evaluation
-
-			printDbg("\n");
-		}
-		return j+1;
-
-	// process arrays ( [] )
-	} else if (JSMN_ARRAY == t->type) {
-		j = 0;
-		printDbg("\n");
-		for (i = 0; i < t->size; i++) {
-			for (k = 0; k < depth-1; k++) printDbg("  ");
-			printDbg("   - ");
-			j += extractJSON(js, t+1+j, count-j, depth+1, -1);
-			printDbg("\n");
-		}
-		return j+1;
-	}
-	return 0;
-}
-
-
-/// readParams(): Read parameters from json file, for static params
-///
-/// Arguments: - 
-///
-/// Return value: Code - o for no error 
-int readParams() {
-	int r;
-	int eof_expected = 0; // ok to have end of file
-	char *js = NULL;
-	size_t jslen = 0;
-	char buf[BUFSIZ];
-
-	jsmn_parser p;
-	jsmntok_t *tok;
-	size_t tokcount = 2;
-
-	/* Prepare parser */
-	jsmn_init(&p);
-
-	/* Allocate some tokens as a start */
-	tok = malloc(sizeof(*tok) * tokcount);
-	if (NULL == tok ) {
-		fprintf(stderr, "malloc(): errno=%d\n", errno);
-		return 3;
-	}
-
-	FILE * f = fopen (config, "r");
-
-	if (f){ // !! does not check file existence! inserted into schedstat.h at startup
-	for (;;) {
-		/* Read another chunk */
-		r = fread(buf, 1, sizeof(buf), f);
-		if (0 > r) {
-			fprintf(stderr, "fread(): %d, errno=%d\n", r, errno);
-			fclose (f);
-			return 1;
-		}
-		if (0 == r) {
-			fclose (f);
-			if (0 != eof_expected) {
-				return 0;
-			} else {
-				fprintf(stderr, "fread(): unexpected EOF\n");
-				return 2;
-			}
-		}
-
-		js = realloc_it(js, jslen + r + 1);
-		if (NULL == js) {
-			fclose (f);
-			return 3;
-		}
-		strncpy(js + jslen, buf, r);
-		jslen = jslen + r;
-
-again:
-		r = jsmn_parse(&p, js, jslen, tok, tokcount);
-		if (0 > r) {
-			if (JSMN_ERROR_NOMEM == r) {
-				tokcount = tokcount * 2;
-				tok = realloc_it(tok, sizeof(*tok) * tokcount);
-				if (NULL == tok) {
-					fclose (f);
-					return 3;
-				}
-				goto again;
-			}
-		} else {
-			extractJSON(js, tok, p.toknext, 0, -1);
-			eof_expected = 1;
-		}
-	}}
-	else{
-		printDbg("\n");
-	}
-
-	fclose (f);
-	return 0;
-}
-
-
-/// findParams(): returns the matching parameter set for a function
-//
-/// Arguments: 
-///
-/// Return value: pointer to parameters
-///
-int findParams(node_t* node){
-
-	parm_t * curr = phead;
-
-	while (NULL != curr) {
-		if(curr->psig && node->psig && !strcmp(curr->psig, node->psig)) {
-			node->param = curr;
-			return 0;
-		}
-		if(curr->contid && node->contid && !strncmp(curr->contid, node->contid, 12)) { 
-			// 12 is standard docker short signature
-			node->param = curr;
-			return 0;
-		}
-		curr = curr->next; 
-	}
-
-	printDbg("... parameters not found, creating empty from PID\n");
-
-	// TODO: fix for generic list
-	ppush(&phead); // add new empty item
-	// HAVE TO KEEP IT EMPTY, no other matches, default = no change
-
-	// assing new parameters
-	node->param = phead;
-	return -1;
-
-}
+//////  END TEMP ---------------------------------------------
 
 static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
 
@@ -466,7 +131,7 @@ int updateSched() {
 				(void)printf("\n");
 			info("new pid in list %d", current->pid);
 
-			if (!findParams(current)) { // parameter set found in list -> assign and update
+			if (!findParams(current, contparm)) { // parameter set found in list -> assign and update
 				// precompute affinity
 				if (0 <= current->param->rscs.affinity) {
 					// cpu affinity defined to one cpu?
@@ -667,11 +332,6 @@ void *thread_manage (void *arg)
 	  {
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
-		if (readParams() != 0){
-			err_msg("JSON configuration read failed!" KRED "Thread stopped." KNRM);
-			*pthread_state=-1;
-			break;
-		}
 		// set lolcal variable -- all cpus set.
 		// TODO: adapt to cpu mask
 		for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);

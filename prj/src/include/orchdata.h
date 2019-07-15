@@ -119,7 +119,7 @@
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container
 		struct sched_attr attr;
 		struct sched_mon mon;
-		parm_t * param;			// points to entry in pidparam, mutliple pid-same param
+		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param
 		struct sched_pid * next;
 	} node_t;
 
@@ -187,5 +187,7 @@
 	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);
 	void cpush(cont_t ** head);
+
+	int findParams(node_t* node, struct containers * conts);
 
 #endif

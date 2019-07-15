@@ -1,4 +1,4 @@
-VERSION = 0.63
+VERSION = 0.64
 VERSUFF = "-beta"
 GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc

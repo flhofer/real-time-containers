@@ -41,6 +41,68 @@ void cpush(cont_t ** head) {
     *head = new_node;
 }
 
+/// findParams(): assigns the PID parameters list of a running container
+//
+/// Arguments: - node to chek for matching parameters
+/// 		   - pid configuration list head
+///
+/// Return value: 0 if successful, -1 if unsuccessful
+///
+int findParams(node_t* node, struct containers * conts){
+
+	struct cont_parm * cont = conts->cont;
+
+	// check for container match
+	while (NULL != cont) {
+		// 12 is standard docker short signature
+		if(cont->contid && node->contid && !strncmp(cont->contid, node->contid, 12)) {
+			break;
+		}
+		cont = cont->next; 
+	}
+
+	// did we find a container match?
+	if (cont) {
+		// read all associated pids. Is it there?
+		struct pids_parm * curr = cont->pids;
+
+		while (NULL != curr) {
+			if(curr->pid->psig && node->psig && !strcmp(curr->pid->psig, node->psig)) {
+				// found a matching pid inc root container
+				node->param = curr;
+				return 0;
+			}
+			curr = curr->next; 
+		}
+
+		// found? if not, create entry
+		printDbg("... parameters not found, creating empty from PID\n");
+		pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
+		node->param = conts->pids;				
+	}
+	else{ 
+		// no match found. an now?
+		printDbg("... container not found, trying PID scan\n");
+
+		// TODO: if containerid is valid, create entry?
+
+		// start from scatch in the pid config list only. Maybe ID is new?
+		struct pidc_parm * curr = conts->pids;
+
+		while (NULL != curr) {
+			if(curr->psig && node->psig && !strcmp(curr->psig, node->psig)) {
+				warn("assigning container configuration to unrelated PID");
+				node->param = curr;
+				return 0;
+			}
+			curr = curr->next; 
+		}
+
+	}
+
+	return -1;
+}
+
 /* -------------------- Old CONFIG structure ----------------------*/
 
 static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
@@ -50,23 +112,6 @@ static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
 						 0, INT64_MAX, 0, INT64_MIN},
 						NULL, NULL};					// *param, *next
 						
-static const struct sched_rscs _rscs_default = { -1, 
-												-1, -1,	
-												-1, -1};
-
-void ppush(parm_t ** head) {
-    parm_t * new_node;
-    new_node = calloc(sizeof(parm_t), 1);
-	if (!new_node)
-		err_exit("could not allocate memory!");
-
-	// if any sched parameter is set, policy must also be set
-	new_node->attr.sched_policy = SCHED_NODATA; // default for not set.
-	new_node->rscs = _rscs_default;
-
-    new_node->next = *head;
-    *head = new_node;
-}
 
 /* -------------------- RESOURCE tracing structure ----------------------*/
 

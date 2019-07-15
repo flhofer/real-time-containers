@@ -9,8 +9,8 @@
 	extern char * config; // filename of configuration file
 
 	// configuration settings - program and pid/container`
-	extern const parm_t * contparm; // read only container parameter settings
-	extern prgset_t * prgset; // read only programm setings structure
+	extern containers_t * contparm; // container parameter settings
+	extern prgset_t * prgset; // programm setings structure
 
 	// runtime value tracing
 	extern pthread_mutex_t dataMutex; // data access mutex
