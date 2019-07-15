@@ -59,6 +59,12 @@
 		struct pid_parm* next;
 	} parm_t;
 
+	typedef struct cont_parm {
+		struct pid_parm* cont;
+		uint32_t nthreads;		// number of configured containers pids-threads
+		uint32_t num_cont;		// number of configured containers
+	} contparm_t;
+
 	struct resTracer { // resource tracers
 		int32_t affinity; 		// exclusive cpu-num
 		uint64_t usedPeriod;	// amount of cputime left..

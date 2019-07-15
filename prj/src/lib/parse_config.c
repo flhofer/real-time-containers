@@ -904,16 +904,25 @@ parse_task_phase_data(struct json_object *obj,
 	data->sched_data = parse_sched_data(obj, -1);
 	data->taskgroup_data = parse_taskgroup_data(obj);
 }
+*/
 
-static void
-parse_task_data(char *name, struct json_object *obj, int index,
-		  thread_data_t *data, parm_t *parm)
+static void parse_container_data(struct json_object *obj, int index, 
+		parm_t *data, contparm_t *parm)
 {
-	struct json_object *phases_obj, *resources;
+	struct json_object *phases_obj, *resources, *nobj;
 
-	printDbg(PFX "Parsing task %s [%d]\n", name, index);
+	char *name;
 
-	/* common and defaults *//*
+	printDbg(PFX "container    : %s\n", json_object_to_json_string(obj));
+
+	nobj = get_in_object(obj, "contid", TRUE);
+	name = get_string_value_from(nobj, "contid", TRUE, "--");
+
+	printDbg(PFX "Parsing container %.12s [%d]\n", name, index);
+
+	nobj = json_object_put(nobj);
+
+	/* common and defaults */
 	/*
 	 * Set a pointer to opt entry as we might end up to modify the localtion of
 	 * global resources during realloc
@@ -1029,39 +1038,77 @@ parse_task_data(char *name, struct json_object *obj, int index,
 
 	/* Reset thread's current sched_data and taskgroup_data after parsing. *//*
 	data->curr_sched_data = NULL;
-	data->curr_taskgroup_data = NULL;
-}
+	data->curr_taskgroup_data = NULL;*/
+} 
 
-static void
-parse_containers(struct json_object *containers, parm_t *parm)
+static void parse_containers(struct json_object *containers, contparm_t *parm)
 {
-	/* used in the foreach macro *//*
-	struct lh_entry *entry; char *key; struct json_object *val; int idx;
-
-	int i = 0;
-	int instance;
-
+	
 	printDbg(PFX "Parsing containers section\n");
-	parm->nthreads = 0;
-	parm->num_tasks = 0;
-	foreach(containers, entry, key, val, idx) {
-		instance = get_int_value_from(val, "instance", TRUE, 1);
-		parm->nthreads += instance;
 
-		parm->num_tasks++;
-	}
+	{ // block, container and pid count
 
-	printDbg(PFX "Found %d threads of %d containers\n", parm->nthreads, parm->num_tasks);
+		json_object *contlist;
+		json_object *contobj;
+		json_object *pidobj;
+		parm->nthreads = 0;
+		parm->num_cont = 0;
+		int idx = 0;
 
-	/*
-	 * Parse thread data of defined containers so that we can use them later
-	 * when creating the containers at main() and fork event.
-	 *//*
-	parm->threads_data = malloc(sizeof(thread_data_t) * parm->num_tasks);
-	foreach (containers, entry, key, val, idx)
-		parse_task_data(key, val, -1, &parm->threads_data[i++], parm);
+		if ((contlist = (json_object *)json_object_get_array(containers))) {
+			// scan trough array_list
+
+			while ((contobj = json_object_array_get_idx (containers, idx))) {
+
+				// for each container check pid entries count							
+				if ((pidobj = get_in_object (contobj, "pids", TRUE))){
+					parm->nthreads += json_object_array_length(pidobj);
+					// free pidlist object
+					json_object_put(pidobj);
+				}
+
+				// update conuters
+				parm->num_cont++;
+				idx++;
+
+				// free container object
+				json_object_put(contobj);
+			}
+			// free container list
+			json_object_put(contlist);
+		}
+		printDbg(PFX "Found %d thread configurations in %d containers\n", parm->nthreads, parm->num_cont);
+	} // END container and pid count block
+
+	{ // container parse block
+		/*
+		 * Parse thread data of defined containers so that we can use them later
+		 * when creating the containers at main() and fork event.
+		 */
+
+		json_object *contlist;
+		json_object *contobj;
+		int idx = 0;
+
+		if ((contlist = (json_object *)json_object_get_array(containers))) {
+			// scan trough array_list
+
+			while ((contobj = json_object_array_get_idx (containers, idx))) {
+				ppush(&parm->cont); // add new element to the head
+				parse_container_data(contobj, idx, parm->cont, parm); 
+
+				// update counters
+				idx++;
+
+				// free container object
+				json_object_put(contobj);
+			}
+			// free container list
+			json_object_put(contlist);
+		}
+	} // END container parse block
 }
-*/
+
 
 /// parse_global(): extract parameter values from JSON tokens
 ///
@@ -1284,7 +1331,7 @@ void config_set_default(prgset_t *set) {
 /// 		   - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config(const char *filename, prgset_t *set, parm_t *parm)
+void parse_config(const char *filename, prgset_t *set, contparm_t *parm)
 {
 
 	if (!set) {
@@ -1325,7 +1372,7 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 
 	} // END program settings block
 
-	/*
+
 	{ // container settings block
 
 		struct json_object *containers;
@@ -1338,6 +1385,7 @@ void parse_config(const char *filename, prgset_t *set, parm_t *parm)
 
 	} // END container settings block
 
+	/*
 	{ // global resource limits block
 
 		struct json_object *resources;
