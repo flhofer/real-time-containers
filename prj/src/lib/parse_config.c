@@ -297,8 +297,8 @@ static void parse_container_data(struct json_object *obj, int index,
 		if ((pidslist = get_in_object(obj, "pids", TRUE)))
 			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
 
-				pcpush(&conts->pid, &data->pids);
-				parse_pid_data(pidobj, idx, conts->pid, data);
+				pcpush(&conts->pids, &data->pids);
+				parse_pid_data(pidobj, idx, conts->pids, data);
 				
 				idx++;
 			}

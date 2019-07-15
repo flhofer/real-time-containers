@@ -1,18 +1,16 @@
 #include "orchdata.h" // memory structure to store information
 // TODO: FIXME: neeed return value to deal with memory allocation problems
 
-static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
-						{ 48, SCHED_NODATA }, 			// init size and scheduler 
-						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
-						 0, 0, 0, 0, 0,
-						 0, INT64_MAX, 0, INT64_MIN},
-						NULL, NULL};					// *param, *next
-						
-static const struct sched_rscs _rscs_default = { -1, 
-												-1, -1,	
-												-1, -1};
+/* -------------------- cONFIGURATION structure ----------------------*/
 
-void pcpush(pidc_t ** head, struct pids_parm** phead){
+/// pcpush(): adds a new PID configuration structure to the global l.l. and 
+/// 			links it to the container associated
+///
+/// Arguments: - adr of head of the pid configuration linked list
+///			   - adr of head of the conainer's pid association list
+///
+/// Return value: -
+void pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
     pidc_t * new_node;
     new_node = calloc(sizeof(pidc_t), 1);
 	if (!new_node)
@@ -28,6 +26,11 @@ void pcpush(pidc_t ** head, struct pids_parm** phead){
 	*phead = new_pnode;
 }
 
+/// cpush(): adds a new container configuration structure to the global l.l. 
+///
+/// Arguments: - adr of head of the container configuration linked list
+///
+/// Return value: -
 void cpush(cont_t ** head) {
     cont_t * new_node;
     new_node = calloc(sizeof(cont_t), 1);
@@ -37,6 +40,19 @@ void cpush(cont_t ** head) {
     new_node->next = *head;
     *head = new_node;
 }
+
+/* -------------------- Old CONFIG structure ----------------------*/
+
+static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
+						{ 48, SCHED_NODATA }, 			// init size and scheduler 
+						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
+						 0, 0, 0, 0, 0,
+						 0, INT64_MAX, 0, INT64_MIN},
+						NULL, NULL};					// *param, *next
+						
+static const struct sched_rscs _rscs_default = { -1, 
+												-1, -1,	
+												-1, -1};
 
 void ppush(parm_t ** head) {
     parm_t * new_node;
@@ -52,6 +68,8 @@ void ppush(parm_t ** head) {
     *head = new_node;
 }
 
+/* -------------------- RESOURCE tracing structure ----------------------*/
+
 void rpush(struct resTracer ** head) {
     struct resTracer * new_node = calloc(sizeof(struct resTracer), 1);
 	if (!new_node)
@@ -60,6 +78,8 @@ void rpush(struct resTracer ** head) {
     new_node->next = *head;
     *head = new_node;
 }
+
+/* -------------------- RUNTIME structure ----------------------*/
 
 void push(node_t ** head, pid_t pid, char * psig, char * contid) {
     node_t * new_node = malloc(sizeof(node_t));
@@ -148,3 +168,4 @@ pid_t drop_after(node_t ** head, node_t ** prev) {
     return retval;
 }
 
+/* -------------------- END RUNTIME structure ----------------------*/

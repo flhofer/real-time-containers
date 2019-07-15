@@ -82,7 +82,7 @@
 
 	typedef struct containers {
 		struct cont_parm* cont; // linked list of containers_t
-		struct pidc_parm* pid;	// linked list of pids
+		struct pidc_parm* pids;	// linked list of pids
 		struct sched_attr* attr;// global sched attributes, default.
 		struct sched_rscs* rscs;// global resource settings, default & max
 		uint32_t nthreads;		// number of configured containers pids-threads
@@ -183,7 +183,7 @@
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
 
-	void pcpush(pidc_t ** head, struct pids_parm** phead);
+	void pcpush(struct pidc_parm ** head, struct pids_parm** phead);
 	void rpush(struct resTracer ** head);
 	void ppush(parm_t ** head);
 	void cpush(cont_t ** head);
