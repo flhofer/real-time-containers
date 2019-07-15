@@ -186,9 +186,9 @@ static void parse_scheduling_data(struct json_object *obj,
 	data->sched_flags = get_int_value_from(obj, "flags", TRUE, 0);
 	data->sched_nice = get_int_value_from(obj, "nice", TRUE, 0);
 	data->sched_priority = get_int_value_from(obj, "prio", TRUE, 0);
-	data->sched_runtime = get_int_value_from(obj, "runtime", TRUE, data->sched_runtime);
-	data->sched_deadline = get_int_value_from(obj, "deadline", TRUE, data->sched_deadline);
-	data->sched_period = get_int_value_from(obj, "period", TRUE, data->sched_period);
+	data->sched_runtime = get_int_value_from(obj, "runtime", TRUE, 0);
+	data->sched_deadline = get_int_value_from(obj, "deadline", TRUE, data->sched_runtime);
+	data->sched_period = get_int_value_from(obj, "period", TRUE, data->sched_deadline);
 }
 
 
@@ -205,9 +205,11 @@ static void parse_pid_data(struct json_object *obj, int index,
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
 			parse_scheduling_data(attr,	data->attr);
-		else
+		else {
 			// set to container default
 			data->attr = cont->attr;
+			printDbg(PIN "defaulting to container scheduling settings\n");
+		}
 	}
 
 	{
@@ -215,9 +217,11 @@ static void parse_pid_data(struct json_object *obj, int index,
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
 			parse_resource_data(rscs, data->rscs);
-		else 
+		else { 
 			// set to container default
 			data->rscs = cont->rscs;
+			printDbg(PIN "defaulting to container resource settings\n");
+		}
 	}
 
 	data->cont = cont;
@@ -237,8 +241,10 @@ static void parse_container_data(struct json_object *obj, int index,
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
 			parse_scheduling_data(attr,	data->attr);
-		else
-			data->attr = NULL;
+		else {
+			data->attr = conts->attr;
+			printDbg(PIN "defaulting to global scheduling settings\n");
+		}
 	}
 
 	{
@@ -246,8 +252,10 @@ static void parse_container_data(struct json_object *obj, int index,
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
 			parse_resource_data(rscs, data->rscs);
-		else 
-			data->rscs = NULL;
+		else {
+			data->rscs = conts->rscs;
+			printDbg(PIN "defaulting to global scheduling settings\n");
+		}
 	}
 
 	{// now parse Pids before you exit :)
@@ -271,7 +279,7 @@ static void parse_container_data(struct json_object *obj, int index,
 	}
 } 
 
-static void parse_containers(struct json_object *containers, containers_t *parm)
+static void parse_containers(struct json_object *containers, containers_t *conts)
 {
 	
 	printDbg(PFX "Parsing containers section\n");
@@ -282,8 +290,8 @@ static void parse_containers(struct json_object *containers, containers_t *parm)
 
 			struct json_object *contobj;
 			struct json_object *pidobj;
-			parm->nthreads = 0;
-			parm->num_cont = 0;
+			conts->nthreads = 0;
+			conts->num_cont = 0;
 			int idx = 0;
 
 
@@ -291,15 +299,15 @@ static void parse_containers(struct json_object *containers, containers_t *parm)
 
 				// for each container check pid entries count							
 				if ((pidobj = get_in_object (contobj, "pids", TRUE))){
-					parm->nthreads += json_object_array_length(pidobj);
+					conts->nthreads += json_object_array_length(pidobj);
 				}
 
 				// update conuters
-				parm->num_cont++;
+				conts->num_cont++;
 				idx++;
 			}
 			printDbg(PFX "Found %d thread configurations in %d containers\n",
-				parm->nthreads, parm->num_cont);
+				conts->nthreads, conts->num_cont);
 		} // END container and pid count block
 
 		{ // container parse block
@@ -312,8 +320,8 @@ static void parse_containers(struct json_object *containers, containers_t *parm)
 			int idx = 0;
 
 			while ((contobj = json_object_array_get_idx (containers, idx))) {
-				cpush(&parm->cont); // add new element to the head
-				parse_container_data(contobj, idx, parm->cont, parm); 
+				cpush(&conts->cont); // add new element to the head
+				parse_container_data(contobj, idx, conts->cont, conts); 
 
 				// update counters
 				idx++;
@@ -489,7 +497,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 /// Arguments: - structure to store values in
 ///
 /// Return value: no return value, exits on error
-void config_set_default(prgset_t *set) {
+void parse_config_set_default(prgset_t *set) {
 
 	// logging TODO:
 	set->logdir = NULL; 
@@ -548,14 +556,15 @@ void config_set_default(prgset_t *set) {
 /// 		   - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config(const char *filename, prgset_t *set, containers_t *parm)
+void parse_config(const char *filename, prgset_t *set, containers_t *conts)
 {
 
+	// if parameter object is empty, set it
 	if (!set) {
 		// empty pointer, create and init structure
 		if ((set=malloc(sizeof(prgset_t))))
 			err_msg("Error allocatinging memory!"); 
-		config_set_default(set);	
+		parse_config_set_default(set);	
 	}
 
 	char *fn = strdup(filename); // TODO: why?
@@ -589,20 +598,21 @@ void parse_config(const char *filename, prgset_t *set, containers_t *parm)
 
 	} // END program settings block
 
+	{ // global scheduling parameters, default
 
-	{ // container settings block
+		struct json_object *scheduling;
+		scheduling = get_in_object(root, "scheduling", TRUE);
+		if (scheduling)
+			printDbg(PFX "scheduling: %s\n", json_object_to_json_string(scheduling));
+		printDbg(PFX "Parsing scheduling\n");
+//		parse_scheduling(scheduling, conts);
+		parse_scheduling_data(scheduling, conts->attr);
 
-		struct json_object *containers;
-		containers = get_in_object(root, "containers", FALSE);
-		printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
-		printDbg(PFX "Parsing containers\n");
-		parse_containers(containers, parm);
-		if (!json_object_put(containers))
+		if (scheduling && !json_object_put(scheduling))
 			err_msg(PFX "Could not free object!");
 
-	} // END container settings block
+	} // END global scheduling parameters, default
 
-	/*
 	{ // global resource limits block
 
 		struct json_object *resources;
@@ -610,12 +620,25 @@ void parse_config(const char *filename, prgset_t *set, containers_t *parm)
 		if (resources)
 			printDbg(PFX "resources: %s\n", json_object_to_json_string(resources));
 		printDbg(PFX "Parsing resources\n");
-		parse_resources(resources, parm);
+//		parse_resources(resources, conts);
+		parse_resource_data(resources, conts->rscs);
+
 		if (resources && !json_object_put(resources))
 			err_msg(PFX "Could not free object!");
 
 	} // END resource limits block
-	*/
+
+	{ // container settings block
+
+		struct json_object *containers;
+		containers = get_in_object(root, "containers", FALSE);
+		printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
+		printDbg(PFX "Parsing containers\n");
+		parse_containers(containers, conts);
+		if (!json_object_put(containers))
+			err_msg(PFX "Could not free object!");
+
+	} // END container settings block
 
 	// end parsing JSON
 	if (!json_object_put(root))

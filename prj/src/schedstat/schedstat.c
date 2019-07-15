@@ -590,7 +590,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 #endif
 
 	// preset configuration default values
-	config_set_default(set);
+	parse_config_set_default(set);
 
 	for (;;) {
 		//option_index = 0;

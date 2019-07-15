@@ -74,8 +74,8 @@
 
 	typedef struct cont_parm {
 		char *contid; 			// matching signatures -> container IDs
-		struct sched_attr* attr;// standard linux pid attributes
-		struct sched_rscs* rscs;// additional resource settings 
+		struct sched_attr* attr;// container sched attributes, default
+		struct sched_rscs* rscs;// container default & max resource settings 
 		struct pids_parm* pids;	// linked list pointing to the pids	
 		struct cont_parm* next; 
 	} cont_t;
@@ -83,6 +83,8 @@
 	typedef struct containers {
 		struct cont_parm* cont; // linked list of containers_t
 		struct pidc_parm* pid;	// linked list of pids
+		struct sched_attr* attr;// global sched attributes, default.
+		struct sched_rscs* rscs;// global resource settings, default & max
 		uint32_t nthreads;		// number of configured containers pids-threads
 		uint32_t num_cont;		// number of configured containers
 	} containers_t;
