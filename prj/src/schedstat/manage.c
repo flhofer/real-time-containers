@@ -124,7 +124,7 @@ int updateSched() {
 			continue;
 		}
 
-		// NEW Entry? Params are not assigned yet. Do it noe and reschedule.
+		// NEW Entry? Params are not assigned yet. Do it now and reschedule.
 		if (NULL == current->param) {
 			// params unassigned
 			if (!prgset->quiet)

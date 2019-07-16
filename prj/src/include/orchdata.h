@@ -49,15 +49,7 @@
 		int32_t mem_dataw; // Data memory soft limit
 		int32_t mem_data;  // Data memory time hard limit
 		// TODO: fill with other values, i.e. memory bounds ecc
-	};
-
-	typedef struct pid_parm {
-		char psig[SIG_LEN]; 	// matching signatures -> target pids
-		char contid[SIG_LEN]; 	// matching signatures -> container IDs
-		struct sched_attr attr; // standard linux pid attributes
-		struct sched_rscs rscs; // additional resource settings 
-		struct pid_parm* next;
-	} parm_t;
+	} rscs_t;
 
 	typedef struct pidc_parm {
 		char *psig; 			// matching signatures -> container IDs
@@ -95,7 +87,7 @@
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 		// TODO: fill with other values, i.e. memory amounts ecc
 		struct resTracer * next;
-	};
+	} resTracer_t;
 
 	struct sched_mon { // actual values for monitoring
 		int64_t rt_min;
@@ -110,7 +102,7 @@
 		int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
-	};
+	} nodemon_t;
 
 	typedef struct sched_pid { // pid mamagement and monitoring info
 		pid_t pid;
@@ -178,16 +170,20 @@
 
 	} prgset_t;
 
+	// Management of PID nodes - runtime - MUTEX must be acquired
 	void push(node_t ** head, pid_t pid, char * psig, char * contid);
 	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	pid_t pop(node_t ** head);
 	pid_t drop_after(node_t ** head, node_t ** prev);
 
-	void pcpush(struct pidc_parm ** head, struct pids_parm** phead);
-	void rpush(struct resTracer ** head);
-	void ppush(parm_t ** head);
-	void cpush(cont_t ** head);
+	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
+	int findParams(node_t* node, containers_t * conts);
 
-	int findParams(node_t* node, struct containers * conts);
+	// Resource tracing, No mutex, manipulation by one thread only
+	void rpush(struct resTracer ** head);
+
+	// Management of container configuration, No mutex, startup load by schedstat, manipulation by one thread only
+	void pcpush(pidc_t ** head, pids_t ** phead);
+	void cpush(cont_t ** head);
 
 #endif

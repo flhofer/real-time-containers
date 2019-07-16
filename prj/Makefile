@@ -97,7 +97,7 @@ schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
 
 # lib containing include lib in one binary file
-LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o jsmn.o orchdata.o parse_config.o)
+LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o orchdata.o parse_config.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 

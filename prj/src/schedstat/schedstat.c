@@ -870,9 +870,7 @@ int main(int argc, char **argv)
 	(void)printf("This software comes with no waranty. Please be careful\n");
 
 	prgset_t *tmpset;
-	parm_t *tmpparm;
-	if (!(tmpset = malloc (sizeof(prgset_t))) || 
-		!(tmpparm = malloc (sizeof(parm_t))))
+	if (!(tmpset = malloc (sizeof(prgset_t))))
 		err_exit("Unable to allocate memory");
 
 	process_options(tmpset, argc, argv, max_cpus);

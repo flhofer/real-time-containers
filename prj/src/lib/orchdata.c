@@ -78,7 +78,10 @@ int findParams(node_t* node, struct containers * conts){
 		// found? if not, create entry
 		printDbg("... parameters not found, creating empty from PID\n");
 		pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
-		node->param = conts->pids;				
+		node->param = conts->pids;
+		// update counters
+		conts->nthreads++;
+		conts->num_cont++;		
 	}
 	else{ 
 		// no match found. an now?
@@ -164,11 +167,11 @@ void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char *
 static void check_free(node_t * node) {
 	// verify if we have to free things (pointing outside param
 	if ((long)node->psig < (long)node->param || // is it inside the param structure?? if not, free
-		(long)node->psig > (long)node->param + sizeof(parm_t))
+		(long)node->psig > (long)node->param + sizeof(pidc_t))
 		free(node->psig);
 
-	if ((long)node->contid < (long)node->param || // is it inside the param structure?? if not, free
-		(long)node->contid > (long)node->param + sizeof(parm_t))
+	if ((long)node->contid < (long)node->param->cont || // is it inside the param structure?? if not, free
+		(long)node->contid > (long)node->param->cont + sizeof(cont_t))
 		free(node->contid);
 }
 
