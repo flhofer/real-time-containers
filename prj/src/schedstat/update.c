@@ -312,7 +312,7 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 					// Scan through string and put in array
 					int nleft = 0;
-					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {
+					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
 						printDbg("Pid string return %s\n", pidline);
 						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
 						pid = strtok (pidline,"\n");	
@@ -323,11 +323,14 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 							if ((pidlst->psig = malloc(MAXCMDLINE)) &&
 								(pidlst->contid = calloc(1, strlen(dir->d_name)+1))) { // alloc memory for strings
+
 								(void)sprintf(kparam, "%d/cmdline", pidlst->pid);
 								if (getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
 									warn("can not read pid %d's command line", pidlst->pid);
+
 								pidlst->psig=realloc(pidlst->psig, strlen(pidlst->psig)+1); // cut to exact (reduction = no issue)
 								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+
 							}
 							else // FATAL, exit and execute atExit
 								fatal("Could not allocate memory!");

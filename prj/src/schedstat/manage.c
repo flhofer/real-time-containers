@@ -167,7 +167,7 @@ int updateSched() {
 							// copy to new prefix
 							contp = strcat(strcat(contp,prgset->cpusetdfileprefix), current->contid);		
 							
-							if (setkernvar(contp, "/cpuset.cpus", affinity)){
+							if (setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
 								warn("Can not set cpu-affinity");
 							}
 						}
@@ -183,7 +183,7 @@ int updateSched() {
 						char pid[5];
 						(void)sprintf(pid, "%d", current->pid);
 
-						if (setkernvar(prgset->cpusetdfileprefix , "tasks", pid)){
+						if (setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
 							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
 						}
 

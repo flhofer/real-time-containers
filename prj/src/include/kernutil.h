@@ -31,8 +31,6 @@
 		KV_50	// latest releases, now 5.1 (May 8th '19)
 	};
 
-	extern prgset_t * prgset; // read only programm setings structure
-
 	// MSR 
 	int open_msr_file(int cpu);
 	int get_smi_counter(int fd, unsigned long *counter);
@@ -40,7 +38,7 @@
 
 	// Kernel detection and values
 	int check_kernel(void);
-	int setkernvar(const char *prefix, const char *name, char *value);
+	int setkernvar(const char *prefix, const char *name, char *value, int dryrun);
 	int getkernvar(const char *prefix, const char *name, char *value, int size);
 
 	// affinity and cpu bitmasks

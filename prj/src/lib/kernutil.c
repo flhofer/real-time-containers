@@ -1,6 +1,5 @@
 #include "kernutil.h"
 
-
 #ifdef ARCH_HAS_SMI_COUNTER
 int open_msr_file(int cpu)
 {
@@ -171,6 +170,7 @@ int check_kernel(void)
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
 	// TODO: check dynamic variable allocation
+	// TODO: read vs fread
 	char filename[128];
 	int retval = 1;
 	int path;
@@ -201,9 +201,9 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	return retval;
 }
 
-int setkernvar(const char *prefix, const char *name, char *value)
+int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
-	if (prgset->dryrun) // suppress system changes
+	if (dryrun) // suppress system changes
 		return 0;
 
 	if (kernvar(O_WRONLY, prefix, name, value, strlen(value))){
