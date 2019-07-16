@@ -180,7 +180,7 @@
 	int node_findParams(node_t* node, containers_t * conts);
 
 	// Resource tracing, No mutex, manipulation by one thread only
-	void rpush(struct resTracer ** head);
+	void res_rpush(struct resTracer ** head);
 
 	// Management of container configuration, No mutex, startup load by schedstat, manipulation by one thread only
 	void config_pcpush(pidc_t ** head, pids_t ** phead);
