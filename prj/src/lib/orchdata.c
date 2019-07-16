@@ -1,7 +1,37 @@
 #include "orchdata.h" // memory structure to store information
 // TODO: FIXME: neeed return value to deal with memory allocation problems
 
-/* -------------------- cONFIGURATION structure ----------------------*/
+/* -------------------- COMMON, SHARED functions ----------------------*/
+
+///	generic push pop, based on the fact that all structures have the next l.l
+/// pointer right as first element
+
+// -- dummy structure for generic push and pop functions
+struct base {
+	struct base * next; 
+};
+
+static void push(void ** head, size_t size) {
+    struct base * new_node = calloc(size,1);
+	if (!new_node)
+		err_exit("could not allocate memory!");
+
+    new_node->next = *head;
+    *head = new_node;
+}
+
+static void pop(void** head) {
+    if (NULL == *head) {
+        return;
+    }
+
+    struct base * next_node = NULL;
+    next_node = ((struct base *)*head)->next;
+	free(*head);
+    *head = next_node;
+}
+
+/* -------------------- CONFIGURATION structure ----------------------*/
 
 /// pcpush(): adds a new PID configuration structure to the global l.l. and 
 /// 			links it to the container associated
@@ -11,19 +41,11 @@
 ///
 /// Return value: -
 void pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
-    pidc_t * new_node;
-    new_node = calloc(sizeof(pidc_t), 1);
-	if (!new_node)
-		err_exit("could not allocate memory!");
-
-    new_node->next = *head;
-    *head = new_node;
+	push((void**)head, sizeof(pidc_t));
 
 	// chain new element to container pids list, pointing to this pid
-	pids_t *new_pnode = malloc (sizeof(pids_t));
-	new_pnode->pid = *head;
-	new_pnode->next = *phead;
-	*phead = new_pnode;
+	push((void**)phead, sizeof(pids_t));
+	(*phead)->pid = *head;
 }
 
 /// cpush(): adds a new container configuration structure to the global l.l. 
@@ -32,14 +54,20 @@ void pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
 ///
 /// Return value: -
 void cpush(cont_t ** head) {
-    cont_t * new_node;
-    new_node = calloc(sizeof(cont_t), 1);
-	if (!new_node)
-		err_exit("could not allocate memory!");
-
-    new_node->next = *head;
-    *head = new_node;
+	push((void**)head, sizeof(cont_t));
 }
+
+/* -------------------- RESOURCE tracing structure ----------------------*/
+
+/// rpush(): adds a new resource tracing structure to the l.l. 
+///
+/// Arguments: - adr of head of the linked list
+///
+/// Return value: -
+void rpush(struct resTracer ** head) {
+	push((void**)head, sizeof(struct resTracer));
+}
+
 
 /// findParams(): assigns the PID parameters list of a running container
 //
@@ -48,7 +76,7 @@ void cpush(cont_t ** head) {
 ///
 /// Return value: 0 if successful, -1 if unsuccessful
 ///
-int findParams(node_t* node, struct containers * conts){
+int node_findParams(node_t* node, struct containers * conts){
 
 	struct cont_parm * cont = conts->cont;
 
@@ -107,64 +135,40 @@ int findParams(node_t* node, struct containers * conts){
 	return -1;
 }
 
-/* -------------------- Old CONFIG structure ----------------------*/
+/* -------------------- default PID values structure ----------------------*/
 
-static const node_t _node_default = { 0, NULL, NULL,	// pid, *psig, *contid
+static const node_t _node_default = { NULL,				// *next, 
+						0, NULL, NULL,					// pid, *psig, *contid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						 0, 0, 0, 0, 0,
 						 0, INT64_MAX, 0, INT64_MIN},
-						NULL, NULL};					// *param, *next
+						NULL};							// *param
 						
-
-/* -------------------- RESOURCE tracing structure ----------------------*/
-
-void rpush(struct resTracer ** head) {
-    struct resTracer * new_node = calloc(sizeof(struct resTracer), 1);
-	if (!new_node)
-		err_exit("could not allocate memory!");
-
-    new_node->next = *head;
-    *head = new_node;
-}
 
 /* -------------------- RUNTIME structure ----------------------*/
 
-void push(node_t ** head, pid_t pid, char * psig, char * contid) {
-    node_t * new_node = malloc(sizeof(node_t));
-	if (!new_node)
-		err_exit("could not allocate memory!");
+void node_push(node_t ** head, pid_t pid, char * psig, char * contid) {
+	push((void**)head, sizeof(node_t));
+	void* next = (*head)->next;
 
-	*new_node = _node_default;
-
-    new_node->pid = pid;
-    new_node->psig = psig;
-    new_node->contid = contid;
-    new_node->next = *head;
-    *head = new_node;
+	**head = _node_default;
+    (*head)->pid = pid;
+    (*head)->psig = psig;
+    (*head)->contid = contid;
+    (*head)->next = next;
 }
 
-void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
+void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
 	if (*prev == NULL) {
-		push (head, pid, psig, contid);
+		node_push (head, pid, psig, contid);
 		*prev = *head; // shift to new
 		return;
 	}
-   	node_t * new_node = malloc(sizeof(node_t));
-	if (!new_node)
-		err_exit("could not allocate memory!");
-	
-	*new_node = _node_default;
-
-    new_node->pid = pid;
-    new_node->psig = psig;
-    new_node->contid = contid;
-    new_node->next = (*prev)->next;
-    (*prev)->next = new_node;
-	*prev = (*prev)->next; // shift to new
+	node_push (&(*prev)->next, pid, psig, contid);
 }
 
-static void check_free(node_t * node) {
+static void node_check_free(node_t * node) {
 	// verify if we have to free things (pointing outside param
 	if ((long)node->psig < (long)node->param || // is it inside the param structure?? if not, free
 		(long)node->psig > (long)node->param + sizeof(pidc_t))
@@ -175,46 +179,21 @@ static void check_free(node_t * node) {
 		free(node->contid);
 }
 
-pid_t pop(node_t ** head) {
-    pid_t retval = -1;
-    node_t * next_node = NULL;
-
+void node_pop(node_t ** head) {
     if (*head == NULL) {
-        return -1;
+        return;
     }
-
-    next_node = (*head)->next;
-    retval = (*head)->pid;
- 
-	check_free(*head);
-	free(*head);
-    *head = next_node;
-
-    return retval;
+	node_check_free(*head);
+	pop((void**)head);
 }
 
-pid_t drop_after(node_t ** head, node_t ** prev) {
+void node_drop_after(node_t ** head, node_t ** prev) {
 	// special case, drop head, has no prec
 	if (*prev == NULL) {
-		return pop (head);
+		node_pop (head);
+		return;
 	}
-
-    pid_t retval = -1;
-    node_t * next_node = NULL;
-
-	// next node is the node to be dropped
-	if (NULL !=  (*prev)->next) {
-		next_node =  (*prev)->next->next;
-
-	    retval = (*prev)->next->pid;
-		check_free((*prev)->next);
-	    free((*prev)->next);
-	}
-	
-	(*prev)->next = next_node;
-    retval = (*prev)->pid;
-
-    return retval;
+	node_pop(&(*prev)->next);
 }
 
 /* -------------------- END RUNTIME structure ----------------------*/

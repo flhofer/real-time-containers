@@ -131,7 +131,7 @@ int updateSched() {
 				(void)printf("\n");
 			info("new pid in list %d", current->pid);
 
-			if (!findParams(current, contparm)) { // parameter set found in list -> assign and update
+			if (!node_findParams(current, contparm)) { // parameter set found in list -> assign and update
 				// precompute affinity
 				if (0 <= current->param->rscs->affinity) {
 					// cpu affinity defined to one cpu?

@@ -52,24 +52,24 @@
 	} rscs_t;
 
 	typedef struct pidc_parm {
+		struct pidc_parm* next; 
 		char *psig; 			// matching signatures -> container IDs
 		struct sched_attr* attr;// standard linux pid attributes
 		struct sched_rscs* rscs;// additional resource settings 
 		struct cont_parm* cont; // pointer to the container settings
-		struct pidc_parm* next; 
 	} pidc_t;
 
 	typedef struct pids_parm {
-		struct pidc_parm *pid; 	// matching pid, one entry
 		struct pids_parm* next; // list to next entry
+		struct pidc_parm *pid; 	// matching pid, one entry
 	} pids_t;
 
 	typedef struct cont_parm {
+		struct cont_parm* next; 
 		char *contid; 			// matching signatures -> container IDs
 		struct sched_attr* attr;// container sched attributes, default
 		struct sched_rscs* rscs;// container default & max resource settings 
 		struct pids_parm* pids;	// linked list pointing to the pids	
-		struct cont_parm* next; 
 	} cont_t;
 
 	typedef struct containers {
@@ -82,11 +82,11 @@
 	} containers_t;
 
 	struct resTracer { // resource tracers
+		struct resTracer * next;
 		int32_t affinity; 		// exclusive cpu-num
 		uint64_t usedPeriod;	// amount of cputime left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 		// TODO: fill with other values, i.e. memory amounts ecc
-		struct resTracer * next;
 	} resTracer_t;
 
 	struct sched_mon { // actual values for monitoring
@@ -105,6 +105,7 @@
 	} nodemon_t;
 
 	typedef struct sched_pid { // pid mamagement and monitoring info
+		struct sched_pid * next;
 		pid_t pid;
 		// usually only one of two is set
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
@@ -112,7 +113,6 @@
 		struct sched_attr attr;
 		struct sched_mon mon;
 		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param
-		struct sched_pid * next;
 	} node_t;
 
 	typedef struct prg_settings {
@@ -171,13 +171,13 @@
 	} prgset_t;
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
-	void push(node_t ** head, pid_t pid, char * psig, char * contid);
-	void insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
-	pid_t pop(node_t ** head);
-	pid_t drop_after(node_t ** head, node_t ** prev);
+	void node_push(node_t ** head, pid_t pid, char * psig, char * contid);
+	void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
+	void node_pop(node_t ** head);
+	void node_drop_after(node_t ** head, node_t ** prev);
 
 	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
-	int findParams(node_t* node, containers_t * conts);
+	int node_findParams(node_t* node, containers_t * conts);
 
 	// Resource tracing, No mutex, manipulation by one thread only
 	void rpush(struct resTracer ** head);
