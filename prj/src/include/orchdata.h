@@ -9,6 +9,7 @@
 	#include "error.h"		// error and strerr print functions
 
 	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker
+	#define MAXCMDLINE 1024		// maximum commandline signature buffer
 	// TODO: limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 	#define SCHED_FAFMSK 0xE000	// flexible affinity mask
@@ -22,7 +23,7 @@
 	#define TDETM 100	// x*TSCAN, time check new containers
 	#define TSCHS 1024  // scheduler minimum granularity
 	#define BUFRD 1024  // buffer read size
-	#define CONT_PPID "docker-containerd-shim"
+	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
 	#define CONT_DCKR "docker/" // default cgroup subdirectory
 

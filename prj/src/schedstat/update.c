@@ -50,7 +50,7 @@ static int clocksources[] = {
 #define USEC_PER_SEC		1000000
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
-#define PID_BUFFER			4096
+#define PIPE_BUFFER			4096
 #define MAX_PIDS 64 // max containers detectable
 
 typedef struct pid_info {
@@ -78,7 +78,7 @@ static inline void tsnorm(struct timespec *ts)
 /// Arguments: pointers to the items to check
 ///
 /// Return value: difference PID
-int cmpPidItem (const void * a, const void * b) {
+static int cmpPidItem (const void * a, const void * b) {
 	return (((pidinfo_t *)a)->pid - ((pidinfo_t *)b)->pid);
 }
 
@@ -88,7 +88,7 @@ int cmpPidItem (const void * a, const void * b) {
 /// Arguments: -
 ///
 /// Return value: -
-void dumpStats (){
+static void dumpStats (){
 
 	node_t * item = head;
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
@@ -122,10 +122,10 @@ void dumpStats (){
 ///
 /// Return value: error code, 0 = success
 ///
-int get_sched_info(node_t * item)
+static int get_sched_info(node_t * item)
 {
 	char szFileName [_POSIX_PATH_MAX],
-		szStatBuff [PID_BUFFER],
+		szStatBuff [PIPE_BUFFER],
 		ltag [80], // just tag of beginning, max lenght expected ~30 
     	*s;
 
@@ -143,11 +143,11 @@ int get_sched_info(node_t * item)
 	} /** IF_NULL **/
 
 	// read output into buffer!
-	if (0 >= fread (szStatBuff, sizeof(char), PID_BUFFER-1, fp)) {
+	if (0 >= fread (szStatBuff, sizeof(char), PIPE_BUFFER-1, fp)) {
 		fclose (fp);
 		return -1;
 	}
-	szStatBuff[PID_BUFFER-1] = '\0'; // safety first
+	szStatBuff[PIPE_BUFFER-1] = '\0'; // safety first
 
 	fclose (fp);
 
@@ -223,7 +223,7 @@ int get_sched_info(node_t * item)
 ///
 /// Return value: number of PIDs found (total)
 ///
-int updateStats ()
+static int updateStats ()
 {
 	static int prot = 0; // pipe rotation animation
 	static char const sp[4] = "/-\\|";
@@ -284,61 +284,70 @@ int updateStats ()
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getContPids (pidinfo_t *pidlst, size_t cnt)
+static int getContPids (pidinfo_t *pidlst, size_t cnt)
 {
 	struct dirent *dir;
-	DIR *d = opendir(prgset->cpusetdfileprefix);// -> pointing to global
+	DIR *d = opendir(prgset->cpusetdfileprefix);
 	if (d) {
 		char *fname = NULL; // clear pointer again
-		char pidline[PID_BUFFER];
+		char pidline[BUFRD];
 		char *pid;
+		char kparam[15]; // pid+/cmdline read string
 		int i =0;
 
 		printDbg( "\nContainer detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
 		// scan trough docker cgroups, find them?
-			if ((strlen(dir->d_name)>60) && // container strings are very long!
-					(fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
-				fname[0] = '\0';   // ensures the memory is an empty string
-				// copy to new prefix
-				fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
-				fname = strcat(fname,"/tasks");
+			if ((strlen(dir->d_name)>60)) {// container strings are very long!
+				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
+					fname[0] = '\0';   // ensures the memory is an empty string
+					// copy to new prefix
+					fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
+					fname = strcat(fname,"/tasks");
 
-				// prepare literal and open pipe request
-				pidline[PID_BUFFER-1] = '\0'; // safety to avoid overrun
-				int path = open(fname,O_RDONLY);
+					// prepare literal and open pipe request
+					pidline[BUFRD-1] = '\0'; // safety to avoid overrun
+					int path = open(fname,O_RDONLY);
 
-				// Scan through string and put in array
-				int nleft = 0;
-				while(nleft += read(path, pidline+nleft,PID_BUFFER-nleft-1)) {
-					printDbg("Pid string return %s\n", pidline);
-					pidline[PID_BUFFER-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
-					pid = strtok (pidline,"\n");	
-					while (pid != NULL && nleft && ( '\0' != pidline[PID_BUFFER-2])) { // <6 = 5 pid no + \n 
-						// pid found
-						pidlst->pid = atoi(pid);
-						printDbg("%d\n",pidlst->pid);
+					// Scan through string and put in array
+					int nleft = 0;
+					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {
+						printDbg("Pid string return %s\n", pidline);
+						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
+						pid = strtok (pidline,"\n");	
+						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n 
+							// pid found
+							pidlst->pid = atoi(pid);
+							printDbg("%d\n",pidlst->pid);
 
-						pidlst->psig = NULL;							
-						// find command string and copy to new allocation
-						if ((pidlst->contid = calloc(1, strlen(dir->d_name)+1))) // alloc memory for string
-							(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
-						// TODO else
-						pidlst++;
-						i++;
+							if ((pidlst->psig = malloc(MAXCMDLINE)) &&
+								(pidlst->contid = calloc(1, strlen(dir->d_name)+1))) { // alloc memory for strings
+								(void)sprintf(kparam, "%d/cmdline", pidlst->pid);
+								if (getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
+									warn("can not read pid %d's command line", pidlst->pid);
+								pidlst->psig=realloc(pidlst->psig, strlen(pidlst->psig)+1); // cut to exact (reduction = no issue)
+								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
+							}
+							else // FATAL, exit and execute atExit
+								fatal("Could not allocate memory!");
 
-						nleft -= strlen(pid)+1;
-						pid = strtok (NULL,"\n");	
+							pidlst++;
+							i++;
 
+							nleft -= strlen(pid)+1;
+							pid = strtok (NULL,"\n");	
+
+						}
+						if (pid) // copy leftover chars to beginning of string buffer
+							memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
 					}
-					if (pid) // copy leftover chars to beginning of string buffer
-						memcpy(pidline, pidline+PID_BUFFER-nleft-2, nleft); 
-				}
 
-				close(path);
+					close(path);
+				}
+				else // FATAL, exit and execute atExit
+					fatal("Could not allocate memory!");
 			}
-// TODO: else
 		}
 		closedir(d);
 
@@ -364,22 +373,25 @@ int getContPids (pidinfo_t *pidlst, size_t cnt)
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
-	char pidline[PID_BUFFER];
-	char req[40]; // TODO: might overrun if signatures are too long
-	char *pid;
-	int i =0  ;
-	// prepare literal and open pipe request, request spid (thread) ids
-	// spid and pid coincide for main process
-	(void)sprintf (req,  "ps h -o spid,command %s", tag);
 	FILE *fp;
 
-	if(!(fp = popen(req,"r")))
-		return 0;
+	{
+		char req[40]; // TODO: might overrun if signatures are too long
+		// prepare literal and open pipe request, request spid (thread) ids
+		// spid and pid coincide for main process
+		(void)sprintf (req,  "ps h -o spid,command %s", tag);
 
+		if(!(fp = popen(req,"r")))
+			return 0;
+	}
+
+	char pidline[BUFRD];
+	char *pid;
+	int i =0;
 	// Scan through string and put in array
-	while(fgets(pidline,PID_BUFFER,fp) && i < cnt) {
+	while(fgets(pidline,BUFRD,fp) && i < cnt) {
 		printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
         pidlst->pid = atoi(pid);
@@ -390,11 +402,12 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
-		if ((pidlst->psig = calloc(1, SIG_LEN))) { // alloc memory for string
+		if ((pidlst->psig = calloc(1, strlen(pid)))) { // alloc memory for string
 			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
 			pidlst->psig[SIG_LEN-1] = '\0'; // safety trunc if too long
 		}
-		// TODO: else
+		else // FATAL, exit and execute atExit
+			fatal("Could not allocate memory!");
 		pidlst->contid = NULL;							
 
 		pidlst++;
@@ -415,9 +428,9 @@ int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 ///
 /// Return value: number of PIDs found (total)
 ///
-int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+static int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
-	char pidline[PID_BUFFER];
+	char pidline[BUFRD];
 	char req[40]; // TODO: might overrun if signatures are too long
 
 	// prepare literal and open pipe request
@@ -429,15 +442,15 @@ int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 	int cnt2 = 0;
 	// read list of PPIDs
-	if (fgets(pidline,PID_BUFFER-10,fp)) { // len -10 (+\n), limit maximum
+	if (fgets(pidline,BUFRD-10,fp)) { // len -10 (+\n), limit maximum
 		int i=0;
-		while (pidline[i] && i<PID_BUFFER) {
+		while (pidline[i] && i<BUFRD) {
 			if (' ' == pidline[i]) 
 				pidline[i]=',';
 			i++;
 		}
 
-		char pids[PID_BUFFER] = "-T --ppid "; // len = 10, sum = total buffer
+		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
 		(void)strcat(pids, pidline);
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with nullchar, overwrite \n
 
@@ -456,7 +469,7 @@ int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 ///
 /// Return value: 
 ///
-void scanNew () {
+static void scanNew () {
 	// get PIDs 
 	pidinfo_t pidlst[MAX_PIDS];
 	int cnt = 0; // Count of found PID
