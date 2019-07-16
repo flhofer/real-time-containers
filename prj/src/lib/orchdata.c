@@ -33,14 +33,14 @@ static void pop(void** head) {
 
 /* -------------------- CONFIGURATION structure ----------------------*/
 
-/// pcpush(): adds a new PID configuration structure to the global l.l. and 
+/// config_pcpush(): adds a new PID configuration structure to the global l.l. and 
 /// 			links it to the container associated
 ///
 /// Arguments: - adr of head of the pid configuration linked list
 ///			   - adr of head of the conainer's pid association list
 ///
 /// Return value: -
-void pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
+void config_pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
 	push((void**)head, sizeof(pidc_t));
 
 	// chain new element to container pids list, pointing to this pid
@@ -48,28 +48,28 @@ void pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
 	(*phead)->pid = *head;
 }
 
-/// cpush(): adds a new container configuration structure to the global l.l. 
+/// config_cpush(): adds a new container configuration structure to the global l.l. 
 ///
 /// Arguments: - adr of head of the container configuration linked list
 ///
 /// Return value: -
-void cpush(cont_t ** head) {
+void config_cpush(cont_t ** head) {
 	push((void**)head, sizeof(cont_t));
 }
 
 /* -------------------- RESOURCE tracing structure ----------------------*/
 
-/// rpush(): adds a new resource tracing structure to the l.l. 
+/// res_rpush(): adds a new resource tracing structure to the l.l. 
 ///
 /// Arguments: - adr of head of the linked list
 ///
 /// Return value: -
-void rpush(struct resTracer ** head) {
+void res_rpush(struct resTracer ** head) {
 	push((void**)head, sizeof(struct resTracer));
 }
 
 
-/// findParams(): assigns the PID parameters list of a running container
+/// node_findParams(): assigns the PID parameters list of a running container
 //
 /// Arguments: - node to chek for matching parameters
 /// 		   - pid configuration list head
@@ -105,7 +105,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// found? if not, create entry
 		printDbg("... parameters not found, creating empty from PID\n");
-		pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
+		config_pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
 		node->param = conts->pids;
 		// update counters
 		conts->nthreads++;

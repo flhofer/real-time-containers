@@ -297,7 +297,7 @@ static void parse_container_data(struct json_object *obj, int index,
 		if ((pidslist = get_in_object(obj, "pids", TRUE)))
 			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
 
-				pcpush(&conts->pids, &data->pids);
+				config_pcpush(&conts->pids, &data->pids);
 				parse_pid_data(pidobj, idx, conts->pids, data);
 				
 				idx++;
@@ -352,7 +352,7 @@ static void parse_containers(struct json_object *containers, containers_t *conts
 			int idx = 0;
 
 			while ((contobj = json_object_array_get_idx (containers, idx))) {
-				cpush(&conts->cont); // add new element to the head
+				config_cpush(&conts->cont); // add new element to the head
 				parse_container_data(contobj, idx, conts->cont, conts); 
 
 				// update counters

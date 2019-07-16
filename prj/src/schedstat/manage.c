@@ -284,7 +284,7 @@ int createResTracer(){
 	for (int i=0;i<(prgset->affinity_mask->size);i++) 
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
-			rpush ( &rhead);
+			res_rpush ( &rhead);
 			rhead->affinity = i;
 			rhead->basePeriod = 1;
 	}		

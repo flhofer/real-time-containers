@@ -183,7 +183,7 @@
 	void rpush(struct resTracer ** head);
 
 	// Management of container configuration, No mutex, startup load by schedstat, manipulation by one thread only
-	void pcpush(pidc_t ** head, pids_t ** phead);
-	void cpush(cont_t ** head);
+	void config_pcpush(pidc_t ** head, pids_t ** phead);
+	void config_cpush(cont_t ** head);
 
 #endif
