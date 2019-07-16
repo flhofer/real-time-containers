@@ -133,10 +133,10 @@ int updateSched() {
 
 			if (!findParams(current, contparm)) { // parameter set found in list -> assign and update
 				// precompute affinity
-				if (0 <= current->param->rscs.affinity) {
+				if (0 <= current->param->rscs->affinity) {
 					// cpu affinity defined to one cpu?
 					CPU_ZERO(&cset);
-					CPU_SET(current->param->rscs.affinity & ~(SCHED_FAFMSK), &cset);
+					CPU_SET(current->param->rscs->affinity & ~(SCHED_FAFMSK), &cset);
 				}
 				else {
 					// cpu affinity to all
@@ -148,17 +148,17 @@ int updateSched() {
 					if (!current->psig) 
 						current->psig = current->param->psig;
 					if (!current->contid)
-						current->contid = current->param->contid;
+						current->contid = current->param->cont->contid;
 
 					// TODO: track failed scheduling update?
 
 					// update CGroup setting of container if in CGROUP mode
 					if (DM_CGRP == prgset->use_cgroup && 
-						((0 <= current->param->rscs.affinity) & ~(SCHED_FAFMSK))) {
+						((0 <= current->param->rscs->affinity) & ~(SCHED_FAFMSK))) {
 
 						char *contp = NULL;
 						char affinity[5];
-						(void)sprintf(affinity, "%d", current->param->rscs.affinity);
+						(void)sprintf(affinity, "%d", current->param->rscs->affinity);
 
 						cont( "reassigning %.12s's CGroups CPU's to %s", current->contid, affinity);
 						if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
@@ -193,14 +193,14 @@ int updateSched() {
 								current->pid);
 						else
 							cont("PID %d reassigned to CPU%d", current->pid, 
-								current->param->rscs.affinity);
+								current->param->rscs->affinity);
 					}
 
 					// only do if different than -1, <- not set values
-					if (SCHED_NODATA != current->param->attr.sched_policy) {
+					if (SCHED_NODATA != current->param->attr->sched_policy) {
 						cont("Setting Scheduler of PID %d to '%s'", current->pid,
-							policy_to_string(current->param->attr.sched_policy));
-						if (sched_setattr (current->pid, &current->param->attr, 0U))
+							policy_to_string(current->param->attr->sched_policy));
+						if (sched_setattr (current->pid, current->param->attr, 0U))
 							err_msg_n(errno, "setting attributes for PID %d",
 								current->pid);
 					}
@@ -213,15 +213,15 @@ int updateSched() {
 					// TODO: upgrade to a list of parameters, looping through.			
 
 					// RT-Time limit
-					if (-1 != current->param->rscs.rt_timew || -1 != current->param->rscs.rt_time) {
+					if (-1 != current->param->rscs->rt_timew || -1 != current->param->rscs->rt_time) {
 						if (prlimit(current->pid, RLIMIT_RTTIME, NULL, &rlim))
 							err_msg_n(errno, "getting RT-Limit for PID %d",
 								current->pid);
 						else {
-							if (-1 != current->param->rscs.rt_timew)
-								rlim.rlim_cur = current->param->rscs.rt_timew;
-							if (-1 != current->param->rscs.rt_time)
-								rlim.rlim_max = current->param->rscs.rt_time;
+							if (-1 != current->param->rscs->rt_timew)
+								rlim.rlim_cur = current->param->rscs->rt_timew;
+							if (-1 != current->param->rscs->rt_time)
+								rlim.rlim_max = current->param->rscs->rt_time;
 							if (prlimit(current->pid, RLIMIT_RTTIME, &rlim, NULL ))
 								err_msg_n(errno,"setting RT-Limit for PID %d",
 									current->pid);
@@ -231,15 +231,15 @@ int updateSched() {
 					}
 
 					// Data limit - Heap.. unitialized or not
-					if (-1 != current->param->rscs.mem_dataw || -1 != current->param->rscs.mem_data) {
+					if (-1 != current->param->rscs->mem_dataw || -1 != current->param->rscs->mem_data) {
 						if (prlimit(current->pid, RLIMIT_DATA, NULL, &rlim))
 							err_msg_n(errno, "getting Data-Limit for PID %d",
 								current->pid);
 						else {
-							if (-1 != current->param->rscs.mem_dataw)
-								rlim.rlim_cur = current->param->rscs.mem_dataw;
-							if (-1 != current->param->rscs.mem_data)
-								rlim.rlim_max = current->param->rscs.mem_data;
+							if (-1 != current->param->rscs->mem_dataw)
+								rlim.rlim_cur = current->param->rscs->mem_dataw;
+							if (-1 != current->param->rscs->mem_data)
+								rlim.rlim_max = current->param->rscs->mem_data;
 							if (prlimit(current->pid, RLIMIT_DATA, &rlim, NULL ))
 								err_msg_n(errno, "setting Data-Limit for PID %d",
 									current->pid);
@@ -255,7 +255,7 @@ int updateSched() {
 							current->pid);
 					else
 						cont("non-RT PID %d reassigned to CPU%d", current->pid,
-							current->param->rscs.affinity);
+							current->param->rscs->affinity);
 				}
 				else
 					cont("Skipping non-RT PID %d from rescheduling", current->pid);

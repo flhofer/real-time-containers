@@ -69,7 +69,7 @@ int findParams(node_t* node, struct containers * conts){
 		while (NULL != curr) {
 			if(curr->pid->psig && node->psig && !strcmp(curr->pid->psig, node->psig)) {
 				// found a matching pid inc root container
-				node->param = curr;
+				node->param = curr->pid;
 				return 0;
 			}
 			curr = curr->next; 
@@ -100,6 +100,7 @@ int findParams(node_t* node, struct containers * conts){
 
 	}
 
+	// didnt find it anywhere :( leave it as it is
 	return -1;
 }
 

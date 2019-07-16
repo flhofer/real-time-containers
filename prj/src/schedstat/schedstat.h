@@ -6,7 +6,6 @@
 	#define PRGNAME "DC static orchestrator"
 	
 /* --------------------------- Global variables for all the threads and programms ------------------ */
-	extern char * config; // filename of configuration file
 
 	// configuration settings - program and pid/container`
 	extern containers_t * contparm; // container parameter settings
