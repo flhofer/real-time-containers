@@ -16,10 +16,7 @@ FILE  * dbg_out;
 Suite * library_suite(void) {
 
 	Suite *s = suite_create("Libraries");
-	TCase *tc1 = tcase_create("kernutil");
- 
-    tcase_add_test(tc1, kernutil_getkernvar);
-    tcase_add_test(tc1, kernutil_setkernvar);
+	TCase *tc1 = library_kernutil();
 
     suite_add_tcase(s, tc1);
 

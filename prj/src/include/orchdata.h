@@ -43,7 +43,7 @@
 		AFFINITY_USEALL			// go for all!!
 	};
 
-	struct sched_rscs { // resources 
+	typedef struct sched_rscs { // resources 
 		int32_t affinity; // exclusive cpu-num
 		int32_t rt_timew; // RT execution time soft limit
 		int32_t rt_time;  // RT execution time hard limit
@@ -82,7 +82,7 @@
 		uint32_t num_cont;		// number of configured containers
 	} containers_t;
 
-	struct resTracer { // resource tracers
+	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
 		int32_t affinity; 		// exclusive cpu-num
 		uint64_t usedPeriod;	// amount of cputime left..
@@ -90,7 +90,7 @@
 		// TODO: fill with other values, i.e. memory amounts ecc
 	} resTracer_t;
 
-	struct sched_mon { // actual values for monitoring
+	typedef struct sched_mon { // actual values for monitoring
 		int64_t rt_min;
 		int64_t rt_avg;
 		int64_t rt_max;
@@ -181,7 +181,7 @@
 	int node_findParams(node_t* node, containers_t * conts);
 
 	// Resource tracing, No mutex, manipulation by one thread only
-	void res_rpush(struct resTracer ** head);
+	void res_rpush(resTracer_t ** head);
 
 	// Management of container configuration, No mutex, startup load by schedstat, manipulation by one thread only
 	void config_pcpush(pidc_t ** head, pids_t ** phead);
