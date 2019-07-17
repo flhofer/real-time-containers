@@ -6,18 +6,39 @@
 ###############################
 */
 
-
 #include <check.h>
-//#include "testPosix/pidlist.c"
+#include "lib/kernutil.c"
 
-START_TEST (test_pidlist_create)
-{
+// debug output file
+FILE  * dbg_out;
 
+
+Suite * library_suite(void) {
+
+	Suite *s = suite_create("Libraries");
+	TCase *tc1 = tcase_create("kernutil");
+ 
+    tcase_add_test(tc1, kernutil_getkernvar);
+    tcase_add_test(tc1, kernutil_setkernvar);
+
+    suite_add_tcase(s, tc1);
+
+	return s;
 }
-END_TEST
 
 int main(void)
 {
-	return 0;
+
+	Suite * s1 = library_suite();
+
+    SRunner *sr = srunner_create(s1);
+    int nf;
+
+    srunner_run_all(sr, CK_VERBOSE);
+    nf = srunner_ntests_failed(sr);
+    srunner_free(sr);
+
+    return nf == 0 ? 0 : 1;
 }
+
 
