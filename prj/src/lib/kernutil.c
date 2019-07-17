@@ -172,7 +172,6 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	// TODO: check dynamic variable allocation
 	// TODO: read vs fread
 	char filename[128];
-	int retval = 1;
 	int path;
 	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
@@ -189,41 +188,31 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 		if (O_RDONLY == mode) {
 			int got;
 			if ((got = read(path, value, sizeofvalue)) > 0) {
-				retval = 0;
 				value[got-1] = '\0';
+				return got;
 			}
 		} else if (O_WRONLY == mode) {
 			if (write(path, value, sizeofvalue) == sizeofvalue)
-				retval = 0;
+				return sizeofvalue;
 		}
 		close(path);
 	}
-	return retval;
+	return -1;  // return no read/written, 0 = not ok
 }
 
 int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
 	if (dryrun) // suppress system changes
-		return 0;
+		return strlen(value);
 
-	if (kernvar(O_WRONLY, prefix, name, value, strlen(value))){
-		printDbg(KRED "Error!" KNRM " could not set %s to %s\n", name, value);
-		return -1;
-	}
-	
-	return 0;
+	return kernvar(O_WRONLY, prefix, name, value, strlen(value));
 
 }
 
 int getkernvar(const char *prefix, const char *name, char *value, int size)
 {
 
-	if (kernvar(O_RDONLY, prefix, name, value, size)){
-		printDbg(KRED "Error!" KNRM " could not get %s\n", name);
-		return -1;
-	}
-	
-	return 0;
+	return (kernvar(O_RDONLY, prefix, name, value, size));
 
 }
 
