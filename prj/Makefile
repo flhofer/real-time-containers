@@ -8,23 +8,26 @@ DEBUG=1
 
 OBJDIR = build
 
-sources = schedstat.c 
+sources = schedstat.c
 
-TARGETS = $(sources:.c=)
-# rem -lpthread
+TARGETS = $(sources:.c=) check
 LIBS	= -lrt -lcap -lrttest -ljson-c
-RTTESTLIB = -lrttest -L$(OBJDIR)
-EXTRA_LIBS ?= -ldl -lrt	# for get_cpu
+# for tests
+TLIBS	= -lcheck_pic -lm -lsubunit $(LIBS)
+
+# for installation and rpm build
 DESTDIR	?=
 prefix  ?= /usr/local
 bindir  ?= $(prefix)/bin
 mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
-#added prthread
-CFLAGS ?= -Wall -Wno-nonnull -pthread
-CPPFLAGS += -D_GNU_SOURCE -Isrc/include
-LDFLAGS ?= -pthread 
+CFLAGS ?= -Wall -Wno-nonnull 
+CPPFLAGS += -D _GNU_SOURCE -I src/include
+LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
+# for tests
+CTFLAGS ?= $(CFLAGS) -g -O0 -coverage
+
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
@@ -94,40 +97,39 @@ schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
-#	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+#	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
+
+check: test/test.c
+	$(CC) $(CTFLAGS) $(LDFLAGS) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+	./check_test
+# todo, exit on failure
 
 # lib containing include lib in one binary file
 LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o orchdata.o parse_config.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 
-CLEANUP  = $(TARGETS) *.o .depend *.*~ *.orig *.rej *.d *.a
+CLEANUP  = $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a
 CLEANUP += $(if $(wildcard .git), ChangeLog)
 
 .PHONY: clean
 clean:
 	for F in $(CLEANUP); do find -type f -name $$F | xargs rm -f; done
-	rm -f rt-tests-*.tar
-	rm -f hwlatdetect
-	rm -f tags
-
-RPMDIRS = BUILD BUILDROOT RPMS SRPMS SPECS
-.PHONY: distclean
-distclean: clean
-	rm -rf $(RPMDIRS) releases *.tar.gz *.tar.asc tmp
+	rm -f *.gcno
+	rm -f *.gcna
 
 .PHONY: rebuild
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
 
-.PHONY: install
-install: all 
-	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
-	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
-	cp $(TARGETS) "$(DESTDIR)$(bindir)"
-	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
-
+#
+#.PHONY: install
+#install: all 
+#	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
+#	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
+#	cp $(TARGETS) "$(DESTDIR)$(bindir)"
+#	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
 
 .PHONY: tarball
 tarball:
@@ -136,15 +138,16 @@ tarball:
 .PHONY: help
 help:
 	@echo ""
-	@echo " rt-tests useful Makefile targets:"
+	@echo " DC orchestrator useful Makefile targets:"
 	@echo ""
 	@echo "    all       :  build all tests (default)"
 	@echo "    install   :  install tests to local filesystem"
+	@echo "    check     :  build and run unit tests
 	@echo "    clean     :  remove object files"
-	@echo "    distclean :  remove all generated files"
 	@echo "    tarball   :  make a rt-tests tarball suitable for release"
 	@echo "    help      :  print this message"
 
 .PHONY: tags
 tags:
 	ctags -R --extra=+f --c-kinds=+p --exclude=tmp --exclude=BUILD *
+
