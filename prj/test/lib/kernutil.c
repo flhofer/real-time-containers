@@ -6,8 +6,6 @@
 ###############################
 */
 
-#include <check.h>
-#include "../../src/include/error.h"
 #include "../../src/include/kernutil.h"
 
 // TODO: msr test functions!

@@ -816,7 +816,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 	if (!error)
 		// parse json configuration
-		parse_config(strdup(config), set, contparm);
+		parse_config_file(config, set, contparm);
 
 	if (set->smi) { // TODO: verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)

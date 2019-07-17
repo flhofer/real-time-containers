@@ -102,7 +102,6 @@ schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
 check: test/test.c
 	$(CC) $(CTFLAGS) $(LDFLAGS) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	./check_test
-# todo, exit on failure
 
 # lib containing include lib in one binary file
 LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o orchdata.o parse_config.o)
@@ -133,18 +132,17 @@ rebuild:
 
 .PHONY: tarball
 tarball:
-	git archive --worktree-attributes --prefix=rt-tests-${VERSION}/ -o rt-tests-${VERSION}.tar v${VERSION}
+	git archive --worktree-attributes --prefix=orch-${VERSION}/ -o orch-${VERSION}.tar v${VERSION}
 
 .PHONY: help
 help:
-	@echo ""
 	@echo " DC orchestrator useful Makefile targets:"
 	@echo ""
 	@echo "    all       :  build all tests (default)"
 	@echo "    install   :  install tests to local filesystem"
 	@echo "    check     :  build and run unit tests
 	@echo "    clean     :  remove object files"
-	@echo "    tarball   :  make a rt-tests tarball suitable for release"
+	@echo "    tarball   :  make a tarball suitable for release"
 	@echo "    help      :  print this message"
 
 .PHONY: tags

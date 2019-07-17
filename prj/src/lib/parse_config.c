@@ -582,13 +582,13 @@ void parse_config_set_default(prgset_t *set) {
 	set->use_cgroup = DM_CGRP;
 }
 
-/// parse_config(): parse the json configuration file and push back results
+/// parse_config(): parse the json configuration and push back results
 ///
 /// Arguments: - filename of the configuration file
 /// 		   - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config(const char *filename, prgset_t *set, containers_t *conts)
+static void parse_config(struct json_object *root, prgset_t *set, containers_t *conts)
 {
 
 	// if parameter object is empty, set it
@@ -598,12 +598,6 @@ void parse_config(const char *filename, prgset_t *set, containers_t *conts)
 			err_msg("Error allocatinging memory!"); 
 		parse_config_set_default(set);	
 	}
-
-	char *fn = strdup(filename); // TODO: why?
-	struct json_object *root;
-	printDbg(PFX "Reading JSON config from %s\n", fn);
-	root = json_object_from_file(fn);
-	free(fn);
 
 	// root read successfully?
 	if (root == NULL) {
@@ -677,3 +671,44 @@ void parse_config(const char *filename, prgset_t *set, containers_t *conts)
 		err_exit(PFX "Could not free objects!");
 
 }
+
+/// parse_config_stdin(): parse the json configuration from stin and push back results
+///
+/// Arguments: - struct to store the read parameters in
+///
+/// Return value: void (exits with error if needed)
+void parse_config_stdin(prgset_t *set, containers_t *conts)
+{
+	/*
+	 * Read from stdin until EOF, write to temp file and parse
+	 * as a "normal" config file
+	 */
+	size_t in_length;
+	char buf[JSON_FILE_BUF_SIZE];
+	struct json_object *js;
+	printDbg(PFX "Reading JSON config from stdin...");
+
+	in_length = fread(buf, sizeof(char), JSON_FILE_BUF_SIZE, stdin);
+	buf[in_length] = '\0';
+	js = json_tokener_parse(buf);
+	parse_config(js, set, conts);
+	return;
+}
+
+/// parse_config_file(): parse the json configuration from file and push back results
+///
+/// Arguments: - filename of the configuration file
+/// 		   - struct to store the read parameters in
+///
+/// Return value: void (exits with error if needed)
+void parse_config_file (const char *filename, prgset_t *set, containers_t *conts)
+{
+	char *fn = strdup(filename); // TODO: why?
+	struct json_object *js;
+	printDbg(PFX "Reading JSON config from %s\n", fn);
+	js = json_object_from_file(fn);
+	free(fn);
+	parse_config(js, set, conts);
+	return;
+}
+

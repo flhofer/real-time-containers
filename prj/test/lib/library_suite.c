@@ -8,6 +8,7 @@
 
 #include "kernutil.c"
 #include "orchdata.c"
+#include "parse_config.c"
 
 Suite * library_suite(void) {
 
@@ -16,6 +17,7 @@ Suite * library_suite(void) {
 	// call tests and append test cases	
 	library_kernutil(s);
 	library_orchdata(s);
+	library_parse_config(s);
 
 	return s;
 }
