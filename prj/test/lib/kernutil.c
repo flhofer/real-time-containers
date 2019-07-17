@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 15/04/2019
+# last change: 17/07/2019
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -9,6 +9,8 @@
 #include <check.h>
 #include "../../src/include/error.h"
 #include "../../src/include/kernutil.h"
+
+// TODO: msr test functions!
 
 START_TEST(kernutil_check_kernel)
 {	
@@ -66,13 +68,17 @@ START_TEST(kernutil_setkernvar)
 }
 END_TEST
 
+// TODO: bitmask test functions!
 
-TCase * library_kernutil () {
-	TCase *tc = tcase_create("kernutil");
+void library_kernutil (Suite * s) {
+
+	TCase *tc1 = tcase_create("kernutil");
  
-    tcase_add_loop_test(tc, kernutil_getkernvar, 0, 6);
-    tcase_add_loop_test(tc, kernutil_setkernvar, 0, 5);
-	tcase_add_test(tc, kernutil_check_kernel);
+    tcase_add_loop_test(tc1, kernutil_getkernvar, 0, 6);
+    tcase_add_loop_test(tc1, kernutil_setkernvar, 0, 5);
+	tcase_add_test(tc1, kernutil_check_kernel);
 
-	return tc;
+    suite_add_tcase(s, tc1);
+
+	return;
 }

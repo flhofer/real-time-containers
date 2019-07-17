@@ -7,21 +7,10 @@
 */
 
 #include <check.h>
-#include "lib/kernutil.c"
+#include "lib/library_suite.c"
 
 // debug output file
 FILE  * dbg_out;
-
-
-Suite * library_suite(void) {
-
-	Suite *s = suite_create("Libraries");
-	TCase *tc1 = library_kernutil();
-
-    suite_add_tcase(s, tc1);
-
-	return s;
-}
 
 int main(void)
 {
