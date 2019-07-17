@@ -128,8 +128,8 @@ static void prepareEnvironment(prgset_t *set) {
 	if (!set->affinity_mask)
 		display_help(1);
 
-	smi_counter = calloc (sizeof(long), maxccpu);
-	smi_msr_fd = calloc (sizeof(int), maxccpu);
+	smi_counter = calloc (maxccpu, sizeof(long));
+	smi_msr_fd = calloc (maxccpu, sizeof(int));
 	if (!smi_counter || !smi_msr_fd)
 		err_exit("could not allocate memory!");
 
@@ -331,7 +331,7 @@ static void prepareEnvironment(prgset_t *set) {
 	char * numastr = "0"; // default numa string
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
-		if (!(numastr = calloc (5, 1)))
+		if (!(numastr = malloc (5)))
 			err_exit("could not allocate memory!");
 
 		sprintf(numastr, "0-%d", numanodes);
@@ -701,8 +701,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'n':
 			set->use_cgroup = DM_CMDLINE;
 			if (NULL != optarg) {
+				free(set->cont_pidc);
 				set->cont_pidc = optarg;
 			} else if (optind<argc) {
+				free(set->cont_pidc);
 				set->cont_pidc = argv[optind];
 				optargs++;
 			}
@@ -740,8 +742,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 's':
 			set->use_cgroup = DM_CNTPID;
 			if (NULL != optarg) {
+				free(set->cont_ppidc);
 				set->cont_ppidc = optarg;
 			} else if (optind<argc) {
+				free(set->cont_ppidc);
 				set->cont_ppidc = argv[optind];
 				optargs++;
 			}

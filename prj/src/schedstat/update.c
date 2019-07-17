@@ -322,14 +322,13 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 							printDbg("%d\n",pidlst->pid);
 
 							if ((pidlst->psig = malloc(MAXCMDLINE)) &&
-								(pidlst->contid = calloc(1, strlen(dir->d_name)+1))) { // alloc memory for strings
+								(pidlst->contid = strdup(dir->d_name))) { // alloc memory for strings
 
 								(void)sprintf(kparam, "%d/cmdline", pidlst->pid);
 								if (getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
 									warn("can not read pid %d's command line", pidlst->pid);
 
 								pidlst->psig=realloc(pidlst->psig, strlen(pidlst->psig)+1); // cut to exact (reduction = no issue)
-								(void)strncpy(pidlst->contid,dir->d_name, strlen(dir->d_name)); // copy string, max size of string
 
 							}
 							else // FATAL, exit and execute atExit
@@ -405,11 +404,8 @@ static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
-		if ((pidlst->psig = calloc(1, strlen(pid)))) { // alloc memory for string
-			(void)strncpy(pidlst->psig,pid,SIG_LEN); // copy string, max size of string
-			pidlst->psig[SIG_LEN-1] = '\0'; // safety trunc if too long
-		}
-		else // FATAL, exit and execute atExit
+		if (!(pidlst->psig = strdup(pid))) // alloc memory for string
+			// FATAL, exit and execute atExit
 			fatal("Could not allocate memory!");
 		pidlst->contid = NULL;							
 
@@ -539,7 +535,7 @@ static void scanNew () {
 		// ok, skip to next
 		else {
 			printDbg("\nNo change");		
-			// free allocated items
+			// free allocated items, no longer needed
 			free((pidlst +i)->psig);
 			free((pidlst +i)->contid);
 
@@ -549,10 +545,13 @@ static void scanNew () {
 		}
 	}
 
-	while (i >= 0) { // reached the end of the actual queue -- insert to list end
+	// has to be reversed in input
+	cnt = i;
+	i = 0;
+	while (i <= cnt) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
 		node_insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
-		i--;
+		i++;
 	}
 
 	while (act != NULL) { // reached the end of the pid queue -- drop list end

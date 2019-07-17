@@ -12,7 +12,7 @@ struct base {
 };
 
 static void push(void ** head, size_t size) {
-    struct base * new_node = calloc(size,1);
+    struct base * new_node = calloc(1,size);
 	if (!new_node)
 		err_exit("could not allocate memory!");
 
@@ -107,9 +107,8 @@ int node_findParams(node_t* node, struct containers * conts){
 		printDbg("... parameters not found, creating empty from PID\n");
 		config_pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
 		node->param = conts->pids;
-		// update counters
+		// update counter
 		conts->nthreads++;
-		conts->num_cont++;		
 	}
 	else{ 
 		// no match found. an now?
@@ -131,7 +130,16 @@ int node_findParams(node_t* node, struct containers * conts){
 
 	}
 
-	// didnt find it anywhere :( leave it as it is
+	// didnt find it anywhere  -> plant an empty container and pidc
+	config_cpush(&conts->cont);
+	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
+
+	config_pcpush(&conts->pids, &conts->cont->pids); // add new empty item -> pid list, container pids list
+	node->param = conts->pids;
+
+	// update counters
+	conts->nthreads++;
+	conts->num_cont++;		
 	return -1;
 }
 
@@ -162,28 +170,25 @@ void node_push(node_t ** head, pid_t pid, char * psig, char * contid) {
 void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
 	if (*prev == NULL) {
 		node_push (head, pid, psig, contid);
-		*prev = *head; // shift to new
 		return;
 	}
 	node_push (&(*prev)->next, pid, psig, contid);
-}
-
-static void node_check_free(node_t * node) {
-	// verify if we have to free things (pointing outside param
-	if ((long)node->psig < (long)node->param || // is it inside the param structure?? if not, free
-		(long)node->psig > (long)node->param + sizeof(pidc_t))
-		free(node->psig);
-
-	if ((long)node->contid < (long)node->param->cont || // is it inside the param structure?? if not, free
-		(long)node->contid > (long)node->param->cont + sizeof(cont_t))
-		free(node->contid);
 }
 
 void node_pop(node_t ** head) {
     if (*head == NULL) {
         return;
     }
-	node_check_free(*head);
+
+	// free strings id specifically created for this pid
+	if ((*head)->param) { // parameters already set?
+	if ((*head)->psig != (*head)->param->psig)
+		free((*head)->psig);
+	if ((*head)->contid != (*head)->param->cont->contid)
+		free((*head)->contid);
+	// TODO: configuration of pid and container maybe as well?
+	}
+
 	pop((void**)head);
 }
 
