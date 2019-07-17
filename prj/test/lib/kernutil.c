@@ -49,10 +49,12 @@ START_TEST(kernutil_getkernvar)
 }
 END_TEST
 
-static const struct kernvar_test setkernvar_var[3] = {
+static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/dev/", "null", NULL, 1, 0},						// write empty
 		{"/proc/","version_signature", "test", 0, EACCES},	// write protected
+		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO
+		{"/dev/", "null", NULL, 0, EINVAL},					// write NULL
+		{"/dev/", NULL, "", 0, EINVAL},						// write to NULL
 	}; 
 
 START_TEST(kernutil_setkernvar)
@@ -69,7 +71,7 @@ TCase * library_kernutil () {
 	TCase *tc = tcase_create("kernutil");
  
     tcase_add_loop_test(tc, kernutil_getkernvar, 0, 6);
-    tcase_add_loop_test(tc, kernutil_setkernvar, 0, 3);
+    tcase_add_loop_test(tc, kernutil_setkernvar, 0, 5);
 	tcase_add_test(tc, kernutil_check_kernel);
 
 	return tc;

@@ -116,7 +116,7 @@ CLEANUP += $(if $(wildcard .git), ChangeLog)
 clean:
 	for F in $(CLEANUP); do find -type f -name $$F | xargs rm -f; done
 	rm -f *.gcno
-	rm -f *.gcna
+	rm -f *.gcda
 
 .PHONY: rebuild
 rebuild:

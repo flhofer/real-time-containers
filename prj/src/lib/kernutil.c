@@ -180,18 +180,23 @@ int check_kernel(void)
 ///
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
-	// TODO: check dynamic variable allocation
 	// TODO: read vs fread
 	char filename[128];
 	int path;
-	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
-	errno = 0; // reset global errno
+	if (!prefix || !name || !value) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
 	if (len_prefix + len_name + 1 > sizeof(filename)) {
 		errno = ENOMEM;
 		return 0;
 	}
+
+	errno = 0; // reset global errno
 
 	memcpy(filename, prefix, len_prefix);
 	memcpy(filename + len_prefix, name, len_name + 1);
@@ -227,6 +232,11 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 ///
 int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
+	if (!value) {
+		errno = EINVAL;
+		return 0;
+	}
+
 	if (dryrun) // suppress system changes
 		return strlen(value);
 
