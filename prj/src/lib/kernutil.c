@@ -167,6 +167,17 @@ int check_kernel(void)
 	return kv;
 }
 
+
+/// kernvar(): sets/gets a kernel virtual fs parameter, internal
+///
+/// Arguments: - filesystem prefix -> folder
+/// 		   - parameter name to write read
+///			   - input value
+///			   - variable buffer size
+///
+/// Return value: return num of written/read chars.
+///					0= error and errno is set
+///
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
 	// TODO: check dynamic variable allocation
@@ -175,9 +186,11 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	int path;
 	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
+	errno = 0; // reset global errno
+
 	if (len_prefix + len_name + 1 > sizeof(filename)) {
 		errno = ENOMEM;
-		return 1;
+		return 0;
 	}
 
 	memcpy(filename, prefix, len_prefix);
@@ -194,12 +207,24 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 		} else if (O_WRONLY == mode) {
 			if (write(path, value, sizeofvalue) == sizeofvalue)
 				return sizeofvalue;
+			
 		}
 		close(path);
 	}
-	return -1;  // return no read/written, 0 = not ok
+//  errno = ... pass errno from open, read or write
+	return 0;  // return no read/written, 0 = not ok
 }
 
+/// setkernvar(): sets a kernel virtual fs parameter
+///
+/// Arguments: - filesystem prefix -> folder
+/// 		   - parameter name to write
+///			   - input value
+///			   - dry run? 1 = do nothing
+///
+/// Return value: return num of written chars.
+///					0= error and errno is set
+///
 int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
 	if (dryrun) // suppress system changes
@@ -209,6 +234,16 @@ int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 
 }
 
+/// getkernvar(): reads a kernel virtual fs parameter
+///
+/// Arguments: - filesystem prefix -> folder
+/// 		   - parameter name to read
+///			   - value storage location
+///			   - storage buffer size
+///
+/// Return value: return num of read chars.
+///					0= error and errno is set
+///
 int getkernvar(const char *prefix, const char *name, char *value, int size)
 {
 

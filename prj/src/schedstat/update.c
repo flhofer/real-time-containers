@@ -325,7 +325,7 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 								(pidlst->contid = strdup(dir->d_name))) { // alloc memory for strings
 
 								(void)sprintf(kparam, "%d/cmdline", pidlst->pid);
-								if (getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
+								if (!getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
 									warn("can not read pid %d's command line", pidlst->pid);
 
 								pidlst->psig=realloc(pidlst->psig, strlen(pidlst->psig)+1); // cut to exact (reduction = no issue)

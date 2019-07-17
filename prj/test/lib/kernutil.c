@@ -21,13 +21,18 @@ struct kernvar_test {
 	char * var;
 	char * val;
 	int count;
+	int errcode;
 };
 
-static const struct kernvar_test getkernvar_var[4] = {
-		{"/proc/", "version_signature", "Ubuntu", 36},
-		{"/proc/","meminfo", "MemTotal", 50},
-		{"/proc/","noexist", "", -1},
-		{"/sys/devices/systems/cpu/", "isolated", 0}
+static const struct kernvar_test getkernvar_var[6] = {
+		{"/proc/", "version_signature", "Ubuntu", 36, 0},	// standard read
+		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
+		{"/proc/","noexist", "", 0, ENOENT},				// entry does not exist
+		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
+		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
+			"devices1", "", 0, ENOMEM},						// too long filename+varname > 128
+		{"/sys/devices/system/cpu/isolated/",
+			"thread_siblings_list", "", 0, ENOTDIR}			// not a valid dir string
 	}; 
 
 START_TEST(kernutil_getkernvar)
@@ -38,14 +43,16 @@ START_TEST(kernutil_getkernvar)
 	int read = getkernvar(getkernvar_var[_i].path, getkernvar_var[_i].var, value, 50);
 	ck_assert_int_eq(read, getkernvar_var[_i].count);
 	ck_assert_str_ge(value, getkernvar_var[_i].val);
+	ck_assert_int_eq(errno, getkernvar_var[_i].errcode);
 
 	free(value);
 }
 END_TEST
 
-static const struct kernvar_test setkernvar_var[2] = {
-		{"/dev/", "null", "Ubuntu", 6},
-		{"/proc/","noexist", "", -1},
+static const struct kernvar_test setkernvar_var[3] = {
+		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
+		{"/dev/", "null", NULL, 1, 0},						// write empty
+		{"/proc/","version_signature", "test", 0, EACCES},	// write protected
 	}; 
 
 START_TEST(kernutil_setkernvar)
@@ -53,14 +60,16 @@ START_TEST(kernutil_setkernvar)
 	int written = setkernvar(setkernvar_var[_i].path, setkernvar_var[_i].var,
 		setkernvar_var[_i].val, 0);
 	ck_assert_int_eq(written, setkernvar_var[_i].count);
+	ck_assert_int_eq(errno, setkernvar_var[_i].errcode);
 }
 END_TEST
+
 
 TCase * library_kernutil () {
 	TCase *tc = tcase_create("kernutil");
  
-    tcase_add_loop_test(tc, kernutil_getkernvar, 0, 4);
-    tcase_add_loop_test(tc, kernutil_setkernvar, 0, 2);
+    tcase_add_loop_test(tc, kernutil_getkernvar, 0, 6);
+    tcase_add_loop_test(tc, kernutil_setkernvar, 0, 3);
 	tcase_add_test(tc, kernutil_check_kernel);
 
 	return tc;
