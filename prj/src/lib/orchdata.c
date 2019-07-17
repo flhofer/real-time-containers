@@ -95,7 +95,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		struct pids_parm * curr = cont->pids;
 
 		while (NULL != curr) {
-			if(curr->pid->psig && node->psig && !strcmp(curr->pid->psig, node->psig)) {
+			if(curr->pid->psig && node->psig && !strstr(node->psig, curr->pid->psig)) {
 				// found a matching pid inc root container
 				node->param = curr->pid;
 				return 0;
@@ -106,6 +106,8 @@ int node_findParams(node_t* node, struct containers * conts){
 		// found? if not, create entry
 		printDbg("... parameters not found, creating empty from PID\n");
 		config_pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
+		conts->pids->rscs = conts->rscs;
+		conts->pids->attr = conts->attr;
 		node->param = conts->pids;
 		// update counter
 		conts->nthreads++;
@@ -133,8 +135,12 @@ int node_findParams(node_t* node, struct containers * conts){
 	// didnt find it anywhere  -> plant an empty container and pidc
 	config_cpush(&conts->cont);
 	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
+	conts->cont->rscs = conts->rscs;
+	conts->cont->attr = conts->attr;
 
 	config_pcpush(&conts->pids, &conts->cont->pids); // add new empty item -> pid list, container pids list
+	conts->pids->rscs = conts->rscs;
+	conts->pids->attr = conts->attr;
 	node->param = conts->pids;
 
 	// update counters
