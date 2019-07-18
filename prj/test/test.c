@@ -8,6 +8,7 @@
 
 #include <check.h>
 #include <stdio.h>
+#include <errno.h>
 
 // debug output file
 FILE  * dbg_out;

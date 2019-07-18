@@ -9,6 +9,7 @@
 #include "kernutil.c"
 #include "orchdata.c"
 #include "parse_config.c"
+#include "dockerlink.c"
 
 Suite * library_suite(void) {
 
@@ -23,6 +24,7 @@ Suite * library_suite(void) {
 		dbg_out = (_IO_FILE *)stderr;
 	}
 	library_parse_config(s);
+	library_dockerlink(s);
 
 	return s;
 }

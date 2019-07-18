@@ -1,19 +1,7 @@
-#include "orchdata.h" // memory structure to store information
-
-#include <stdio.h>
-#include <string.h> // used for string parsing
-#include <unistd.h> // used for POSIX XOPEN constants
-#include <fcntl.h>	// file control, new open/close functions
-#include <errno.h>	// error numbers and strings
-#include <sys/utsname.h>	// kernel info
-#include <cpuid.h>			// cpu information
-#include <numa.h>			// numa node ident
-
-#include "error.h"		// error and strerr print functions
-
-
 #ifndef __KERNUTIL_H_
 	#define __KERNUTIL_H_
+
+	#include <numa.h>			// numa node ident
 
 	#if (defined(__i386__) || defined(__x86_64__))
 		#define ARCH_HAS_SMI_COUNTER

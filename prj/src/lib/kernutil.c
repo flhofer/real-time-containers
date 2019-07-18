@@ -1,5 +1,15 @@
 #include "kernutil.h"
 
+#include <stdio.h>
+#include <string.h> // used for string parsing
+#include <unistd.h> // used for POSIX XOPEN constants
+#include <fcntl.h>	// file control, new open/close functions
+#include <errno.h>	// error numbers and strings
+#include <sys/utsname.h>	// kernel info
+#include <cpuid.h>			// cpu information
+
+#include "error.h"		// error and strerr print functions
+
 #ifdef ARCH_HAS_SMI_COUNTER
 int open_msr_file(int cpu)
 {
