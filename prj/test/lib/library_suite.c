@@ -17,6 +17,11 @@ Suite * library_suite(void) {
 	// call tests and append test cases	
 	library_kernutil(s);
 	library_orchdata(s);
+
+	// these use dbgprint. check first
+	if (!dbg_out) {
+		dbg_out = (_IO_FILE *)stderr;
+	}
 	library_parse_config(s);
 
 	return s;

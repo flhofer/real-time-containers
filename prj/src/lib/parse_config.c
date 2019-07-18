@@ -631,7 +631,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		if (scheduling)
 			printDbg(PFX "scheduling: %s\n", json_object_to_json_string(scheduling));
 		printDbg(PFX "Parsing scheduling\n");
-//		parse_scheduling(scheduling, conts);
 		parse_scheduling_data(scheduling, &conts->attr);
 
 		if (scheduling && !json_object_put(scheduling))
@@ -646,7 +645,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		if (resources)
 			printDbg(PFX "resources: %s\n", json_object_to_json_string(resources));
 		printDbg(PFX "Parsing resources\n");
-//		parse_resources(resources, conts);
 		parse_resource_data(resources, &conts->rscs);
 
 		if (resources && !json_object_put(resources))
@@ -672,27 +670,31 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 
 }
 
-/// parse_config_stdin(): parse the json configuration from stin and push back results
+/// parse_config_pipe(): parse the json configuration from a pipe until EOF
+///
+/// Arguments: - pipe to the input
+/// 		   - struct to store the read parameters in
+///
+/// Return value: void (exits with error if needed)
+void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
+	size_t in_length;
+	char buf[JSON_FILE_BUF_SIZE];
+	struct json_object *js;
+	printDbg(PFX "Reading JSON config from pipe/stdin...\n");
+
+	in_length = fread(buf, sizeof(char), JSON_FILE_BUF_SIZE, inpipe);
+	buf[in_length] = '\0';
+	js = json_tokener_parse(buf);
+	parse_config(js, set, conts);
+}
+
+/// parse_config_stdin(): parse the json configuration from stin until EOF
 ///
 /// Arguments: - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config_stdin(prgset_t *set, containers_t *conts)
-{
-	/*
-	 * Read from stdin until EOF, write to temp file and parse
-	 * as a "normal" config file
-	 */
-	size_t in_length;
-	char buf[JSON_FILE_BUF_SIZE];
-	struct json_object *js;
-	printDbg(PFX "Reading JSON config from stdin...");
-
-	in_length = fread(buf, sizeof(char), JSON_FILE_BUF_SIZE, stdin);
-	buf[in_length] = '\0';
-	js = json_tokener_parse(buf);
-	parse_config(js, set, conts);
-	return;
+void parse_config_stdin(prgset_t *set, containers_t *conts) {
+	parse_config_pipe(stdin, set, conts);
 }
 
 /// parse_config_file(): parse the json configuration from file and push back results
@@ -701,14 +703,12 @@ void parse_config_stdin(prgset_t *set, containers_t *conts)
 /// 		   - struct to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
-void parse_config_file (const char *filename, prgset_t *set, containers_t *conts)
-{
+void parse_config_file (const char *filename, prgset_t *set, containers_t *conts) {
 	char *fn = strdup(filename); // TODO: why?
 	struct json_object *js;
 	printDbg(PFX "Reading JSON config from %s\n", fn);
 	js = json_object_from_file(fn);
 	free(fn);
 	parse_config(js, set, conts);
-	return;
 }
 

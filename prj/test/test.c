@@ -7,14 +7,15 @@
 */
 
 #include <check.h>
+#include <stdio.h>
+
+// debug output file
+FILE  * dbg_out;
+
 #include "lib/library_suite.c"
 
 // generic..
 #include "../src/include/error.h"
-
-
-// debug output file
-FILE  * dbg_out;
 
 int main(void)
 {
