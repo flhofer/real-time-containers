@@ -32,7 +32,9 @@ static char * dockerlink_events [6] = {
 	};
 
 contevent_t cntexpected[6] = {
+	{ cnt_remove, "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572495142834428},
 	{},
+	{}
 	};
 
 
@@ -61,8 +63,10 @@ START_TEST(dockerlink_conf)
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
 
-	memcmp (
-	ck_assert_mem(cntevent, containerEvent, sizeof(contevent_t));
+	ck_assert(cntevent);
+	ck_assert(containerEvent);
+
+	ck_assert(!memcmp (cntevent, containerEvent, sizeof(contevent_t)));
 
 }
 END_TEST

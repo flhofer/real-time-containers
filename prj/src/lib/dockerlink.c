@@ -190,6 +190,7 @@ pthread_mutex_t containerMutex; // data access mutex
 contevent_t * containerEvent; // data
 	
 struct eventData {
+	char * type;
 	char * status;
 	char * id;
 	char * from;
@@ -229,7 +230,6 @@ enum dockerEvents {
 
 static void docker_read_pipe(){
 
-	size_t in_length;
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
 
@@ -250,6 +250,13 @@ static void docker_read_pipe(){
 //	printDbg(PFX "Successfully parsed input JSON\n");
 //	printDbg(PFX "root     : %s\n", json_object_to_json_string(root));
 
+	free(evnt->type);
+	free(evnt->status);
+	free(evnt->id);
+	free(evnt->from);
+	free(evnt->scope);
+
+	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
 	evnt->status = get_string_value_from(root, "status", FALSE, NULL);
 	evnt->id = get_string_value_from(root, "id", FALSE, NULL);
 	evnt->from = get_string_value_from(root, "from", FALSE, NULL);
@@ -262,8 +269,35 @@ static void docker_read_pipe(){
 static contevent_t * docker_check_event() {
 
 	docker_read_pipe();
-	
-	return NULL;
+	contevent_t * cntevent;
+
+	if (!strcmp(evnt->type, "container")){
+		// kill	
+		if ((!strcmp(evnt->status, "kill")))
+		{
+			cntevent = malloc(sizeof(contevent_t));
+			
+			cntevent->event = cnt_remove;
+			cntevent->id = strdup(evnt->id);
+			cntevent->image = strdup(evnt->from);
+			cntevent->timenano = evnt->timenano;
+			return cntevent;
+		}
+		if ((!strcmp(evnt->status, "create")) ||
+			(!strcmp(evnt->status, "start")))
+		{
+			cntevent = malloc(sizeof(contevent_t));
+			
+			cntevent->event = cnt_add;
+			cntevent->id = strdup(evnt->id);
+			cntevent->image = strdup(evnt->from);
+			cntevent->timenano = evnt->timenano;
+			return cntevent;
+		}
+		return NULL;
+	}
+	else
+		return NULL;
 }
 
 /// thread_watch_docker(): checks for docker events and signals new containers
@@ -326,6 +360,13 @@ void *thread_watch_docker(void *arg) {
 				pstate = 1;
 
 			case 5:
+				// free elements
+				free(evnt->type);
+				free(evnt->status);
+				free(evnt->id);
+				free(evnt->from);
+				free(evnt->scope);
+				// free main
 				free(evnt);
 				pclose(inpipe);
 			case 6:
