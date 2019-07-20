@@ -3,6 +3,7 @@
 #include <stdbool.h>		// for bool defition and operation
 #include <json-c/json.h>	// libjson-c for parsing
 #include <errno.h>			// error numbers and strings
+#include <signal.h> 		// for SIGs, handling in main, raise in update
 
 #include "error.h"		// error and strerr print functions
 
@@ -170,6 +171,18 @@ get_string_value_from(struct json_object *where,
 
 //// -------------------------------- FROM RT-APP, END ---------------------------------
 
+// signal to keep status of triggers ext SIG
+volatile sig_atomic_t stop;
+
+/// inthand(): interrupt handler for infinite while loop, help 
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: -
+void inthand (int sig, siginfo_t *siginfo, void *context){
+	printDbg("SIGTERM : RCV! %lu\n", (unsigned long)time(NULL));
+	stop = 1;
+}
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
@@ -198,44 +211,43 @@ struct eventData {
 	uint64_t timenano;
 };
 
-struct eventData * evnt;
 
-/*
 enum dockerEvents {
-    attach,
-    commit,
-    copy,
-    create,
-    destroy,
-    detach,
-    die,
-    exec_create,
-    exec_detach,
-    exec_die,
-    exec_start,
-    export,
-    health_status,
-    kill,
-    oom,
-    pause,
-    rename,
-    resize,
-    restart,
-    start,
-    stop,
-    top,
-    unpause,
-    update};
-*/
+    dkrevnt_attach,
+    dkrevnt_commit,
+    dkrevnt_copy,
+    dkrevnt_create,
+    dkrevnt_destroy,
+    dkrevnt_detach,
+    dkrevnt_die,
+    dkrevnt_exec_create,
+    dkrevnt_exec_detach,
+    dkrevnt_exec_die,
+    dkrevnt_exec_start,
+    dkrevnt_export,
+    dkrevnt_health_status,
+    dkrevnt_kill,
+    dkrevnt_oom,
+    dkrevnt_pause,
+    dkrevnt_rename,
+    dkrevnt_resize,
+    dkrevnt_restart,
+    dkrevnt_start,
+    dkrevnt_stop,
+    dkrevnt_top,
+    dkrevnt_unpause,
+    dkrevnt_update
+	};
 
-static void docker_read_pipe(){
+
+static void docker_read_pipe(struct eventData * evnt){
 
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
 
 	printDbg(PFX "Reading JSON output from pipe...\n");
-
-	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
+	buf[0] = '\0';
+	if ((feof(inpipe) || !(fgets(buf, JSON_FILE_BUF_SIZE, inpipe))))
 		return;
 	buf[JSON_FILE_BUF_SIZE-1] = '\0';
 	
@@ -247,14 +259,8 @@ static void docker_read_pipe(){
 		exit(EXIT_INV_CONFIG);
 	}
 
-	free(evnt->type);
-	free(evnt->scope);
-
 	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
 	if (!strcmp(evnt->type, "container")) {
-		free(evnt->status);
-		free(evnt->id);
-		free(evnt->from);
 		evnt->status = get_string_value_from(root, "status", FALSE, NULL);
 		evnt->id = get_string_value_from(root, "id", FALSE, NULL);
 		evnt->from = get_string_value_from(root, "from", FALSE, NULL);
@@ -266,36 +272,44 @@ static void docker_read_pipe(){
 
 static contevent_t * docker_check_event() {
 
-	docker_read_pipe();
-	contevent_t * cntevent;
+	struct eventData evnt;
+	memset(&evnt, 0, sizeof(struct eventData));
+	docker_read_pipe(&evnt); // set all pointers to NULL -> init
+	contevent_t * cntevent = NULL; // return element, default - null
 
-	if (!strcmp(evnt->type, "container")){
+	if (evnt.type && !strcmp(evnt.type, "container")){
 		// kill	
-		if ((!strcmp(evnt->status, "kill")))
+		if ((!strcmp(evnt.status, "kill")))
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_remove;
-			cntevent->id = strdup(evnt->id);
-			cntevent->image = strdup(evnt->from);
-			cntevent->timenano = evnt->timenano;
+			cntevent->id = strdup(evnt.id);
+			cntevent->image = strdup(evnt.from);
+			cntevent->timenano = evnt.timenano;
 			return cntevent;
 		}
-		if ((!strcmp(evnt->status, "create")) ||
-			(!strcmp(evnt->status, "start")))
+		if ((!strcmp(evnt.status, "create")) ||
+			(!strcmp(evnt.status, "start")))
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_add;
-			cntevent->id = strdup(evnt->id);
-			cntevent->image = strdup(evnt->from);
-			cntevent->timenano = evnt->timenano;
-			return cntevent;
+			cntevent->id = strdup(evnt.id);
+			cntevent->image = strdup(evnt.from);
+			cntevent->timenano = evnt.timenano;
 		}
-		return NULL;
 	}
-	else
-		return NULL;
+
+	// free elements
+	free(evnt.type);
+	free(evnt.status);
+	free(evnt.id);
+	free(evnt.from);
+	free(evnt.scope);
+	// free main
+
+	return cntevent;
 }
 
 /// thread_watch_docker(): checks for docker events and signals new containers
@@ -308,6 +322,20 @@ void *thread_watch_docker(void *arg) {
 	int pstate = 0;
 	char * cmd;
 	contevent_t * cntevent;
+
+	struct sigaction act;
+	memset (&act, '\0', sizeof(act));
+ 
+	/* Use the sa_sigaction field because the handles has two additional parameters */
+	act.sa_sigaction = &inthand;
+ 
+	/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+	act.sa_flags = SA_SIGINFO;
+ 
+	if (sigaction(SIGTERM, &act, NULL) < 0) { // TERM signal, stop from main prg
+		perror ("sigaction");  
+		pthread_exit(0); // exit the thread signalling normal return
+	}
 	
 	if (NULL != arg)
 		cmd = (char *)arg;
@@ -315,25 +343,22 @@ void *thread_watch_docker(void *arg) {
 		cmd = "docker events --format '{{json .}}'";
 
 	int ret;
-	struct timespec intervaltv, now, old;
+	struct timespec intervaltv;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
 	ret = clock_gettime(CLOCK_MONOTONIC, &intervaltv);
 	if (0 != ret) {
 		if (EINTR != ret)
 			warn("clock_gettime() failed: %s", strerror(errno));
-		pstate=5;
+		pstate=4;
 	}
-	old = intervaltv;
 
 	while (1) {
 		switch (pstate) {
 
 			case 0: 
 				inpipe = popen (cmd, "r");
-				evnt = malloc (sizeof(struct eventData));
 				pstate = 1;
-				break;
 
 			case 1:
 				if (feof(inpipe))
@@ -360,22 +385,19 @@ void *thread_watch_docker(void *arg) {
 				break;
 
 			case 4:
-				// free elements
-				free(evnt->type);
-				free(evnt->status);
-				free(evnt->id);
-				free(evnt->from);
-				free(evnt->scope);
-				// free main
-				free(evnt);
-				pclose(inpipe);
-
-			case 5:
+				if (inpipe)
+					pclose(inpipe);
+				printDbg("SIGTERM : EXIT! %lu\n", (unsigned long)time(NULL));
 				pthread_exit(0); // exit the thread signalling normal return
 				break;
 		}
 
-		if ((1 == pstate) || (2==pstate)) {
+		if (3<pstate && stop){ // if 3 wait for change, lock is hold
+			printDbg("SIGTERM : STOP! %lu\n", (unsigned long)time(NULL));
+			pstate=4;
+		}
+		else
+		if (1 == pstate) {
 			// abs-time relative interval shift
 
 			// calculate next execution intervall

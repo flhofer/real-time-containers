@@ -8,6 +8,9 @@
 
 #include "../../src/include/dockerlink.h"
 #include <pthread.h>
+#include <unistd.h>
+#include <signal.h> 		// for SIGs, handling in main, raise in update
+
 
 static FILE * pp;
 
@@ -140,12 +143,31 @@ START_TEST(dockerlink_conf_dmp)
 		strcat(buf, "' && sleep 0.5 && echo '");
 	}		
 	strcat(buf, "'");
-	printf("%s\n", buf);
 	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 
 	checkContainer(&cntexpected[0]);
 	checkContainer(&cntexpected[5]);
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+}
+END_TEST
+
+
+/// TEST CASE -> Stop link thread on signal
+/// EXPECTED -> exit after 2 seconds, no error
+START_TEST(dockerlink_conf_stop)
+{	
+	pthread_t thread1;
+	int  iret1;
+	char buf[10] = "sleep 5"; // Timeout is set to 4 secs by default
+	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	ck_assert_int_eq(iret1, 0);
+
+	sleep(2);
+	// set stop sig
+	pthread_kill (thread1, SIGTERM); // tell linking threads to stop
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
@@ -159,6 +181,7 @@ void library_dockerlink (Suite * s) {
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
+	tcase_add_test(tc1, dockerlink_conf_stop);
 
     suite_add_tcase(s, tc1);
 
