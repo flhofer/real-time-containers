@@ -247,9 +247,6 @@ static void docker_read_pipe(){
 		exit(EXIT_INV_CONFIG);
 	}
 
-//	printDbg(PFX "Successfully parsed input JSON\n");
-//	printDbg(PFX "root     : %s\n", json_object_to_json_string(root));
-
 	free(evnt->type);
 	free(evnt->status);
 	free(evnt->id);
@@ -257,12 +254,13 @@ static void docker_read_pipe(){
 	free(evnt->scope);
 
 	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
-	evnt->status = get_string_value_from(root, "status", FALSE, NULL);
-	evnt->id = get_string_value_from(root, "id", FALSE, NULL);
-	evnt->from = get_string_value_from(root, "from", FALSE, NULL);
+	if (!strcmp(evnt->type, "container")) {
+		evnt->status = get_string_value_from(root, "status", FALSE, NULL);
+		evnt->id = get_string_value_from(root, "id", FALSE, NULL);
+		evnt->from = get_string_value_from(root, "from", FALSE, NULL);
+	}
 	evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
 	evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
-
 	json_object_put(root); // free object
 }
 
@@ -352,12 +350,14 @@ void *thread_watch_docker(void *arg) {
 					pstate = 3;
 				else
 					(void)pthread_mutex_unlock(&containerMutex);
+				break;
 
 			case 4:
 				containerEvent = cntevent;
 				(void)pthread_mutex_unlock(&containerMutex);
 				cntevent = NULL;
 				pstate = 1;
+				break;
 
 			case 5:
 				// free elements
@@ -369,6 +369,7 @@ void *thread_watch_docker(void *arg) {
 				// free main
 				free(evnt);
 				pclose(inpipe);
+
 			case 6:
 				pthread_exit(0); // exit the thread signalling normal return
 				break;
