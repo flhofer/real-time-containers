@@ -248,13 +248,13 @@ static void docker_read_pipe(){
 	}
 
 	free(evnt->type);
-	free(evnt->status);
-	free(evnt->id);
-	free(evnt->from);
 	free(evnt->scope);
 
 	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
 	if (!strcmp(evnt->type, "container")) {
+		free(evnt->status);
+		free(evnt->id);
+		free(evnt->from);
 		evnt->status = get_string_value_from(root, "status", FALSE, NULL);
 		evnt->id = get_string_value_from(root, "id", FALSE, NULL);
 		evnt->from = get_string_value_from(root, "from", FALSE, NULL);
@@ -322,7 +322,7 @@ void *thread_watch_docker(void *arg) {
 	if (0 != ret) {
 		if (EINTR != ret)
 			warn("clock_gettime() failed: %s", strerror(errno));
-		pstate=6;
+		pstate=5;
 	}
 	old = intervaltv;
 
@@ -337,7 +337,7 @@ void *thread_watch_docker(void *arg) {
 
 			case 1:
 				if (feof(inpipe))
-					pstate = 5;
+					pstate = 4;
 				else if ((cntevent = docker_check_event()))  // new event?
 					pstate = 2;
 				break;
@@ -352,14 +352,14 @@ void *thread_watch_docker(void *arg) {
 					(void)pthread_mutex_unlock(&containerMutex);
 				break;
 
-			case 4:
+			case 3:
 				containerEvent = cntevent;
 				(void)pthread_mutex_unlock(&containerMutex);
 				cntevent = NULL;
 				pstate = 1;
 				break;
 
-			case 5:
+			case 4:
 				// free elements
 				free(evnt->type);
 				free(evnt->status);
@@ -370,30 +370,29 @@ void *thread_watch_docker(void *arg) {
 				free(evnt);
 				pclose(inpipe);
 
-			case 6:
+			case 5:
 				pthread_exit(0); // exit the thread signalling normal return
 				break;
 		}
 
+		if ((1 == pstate) || (2==pstate)) {
+			// abs-time relative interval shift
 
+			// calculate next execution intervall
+			intervaltv.tv_sec += INTERV_RFSH / USEC_PER_SEC;
+			intervaltv.tv_nsec+= (INTERV_RFSH % USEC_PER_SEC) * 1000;
+			tsnorm(&intervaltv);
 
-		// abs-time relative interval shift
-
-		// calculate next execution intervall
-		intervaltv.tv_sec += INTERV_RFSH / USEC_PER_SEC;
-		intervaltv.tv_nsec+= (INTERV_RFSH % USEC_PER_SEC) * 1000;
-		tsnorm(&intervaltv);
-
-		// sleep for interval nanoseconds
-		ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &intervaltv, NULL);
-		if (0 != ret) {
-			// Set warning only.. shouldn't stop working
-			// probably overrun, restarts immediately in attempt to catch up
-			if (EINTR != ret) {
-				warn("clock_nanosleep() failed. errno: %s",strerror (ret));
+			// sleep for interval nanoseconds
+			ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &intervaltv, NULL);
+			if (0 != ret) {
+				// Set warning only.. shouldn't stop working
+				// probably overrun, restarts immediately in attempt to catch up
+				if (EINTR != ret) {
+					warn("clock_nanosleep() failed. errno: %s",strerror (ret));
+				}
 			}
 		}
-
 
 	}
 }
