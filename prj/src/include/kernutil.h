@@ -1,6 +1,7 @@
 #ifndef __KERNUTIL_H_
 	#define __KERNUTIL_H_
 
+#include <stdio.h>
 	#include <numa.h>			// numa node ident
 
 	#if (defined(__i386__) || defined(__x86_64__))
@@ -32,5 +33,9 @@
 	// affinity and cpu bitmasks
 	int parse_bitmask(struct bitmask *mask, char * str);
 	struct bitmask *parse_cpumask(const char *option, const int max_cpus);
+
+	// customized pipe operations
+	FILE * popen2(char * command, char * type, pid_t * pid);
+	int pclose2(FILE * fp, pid_t pid, int dokill);
 #endif
 

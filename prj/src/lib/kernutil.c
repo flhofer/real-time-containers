@@ -2,13 +2,18 @@
 
 #include <stdio.h>
 #include <string.h> // used for string parsing
-#include <unistd.h> // used for POSIX XOPEN constants
+#include <unistd.h> // used for POSIX and XOPEN constants
 #include <fcntl.h>	// file control, new open/close functions
 #include <errno.h>	// error numbers and strings
+#include <cpuid.h>	// cpu information
+#include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
-#include <cpuid.h>			// cpu information
 
 #include "error.h"		// error and strerr print functions
+
+#define READ   0
+#define WRITE  1
+
 
 #ifdef ARCH_HAS_SMI_COUNTER
 int open_msr_file(int cpu)
@@ -336,4 +341,88 @@ int parse_bitmask(struct bitmask *mask, char * str){
 	}
 	printDbg("Parsed bitmask: %s\n", str);
 	return 0;
+}
+
+/// popen2(): customized pipe open command
+///
+/// Arguments: - command string
+/// 		   - read or write (r/w) and non blocking with pipe 'x'
+/// 		   - address of pid_t variable to store launched PID
+///
+/// Return value: returns file descriptor
+///
+FILE * popen2(char * command, char * type, pid_t * pid)
+{
+    pid_t child_pid;
+    int fd[2];
+	FILE * pfl;
+    pipe(fd);
+
+	if (!command || !type || !pid) // input parameters must be written
+		return NULL;
+
+	int write = (NULL != strstr(type, "w")); // write or read
+	int nnblk = (NULL != strstr(type, "x")); // non blocking enabled?
+
+    if((child_pid = fork()) == -1)
+    {
+        perror("fork");
+        exit(1);
+    }
+
+    /* child process */
+    if (child_pid == 0)
+    {
+        if (write) {
+            close(fd[WRITE]);    //Close the WRITE end of the pipe since the child's fd is read-only
+            dup2(fd[READ], 0);   //Redirect stdin to pipe
+        }
+        else {
+            close(fd[READ]);    //Close the READ end of the pipe since the child's fd is write-only
+            dup2(fd[WRITE], 1); //Redirect stdout to pipe
+        }
+
+        setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
+        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+        exit(0);
+    }
+    else
+    {
+        if (write)
+            close(fd[READ]); //Close the READ end of the pipe since parent's fd is write-only
+        else
+            close(fd[WRITE]); //Close the WRITE end of the pipe since parent's fd is read-only
+    }
+
+    *pid = child_pid;
+
+    if (write)
+        pfl = fdopen(fd[READ], "w");
+	else
+		pfl = fdopen(fd[WRITE], "r");
+
+	if (nnblk)
+		fcntl(fileno(pfl), F_SETFL, O_NONBLOCK); // Set pipe to non-blocking
+
+	return pfl;
+}
+
+int pclose2(FILE * fp, pid_t pid, int dokill)
+{
+    int stat;
+
+	if (dokill)
+		kill(pid, SIGTERM);
+
+    fclose(fp);
+    while (waitpid(pid, &stat, 0) == -1)
+    {
+        if (errno != EINTR)
+        {
+            stat = -1;
+            break;
+        }
+    }
+
+    return stat;
 }

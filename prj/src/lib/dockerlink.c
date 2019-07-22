@@ -5,7 +5,9 @@
 #include <errno.h>			// error numbers and strings
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 
+#include "kernutil.h"	// used for custom pipes
 #include "error.h"		// error and strerr print functions
+
 
 
 #define USEC_PER_SEC		1000000
@@ -247,9 +249,14 @@ static void docker_read_pipe(struct eventData * evnt){
 
 	printDbg(PFX "Reading JSON output from pipe...\n");
 	buf[0] = '\0';
-	if ((feof(inpipe) || !(fgets(buf, JSON_FILE_BUF_SIZE, inpipe))))
+	printDbg("BUF : READ! %lu\n", (unsigned long)time(NULL));
+	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe))){
+		printDbg("BUF : STOP! %lu\n", (unsigned long)time(NULL));
 		return;
-	buf[JSON_FILE_BUF_SIZE-1] = '\0';
+	}
+//	if (strlen(buf) < 2)
+//		return;
+//	buf[JSON_FILE_BUF_SIZE-1] = '\0';
 	
 	root = json_tokener_parse(buf);
 
@@ -320,7 +327,8 @@ static contevent_t * docker_check_event() {
 void *thread_watch_docker(void *arg) {
 
 	int pstate = 0;
-	char * cmd;
+	pid_t pid;
+	char * pcmd;
 	contevent_t * cntevent;
 
 	struct sigaction act;
@@ -338,9 +346,9 @@ void *thread_watch_docker(void *arg) {
 	}
 	
 	if (NULL != arg)
-		cmd = (char *)arg;
+		pcmd = (char *)arg;
 	else
-		cmd = "docker events --format '{{json .}}'";
+		pcmd = "docker events --format '{{json .}}'"; // CONSTANT!
 
 	int ret;
 	struct timespec intervaltv;
@@ -357,7 +365,8 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				inpipe = popen (cmd, "r");
+				if (!(inpipe = popen2 (pcmd, "r", &pid)))
+					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
 
 			case 1:
@@ -385,14 +394,15 @@ void *thread_watch_docker(void *arg) {
 				break;
 
 			case 4:
+				printDbg("SIGTERM : EXIT! %lu\n", (unsigned long)time(NULL));
 				if (inpipe)
-					pclose(inpipe);
+					pclose2(inpipe, pid, 1);
 				printDbg("SIGTERM : EXIT! %lu\n", (unsigned long)time(NULL));
 				pthread_exit(0); // exit the thread signalling normal return
 				break;
 		}
 
-		if (3<pstate && stop){ // if 3 wait for change, lock is hold
+		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
 			printDbg("SIGTERM : STOP! %lu\n", (unsigned long)time(NULL));
 			pstate=4;
 		}

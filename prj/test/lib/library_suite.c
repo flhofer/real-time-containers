@@ -23,7 +23,7 @@ Suite * library_suite(void) {
 	if (!dbg_out) {
 		dbg_out = (_IO_FILE *)stderr;
 	}
-	library_parse_config(s);
+//	library_parse_config(s);
 	library_dockerlink(s);
 
 	return s;
