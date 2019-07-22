@@ -18,9 +18,6 @@
 #define MSR_SMI_COUNT		0x00000034
 #define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
-#define READ   0
-#define WRITE  1
-
 #ifdef ARCH_HAS_SMI_COUNTER
 int open_msr_file(int cpu)
 {
@@ -352,11 +349,15 @@ int parse_bitmask(struct bitmask *mask, char * str){
 /// popen2(): customized pipe open command
 ///
 /// Arguments: - command string
-/// 		   - read or write (r/w) and non blocking with pipe 'x'
+/// 		   - read or write (r/w) and non blocking with 'x'
 /// 		   - address of pid_t variable to store launched PID
 ///
 /// Return value: returns file descriptor
 ///
+
+#define READ   0 // pipe position
+#define WRITE  1 
+
 FILE * popen2(char * command, char * type, pid_t * pid)
 {
     pid_t child_pid;
@@ -364,16 +365,18 @@ FILE * popen2(char * command, char * type, pid_t * pid)
 	FILE * pfl;
     pipe(fd);
 
-	if (!command || !type || !pid) // input parameters must be written
+	if (!command || !type || !pid){ // input parameters must be written
+        perror("Invalid argumetns");
 		return NULL;
+	}
 
 	int write = (NULL != strstr(type, "w")); // write or read
 	int nnblk = (NULL != strstr(type, "x")); // non blocking enabled?
 
-    if((child_pid = fork()) == -1)
+    if(-1 == (child_pid = fork()))
     {
         perror("fork");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* child process */
@@ -381,31 +384,28 @@ FILE * popen2(char * command, char * type, pid_t * pid)
     {
         if (write) {
             close(fd[WRITE]);    //Close the WRITE end of the pipe since the child's fd is read-only
-            dup2(fd[READ], 0);   //Redirect stdin to pipe
+            dup2(fd[READ], STDIN_FILENO);   //Redirect stdin to pipe
         }
         else {
             close(fd[READ]);    //Close the READ end of the pipe since the child's fd is write-only
-            dup2(fd[WRITE], 1); //Redirect stdout to pipe
+            dup2(fd[WRITE], STDOUT_FILENO); //Redirect stdout to pipe
         }
 
         setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
         execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(0);
-    }
-    else
-    {
-        if (write)
-            close(fd[READ]); //Close the READ end of the pipe since parent's fd is write-only
-        else
-            close(fd[WRITE]); //Close the WRITE end of the pipe since parent's fd is read-only
+        exit(EXIT_SUCCESS);
     }
 
     *pid = child_pid;
 
-    if (write)
+    if (write){
+        close(fd[READ]); //Close the READ end of the pipe since parent's fd is write-only
         pfl = fdopen(fd[WRITE], "w");
-	else
+	}
+    else {
+        close(fd[WRITE]); //Close the WRITE end of the pipe since parent's fd is read-only
 		pfl = fdopen(fd[READ], "r");
+	}
 
 	if (nnblk)
 		fcntl(fileno(pfl), F_SETFL, O_NONBLOCK); // Set pipe to non-blocking

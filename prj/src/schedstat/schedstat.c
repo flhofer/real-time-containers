@@ -904,6 +904,7 @@ int main(int argc, char **argv)
 	}
 
 	// set interrupt sig hand
+	// TODO: change to sigaction, mask unused signals
 	signal(SIGINT, inthand); // CTRL+C
 	signal(SIGTERM, inthand); // KILL termination or end of test
 	signal(SIGUSR1, inthand); // USR1 signal, not handled yet TODO

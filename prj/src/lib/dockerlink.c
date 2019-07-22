@@ -14,6 +14,12 @@
 #define INTERV_RFSH			100000
 
 // TODO: remove and or ext parsing code
+// TODO: impement rt signal interface
+// TODO: /proc/sys/kernel/rtsig-max /proc/sys/kernel/rtsig-nr
+// RLIMIT_SIGPENDING in 2.6.8
+// implemented since 2.2
+// http://man7.org/linux/man-pages/man7/signal.7.html 
+// waring -> intrerrupt wirh EINTR
 
 //// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
 
@@ -333,19 +339,22 @@ void *thread_watch_docker(void *arg) {
 	char * pcmd;
 	contevent_t * cntevent;
 
-	struct sigaction act;
-	memset (&act, '\0', sizeof(act));
- 
-	/* Use the sa_sigaction field because the handles has two additional parameters */
-	act.sa_sigaction = &inthand;
- 
-	/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
-	act.sa_flags = SA_SIGINFO;
- 
-	if (sigaction(SIGTERM, &act, NULL) < 0) { // TERM signal, stop from main prg
-		perror ("sigaction");  
-		pthread_exit(0); // exit the thread signalling normal return
-	}
+	// TODO: block not used signals
+	{ // setup interrupt handler block
+		struct sigaction act;
+		memset (&act, '\0', sizeof(act));
+	 
+		/* Use the sa_sigaction field because the handles has two additional parameters */
+		act.sa_sigaction = &inthand;
+	 
+		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_flags = SA_SIGINFO;
+	 
+		if (sigaction(SIGINT, &act, NULL) < 0) { // INT signal, stop from main prg
+			perror ("Setup of sigaction failed");  
+			pthread_exit(0); // exit the thread signalling normal return
+		}
+	} // END interrupt handler block
 	
 	if (NULL != arg)
 		pcmd = (char *)arg;
