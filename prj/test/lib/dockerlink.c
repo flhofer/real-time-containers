@@ -23,7 +23,7 @@ static char * dockerlink_empty [6] = {
 	"{\n \"type\" : \"container\",\n }", // empty section test
 	};
 
-static char * dockerlink_events [6] = {
+static const char * dockerlink_events [6] = {
 	"{\"status\":\"kill\",\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"from\":\"testcnt\",\"Type\":\"container\",\"Action\":\"kill\",\"Actor\":{\"ID\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"Attributes\":{\"image\":\"testcnt\",\"it.florianhofer.release-date\":\"2019-04-12\",\"it.florianhofer.version\":\"0.2.0\",\"it.florianhofer.version.is-production\":\"no\",\"name\":\"rt-app-tst-10\",\"signal\":\"15\",\"vendor1\":\"Florian Hofer\",\"vendor2\":\"Florian Hofer\"}},\"scope\":\"local\",\"time\":1563572495,\"timeNano\":1563572495142834428}",
 	"{\"status\":\"die\",\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"from\":\"testcnt\",\"Type\":\"container\",\"Action\":\"die\",\"Actor\":{\"ID\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"Attributes\":{\"exitCode\":\"0\",\"image\":\"testcnt\",\"it.florianhofer.release-date\":\"2019-04-12\",\"it.florianhofer.version\":\"0.2.0\",\"it.florianhofer.version.is-production\":\"no\",\"name\":\"rt-app-tst-10\",\"vendor1\":\"Florian Hofer\",\"vendor2\":\"Florian Hofer\"}},\"scope\":\"local\",\"time\":1563572495,\"timeNano\":1563572495313179855}",
 	"{\"Type\":\"network\",\"Action\":\"disconnect\",\"Actor\":{\"ID\":\"a1ff03da79394dc71ea4b121f15ebfe58554f414a4ef4cedf8a54df4712b43d5\",\"Attributes\":{\"container\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"name\":\"bridge\",\"type\":\"bridge\"}},\"scope\":\"local\",\"time\":1563572495,\"timeNano\":1563572495458969571}",
@@ -32,7 +32,7 @@ static char * dockerlink_events [6] = {
 	"{\"status\":\"start\",\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"from\":\"testcnt\",\"Type\":\"container\",\"Action\":\"start\",\"Actor\":{\"ID\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"Attributes\":{\"image\":\"testcnt\",\"it.florianhofer.release-date\":\"2019-04-12\",\"it.florianhofer.version\":\"0.2.0\",\"it.florianhofer.version.is-production\":\"no\",\"name\":\"rt-app-tst-10\",\"vendor1\":\"Florian Hofer\",\"vendor2\":\"Florian Hofer\"}},\"scope\":\"local\",\"time\":1563572501,\"timeNano\":1563572501557282644}" 
 	};
 
-contevent_t cntexpected[6] = {
+static contevent_t cntexpected[6] = {
 	{ cnt_remove, "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572495142834428},
 	{0, NULL},
 	{0, NULL},
@@ -155,6 +155,15 @@ START_TEST(dockerlink_conf_dmp)
 END_TEST
 
 
+static char * dockerlink_cevents [6] = {
+	"2019-07-22 14:59:10.335889938 +0000 UTC moby /containers/create {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"runtime\":{\"name\":\"io.containerd.runtime.v1.linux\",\"options\":{\"type_url\":\"containerd.linux.runc.RuncOptions\",\"value\":\"CgRydW5jEhwvdmFyL3J1bi9kb2NrZXIvcnVudGltZS1ydW5j\"}}}",
+	"2019-07-22 14:59:11.117134632 +0000 UTC moby /tasks/create {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"bundle\":\"/run/containerd/io.containerd.runtime.v1.linux/moby/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"io\":{\"stdout\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stdout\",\"stderr\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stderr\"},\"pid\":10019}",
+	"2019-07-22 14:59:11.135907274 +0000 UTC moby /tasks/start {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"pid\":10019}",
+	"2019-07-22 15:00:57.395828623 +0000 UTC moby /tasks/exit {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"pid\":10019,\"exited_at\":\"2019-07-22T15:00:57.332138232Z\"}",
+	"2019-07-22 15:00:57.461623225 +0000 UTC moby /tasks/delete {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"pid\":10019,\"exited_at\":\"2019-07-22T15:00:57.332138232Z\"}",
+	"2019-07-22 15:00:57.890534722 +0000 UTC moby /containers/delete {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\"}"
+	};
+
 /// TEST CASE -> Stop link thread on signal
 /// EXPECTED -> exit after 2 seconds, no error
 START_TEST(dockerlink_conf_stop)
@@ -177,10 +186,10 @@ END_TEST
 void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");
  
-//	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
-//	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
-//	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
-//	tcase_add_test(tc1, dockerlink_conf_dmp);
+	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
+	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
+	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
+	tcase_add_test(tc1, dockerlink_conf_dmp);
 	tcase_add_test(tc1, dockerlink_conf_stop);
 
     suite_add_tcase(s, tc1);

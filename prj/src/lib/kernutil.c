@@ -11,9 +11,15 @@
 
 #include "error.h"		// error and strerr print functions
 
+#if (defined(__i386__) || defined(__x86_64__))
+	#define ARCH_HAS_SMI_COUNTER
+#endif
+
+#define MSR_SMI_COUNT		0x00000034
+#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
+
 #define READ   0
 #define WRITE  1
-
 
 #ifdef ARCH_HAS_SMI_COUNTER
 int open_msr_file(int cpu)
@@ -397,9 +403,9 @@ FILE * popen2(char * command, char * type, pid_t * pid)
     *pid = child_pid;
 
     if (write)
-        pfl = fdopen(fd[READ], "w");
+        pfl = fdopen(fd[WRITE], "w");
 	else
-		pfl = fdopen(fd[WRITE], "r");
+		pfl = fdopen(fd[READ], "r");
 
 	if (nnblk)
 		fcntl(fileno(pfl), F_SETFL, O_NONBLOCK); // Set pipe to non-blocking
@@ -407,12 +413,20 @@ FILE * popen2(char * command, char * type, pid_t * pid)
 	return pfl;
 }
 
-int pclose2(FILE * fp, pid_t pid, int dokill)
+/// pclose2(): customized pipe close command
+///
+/// Arguments: - pipe file descriptor
+/// 		   - associated process PID
+/// 		   - (optional) signal to send to task before closing pipe
+///
+/// Return value: returns last known PID status (waitpid), -1 for error
+///
+int pclose2(FILE * fp, pid_t pid, int killsig)
 {
     int stat;
 
-	if (dokill)
-		kill(pid, SIGTERM);
+	if (killsig)
+		kill(pid, killsig);
 
     fclose(fp);
     while (waitpid(pid, &stat, 0) == -1)

@@ -4,13 +4,6 @@
 #include <stdio.h>
 	#include <numa.h>			// numa node ident
 
-	#if (defined(__i386__) || defined(__x86_64__))
-		#define ARCH_HAS_SMI_COUNTER
-	#endif
-
-	#define MSR_SMI_COUNT		0x00000034
-	#define MSR_SMI_COUNT_MASK	0xFFFFFFFF
-
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
 		KV_314,

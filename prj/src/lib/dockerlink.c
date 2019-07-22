@@ -8,12 +8,12 @@
 #include "kernutil.h"	// used for custom pipes
 #include "error.h"		// error and strerr print functions
 
-
-
 #define USEC_PER_SEC		1000000
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 #define INTERV_RFSH			100000
+
+// TODO: remove and or ext parsing code
 
 //// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
 
@@ -119,22 +119,6 @@ get_int_value_from(struct json_object *where,
 	return i_value;
 }
 
-static inline int64_t
-get_int64_value_from(struct json_object *where,
-		   const char *key,
-		   int have_def,
-		   int def_value)
-{
-	struct json_object *value;
-	int64_t i_value;
-	value = get_in_object(where, key, have_def);
-	set_default_if_needed(key, value, have_def, def_value);
-	assure_type_is(value, where, key, json_type_int);
-	i_value = json_object_get_int64(value);
-	printDbg(PIN "key: %s, value: %ld, type <int64>\n", key, i_value);
-	return i_value;
-}
-
 static inline int
 get_bool_value_from(struct json_object *where,
 		    const char *key,
@@ -173,6 +157,22 @@ get_string_value_from(struct json_object *where,
 
 //// -------------------------------- FROM RT-APP, END ---------------------------------
 
+static inline int64_t
+get_int64_value_from(struct json_object *where,
+		   const char *key,
+		   int have_def,
+		   int def_value)
+{
+	struct json_object *value;
+	int64_t i_value;
+	value = get_in_object(where, key, have_def);
+	set_default_if_needed(key, value, have_def, def_value);
+	assure_type_is(value, where, key, json_type_int);
+	i_value = json_object_get_int64(value);
+	printDbg(PIN "key: %s, value: %ld, type <int64>\n", key, i_value);
+	return i_value;
+}
+
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 
@@ -182,7 +182,6 @@ volatile sig_atomic_t stop;
 ///
 /// Return value: -
 void inthand (int sig, siginfo_t *siginfo, void *context){
-	printDbg("SIGTERM : RCV! %lu\n", (unsigned long)time(NULL));
 	stop = 1;
 }
 
@@ -213,7 +212,7 @@ struct eventData {
 	uint64_t timenano;
 };
 
-
+// possible docker events, v 1.18
 enum dockerEvents {
     dkrevnt_attach,
     dkrevnt_commit,
@@ -241,7 +240,11 @@ enum dockerEvents {
     dkrevnt_update
 	};
 
-
+/// docker_read_pipe(): read from pipe and parse json
+///
+/// Arguments: event structure to fill with data from json
+///
+/// Return value: (void)
 static void docker_read_pipe(struct eventData * evnt){
 
 	char buf[JSON_FILE_BUF_SIZE];
@@ -249,14 +252,8 @@ static void docker_read_pipe(struct eventData * evnt){
 
 	printDbg(PFX "Reading JSON output from pipe...\n");
 	buf[0] = '\0';
-	printDbg("BUF : READ! %lu\n", (unsigned long)time(NULL));
-	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe))){
-		printDbg("BUF : STOP! %lu\n", (unsigned long)time(NULL));
+	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
 		return;
-	}
-//	if (strlen(buf) < 2)
-//		return;
-//	buf[JSON_FILE_BUF_SIZE-1] = '\0';
 	
 	root = json_tokener_parse(buf);
 
@@ -277,6 +274,11 @@ static void docker_read_pipe(struct eventData * evnt){
 	json_object_put(root); // free object
 }
 
+/// docker_check_event(): call pipe read and parse response
+///
+/// Arguments: - 
+///
+/// Return value: pointer to valid container event
 static contevent_t * docker_check_event() {
 
 	struct eventData evnt;
@@ -365,7 +367,7 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "r", &pid)))
+				if (!(inpipe = popen2 (pcmd, "rx", &pid)))
 					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
 
@@ -394,16 +396,13 @@ void *thread_watch_docker(void *arg) {
 				break;
 
 			case 4:
-				printDbg("SIGTERM : EXIT! %lu\n", (unsigned long)time(NULL));
 				if (inpipe)
-					pclose2(inpipe, pid, 1);
-				printDbg("SIGTERM : EXIT! %lu\n", (unsigned long)time(NULL));
+					pclose2(inpipe, pid, SIGHUP);
 				pthread_exit(0); // exit the thread signalling normal return
 				break;
 		}
 
 		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
-			printDbg("SIGTERM : STOP! %lu\n", (unsigned long)time(NULL));
 			pstate=4;
 		}
 		else
