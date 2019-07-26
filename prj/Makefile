@@ -95,14 +95,14 @@ $(OBJDIR):
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
 schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+check: test/test.c $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	./check_test
 
 # lib containing include lib in one binary file
