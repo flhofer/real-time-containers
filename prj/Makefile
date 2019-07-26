@@ -5,6 +5,7 @@ CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 #uncomment the line below to create debug versions by default
 DEBUG=1
+COVERAGE=1
 
 OBJDIR = build
 
@@ -25,9 +26,6 @@ srcdir	?= $(prefix)/src
 CFLAGS ?= -Wall -Wno-nonnull 
 CPPFLAGS += -D _GNU_SOURCE -I src/include
 LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
-# for tests
-CTFLAGS ?= $(CFLAGS) -g -O0 -coverage
-
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
@@ -36,6 +34,10 @@ ifndef DEBUG
 else
 	CFLAGS	+= -O0 -g
 	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
+
+	ifdef COVERAGE
+		CFLAGS += -coverage
+	endif
 endif
 
 # We make some gueses on how to compile rt-tests based on the machine type
@@ -100,7 +102,7 @@ schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 check: test/test.c
-	$(CC) $(CTFLAGS) $(LDFLAGS) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	./check_test
 
 # lib containing include lib in one binary file
@@ -108,14 +110,12 @@ LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernu
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 
-CLEANUP  = $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a
+CLEANUP  = $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a *.gcno *.gcda *.gcov
 CLEANUP += $(if $(wildcard .git), ChangeLog)
 
 .PHONY: clean
 clean:
-	for F in $(CLEANUP); do find -type f -name $$F | xargs rm -f; done
-	rm -f *.gcno
-	rm -f *.gcda
+	for F in $(CLEANUP); do find -type f -name "$$F" | xargs rm -f; done
 
 .PHONY: rebuild
 rebuild:
