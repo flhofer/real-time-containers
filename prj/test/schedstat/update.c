@@ -8,6 +8,8 @@
 
 #include "../../src/schedstat/schedstat.h"
 #include "../../src/schedstat/update.h"
+#include "../../src/include/orchdata.h"
+#include "../../src/include/parse_config.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
@@ -22,17 +24,33 @@ pthread_mutex_t dataMutex;
 node_t * head = NULL;
 
 static void schedstat_update_setup() {
-	contparm = malloc (sizeof(containers_t));
 	prgset = malloc (sizeof(prgset_t));
-	
+	parse_config_set_default(prgset);
+
+	prgset->logdir = strdup("./");
+	prgset->logbasename = strdup("orchestrator.txt");
+	prgset->logsize = 0;
+
+	// signatures and folders
+	prgset->cont_ppidc = strdup(CONT_PPID);
+	prgset->cont_pidc = strdup(CONT_PID);
+	prgset->cont_cgrp = strdup(CONT_DCKR);
+
+	// filepaths virtual file system
+	prgset->procfileprefix = strdup("/proc/sys/kernel/");
+	prgset->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/");
+	prgset->cpusystemfileprefix = strdup("/sys/devices/system/cpu/");
+
+	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
+	*prgset->cpusetdfileprefix = '\0'; // set first chat to null
+	prgset->cpusetdfileprefix = strcat(strcat(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);		
 }
 
 static void schedstat_update_teardown() {
-	free(contparm);	
 	free(prgset);
 }
 
-/// TEST CASE -> Stop link thread on signal
+/// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
 START_TEST(schedstat_update_stop)
 {	
@@ -43,8 +61,8 @@ START_TEST(schedstat_update_stop)
 	ck_assert_int_eq(iret1, 0);
 
 	sleep(2);
-	// set stop sig
-	pthread_kill (thread1, SIGINT); // tell linking threads to stop
+//	// set stop sig
+	stat1 = -1;
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
