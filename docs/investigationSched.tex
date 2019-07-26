@@ -466,7 +466,7 @@ Third, we report these tests for each of the three versions in a separate sub-se
 In \cite{Hoferetal2019} we assessed the feasibility of real-time tasks in the cloud. 
 Now we address the system efficiency of this bounded execution instead.
 If we place these tasks into containers, we can increase their efficiency by managing and sharing the latter's resources.
-We will use an \emph{orchestrator} including the needed algorithms to perform these tasks.
+We will use an \emph{orchestrator} and the needed algorithms to perform these tasks.
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
 To achieve this, it has to confine containers, and their running processes in their execution context.
@@ -565,6 +565,7 @@ Based on this example, we can now lie out the following.
 Setting $w_{i_c}$ closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $w_{i_c}$ decreases according to the PDF measured for the task. 
 The relation in equation \ref{eq:buffer} gives the amount of buffer available for a task. It is the ``left-over'' computation time, decreasing the higher a task's $w_{i_c}$ is set.
 Or put differently, if we set $w_{i_c}$ closer to the average than to the peak, the resources freed will not be used with a probability $1-P$. 
+%TODO: REDOOOOO sum of probabilities...
 \begin{equation}
 	\label{eq:buffer}
 	U_B = 1 - U = 1 - \sum_{i \in T} \frac{w_{i_c}}{p_i}
