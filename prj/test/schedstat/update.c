@@ -10,6 +10,7 @@
 #include "../../src/schedstat/update.h"
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
+#include "../../src/include/kernutil.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
@@ -47,6 +48,21 @@ static void schedstat_update_setup() {
 }
 
 static void schedstat_update_teardown() {
+	free(prgset->logdir);
+	free(prgset->logbasename);
+
+	// signatures and folders
+	free(prgset->cont_ppidc);
+	free(prgset->cont_pidc);
+	free(prgset->cont_cgrp);
+
+	// filepaths virtual file system
+	free(prgset->procfileprefix);
+	free(prgset->cpusetfileprefix);
+	free(prgset->cpusystemfileprefix);
+
+	free(prgset->cpusetdfileprefix);
+
 	free(prgset);
 }
 
@@ -69,12 +85,51 @@ START_TEST(schedstat_update_stop)
 }
 END_TEST
 
+/// TEST CASE -> Stop update thread when setting status to -1
+/// EXPECTED -> exit after 2 seconds, no error
+START_TEST(schedstat_update_findprocs)
+{	
+	pthread_t thread1;
+	int  iret1;
+	int stat1 = 0;
+	pid_t pid1, pid2;
+
+	// create pids
+	(void)popen2("sleep 4", "r", &pid1);
+	(void)popen2("sleep 5", "r", &pid2);
+	// set detect mode to pid 
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	prgset->use_cgroup = DM_CMDLINE;
+	
+	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
+	ck_assert_int_eq(iret1, 0);
+
+	sleep(1);
+
+	// verify 2 nodes exist
+	ck_assert(head);
+	ck_assert(head->next);
+	ck_assert(!head->next->next);
+
+	// verify pids
+	ck_assert_int_eq(head->next->pid, pid1);
+	ck_assert_int_eq(head->pid, pid2);
+
+	// set stop sig
+	stat1 = -1;
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+}
+END_TEST
 
 void schedstat_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
  
 	tcase_add_checked_fixture(tc1, schedstat_update_setup, schedstat_update_teardown);
 	tcase_add_exit_test(tc1, schedstat_update_stop, EXIT_SUCCESS);
+	tcase_add_test(tc1, schedstat_update_findprocs);
 
     suite_add_tcase(s, tc1);
 

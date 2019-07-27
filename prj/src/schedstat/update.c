@@ -381,6 +381,9 @@ static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 	{
 		char req[40]; // TODO: might overrun if signatures are too long
+		if (30 < strlen (tag))
+			err_exit("Signature string too long! (FIXME)");
+
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process
 		(void)sprintf (req,  "ps h -o spid,command %s", tag);
@@ -431,6 +434,9 @@ static int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 {
 	char pidline[BUFRD];
 	char req[40]; // TODO: might overrun if signatures are too long
+
+	if (30 < strlen (tag))
+		err_exit("Signature string too long! (FIXME)");
 
 	// prepare literal and open pipe request
 	(void)sprintf (req,  "pidof %s", tag);

@@ -24,9 +24,6 @@ int main(void)
     int nf=0;
     SRunner *sr;
 
-
-
-/*
 	Suite * s1 = library_suite();
 	sr = srunner_create(s1);
 	// uncomment below for debugging
@@ -34,7 +31,7 @@ int main(void)
     srunner_run_all(sr, CK_VERBOSE);
     nf += srunner_ntests_failed(sr);
     srunner_free(sr);
-*/
+
 	Suite * s2 = schedstat_suite();
     sr = srunner_create(s2);
 	// uncomment below for debugging

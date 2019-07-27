@@ -8,6 +8,7 @@
 #include <cpuid.h>	// cpu information
 #include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
+#include <wordexp.h>	// for posix word expansion
 
 #include "error.h"		// error and strerr print functions
 
@@ -392,8 +393,16 @@ FILE * popen2(char * command, char * type, pid_t * pid)
         }
 
         setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
-        execl("/bin/sh", "/bin/sh", "-c", command, NULL);
-        exit(EXIT_SUCCESS);
+
+		// parse string acccording to posix expansion
+		wordexp_t argvt;
+		if (wordexp(command, &argvt, 0))
+			err_exit("Error parsing POSIX 'sh' expansion!");
+
+        if (execvp(argvt.we_wordv[0], argvt.we_wordv))
+			err_msg_n(errno, "Error when executing command");
+		wordfree(&argvt);
+        exit(0);
     }
 
     *pid = child_pid;
