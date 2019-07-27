@@ -92,11 +92,13 @@ START_TEST(schedstat_update_findprocs)
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
-	pid_t pid1, pid2;
+	pid_t pid1, pid2, pid3;
+	FILE * fd1, * fd2,  * fd3;
 
 	// create pids
-	(void)popen2("sleep 4", "r", &pid1);
-	(void)popen2("sleep 5", "r", &pid2);
+	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 2", "r", &pid2);
+	fd3 = popen2("sleep 5", "r", &pid3);
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
@@ -110,11 +112,24 @@ START_TEST(schedstat_update_findprocs)
 	// verify 2 nodes exist
 	ck_assert(head);
 	ck_assert(head->next);
-	ck_assert(!head->next->next);
+	ck_assert(head->next->next);
+	ck_assert(!head->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(head->next->next->pid, pid1);
+	ck_assert_int_eq(head->next->pid, pid2);
+	ck_assert_int_eq(head->pid, pid3);
+
+	pclose2(fd2, pid2, 0);
+	sleep(1);
 
 	// verify pids
 	ck_assert_int_eq(head->next->pid, pid1);
-	ck_assert_int_eq(head->pid, pid2);
+	ck_assert_int_eq(head->pid, pid3);
+
+	// TODO: verify if threads remain defunct
+	pclose(fd1);
+	pclose(fd3);
 
 	// set stop sig
 	stat1 = -1;

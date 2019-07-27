@@ -392,16 +392,21 @@ FILE * popen2(char * command, char * type, pid_t * pid)
             dup2(fd[WRITE], STDOUT_FILENO); //Redirect stdout to pipe
         }
 
-        setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
+		// TODO: fix this
+		if (strstr(command, "&&")){ // temporay, if we have a && combination, use sh
+	        setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
+		    execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+		}
+		else {
+			// parse string acccording to posix expansion
+			wordexp_t argvt;
+			if (wordexp(command, &argvt, 0))
+				err_exit("Error parsing POSIX 'sh' expansion!");
 
-		// parse string acccording to posix expansion
-		wordexp_t argvt;
-		if (wordexp(command, &argvt, 0))
-			err_exit("Error parsing POSIX 'sh' expansion!");
-
-        if (execvp(argvt.we_wordv[0], argvt.we_wordv))
-			err_msg_n(errno, "Error when executing command");
-		wordfree(&argvt);
+		    if (execvp(argvt.we_wordv[0], argvt.we_wordv))
+				err_msg_n(errno, "Error when executing command");
+			wordfree(&argvt);
+		}
         exit(0);
     }
 
