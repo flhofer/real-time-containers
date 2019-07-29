@@ -132,8 +132,8 @@ struct base *qsortll_recur(struct base *head, struct base *end,
 /// Return value: -
 void qsortll(void **head, int (*compar)(const void *, const void*) ) 
 { 
-    (*(struct base **)head) = qsortll_recur(*(struct base **)head,
-		 getTail(*(struct base **)head), compar); 
+    (*(struct base **)head) = qsortll_recur((struct base *)*head,
+		 getTail((struct base *)*head), compar); 
 }
 
 /* -------------------- CONFIGURATION structure ----------------------*/
@@ -283,7 +283,7 @@ void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, c
 		node_push (head, pid, psig, contid);
 		return;
 	}
-	node_push (&(*prev)->next, pid, psig, contid);
+	node_push (&((*prev)->next), pid, psig, contid);
 }
 
 void node_pop(node_t ** head) {
@@ -309,7 +309,7 @@ void node_drop_after(node_t ** head, node_t ** prev) {
 		node_pop (head);
 		return;
 	}
-	node_pop(&(*prev)->next);
+	node_pop(&((*prev)->next));
 }
 
 /* -------------------- END RUNTIME structure ----------------------*/

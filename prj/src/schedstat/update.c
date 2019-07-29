@@ -492,8 +492,10 @@ static void scanNew () {
 			char pid[SIG_LEN];
 			if (prgset->psigscan)
 				sprintf(pid, "-TC %s", prgset->cont_pidc);
-			else 
+			else if (strlen (prgset->cont_pidc))
 				sprintf(pid, "-C %s", prgset->cont_pidc);
+			else 
+				pid[0] = '\0';
 			cnt = getPids(&pidlst, pid);
 			break;		
 	}
@@ -522,9 +524,9 @@ static void scanNew () {
 		// insert a missing item		
 		if (pidlst->pid > (act->pid)) {
 			printDbg("\n... Insert new PID %d", pidlst->pid);		
-			// insert, prev is upddated to the new element
 			node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
 			pop((void **)&pidlst);
+			prev = prev->next; // update prev 
 		} 
 		else		
 		// delete a dopped item
