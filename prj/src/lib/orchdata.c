@@ -11,7 +11,7 @@ struct base {
 	struct base * next; 
 };
 
-static void push(void ** head, size_t size) {
+void push(void ** head, size_t size) {
     struct base * new_node = calloc(1,size);
 	if (!new_node)
 		err_exit("could not allocate memory!");
@@ -20,7 +20,7 @@ static void push(void ** head, size_t size) {
     *head = new_node;
 }
 
-static void pop(void** head) {
+void pop(void ** head) {
     if (NULL == *head) {
         return;
     }
@@ -29,6 +29,111 @@ static void pop(void** head) {
     next_node = ((struct base *)*head)->next;
 	free(*head);
     *head = next_node;
+}
+
+static struct base *getTail(struct base *cur) 
+{ 
+    while (cur != NULL && cur->next != NULL) 
+        cur = cur->next; 
+    return cur; 
+} 
+  
+// Partitions the list taking the last element as the pivot 
+static struct base *qsortll_partition(struct base *head, struct base *end, 
+                       struct base **newHead, struct base **newEnd,
+						int (*compar)(const void *, const void*)) 
+{ 
+    struct base *pivot = end; 
+    struct base *prev = NULL, *cur = head, *tail = pivot; 
+  
+    // During partition, both the head and end of the list might change 
+    // which is updated in the newHead and newEnd variables 
+    while (cur != pivot) 
+    { 
+        if (compar(cur,pivot) < 0) 
+        { 
+            // First node that has a value less than the pivot - becomes 
+            // the new head 
+            if ((*newHead) == NULL) 
+                (*newHead) = cur; 
+  
+            prev = cur;   
+            cur = cur->next; 
+        } 
+        else // If cur node is greater than pivot 
+        { 
+            // Move cur node to next of tail, and change tail 
+            if (prev) 
+                prev->next = cur->next; 
+            struct base *tmp = cur->next; 
+            cur->next = NULL; 
+            tail->next = cur; 
+            tail = cur; 
+            cur = tmp; 
+        } 
+    } 
+  
+    // If the pivot data is the smallest element in the current list, 
+    // pivot becomes the head 
+    if ((*newHead) == NULL) 
+        (*newHead) = pivot; 
+  
+    // Update newEnd to the current last node 
+    (*newEnd) = tail; 
+  
+    // Return the pivot node 
+    return pivot; 
+} 
+  
+  
+//here the sorting happens exclusive of the end node 
+struct base *qsortll_recur(struct base *head, struct base *end,
+	int (*compar)(const void *, const void*)) 
+{ 
+    // base condition 
+    if (!head || head == end) 
+        return head; 
+  
+    struct base *newHead = NULL, *newEnd = NULL; 
+  
+    // Partition the list, newHead and newEnd will be updated 
+    // by the partition function 
+    struct base *pivot = qsortll_partition(head, end, &newHead, &newEnd, compar); 
+  
+    // If pivot is the smallest element - no need to recur for 
+    // the left part. 
+    if (newHead != pivot) 
+    { 
+        // Set the node before the pivot node as NULL 
+        struct base *tmp = newHead; 
+        while (tmp->next != pivot) 
+            tmp = tmp->next; 
+        tmp->next = NULL; 
+  
+        // Recur for the list before pivot 
+        newHead = qsortll_recur(newHead, tmp, compar); 
+  
+        // Change next of last node of the left half to pivot 
+        tmp = getTail(newHead); 
+        tmp->next =  pivot; 
+    } 
+  
+    // Recur for the list after the pivot element 
+    pivot->next = qsortll_recur(pivot->next, newEnd, compar); 
+  
+    return newHead; 
+} 
+  
+/// qsortll(): quicksort for generic linked lists, uses cmp function (recursive)
+///
+/// Arguments: - adr of head of the linked list
+///			   - adr to the comparison function to call
+///
+/// Return value: -
+void qsortll(void **head, int (*compar)(const void *, const void*) ) 
+{ 
+    (*(struct base **)head) = qsortll_recur(*(struct base **)head,
+		 getTail(*(struct base **)head), compar); 
 }
 
 /* -------------------- CONFIGURATION structure ----------------------*/
@@ -152,7 +257,7 @@ int node_findParams(node_t* node, struct containers * conts){
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, NULL, NULL,					// pid, *psig, *contid
+						0, NULL, NULL, NULL,			// pid, *psig, *contid, *img
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						 0, 0, 0, 0, 0,
@@ -208,3 +313,4 @@ void node_drop_after(node_t ** head, node_t ** prev) {
 }
 
 /* -------------------- END RUNTIME structure ----------------------*/
+ 

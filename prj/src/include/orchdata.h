@@ -111,6 +111,7 @@
 		// usually only one of two is set
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container
+		char * imgid; 	// temp char, then moves to entry in pidparam. identifying image
 		struct sched_attr attr;
 		struct sched_mon mon;
 		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param
@@ -170,6 +171,11 @@
 		int use_cgroup;				// identify processes via cgroup
 
 	} prgset_t;
+
+	// generic push pop
+	void push(void ** head, size_t size);
+	void pop(void ** head);
+	void qsortll(void **head, int (*compar)(const void *, const void*) );
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	void node_push(node_t ** head, pid_t pid, char * psig, char * contid);

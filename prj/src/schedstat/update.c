@@ -51,12 +51,13 @@ static int clocksources[] = {
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 #define PIPE_BUFFER			4096
-#define MAX_PIDS 64 // max containers detectable
 
 typedef struct pid_info {
+	struct pid_info * next;
 	pid_t pid;
 	char * psig; 
 	char * contid;
+	char * imgid;
 } pidinfo_t;
 
 
@@ -79,9 +80,8 @@ static inline void tsnorm(struct timespec *ts)
 ///
 /// Return value: difference PID
 static int cmpPidItem (const void * a, const void * b) {
-	return (((pidinfo_t *)a)->pid - ((pidinfo_t *)b)->pid);
+	return (((pidinfo_t *)b)->pid - ((pidinfo_t *)a)->pid);
 }
-
 
 /// dumpStats(): prints thread statistics to out
 ///
@@ -280,11 +280,10 @@ static int updateStats ()
 
 /// getContPids(): utility function to get PID list of interrest from Cgroups
 /// Arguments: - pointer to array of PID
-///			   - size in elements of array of PID
 ///
 /// Return value: number of PIDs found (total)
 ///
-static int getContPids (pidinfo_t *pidlst, size_t cnt)
+static int getContPids (pidinfo_t **pidlst)
 {
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
@@ -316,25 +315,25 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 						printDbg("Pid string return %s\n", pidline);
 						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
 						pid = strtok (pidline,"\n");	
-						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n 
+						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n
+							push((void **)pidlst, sizeof(pidinfo_t));
 							// pid found
-							pidlst->pid = atoi(pid);
-							printDbg("%d\n",pidlst->pid);
+							(*pidlst)->pid = atoi(pid);
+							printDbg("%d\n",(*pidlst)->pid);
 
-							if ((pidlst->psig = malloc(MAXCMDLINE)) &&
-								(pidlst->contid = strdup(dir->d_name))) { // alloc memory for strings
+							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
+								((*pidlst)->contid = strdup(dir->d_name))) { // alloc memory for strings
 
-								(void)sprintf(kparam, "%d/cmdline", pidlst->pid);
-								if (!getkernvar("/proc/", kparam, pidlst->psig, MAXCMDLINE)) // try to read cmdline of pid
-									warn("can not read pid %d's command line", pidlst->pid);
+								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
+								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE)) // try to read cmdline of pid
+									warn("can not read pid %d's command line", (*pidlst)->pid);
 
-								pidlst->psig=realloc(pidlst->psig, strlen(pidlst->psig)+1); // cut to exact (reduction = no issue)
+								(*pidlst)->psig=realloc((*pidlst)->psig, strlen((*pidlst)->psig)+1); // cut to exact (reduction = no issue)
 
 							}
 							else // FATAL, exit and execute atExit
 								fatal("Could not allocate memory!");
 
-							pidlst++;
 							i++;
 
 							nleft -= strlen(pid)+1;
@@ -370,12 +369,11 @@ static int getContPids (pidinfo_t *pidlst, size_t cnt)
 
 /// getpids(): utility function to get list of PID
 /// Arguments: - pointer to array of PID
-///			   - size in elements of array of PID
 ///			   - tag string containing the command signature to look for 
 ///
 /// Return value: number of PIDs found (total)
 ///
-static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+static int getPids (pidinfo_t **pidlst, char * tag)
 {
 	FILE *fp;
 
@@ -396,23 +394,24 @@ static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 	char *pid;
 	int i =0;
 	// Scan through string and put in array
-	while(fgets(pidline,BUFRD,fp) && i < cnt) {
+	while(fgets(pidline,BUFRD,fp)) {
 		printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
-        pidlst->pid = atoi(pid);
-        printDbg("%d",pidlst->pid);
+
+		push((void **)pidlst, sizeof(pidinfo_t));
+        (*pidlst)->pid = atoi(pid);
+        printDbg("%d",(*pidlst)->pid);
 
 		// find command string and copy to new allocation
         pid = strtok (NULL, "\n"); // end of line?
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
-		if (!(pidlst->psig = strdup(pid))) // alloc memory for string
+		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
 			// FATAL, exit and execute atExit
 			fatal("Could not allocate memory!");
-		pidlst->contid = NULL;							
+		(*pidlst)->contid = NULL;							
 
-		pidlst++;
         i++;
     }
 
@@ -425,12 +424,11 @@ static int getPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 /// getcPids(): utility function to get list of PID by PPID tag
 /// Arguments: - pointer to array of PID
-///			   - size in elements of array of PID
 ///			   - tag string containing the name of the parent pid to look for
 ///
 /// Return value: number of PIDs found (total)
 ///
-static int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
+static int getpPids (pidinfo_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
 	char req[40]; // TODO: might overrun if signatures are too long
@@ -461,7 +459,7 @@ static int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 
 		// replace space with, for PID list
 
-		cnt2 = getPids(&pidlst[0], cnt, pids );
+		cnt2 = getPids(pidlst, pids );
 	}
 	pclose(fp);
 	return cnt2;
@@ -476,17 +474,17 @@ static int getpPids (pidinfo_t *pidlst, size_t cnt, char * tag)
 ///
 static void scanNew () {
 	// get PIDs 
-	pidinfo_t pidlst[MAX_PIDS];
+	pidinfo_t *pidlst = NULL;
 	int cnt = 0; // Count of found PID
 
 	switch (prgset->use_cgroup) {
 
 		case DM_CGRP: // detect by cgroup
-			cnt = getContPids(&pidlst[0], MAX_PIDS);
+			cnt = getContPids(&pidlst);
 			break;
 
 		case DM_CNTPID: // detect by container shim pid
-			cnt = getpPids(&pidlst[0], MAX_PIDS, prgset->cont_ppidc);
+			cnt = getpPids(&pidlst, prgset->cont_ppidc);
 			break;
 
 		default: ;// detect by pid signature
@@ -496,25 +494,25 @@ static void scanNew () {
 				sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else 
 				sprintf(pid, "-C %s", prgset->cont_pidc);
-			cnt = getPids(&pidlst[0], MAX_PIDS, pid);
+			cnt = getPids(&pidlst, pid);
 			break;		
 	}
 
 	// SPIDs arrive out of order
-	qsort(&pidlst[0], cnt, sizeof(pidinfo_t), cmpPidItem);
+	// TODO Upgrade to push_sorted
+	qsortll((void **)&pidlst, cmpPidItem);
 
 #ifdef DEBUG
-	for (int i=0; i<cnt; i++)
-		printDbg("Result update pid %d\n", (pidlst+i)->pid);		
+	for (pidinfo_t * curr = pidlst; ((curr)); curr=curr->next)
+		printDbg("Result update pid %d\n", curr->pid);		
 #endif
 
 	node_t *act = head, *prev = NULL;
-	int i = cnt-1;
 	printDbg("\nEntering node update");		
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
-	while ((NULL != act) && (0 <= i )) {
+	while ((NULL != act) && (NULL != pidlst)) {
 		// skip deactivated tracking items
 		if (act->pid<0){
 			act=act->next;
@@ -522,15 +520,15 @@ static void scanNew () {
 		}
 
 		// insert a missing item		
-		if ((pidlst +i)->pid > (act->pid)) {
-			printDbg("\n... Insert new PID %d", (pidlst +i)->pid);		
+		if (pidlst->pid > (act->pid)) {
+			printDbg("\n... Insert new PID %d", pidlst->pid);		
 			// insert, prev is upddated to the new element
-			node_insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
-			i--;
+			node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
+			pop((void **)&pidlst);
 		} 
 		else		
 		// delete a dopped item
-		if ((pidlst +i)->pid < (act->pid)) {
+		if (pidlst->pid < (act->pid)) {
 			printDbg("\n... Delete %d", act->pid);		
 			if (prgset->trackpids) // deactivate only
 				act->pid*=-1;
@@ -542,22 +540,25 @@ static void scanNew () {
 		else {
 			printDbg("\nNo change");		
 			// free allocated items, no longer needed
-			free((pidlst +i)->psig);
-			free((pidlst +i)->contid);
+			free(pidlst->psig);
+			free(pidlst->contid);
 
-			i--;
+			pop((void **)&pidlst);
 			prev = act; // update prev 
 			act = act->next;
 		}
 	}
 
 	// has to be reversed in input
-	cnt = i;
-	i = 0;
-	while (i <= cnt) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end PID %d", (pidlst +i)->pid);		
-		node_insert_after(&head, &prev, (pidlst +i)->pid, (pidlst +i)->psig, (pidlst +i)->contid);
-		i++;
+	while (NULL != pidlst) { // reached the end of the actual queue -- insert to list end
+		printDbg("\n... Insert at end PID %d", pidlst->pid);		
+
+		node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
+		pop((void **)&pidlst);
+		if (prev)
+			prev = prev->next;
+		else
+			prev = head;
 	}
 
 	while (act != NULL) { // reached the end of the pid queue -- drop list end
@@ -575,6 +576,12 @@ static void scanNew () {
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	printDbg("\nExiting node update\n");	
+
+#ifdef DEBUG
+	for (node_t * curr = head; ((curr)); curr=curr->next)
+		printDbg("Result list %d\n", curr->pid);		
+#endif
+
 }
 
 /// thread_update(): thread function call to manage and update present pids list
