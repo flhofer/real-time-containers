@@ -462,7 +462,7 @@ static void parse_image_data(struct json_object *obj, int index,
 	{ // container settings block
 
 		struct json_object *containers;
-		containers = get_in_object(obj, "containers", TRUE);
+		containers = get_in_object(obj, "cont", TRUE);
 		if (containers) {
 			printDbg(PIN "Parsing image containers\n");
 			parse_containers(containers, conts, data);
