@@ -168,6 +168,7 @@ get_string_value_from(struct json_object *where,
 /// Return value: no return value, exits on error
 static void parse_resource_data(struct json_object *obj,
 		  struct sched_rscs **data){
+	// TODO: recursive defaults
 
 	*data = malloc(sizeof(struct sched_rscs));
 	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
@@ -186,7 +187,11 @@ static void parse_resource_data(struct json_object *obj,
 static void parse_scheduling_data(struct json_object *obj,
 		  struct sched_attr **data){
 
+	// TODO: recursive defaults
+
 	*data = malloc(sizeof(struct sched_attr));
+
+	(*data)->size = 48;
 	{  // char policy block
 
 		char *policy;

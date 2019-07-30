@@ -73,9 +73,24 @@
 		struct pids_parm* pids;	// linked list pointing to the pids	
 	} cont_t;
 
+	typedef struct conts_parm {
+		struct conts_parm* next; // list to next entry
+		struct cont_parm *pid; 	// matching container, one entry
+	} conts_t;
+
+	typedef struct img_parm {
+		struct img_parm* next; 
+		char *imgid; 			// matching signatures -> image IDs
+		struct sched_attr* attr;// container sched attributes, default
+		struct sched_rscs* rscs;// container default & max resource settings 
+		struct conts_parm* conts;// linked list pointing to the containers	
+		struct pids_parm* pids;	// linked list pointing to the pids for this img	
+	} img_t;
+
 	typedef struct containers {
+		struct img_parm* img;	// linked list of images_t
 		struct cont_parm* cont; // linked list of containers_t
-		struct pidc_parm* pids;	// linked list of pids
+		struct pidc_parm* pids;	// linked list of pidc_t
 		struct sched_attr* attr;// global sched attributes, default.
 		struct sched_rscs* rscs;// global resource settings, default & max
 		uint32_t nthreads;		// number of configured containers pids-threads
@@ -111,7 +126,6 @@
 		// usually only one of two is set
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container
-		char * imgid; 	// temp char, then moves to entry in pidparam. identifying image
 		struct sched_attr attr;
 		struct sched_mon mon;
 		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param

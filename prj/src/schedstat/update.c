@@ -279,11 +279,11 @@ static int updateStats ()
 }
 
 /// getContPids(): utility function to get PID list of interrest from Cgroups
-/// Arguments: - pointer to array of PID
+/// Arguments: - pointer to linked list of PID
 ///
-/// Return value: number of PIDs found (total)
+/// Return value: --
 ///
-static int getContPids (pidinfo_t **pidlst)
+static void getContPids (pidinfo_t **pidlst)
 {
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
@@ -292,7 +292,6 @@ static int getContPids (pidinfo_t **pidlst)
 		char pidline[BUFRD];
 		char *pid;
 		char kparam[15]; // pid+/cmdline read string
-		int i =0;
 
 		printDbg( "\nContainer detection!\n");
 
@@ -334,8 +333,6 @@ static int getContPids (pidinfo_t **pidlst)
 							else // FATAL, exit and execute atExit
 								fatal("Could not allocate memory!");
 
-							i++;
-
 							nleft -= strlen(pid)+1;
 							pid = strtok (NULL,"\n");	
 
@@ -355,25 +352,21 @@ static int getContPids (pidinfo_t **pidlst)
 		// free string buffers
 		free (fname);
 
-		return i;
-	}
-	else {
-		warn("Can not open Docker CGroups - is the daemon still running?");
-		cont( "switching to container PID detection mode");
-		prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
-		return 0; // count of items found
-
+		return;
 	}
 
+	warn("Can not open Docker CGroups - is the daemon still running?");
+	cont( "switching to container PID detection mode");
+	prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 }
 
 /// getpids(): utility function to get list of PID
-/// Arguments: - pointer to array of PID
+/// Arguments: - pointer to linked list of PID
 ///			   - tag string containing the command signature to look for 
 ///
-/// Return value: number of PIDs found (total)
+/// Return value: --
 ///
-static int getPids (pidinfo_t **pidlst, char * tag)
+static void getPids (pidinfo_t **pidlst, char * tag)
 {
 	FILE *fp;
 
@@ -387,12 +380,11 @@ static int getPids (pidinfo_t **pidlst, char * tag)
 		(void)sprintf (req,  "ps h -o spid,command %s", tag);
 
 		if(!(fp = popen(req,"r")))
-			return 0;
+			return;
 	}
 
 	char pidline[BUFRD];
 	char *pid;
-	int i =0;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
 		printDbg("Pid string return %s\n", pidline);
@@ -411,24 +403,20 @@ static int getPids (pidinfo_t **pidlst, char * tag)
 			// FATAL, exit and execute atExit
 			fatal("Could not allocate memory!");
 		(*pidlst)->contid = NULL;							
-
-        i++;
     }
 
 	pclose(fp);
-	// return number of elements found
-	return i;
 }
 
 
 
 /// getcPids(): utility function to get list of PID by PPID tag
-/// Arguments: - pointer to array of PID
+/// Arguments: - pointer to linked list of PID
 ///			   - tag string containing the name of the parent pid to look for
 ///
-/// Return value: number of PIDs found (total)
+/// Return value: -- 
 ///
-static int getpPids (pidinfo_t **pidlst, char * tag)
+static void getpPids (pidinfo_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
 	char req[40]; // TODO: might overrun if signatures are too long
@@ -441,12 +429,12 @@ static int getpPids (pidinfo_t **pidlst, char * tag)
 	FILE *fp;
 
 	if(!(fp = popen(req,"r")))
-		return 0;
+		return;
 
-	int cnt2 = 0;
 	// read list of PPIDs
 	if (fgets(pidline,BUFRD-10,fp)) { // len -10 (+\n), limit maximum
 		int i=0;
+		// replace space with, for PID list
 		while (pidline[i] && i<BUFRD) {
 			if (' ' == pidline[i]) 
 				pidline[i]=',';
@@ -457,12 +445,9 @@ static int getpPids (pidinfo_t **pidlst, char * tag)
 		(void)strcat(pids, pidline);
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with nullchar, overwrite \n
 
-		// replace space with, for PID list
-
-		cnt2 = getPids(pidlst, pids );
+		getPids(pidlst, pids);
 	}
 	pclose(fp);
-	return cnt2;
 }
 
 /// scanNew(): main function for thread_update, scans for pids and inserts
@@ -475,16 +460,15 @@ static int getpPids (pidinfo_t **pidlst, char * tag)
 static void scanNew () {
 	// get PIDs 
 	pidinfo_t *pidlst = NULL;
-	int cnt = 0; // Count of found PID
 
 	switch (prgset->use_cgroup) {
 
 		case DM_CGRP: // detect by cgroup
-			cnt = getContPids(&pidlst);
+			getContPids(&pidlst);
 			break;
 
 		case DM_CNTPID: // detect by container shim pid
-			cnt = getpPids(&pidlst, prgset->cont_ppidc);
+			getpPids(&pidlst, prgset->cont_ppidc);
 			break;
 
 		default: ;// detect by pid signature
@@ -496,7 +480,7 @@ static void scanNew () {
 				sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
-			cnt = getPids(&pidlst, pid);
+			getPids(&pidlst, pid);
 			break;		
 	}
 
@@ -526,7 +510,10 @@ static void scanNew () {
 			printDbg("\n... Insert new PID %d", pidlst->pid);		
 			node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
 			pop((void **)&pidlst);
-			prev = prev->next; // update prev 
+			if (prev)
+				prev = prev->next; // update prev 
+			else
+				prev = head;
 		} 
 		else		
 		// delete a dopped item
@@ -551,7 +538,6 @@ static void scanNew () {
 		}
 	}
 
-	// has to be reversed in input
 	while (NULL != pidlst) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d", pidlst->pid);		
 

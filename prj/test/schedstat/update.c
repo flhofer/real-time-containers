@@ -155,7 +155,7 @@ START_TEST(schedstat_update_findprocsall)
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
-	sleep(1);
+	sleep(4);
 
 	// set stop sig
 	stat1 = -1;
