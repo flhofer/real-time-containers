@@ -57,7 +57,8 @@
 		char *psig; 			// matching signatures -> container IDs
 		struct sched_attr* attr;// standard linux pid attributes
 		struct sched_rscs* rscs;// additional resource settings 
-		struct cont_parm* cont; // pointer to the container settings
+		struct cont_parm*  cont;// pointer to the container settings
+		struct img_parm*   img; // pointer to the image settings
 	} pidc_t;
 
 	typedef struct pids_parm {
@@ -70,7 +71,8 @@
 		char *contid; 			// matching signatures -> container IDs
 		struct sched_attr* attr;// container sched attributes, default
 		struct sched_rscs* rscs;// container default & max resource settings 
-		struct pids_parm* pids;	// linked list pointing to the pids	
+		struct pids_parm*  pids;// linked list pointing to the pids	
+		struct img_parm*   img; // pointer to the image settings
 	} cont_t;
 
 	typedef struct conts_parm {
@@ -83,8 +85,8 @@
 		char *imgid; 			// matching signatures -> image IDs
 		struct sched_attr* attr;// container sched attributes, default
 		struct sched_rscs* rscs;// container default & max resource settings 
-		struct conts_parm* conts;// linked list pointing to the containers	
 		struct pids_parm* pids;	// linked list pointing to the pids for this img	
+		struct conts_parm* conts;// linked list pointing to the containers	
 	} img_t;
 
 	typedef struct containers {
@@ -202,9 +204,4 @@
 
 	// Resource tracing, No mutex, manipulation by one thread only
 	void res_rpush(resTracer_t ** head);
-
-	// Management of container configuration, No mutex, startup load by schedstat, manipulation by one thread only
-	void config_pcpush(pidc_t ** head, pids_t ** phead);
-	void config_cpush(cont_t ** head);
-
 #endif

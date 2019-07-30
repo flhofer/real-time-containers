@@ -20,6 +20,7 @@ Suite * library_suite(void) {
 	library_orchdata(s);
 
 	// these use dbgprint. check first
+//	dbg_out = fopen("/dev/null", "w");
 	if (!dbg_out) {
 		dbg_out = (_IO_FILE *)stderr;
 	}

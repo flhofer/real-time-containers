@@ -223,7 +223,7 @@ static void parse_scheduling_data(struct json_object *obj,
 ///
 /// Return value: no return value, exits on error
 static void parse_pid_data(struct json_object *obj, int index, 
-		pidc_t *data, cont_t *cont, img_t * img)
+		pidc_t *data, cont_t *cont, img_t * img, containers_t *conts)
 {
 
 	printDbg(PIN "Parsing pid [%d]\n", index);
@@ -239,10 +239,14 @@ static void parse_pid_data(struct json_object *obj, int index,
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
 			parse_scheduling_data(attr,	&data->attr);
-		else {
+		else if (cont) {
 			// set to container default
 			data->attr = cont->attr;
 			printDbg(PIN "defaulting to container scheduling settings\n");
+		}
+		else {
+			data->attr = conts->attr;
+			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
 
@@ -251,10 +255,14 @@ static void parse_pid_data(struct json_object *obj, int index,
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
 			parse_resource_data(rscs, &data->rscs);
-		else { 
+		else if (cont) { 
 			// set to container default
 			data->rscs = cont->rscs;
 			printDbg(PIN "defaulting to container resource settings\n");
+		}
+		else {
+			data->rscs = conts->rscs;
+			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
 
@@ -322,7 +330,7 @@ static void parse_container_data(struct json_object *obj, int index,
 				push((void**)&data->pids, sizeof(pids_t));
 				data->pids->pid = conts->pids;
 
-				parse_pid_data(pidobj, idx, conts->pids, data, img);
+				parse_pid_data(pidobj, idx, conts->pids, data, img, conts);
 				
 				idx++;
 			}
@@ -443,7 +451,7 @@ static void parse_image_data(struct json_object *obj, int index,
 				push((void**)&data->pids, sizeof(pids_t));
 				data->pids->pid = conts->pids;
 
-				parse_pid_data(pidobj, idx, conts->pids, NULL, data);
+				parse_pid_data(pidobj, idx, conts->pids, NULL, data, conts);
 				
 				idx++;
 			}
@@ -454,9 +462,11 @@ static void parse_image_data(struct json_object *obj, int index,
 	{ // container settings block
 
 		struct json_object *containers;
-		containers = get_in_object(obj, "containers", FALSE);
-		printDbg(PIN "Parsing image containers\n");
-		parse_containers(containers, conts, data);
+		containers = get_in_object(obj, "containers", TRUE);
+		if (containers) {
+			printDbg(PIN "Parsing image containers\n");
+			parse_containers(containers, conts, data);
+		}
 
 	} // END container settings block
 } 
@@ -823,14 +833,36 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 	{ // container settings block
 
 		struct json_object *containers;
-		containers = get_in_object(root, "containers", FALSE);
-		printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
-		printDbg(PFX "Parsing containers\n");
-		parse_containers(containers, conts, NULL);
-		if (!json_object_put(containers))
-			err_msg(PFX "Could not free object!");
+		containers = get_in_object(root, "containers", TRUE);
+		if (containers) {
+			printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
+			printDbg(PFX "Parsing containers\n");
+			parse_containers(containers, conts, NULL);
+			if (!json_object_put(containers))
+				err_msg(PFX "Could not free object!");
+		}
 
 	} // END container settings block
+
+	{ // pids settings block
+		struct json_object *pidslist;
+		struct json_object *pidobj;
+		int idx = 0;
+
+		if (((pidslist = get_in_object(root, "pids", TRUE)))) {
+			printDbg(PFX "pids    : %s\n", json_object_to_json_string(pidslist));
+			printDbg(PFX "Parsing pids\n");
+
+			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
+				// chain new element to image pids list, pointing to this pid
+				push((void**)&conts->pids, sizeof(pidc_t));
+				parse_pid_data(pidobj, idx, conts->pids, NULL, NULL, conts);
+				idx++;
+			}
+			if (!json_object_put(pidslist))
+				err_msg(PFX "Could not free object!");
+		}
+	} // END pids settings block
 
 	// end parsing JSON
 	if (!json_object_put(root))

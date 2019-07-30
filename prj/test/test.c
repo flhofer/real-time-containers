@@ -28,7 +28,7 @@ int main(void)
 	sr = srunner_create(s1);
 	// uncomment below for debugging
 //	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_VERBOSE);
+    srunner_run_all(sr, CK_NORMAL);
     nf += srunner_ntests_failed(sr);
     srunner_free(sr);
 
@@ -36,7 +36,7 @@ int main(void)
     sr = srunner_create(s2);
 	// uncomment below for debugging
 //	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_VERBOSE);
+    srunner_run_all(sr, CK_NORMAL);
     nf += srunner_ntests_failed(sr);
     srunner_free(sr);
 
