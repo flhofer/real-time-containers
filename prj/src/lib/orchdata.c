@@ -136,32 +136,6 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 		 getTail((struct base *)*head), compar); 
 }
 
-/* -------------------- CONFIGURATION structure ----------------------*/
-
-/// config_pcpush(): adds a new PID configuration structure to the global l.l. and 
-/// 			links it to the container associated
-///
-/// Arguments: - adr of head of the pid configuration linked list
-///			   - adr of head of the conainer's pid association list
-///
-/// Return value: -
-void config_pcpush(struct pidc_parm ** head, struct pids_parm ** phead){
-	push((void**)head, sizeof(pidc_t));
-
-	// chain new element to container pids list, pointing to this pid
-	push((void**)phead, sizeof(pids_t));
-	(*phead)->pid = *head;
-}
-
-/// config_cpush(): adds a new container configuration structure to the global l.l. 
-///
-/// Arguments: - adr of head of the container configuration linked list
-///
-/// Return value: -
-void config_cpush(cont_t ** head) {
-	push((void**)head, sizeof(cont_t));
-}
-
 /* -------------------- RESOURCE tracing structure ----------------------*/
 
 /// res_rpush(): adds a new resource tracing structure to the l.l. 
@@ -210,7 +184,9 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// found? if not, create entry
 		printDbg("... parameters not found, creating empty from PID\n");
-		config_pcpush(&conts->pids, &cont->pids); // add new empty item -> pid list, container pids list
+		push((void**)&conts->pids, sizeof(pidc_t));
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
 		conts->pids->rscs = conts->rscs;
 		conts->pids->attr = conts->attr;
 		node->param = conts->pids;
@@ -238,12 +214,15 @@ int node_findParams(node_t* node, struct containers * conts){
 	}
 
 	// didnt find it anywhere  -> plant an empty container and pidc
-	config_cpush(&conts->cont);
+	push((void**)&conts->cont, sizeof(cont_t));
 	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
 	conts->cont->rscs = conts->rscs;
 	conts->cont->attr = conts->attr;
 
-	config_pcpush(&conts->pids, &conts->cont->pids); // add new empty item -> pid list, container pids list
+	push((void**)&conts->pids, sizeof(pidc_t));
+	push((void**)&cont->pids, sizeof(pids_t));
+	cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+
 	conts->pids->rscs = conts->rscs;
 	conts->pids->attr = conts->attr;
 	node->param = conts->pids;

@@ -219,13 +219,18 @@ static void parse_scheduling_data(struct json_object *obj,
 ///			   - index in array list
 /// 		   - structure to store values in, for this pid
 ///			   - structure containing container configuration, parent
+///			   - structure containing image configuration, parent
 ///
 /// Return value: no return value, exits on error
 static void parse_pid_data(struct json_object *obj, int index, 
-		pidc_t *data, cont_t *cont)
+		pidc_t *data, cont_t *cont, img_t * img)
 {
 
 	printDbg(PIN "Parsing pid [%d]\n", index);
+
+	if (!cont) 
+		cont = (cont_t *) img; // overwrite default reference if no cont set
+								// have (almost) the same structure
 
 	data->psig = get_string_value_from(obj, "cmd", FALSE, NULL);
 
@@ -254,6 +259,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 	}
 
 	data->cont = cont;
+	data->img = img;
 }
 
 /// parse_container_data(): extract parameter values from JSON tokens for container
@@ -262,10 +268,11 @@ static void parse_pid_data(struct json_object *obj, int index,
 ///			   - index in array list
 /// 		   - structure to store values in, for this container
 ///			   - structure containig containers (all) information, parent
+///			   - image of container, NULL if unknown
 ///
 /// Return value: no return value, exits on error
 static void parse_container_data(struct json_object *obj, int index, 
-		cont_t *data, containers_t *conts)
+		cont_t *data, containers_t *conts, img_t * img)
 {
 
 	printDbg(PFX "Parsing container [%d]\n", index);
@@ -277,6 +284,10 @@ static void parse_container_data(struct json_object *obj, int index,
 		attr = get_in_object(obj, "params", TRUE);
 		if (attr)
 			parse_scheduling_data(attr,	&data->attr);
+		else if (img) {
+			data->attr = img->attr;
+			printDbg(PIN "defaulting to image scheduling settings\n");
+		}
 		else {
 			data->attr = conts->attr;
 			printDbg(PIN "defaulting to global scheduling settings\n");
@@ -288,6 +299,10 @@ static void parse_container_data(struct json_object *obj, int index,
 		rscs = get_in_object(obj, "res", TRUE);
 		if (rscs)
 			parse_resource_data(rscs, &data->rscs);
+		else if (img) { 
+			data->rscs = img->rscs;
+			printDbg(PIN "defaulting to image scheduling settings\n");
+		}
 		else {
 			data->rscs = conts->rscs;
 			printDbg(PIN "defaulting to global scheduling settings\n");
@@ -302,21 +317,30 @@ static void parse_container_data(struct json_object *obj, int index,
 		if ((pidslist = get_in_object(obj, "pids", TRUE)))
 			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
 
-				config_pcpush(&conts->pids, &data->pids);
-				parse_pid_data(pidobj, idx, conts->pids, data);
+				// chain new element to container pids list, pointing to this pid
+				push((void**)&conts->pids, sizeof(pidc_t));
+				push((void**)&data->pids, sizeof(pids_t));
+				data->pids->pid = conts->pids;
+
+				parse_pid_data(pidobj, idx, conts->pids, data, img);
 				
 				idx++;
 			}
 	}
+
+	data->img = img;
 } 
 
 /// parse_containers(): extract parameter values from JSON tokens for containers
 ///
 /// Arguments: - json object of tree containing container array
 /// 		   - structure to store values in
+///			   - structure containig containers (all) information, parent
+///			   - image of container, NULL if unknown
 ///
 /// Return value: no return value, exits on error
-static void parse_containers(struct json_object *containers, containers_t *conts)
+static void parse_containers(struct json_object *containers, containers_t *conts,
+		img_t * img)
 {
 	
 	printDbg(PFX "Parsing containers section\n");
@@ -327,10 +351,7 @@ static void parse_containers(struct json_object *containers, containers_t *conts
 
 			struct json_object *contobj;
 			struct json_object *pidobj;
-			conts->nthreads = 0;
-			conts->num_cont = 0;
 			int idx = 0;
-
 
 			while ((contobj = json_object_array_get_idx (containers, idx))) {
 
@@ -357,8 +378,8 @@ static void parse_containers(struct json_object *containers, containers_t *conts
 			int idx = 0;
 
 			while ((contobj = json_object_array_get_idx (containers, idx))) {
-				config_cpush(&conts->cont); // add new element to the head
-				parse_container_data(contobj, idx, conts->cont, conts); 
+				push((void**)&conts->cont, sizeof(cont_t)); // add new element to the head
+				parse_container_data(contobj, idx, conts->cont, conts, img); 
 
 				// update counters
 				idx++;
@@ -371,6 +392,134 @@ static void parse_containers(struct json_object *containers, containers_t *conts
 	}
 }
 
+/// parse_image_data(): extract parameter values from JSON tokens for image
+///
+/// Arguments: - json object of tree containing image data
+///			   - index in array list
+/// 		   - structure to store values in, for this image
+///			   - structure containig containers (all) information, parent
+///
+/// Return value: no return value, exits on error
+static void parse_image_data(struct json_object *obj, int index, 
+		img_t *data, containers_t *conts)
+{
+
+	printDbg(PFX "Parsing image [%d]\n", index);
+
+	data->imgid = get_string_value_from(obj, "imgid", TRUE, "--");
+
+	{
+		struct json_object *attr;
+		attr = get_in_object(obj, "params", TRUE);
+		if (attr)
+			parse_scheduling_data(attr,	&data->attr);
+		else {
+			data->attr = conts->attr;
+			printDbg(PIN "defaulting to global scheduling settings\n");
+		}
+	}
+
+	{
+		struct json_object *rscs;
+		rscs = get_in_object(obj, "res", TRUE);
+		if (rscs)
+			parse_resource_data(rscs, &data->rscs);
+		else {
+			data->rscs = conts->rscs;
+			printDbg(PIN "defaulting to global scheduling settings\n");
+		}
+	}
+
+	{// now parse contained Pids
+		struct json_object *pidslist;
+		struct json_object *pidobj;
+		int idx = 0;
+
+		if ((pidslist = get_in_object(obj, "pids", TRUE)))
+			while ((pidobj = json_object_array_get_idx(pidslist, idx))){
+
+				// chain new element to image pids list, pointing to this pid
+				push((void**)&conts->pids, sizeof(pidc_t));
+				push((void**)&data->pids, sizeof(pids_t));
+				data->pids->pid = conts->pids;
+
+				parse_pid_data(pidobj, idx, conts->pids, NULL, data);
+				
+				idx++;
+			}
+	} // END parse contained Pids
+
+	// parse contained containers
+
+	{ // container settings block
+
+		struct json_object *containers;
+		containers = get_in_object(obj, "containers", FALSE);
+		printDbg(PIN "Parsing image containers\n");
+		parse_containers(containers, conts, data);
+
+	} // END container settings block
+} 
+
+/// parse_images(): extract parameter values from JSON tokens for container images
+///
+/// Arguments: - json object of tree containing image array
+/// 		   - structure to store values in
+///			   - structure containig containers (all) information, parent
+///
+/// Return value: no return value, exits on error
+static void parse_images(struct json_object *images, containers_t *conts)
+{
+	
+	printDbg(PFX "Parsing images section\n");
+	if (json_type_array == json_object_get_type(images)) {
+		// scan trough array_list
+
+		{ // block, image and pid count
+
+			struct json_object *contobj;
+			struct json_object *pidobj;
+			int idx = 0;
+
+
+			while ((contobj = json_object_array_get_idx (images, idx))) {
+
+				// for each image check pid entries count							
+				if ((pidobj = get_in_object (contobj, "pids", TRUE))){
+					conts->nthreads += json_object_array_length(pidobj);
+				}
+
+				// update conuters
+				conts->num_cont++;
+				idx++;
+			}
+			printDbg(PFX "Found %d thread configurations in %d images\n",
+				conts->nthreads, conts->num_cont);
+		} // END image and pid count block
+
+		{ // image parse block
+			/*
+			 * Parse thread data of defined images so that we can use them later
+			 * when creating the images at main() and fork event.
+			 */
+
+			struct json_object *contobj;
+			int idx = 0;
+
+			while ((contobj = json_object_array_get_idx (images, idx))) {
+				push((void**)&conts->img, sizeof(img_t)); // add new element to the head
+				parse_image_data(contobj, idx, conts->img, conts); 
+
+				// update counters
+				idx++;
+			}
+		} // END image parse block
+	}
+	else {
+		err_msg(PFX "Error while parsing input JSON, images type wrong!");
+		exit(EXIT_INV_CONFIG);
+	}
+}
 
 /// parse_global(): extract parameter values from JSON tokens
 ///
@@ -657,13 +806,27 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 
 	} // END resource limits block
 
+	{ // images settings block
+
+		struct json_object *images;
+		images = get_in_object(root, "images", TRUE);
+		if (images) {
+			printDbg(PFX "images    : %s\n", json_object_to_json_string(images));
+			printDbg(PFX "Parsing images\n");
+			parse_images(images, conts);
+			if (!json_object_put(images))
+				err_msg(PFX "Could not free object!");
+		}
+
+	} // END images settings block
+
 	{ // container settings block
 
 		struct json_object *containers;
 		containers = get_in_object(root, "containers", FALSE);
 		printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
 		printDbg(PFX "Parsing containers\n");
-		parse_containers(containers, conts);
+		parse_containers(containers, conts, NULL);
 		if (!json_object_put(containers))
 			err_msg(PFX "Could not free object!");
 
