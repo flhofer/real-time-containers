@@ -52,15 +52,6 @@ static int clocksources[] = {
 #define TIMER_RELTIME		0
 #define PIPE_BUFFER			4096
 
-typedef struct pid_info {
-	struct pid_info * next;
-	pid_t pid;
-	char * psig; 
-	char * contid;
-	char * imgid;
-} pidinfo_t;
-
-
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
 /// Arguments: pointer to timespec to check
@@ -80,7 +71,7 @@ static inline void tsnorm(struct timespec *ts)
 ///
 /// Return value: difference PID
 static int cmpPidItem (const void * a, const void * b) {
-	return (((pidinfo_t *)b)->pid - ((pidinfo_t *)a)->pid);
+	return (((node_t *)b)->pid - ((node_t *)a)->pid);
 }
 
 /// dumpStats(): prints thread statistics to out
@@ -136,7 +127,6 @@ static int get_sched_info(node_t * item)
 	if (-1 == access (szFileName, R_OK)) {
 		return -1;
 	} /** if **/
-
 
 	if ((fp = fopen (szFileName, "r")) == NULL) {
 		return -1;
@@ -283,7 +273,7 @@ static int updateStats ()
 ///
 /// Return value: --
 ///
-static void getContPids (pidinfo_t **pidlst)
+static void getContPids (node_t **pidlst)
 {
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
@@ -315,10 +305,11 @@ static void getContPids (pidinfo_t **pidlst)
 						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
 						pid = strtok (pidline,"\n");	
 						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n
-							push((void **)pidlst, sizeof(pidinfo_t));
+							node_push(pidlst);
 							// pid found
 							(*pidlst)->pid = atoi(pid);
 							printDbg("%d\n",(*pidlst)->pid);
+							(*pidlst)->det_mode = DM_CGRP;
 
 							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
 								((*pidlst)->contid = strdup(dir->d_name))) { // alloc memory for strings
@@ -366,7 +357,7 @@ static void getContPids (pidinfo_t **pidlst)
 ///
 /// Return value: --
 ///
-static void getPids (pidinfo_t **pidlst, char * tag)
+static void getPids (node_t **pidlst, char * tag, int mode)
 {
 	FILE *fp;
 
@@ -390,9 +381,10 @@ static void getPids (pidinfo_t **pidlst, char * tag)
 		printDbg("Pid string return %s\n", pidline);
 		pid = strtok (pidline," ");					
 
-		push((void **)pidlst, sizeof(pidinfo_t));
+		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
         printDbg("%d",(*pidlst)->pid);
+		(*pidlst)->det_mode = mode;
 
 		// find command string and copy to new allocation
         pid = strtok (NULL, "\n"); // end of line?
@@ -416,7 +408,7 @@ static void getPids (pidinfo_t **pidlst, char * tag)
 ///
 /// Return value: -- 
 ///
-static void getpPids (pidinfo_t **pidlst, char * tag)
+static void getpPids (node_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
 	char req[40]; // TODO: might overrun if signatures are too long
@@ -445,7 +437,7 @@ static void getpPids (pidinfo_t **pidlst, char * tag)
 		(void)strcat(pids, pidline);
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with nullchar, overwrite \n
 
-		getPids(pidlst, pids);
+		getPids(pidlst, pids, DM_CNTPID);
 	}
 	pclose(fp);
 }
@@ -459,7 +451,7 @@ static void getpPids (pidinfo_t **pidlst, char * tag)
 ///
 static void scanNew () {
 	// get PIDs 
-	pidinfo_t *pidlst = NULL;
+	node_t *pidlst = NULL;
 
 	switch (prgset->use_cgroup) {
 
@@ -480,7 +472,7 @@ static void scanNew () {
 				sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
-			getPids(&pidlst, pid);
+			getPids(&pidlst, pid, DM_CMDLINE);
 			break;		
 	}
 
@@ -489,7 +481,7 @@ static void scanNew () {
 	qsortll((void **)&pidlst, cmpPidItem);
 
 #ifdef DEBUG
-	for (pidinfo_t * curr = pidlst; ((curr)); curr=curr->next)
+	for (node_t * curr = pidlst; ((curr)); curr=curr->next)
 		printDbg("Result update pid %d\n", curr->pid);		
 #endif
 

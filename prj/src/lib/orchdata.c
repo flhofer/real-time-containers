@@ -136,18 +136,6 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 		 getTail((struct base *)*head), compar); 
 }
 
-/* -------------------- RESOURCE tracing structure ----------------------*/
-
-/// res_rpush(): adds a new resource tracing structure to the l.l. 
-///
-/// Arguments: - adr of head of the linked list
-///
-/// Return value: -
-void res_rpush(struct resTracer ** head) {
-	push((void**)head, sizeof(struct resTracer));
-}
-
-
 /// node_findParams(): assigns the PID parameters list of a running container
 //
 /// Arguments: - node to chek for matching parameters
@@ -156,6 +144,17 @@ void res_rpush(struct resTracer ** head) {
 /// Return value: 0 if successful, -1 if unsuccessful
 ///
 int node_findParams(node_t* node, struct containers * conts){
+
+	struct img_parm * img = conts->img;
+
+	// check for image match
+	while (NULL != img) {
+		// 12 is standard docker short signature
+		if(img->imgid && node->contid && !strncmp(img->imgid, node->contid, 12)) {
+			break;
+		}
+		img = img->next; 
+	}
 
 	struct cont_parm * cont = conts->cont;
 
@@ -236,33 +235,36 @@ int node_findParams(node_t* node, struct containers * conts){
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, NULL, NULL,					// pid, *psig, *contid,
+						0, 0, NULL, NULL, NULL,			// pid, det_mode, *psig, *contid, *imgid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						0, 0, 0, 0, 0,
 						0, INT64_MAX, 0, INT64_MIN},
 						NULL};							// *param
-						
 
 /* -------------------- RUNTIME structure ----------------------*/
 
-void node_push(node_t ** head, pid_t pid, char * psig, char * contid) {
+void node_push(node_t ** head) {
 	push((void**)head, sizeof(node_t));
+	// set default and get back
 	void* next = (*head)->next;
-
 	**head = _node_default;
+    (*head)->next = next;
+}
+
+void node_add(node_t ** head, pid_t pid, char * psig, char * contid) {
+	node_push(head);
     (*head)->pid = pid;
     (*head)->psig = psig;
     (*head)->contid = contid;
-    (*head)->next = next;
 }
 
 void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
 	if (*prev == NULL) {
-		node_push (head, pid, psig, contid);
+		node_add (head, pid, psig, contid);
 		return;
 	}
-	node_push (&((*prev)->next), pid, psig, contid);
+	node_add (&((*prev)->next), pid, psig, contid);
 }
 
 void node_pop(node_t ** head) {

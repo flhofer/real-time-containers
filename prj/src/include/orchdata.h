@@ -34,7 +34,8 @@
 	enum det_mode {
 		DM_CMDLINE,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect pids
-		DM_CGRP		// USe cgroup to detect PIDs of processes
+		DM_CGRP,	// USe cgroup to detect PIDs of processes
+		DM_DLEVNT	// docker link event
 	};
 
 	enum {
@@ -53,48 +54,48 @@
 	} rscs_t;
 
 	typedef struct pidc_parm {
-		struct pidc_parm* next; 
+		struct pidc_parm *next; 
 		char *psig; 			// matching signatures -> container IDs
-		struct sched_attr* attr;// standard linux pid attributes
-		struct sched_rscs* rscs;// additional resource settings 
-		struct cont_parm*  cont;// pointer to the container settings
-		struct img_parm*   img; // pointer to the image settings
+		struct sched_attr *attr;// standard linux pid attributes
+		struct sched_rscs *rscs;// additional resource settings 
+		struct cont_parm  *cont;// pointer to the container settings
+		struct img_parm   *img; // pointer to the image settings
 	} pidc_t;
 
 	typedef struct pids_parm {
-		struct pids_parm* next; // list to next entry
+		struct pids_parm *next; // list to next entry
 		struct pidc_parm *pid; 	// matching pid, one entry
 	} pids_t;
 
 	typedef struct cont_parm {
-		struct cont_parm* next; 
-		char *contid; 			// matching signatures -> container IDs
-		struct sched_attr* attr;// container sched attributes, default
-		struct sched_rscs* rscs;// container default & max resource settings 
-		struct pids_parm*  pids;// linked list pointing to the pids	
-		struct img_parm*   img; // pointer to the image settings
+		struct cont_parm  *next; 
+		char			*contid;// matching signatures -> container IDs
+		struct sched_attr *attr;// container sched attributes, default
+		struct sched_rscs *rscs;// container default & max resource settings 
+		struct pids_parm  *pids;// linked list pointing to the pids	
+		struct img_parm   *img; // pointer to the image settings
 	} cont_t;
 
 	typedef struct conts_parm {
-		struct conts_parm* next; // list to next entry
-		struct cont_parm *pid; 	// matching container, one entry
+		struct conts_parm *next; // list to next entry
+		struct cont_parm  *pid;  // matching container, one entry
 	} conts_t;
 
 	typedef struct img_parm {
-		struct img_parm* next; 
-		char *imgid; 			// matching signatures -> image IDs
-		struct sched_attr* attr;// container sched attributes, default
-		struct sched_rscs* rscs;// container default & max resource settings 
-		struct pids_parm* pids;	// linked list pointing to the pids for this img	
-		struct conts_parm* conts;// linked list pointing to the containers	
+		struct img_parm  *next; 
+		char 			 *imgid;// matching signatures -> image IDs
+		struct sched_attr *attr;// container sched attributes, default
+		struct sched_rscs *rscs;// container default & max resource settings 
+		struct pids_parm  *pids;// linked list pointing to the pids for this img	
+		struct conts_parm *conts;// linked list pointing to the containers	
 	} img_t;
 
 	typedef struct containers {
-		struct img_parm* img;	// linked list of images_t
-		struct cont_parm* cont; // linked list of containers_t
-		struct pidc_parm* pids;	// linked list of pidc_t
-		struct sched_attr* attr;// global sched attributes, default.
-		struct sched_rscs* rscs;// global resource settings, default & max
+		struct img_parm   *img;	// linked list of images_t
+		struct cont_parm  *cont;// linked list of containers_t
+		struct pidc_parm  *pids;// linked list of pidc_t
+		struct sched_attr *attr;// global sched attributes, default.
+		struct sched_rscs *rscs;// global resource settings, default & max
 		uint32_t nthreads;		// number of configured containers pids-threads
 		uint32_t num_cont;		// number of configured containers
 	} containers_t;
@@ -124,10 +125,12 @@
 
 	typedef struct sched_pid { // pid mamagement and monitoring info
 		struct sched_pid * next;
-		pid_t pid;
-		// usually only one of two is set
+		pid_t pid;		// runtime pid number
+		int det_mode;	// detection mode used for the pid 
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
+		// usually at least one of two is set
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container
+		char * imgid; 	// temp char, then moves to entry in pidparam. identifying container
 		struct sched_attr attr;
 		struct sched_mon mon;
 		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param
@@ -178,7 +181,6 @@
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
 
-
 		int logsize;				// TODO: limit for logsize
 		int gnuplot; 				// TODO: enable gnuplot output at the end
 		int ftrace; 				// TODO: enable ftrace kernel trace output at the end
@@ -194,14 +196,12 @@
 	void qsortll(void **head, int (*compar)(const void *, const void*) );
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
-	void node_push(node_t ** head, pid_t pid, char * psig, char * contid);
+	void node_push(node_t ** head);
+	void node_add(node_t ** head, pid_t pid, char * psig, char * contid);
 	void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	void node_pop(node_t ** head);
 	void node_drop_after(node_t ** head, node_t ** prev);
 
 	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
 	int node_findParams(node_t* node, containers_t * conts);
-
-	// Resource tracing, No mutex, manipulation by one thread only
-	void res_rpush(resTracer_t ** head);
 #endif
