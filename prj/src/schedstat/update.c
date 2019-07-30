@@ -451,7 +451,7 @@ static void getpPids (node_t **pidlst, char * tag)
 ///
 static void scanNew () {
 	// get PIDs 
-	node_t *lnew = NULL;
+	node_t *lnew = NULL; // pointer to new list head
 
 	switch (prgset->use_cgroup) {
 
@@ -485,91 +485,79 @@ static void scanNew () {
 		printDbg("Result update pid %d\n", curr->pid);		
 #endif
 
-	node_t *lold = head, *tail = NULL;
+	node_t	dummy = { head }; // dummy placeholder for head list
+	node_t	*tail = &dummy;	  // pointer to tail element
 	printDbg("\nEntering node update");		
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
-	while ((NULL != lold) && (NULL != lnew)) { // go as long as both are full
+	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
 
 		// insert a missing item		
-		if (lnew->pid > abs(lold->pid)) {
+		if (lnew->pid > abs(tail->next->pid)) {
 			printDbg("\n... Insert new PID %d", lnew->pid);		
 
-			
-			
-			if (tail) {
-				tail->next = lnew;
-				tail = tail->next;
-				// skip node, then overwrite added next ref
-				lnew = lnew->next; // next node det
-				tail->next=lold; // trunc of rest of list, point to new item
-			}
-			else {
-				head = lnew;
-				lnew = lnew->next; // next node det
-				head->next=lold; // trunc of rest of list, point to new item
-			}
+			node_t * tmp = tail->next;
+			tail->next = lnew;
+
+			// skip to next node, then overwrite added next ref
+			lnew = lnew->next;
+			tail = tail->next;
+
+			tail->next=tmp; // trunc of rest of list, point to new item
 		} 
 		else		
 		// delete a dopped item
-		if (lnew->pid < abs(lold->pid)) {
+		if (lnew->pid < abs(tail->next->pid)) {
 			// skip deactivated tracking items
-			if (lold->pid<0){
-				lold=lold->next;
+			if (tail->next->pid<0){
+				tail=tail->next;
 				continue; 
 			}
 
-			printDbg("\n... Delete %d", lold->pid);		
-			if (prgset->trackpids) // deactivate only
-				lold->pid*=-1;
-			lold = lold->next;
-			if (!prgset->trackpids)
-				node_drop_after(&head, &tail);
+			printDbg("\n... Delete %d", tail->next->pid);		
+			if (prgset->trackpids){ // deactivate only
+				tail->next->pid*=-1;
+				tail = tail->next;
+			}
+			else
+				node_pop(&tail->next);
 		} 
-		// ok, skip to next
+		// ok, they're equal, skip to next
 		else {
 			printDbg("\nNo change");		
 			// free allocated items, no longer needed
-			free(lnew->psig);
-			free(lnew->contid);
-			free(lnew->imgid);
-
-			pop((void **)&lnew);
-			tail = lold; // update tail 
-			lold = lold->next;
+			node_pop(&lnew);
+			tail = tail->next;
 		}
 	}
 
-	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end PID %d - on", lnew->pid);		
-		if (tail)
-			tail->next = lnew;
-		else 
-			tail = head = lnew;
-	}
-
-	while (lold != NULL) { // reached the end of the pid queue -- drop list end
+	while (NULL != tail->next) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n... Delete at end %d", lold->pid);// tail->next->pid);		
+		printDbg("\n... Delete at end %d", tail->next->pid);// tail->next->pid);		
 		// get next item, then drop old
 		if (prgset->trackpids)// deactivate only
-			lold->pid = abs(lold->pid)*-1;
-		lold = lold->next;
-		if (!prgset->trackpids)
-			node_drop_after(&head, &tail);
+			tail->next->pid = abs(tail->next->pid)*-1;
+		else
+			node_pop(&tail->next);
 	}
 
+	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
+		printDbg("\n... Insert at end PID %d - on\n", lnew->pid);		
+		tail->next = lnew;
+	}
+
+	// 
+	head = dummy.next;
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("\nExiting node update\n");	
-
 #ifdef DEBUG
 	for (node_t * curr = head; ((curr)); curr=curr->next)
-		printDbg("Result list %d\n", curr->pid);		
+		printDbg("\nResult list %d\n", curr->pid);		
 #endif
 
+	printDbg("\nExiting node update\n");	
 }
 
 /// thread_update(): thread function call to manage and update present pids list

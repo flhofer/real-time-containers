@@ -273,13 +273,14 @@ void node_pop(node_t ** head) {
     }
 
 	// free strings id specifically created for this pid
-	if ((*head)->param) { // parameters already set?
-	if ((*head)->psig != (*head)->param->psig)
+	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
 		free((*head)->psig);
-	if ((*head)->contid != (*head)->param->cont->contid)
+	if (!((*head)->param) || (*head)->contid != (*head)->param->cont->contid)
+		free((*head)->contid);
+	// fix.. :/
+	if (!((*head)->param) || (*head)->imgid != (*head)->param->img->imgid)
 		free((*head)->contid);
 	// TODO: configuration of pid and container maybe as well?
-	}
 
 	pop((void**)head);
 }
