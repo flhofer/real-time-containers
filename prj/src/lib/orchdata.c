@@ -238,9 +238,9 @@ int node_findParams(node_t* node, struct containers * conts){
 static const node_t _node_default = { NULL,				// *next, 
 						0, NULL, NULL,					// pid, *psig, *contid,
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
-						 { INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
-						 0, 0, 0, 0, 0,
-						 0, INT64_MAX, 0, INT64_MIN},
+						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
+						0, 0, 0, 0, 0,
+						0, INT64_MAX, 0, INT64_MIN},
 						NULL};							// *param
 						
 
