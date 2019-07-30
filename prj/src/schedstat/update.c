@@ -451,16 +451,16 @@ static void getpPids (node_t **pidlst, char * tag)
 ///
 static void scanNew () {
 	// get PIDs 
-	node_t *pidlst = NULL;
+	node_t *lnew = NULL;
 
 	switch (prgset->use_cgroup) {
 
 		case DM_CGRP: // detect by cgroup
-			getContPids(&pidlst);
+			getContPids(&lnew);
 			break;
 
 		case DM_CNTPID: // detect by container shim pid
-			getpPids(&pidlst, prgset->cont_ppidc);
+			getpPids(&lnew, prgset->cont_ppidc);
 			break;
 
 		default: ;// detect by pid signature
@@ -472,84 +472,92 @@ static void scanNew () {
 				sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
-			getPids(&pidlst, pid, DM_CMDLINE);
+			getPids(&lnew, pid, DM_CMDLINE);
 			break;		
 	}
 
 	// SPIDs arrive out of order
 	// TODO Upgrade to push_sorted
-	qsortll((void **)&pidlst, cmpPidItem);
+	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
-	for (node_t * curr = pidlst; ((curr)); curr=curr->next)
+	for (node_t * curr = lnew; ((curr)); curr=curr->next)
 		printDbg("Result update pid %d\n", curr->pid);		
 #endif
 
-	node_t *act = head, *prev = NULL;
+	node_t *lold = head, *tail = NULL;
 	printDbg("\nEntering node update");		
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
-	while ((NULL != act) && (NULL != pidlst)) {
-		// skip deactivated tracking items
-		if (act->pid<0){
-			act=act->next;
-			continue; 
-		}
+	while ((NULL != lold) && (NULL != lnew)) { // go as long as both are full
 
 		// insert a missing item		
-		if (pidlst->pid > (act->pid)) {
-			printDbg("\n... Insert new PID %d", pidlst->pid);		
-			node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
-			pop((void **)&pidlst);
-			if (prev)
-				prev = prev->next; // update prev 
-			else
-				prev = head;
+		if (lnew->pid > abs(lold->pid)) {
+			printDbg("\n... Insert new PID %d", lnew->pid);		
+
+			
+			
+			if (tail) {
+				tail->next = lnew;
+				tail = tail->next;
+				// skip node, then overwrite added next ref
+				lnew = lnew->next; // next node det
+				tail->next=lold; // trunc of rest of list, point to new item
+			}
+			else {
+				head = lnew;
+				lnew = lnew->next; // next node det
+				head->next=lold; // trunc of rest of list, point to new item
+			}
 		} 
 		else		
 		// delete a dopped item
-		if (pidlst->pid < (act->pid)) {
-			printDbg("\n... Delete %d", act->pid);		
+		if (lnew->pid < abs(lold->pid)) {
+			// skip deactivated tracking items
+			if (lold->pid<0){
+				lold=lold->next;
+				continue; 
+			}
+
+			printDbg("\n... Delete %d", lold->pid);		
 			if (prgset->trackpids) // deactivate only
-				act->pid*=-1;
-			act = act->next;
+				lold->pid*=-1;
+			lold = lold->next;
 			if (!prgset->trackpids)
-				node_drop_after(&head, &prev);
+				node_drop_after(&head, &tail);
 		} 
 		// ok, skip to next
 		else {
 			printDbg("\nNo change");		
 			// free allocated items, no longer needed
-			free(pidlst->psig);
-			free(pidlst->contid);
+			free(lnew->psig);
+			free(lnew->contid);
+			free(lnew->imgid);
 
-			pop((void **)&pidlst);
-			prev = act; // update prev 
-			act = act->next;
+			pop((void **)&lnew);
+			tail = lold; // update tail 
+			lold = lold->next;
 		}
 	}
 
-	while (NULL != pidlst) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end PID %d", pidlst->pid);		
-
-		node_insert_after(&head, &prev, pidlst->pid, pidlst->psig, pidlst->contid);
-		pop((void **)&pidlst);
-		if (prev)
-			prev = prev->next;
-		else
-			prev = head;
+	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
+		printDbg("\n... Insert at end PID %d - on", lnew->pid);		
+		if (tail)
+			tail->next = lnew;
+		else 
+			tail = head = lnew;
 	}
 
-	while (act != NULL) { // reached the end of the pid queue -- drop list end
+	while (lold != NULL) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n... Delete at end %d", act->pid);// prev->next->pid);		
+		printDbg("\n... Delete at end %d", lold->pid);// tail->next->pid);		
 		// get next item, then drop old
 		if (prgset->trackpids)// deactivate only
-			act->pid = abs(act->pid)*-1;
-		act = act->next;
+			lold->pid = abs(lold->pid)*-1;
+		lold = lold->next;
 		if (!prgset->trackpids)
-			node_drop_after(&head, &prev);
+			node_drop_after(&head, &tail);
 	}
 
 	// unlock data thread
