@@ -20,11 +20,12 @@
 #include "orchdata.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
+#include "dockerlink.h" // connection to docker runtime
 #include "error.h"		// error and strerr print functions
-
 
 // Should be needed only here
 #include <limits.h>
+#include <sys/resource.h>
 #include <sys/vfs.h>
 
 // localy globals variables used here ->
@@ -105,6 +106,168 @@ static void dumpStats (){
 		item=item->next; 
 	}
 
+}
+
+static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
+
+/// updateSched(): main function called to verify status of threads
+//
+/// Arguments: 
+///
+/// Return value: N/D
+///
+void updateSched() {
+
+	cpu_set_t cset;
+	(void)pthread_mutex_lock(&dataMutex);
+
+	for (node_t * current = head;((current)); current = current->next) {
+		// skip deactivated tracking items
+		if (current->pid<0){
+			current=current->next; 
+			continue;
+		}
+
+		// NEW Entry? Params are not assigned yet. Do it now and reschedule.
+		if (NULL == current->param) {
+			// params unassigned
+			if (!prgset->quiet)
+				(void)printf("\n");
+			info("new pid in list %d", current->pid);
+
+			if (!node_findParams(current, contparm)) { // parameter set found in list -> assign and update
+				// precompute affinity
+				if (0 <= current->param->rscs->affinity) {
+					// cpu affinity defined to one cpu?
+					CPU_ZERO(&cset);
+					CPU_SET(current->param->rscs->affinity & ~(SCHED_FAFMSK), &cset);
+				}
+				else {
+					// cpu affinity to all
+					cset = cset_full;
+				}
+
+				if (SCHED_OTHER != current->attr.sched_policy) { 
+					// only if successful
+					if (!current->psig) 
+						current->psig = current->param->psig;
+					if (!current->contid)
+						current->contid = current->param->cont->contid;
+
+					// TODO: track failed scheduling update?
+
+					// update CGroup setting of container if in CGROUP mode
+					if (DM_CGRP == prgset->use_cgroup && 
+						((0 <= current->param->rscs->affinity) & ~(SCHED_FAFMSK))) {
+
+						char *contp = NULL;
+						char affinity[5];
+						(void)sprintf(affinity, "%d", current->param->rscs->affinity);
+
+						cont( "reassigning %.12s's CGroups CPU's to %s", current->contid, affinity);
+						if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
+								+ strlen(current->contid)+1)) {
+							contp[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							contp = strcat(strcat(contp,prgset->cpusetdfileprefix), current->contid);		
+							
+							if (!setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+								warn("Can not set cpu-affinity");
+							}
+						}
+						else 
+							warn("malloc failed!");
+
+						free (contp);
+					}
+					// should it be else??
+					else {
+
+						// add pid to docker CGroup
+						char pid[5];
+						(void)sprintf(pid, "%d", current->pid);
+
+						if (!setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
+							printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+						}
+
+						// Set affinity
+						if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+							err_msg_n(errno,"setting affinity for PID %d",
+								current->pid);
+						else
+							cont("PID %d reassigned to CPU%d", current->pid, 
+								current->param->rscs->affinity);
+					}
+
+					// only do if different than -1, <- not set values
+					if (SCHED_NODATA != current->param->attr->sched_policy) {
+						cont("Setting Scheduler of PID %d to '%s'", current->pid,
+							policy_to_string(current->param->attr->sched_policy));
+						if (sched_setattr (current->pid, current->param->attr, 0U))
+							err_msg_n(errno, "setting attributes for PID %d",
+								current->pid);
+					}
+					else
+						cont("Skipping setting of scheduler for PID %d", current->pid);  
+
+
+					// controlling resource limits
+          			struct rlimit rlim;		
+					// TODO: upgrade to a list of parameters, looping through.			
+
+					// RT-Time limit
+					if (-1 != current->param->rscs->rt_timew || -1 != current->param->rscs->rt_time) {
+						if (prlimit(current->pid, RLIMIT_RTTIME, NULL, &rlim))
+							err_msg_n(errno, "getting RT-Limit for PID %d",
+								current->pid);
+						else {
+							if (-1 != current->param->rscs->rt_timew)
+								rlim.rlim_cur = current->param->rscs->rt_timew;
+							if (-1 != current->param->rscs->rt_time)
+								rlim.rlim_max = current->param->rscs->rt_time;
+							if (prlimit(current->pid, RLIMIT_RTTIME, &rlim, NULL ))
+								err_msg_n(errno,"setting RT-Limit for PID %d",
+									current->pid);
+							else
+								cont("PID %d RT-Limit set to %d-%d", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+						}
+					}
+
+					// Data limit - Heap.. unitialized or not
+					if (-1 != current->param->rscs->mem_dataw || -1 != current->param->rscs->mem_data) {
+						if (prlimit(current->pid, RLIMIT_DATA, NULL, &rlim))
+							err_msg_n(errno, "getting Data-Limit for PID %d",
+								current->pid);
+						else {
+							if (-1 != current->param->rscs->mem_dataw)
+								rlim.rlim_cur = current->param->rscs->mem_dataw;
+							if (-1 != current->param->rscs->mem_data)
+								rlim.rlim_max = current->param->rscs->mem_data;
+							if (prlimit(current->pid, RLIMIT_DATA, &rlim, NULL ))
+								err_msg_n(errno, "setting Data-Limit for PID %d",
+									current->pid);
+							else
+								cont("PID %d Data-Limit set to %d-%d", current->pid, 											rlim.rlim_cur, rlim.rlim_max);
+						}
+					}
+
+				}
+				else if (prgset->affother) {
+					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
+						err_msg_n(errno, "setting affinity for PID %d",
+							current->pid);
+					else
+						cont("non-RT PID %d reassigned to CPU%d", current->pid,
+							current->param->rscs->affinity);
+				}
+				else
+					cont("Skipping non-RT PID %d from rescheduling", current->pid);
+			}
+		}
+
+	}
+	(void)pthread_mutex_unlock(&dataMutex);
 }
 
 /// get_sched_info(): get sched debug output info
@@ -243,14 +406,15 @@ static int updateStats ()
 			}
 
 			// set the flag for deadline notification if not enabled yet -- TEST
-			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) && (KV_416 <= prgset->kernelversion) && !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) 
+				&& (KV_416 <= prgset->kernelversion) 
+				&& !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
 				cont("Set dl_overrun flag for PID %d", item->pid);		
 
 				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
 				if (sched_setattr (item->pid, &item->attr, 0U))
 					err_msg_n(errno, "Can not set overrun flag");
-			
 			} 
 		}
 
@@ -286,7 +450,7 @@ static void getContPids (node_t **pidlst)
 		printDbg( "\nContainer detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
-		// scan trough docker cgroups, find them?
+			// scan trough docker cgroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
 					fname[0] = '\0';   // ensures the memory is an empty string
@@ -312,26 +476,27 @@ static void getContPids (node_t **pidlst)
 							(*pidlst)->det_mode = DM_CGRP;
 
 							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
-								((*pidlst)->contid = strdup(dir->d_name))) { // alloc memory for strings
+								((*pidlst)->contid = strdup(dir->d_name))) {
+								// alloc memory for strings
 
 								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
-								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE)) // try to read cmdline of pid
+								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
+									// try to read cmdline of pid
 									warn("can not read pid %d's command line", (*pidlst)->pid);
 
-								(*pidlst)->psig=realloc((*pidlst)->psig, strlen((*pidlst)->psig)+1); // cut to exact (reduction = no issue)
-
+								// cut to exact (reduction = no issue)
+								(*pidlst)->psig=realloc((*pidlst)->psig, 
+									strlen((*pidlst)->psig)+1);
 							}
 							else // FATAL, exit and execute atExit
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
 							pid = strtok (NULL,"\n");	
-
 						}
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
 					}
-
 					close(path);
 				}
 				else // FATAL, exit and execute atExit
@@ -400,8 +565,6 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	pclose(fp);
 }
 
-
-
 /// getcPids(): utility function to get list of PID by PPID tag
 /// Arguments: - pointer to linked list of PID
 ///			   - tag string containing the name of the parent pid to look for
@@ -442,6 +605,53 @@ static void getpPids (node_t **pidlst, char * tag)
 	pclose(fp);
 }
 
+static contevent_t * lstevent;
+
+/// updateDocker(): pull event from dockerlink and verify
+///
+/// Arguments: 
+///
+/// Return value: 
+///
+static void updateDocker() {
+	
+	// NOTE: pointers are atomic
+	if (!containerEvent)
+		return;
+	
+	while (containerEvent) {	
+		lstevent = containerEvent;
+		containerEvent = NULL;
+		// process data, find pid entry
+
+		switch (lstevent->event) {
+			case cnt_add:
+				// do nothing, call for pids
+				// update container break
+				//settings;
+				break;
+
+			case cnt_remove: ;
+				(void)pthread_mutex_lock(&dataMutex);
+				node_t dummy = {head};
+				node_t * curr = &dummy;
+
+				// drop matching pids of this container
+				for (;((curr->next)); curr=curr->next) 
+					if (curr->next->contid == lstevent->id) 
+						node_pop(&curr->next);
+
+				(void)pthread_mutex_unlock(&dataMutex);
+				break;
+
+			case cnt_pending:
+				// clear last event, do nothing
+				free(lstevent);
+				break;
+		}
+	}
+}
+
 /// scanNew(): main function for thread_update, scans for pids and inserts
 /// or drops the PID list
 ///
@@ -477,7 +687,6 @@ static void scanNew () {
 	}
 
 	// SPIDs arrive out of order
-	// TODO Upgrade to push_sorted
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
@@ -656,6 +865,10 @@ void *thread_update (void *arg)
 						policy_to_string(prgset->policy), prgset->priority);
 			}
 
+			// set lolcal variable -- all cpus set.
+			// TODO: adapt to cpu mask
+			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
+
 		case 1: 
 			// startup-refresh: this should be executed only once every td
 			*pthread_state=2; // must be first thing! -> main writes -1 to stop
@@ -666,6 +879,8 @@ void *thread_update (void *arg)
 			if (!cc)
 				*pthread_state=1; // must be first thing
 			updateStats();
+			updateSched();
+			updateDocker();
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop

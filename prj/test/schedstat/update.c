@@ -44,7 +44,14 @@ static void schedstat_update_setup() {
 
 	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
 	*prgset->cpusetdfileprefix = '\0'; // set first chat to null
-	prgset->cpusetdfileprefix = strcat(strcat(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);		
+	prgset->cpusetdfileprefix = strcat(strcat(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
+
+	contparm = malloc (sizeof(containers_t));
+	contparm->img = NULL; // locals are not initialized
+	contparm->pids = NULL;
+	contparm->cont = NULL;
+	contparm->nthreads = 0;
+	contparm->num_cont = 0;
 }
 
 static void schedstat_update_teardown() {
@@ -64,6 +71,8 @@ static void schedstat_update_teardown() {
 	free(prgset->cpusetdfileprefix);
 
 	free(prgset);
+
+	free(contparm);
 }
 
 /// TEST CASE -> Stop update thread when setting status to -1

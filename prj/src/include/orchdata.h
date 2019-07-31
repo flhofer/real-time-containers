@@ -77,8 +77,8 @@
 	} cont_t;
 
 	typedef struct conts_parm {
-		struct conts_parm *next; // list to next entry
-		struct cont_parm  *pid;  // matching container, one entry
+		struct conts_parm *next;// list to next entry
+		struct cont_parm  *cont;// matching container, one entry
 	} conts_t;
 
 	typedef struct img_parm {
@@ -198,9 +198,7 @@
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	void node_push(node_t ** head);
 	void node_add(node_t ** head, pid_t pid, char * psig, char * contid);
-	void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid);
 	void node_pop(node_t ** head);
-	void node_drop_after(node_t ** head, node_t ** prev);
 
 	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
 	int node_findParams(node_t* node, containers_t * conts);

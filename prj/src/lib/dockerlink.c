@@ -182,12 +182,12 @@ get_int64_value_from(struct json_object *where,
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
 
-/// inthand(): interrupt handler for infinite while loop, help 
+/// stphand(): interrupt handler for infinite while loop, help 
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-void inthand (int sig, siginfo_t *siginfo, void *context){
+void stphand (int sig, siginfo_t *siginfo, void *context){
 	stop = 1;
 }
 
@@ -345,7 +345,7 @@ void *thread_watch_docker(void *arg) {
 		memset (&act, '\0', sizeof(act));
 	 
 		/* Use the sa_sigaction field because the handles has two additional parameters */
-		act.sa_sigaction = &inthand;
+		act.sa_sigaction = &stphand;
 	 
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
 		act.sa_flags = SA_SIGINFO;

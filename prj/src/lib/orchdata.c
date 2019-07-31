@@ -146,25 +146,36 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 int node_findParams(node_t* node, struct containers * conts){
 
 	struct img_parm * img = conts->img;
-
-	// check for image match
+	struct cont_parm * cont = NULL;
+	// check for image match fitst
 	while (NULL != img) {
 		// 12 is standard docker short signature
 		if(img->imgid && node->contid && !strncmp(img->imgid, node->contid, 12)) {
-			break;
+			conts_t * imgcont = img->conts;	
+			// check for container match
+			while (NULL != imgcont) {
+				// 12 is standard docker short signature
+				if(imgcont->cont->contid && node->contid && !strncmp(imgcont->cont->contid, node->contid, 12)) {
+					break;
+				}
+				imgcont = imgcont->next; 
+			}
 		}
 		img = img->next; 
 	}
 
-	struct cont_parm * cont = conts->cont;
+	// not in the images, check all containers
+	if (!cont) {
+		cont = conts->cont;
 
-	// check for container match
-	while (NULL != cont) {
-		// 12 is standard docker short signature
-		if(cont->contid && node->contid && !strncmp(cont->contid, node->contid, 12)) {
-			break;
+		// check for container match
+		while (NULL != cont) {
+			// 12 is standard docker short signature
+			if(cont->contid && node->contid && !strncmp(cont->contid, node->contid, 12)) {
+				break;
+			}
+			cont = cont->next; 
 		}
-		cont = cont->next; 
 	}
 
 	// did we find a container match?
@@ -209,9 +220,11 @@ int node_findParams(node_t* node, struct containers * conts){
 			}
 			curr = curr->next; 
 		}
-
 	}
 
+	return -1;
+	// TODO: what if NULL?
+/*
 	// didnt find it anywhere  -> plant an empty container and pidc
 	push((void**)&conts->cont, sizeof(cont_t));
 	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
@@ -230,6 +243,7 @@ int node_findParams(node_t* node, struct containers * conts){
 	conts->nthreads++;
 	conts->num_cont++;		
 	return -1;
+*/
 }
 
 /* -------------------- default PID values structure ----------------------*/
@@ -259,14 +273,6 @@ void node_add(node_t ** head, pid_t pid, char * psig, char * contid) {
     (*head)->contid = contid;
 }
 
-void node_insert_after(node_t ** head, node_t ** prev, pid_t pid, char * psig, char * contid) {
-	if (*prev == NULL) {
-		node_add (head, pid, psig, contid);
-		return;
-	}
-	node_add (&((*prev)->next), pid, psig, contid);
-}
-
 void node_pop(node_t ** head) {
     if (*head == NULL) {
         return;
@@ -277,21 +283,12 @@ void node_pop(node_t ** head) {
 		free((*head)->psig);
 	if (!((*head)->param) || (*head)->contid != (*head)->param->cont->contid)
 		free((*head)->contid);
-	// fix.. :/
-	if (!((*head)->param) || (*head)->imgid != (*head)->param->img->imgid)
+	if (!((*head)->param) || (((*head)->param->img) 
+		&& (*head)->imgid != (*head)->param->img->imgid))
 		free((*head)->contid);
 	// TODO: configuration of pid and container maybe as well?
 
 	pop((void**)head);
-}
-
-void node_drop_after(node_t ** head, node_t ** prev) {
-	// special case, drop head, has no prec
-	if (*prev == NULL) {
-		node_pop (head);
-		return;
-	}
-	node_pop(&((*prev)->next));
 }
 
 /* -------------------- END RUNTIME structure ----------------------*/
