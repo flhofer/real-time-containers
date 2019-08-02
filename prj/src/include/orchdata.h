@@ -196,8 +196,8 @@
 	void qsortll(void **head, int (*compar)(const void *, const void*) );
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
+	// separate, as they set init values and free subs
 	void node_push(node_t ** head);
-	void node_add(node_t ** head, pid_t pid, char * psig, char * contid);
 	void node_pop(node_t ** head);
 
 	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired

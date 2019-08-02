@@ -267,13 +267,6 @@ void node_push(node_t ** head) {
     (*head)->next = next;
 }
 
-void node_add(node_t ** head, pid_t pid, char * psig, char * contid) {
-	node_push(head);
-    (*head)->pid = pid;
-    (*head)->psig = psig;
-    (*head)->contid = contid;
-}
-
 void node_pop(node_t ** head) {
     if (*head == NULL) {
         return;
@@ -281,12 +274,34 @@ void node_pop(node_t ** head) {
 
 	// free strings id specifically created for this pid
 	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
+	// TODO: temporary for free hooks
+#ifdef DEBUG
+	{
 		free((*head)->psig);
+		(*head)->psig = NULL;		
+	}
+#else
+		free((*head)->psig);
+#endif
 	if (!((*head)->param) || (*head)->contid != (*head)->param->cont->contid)
+#ifdef DEBUG
+	{
 		free((*head)->contid);
+		(*head)->contid = NULL;		
+	}
+#else
+		free((*head)->contid);
+#endif
 	if (!((*head)->param) || (((*head)->param->img) 
 		&& (*head)->imgid != (*head)->param->img->imgid))
+#ifdef DEBUG
+	{
 		free((*head)->imgid);
+		(*head)->imgid = NULL;		
+	}
+#else
+		free((*head)->imgid);
+#endif
 	// TODO: configuration of pid and container maybe as well?
 
 	pop((void**)head);

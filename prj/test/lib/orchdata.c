@@ -13,25 +13,104 @@
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
+//#include <malloc.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 
+/*
+extern void __builtin_free(void *__ptr);
+
+struct list {
+	struct list * next;
+	void * ptr;
+};
+
+struct list * lst;
+
+void
+free (void *ptr)
+{
+  if (ptr){
+	push((void **)&lst, sizeof(struct list));
+	lst->ptr = ptr;
+  }
+  return __builtin_free (ptr);
+}
+*/
+
 /// TEST CASE -> push node elements and test
-/// EXPECTED -> 
+/// EXPECTED -> pushing, no matter where, should keep order, data is initialized
 START_TEST(orchdata_ndpush)
 {
+	ck_assert(!head);
+	node_push(&head);
 
+	ck_assert_ptr_eq(head->next, NULL);
+	ck_assert_int_eq(head->pid, 0);
+	ck_assert_int_eq(head->det_mode, 0);
+	ck_assert_ptr_eq(head->psig, NULL);
+	ck_assert_ptr_eq(head->contid, NULL);
+	ck_assert_ptr_eq(head->imgid, NULL);
+	ck_assert_int_eq(head->attr.size, 48);
+	ck_assert_int_eq(head->attr.sched_policy, SCHED_NODATA);
+	ck_assert_int_eq(head->mon.rt_min, INT64_MAX);
+	ck_assert_int_eq(head->mon.rt_avg, 0);
+	ck_assert_int_eq(head->mon.rt_max, INT64_MIN);
+	ck_assert_int_eq(head->mon.dl_count, 0);
+	ck_assert_int_eq(head->mon.dl_scanfail, 0);
+	ck_assert_int_eq(head->mon.dl_overrun, 0);
+	ck_assert_int_eq(head->mon.dl_deadline, 0);
+	ck_assert_int_eq(head->mon.dl_rt, 0);
+	ck_assert_int_eq(head->mon.dl_diff, 0);
+	ck_assert_int_eq(head->mon.dl_diffmin, INT64_MAX);
+	ck_assert_int_eq(head->mon.dl_diffavg, 0);
+	ck_assert_int_eq(head->mon.dl_diffmax, INT64_MIN);
+	ck_assert_ptr_eq(head->param, NULL);
+
+	// verify default settings
+
+	node_t * a = head;
+	node_push(&head);
+	node_t * b = head;
+	node_push(&head);
+	node_t * c = head;
+
+	// head |-> c -> b -> a
+	ck_assert_ptr_eq(head,c);
+	ck_assert_ptr_eq(head->next,b);
+	ck_assert_ptr_eq(head->next->next,a);
+
+	// head |-> c -> a
+	node_pop(&c->next); // drop after C
+	
+	ck_assert_ptr_eq(head,c);
+	ck_assert_ptr_eq(head->next,a);
+
+	node_push(&head);
+	node_push(&c->next);
+
+	// head |->x -> c -> y -> a
+	ck_assert_ptr_eq(head->next,c);
+	ck_assert_ptr_eq(head->next->next->next,a);
+
+	// cleanup
+	node_pop(&head);
+	node_pop(&head);
+	node_pop(&head);
+	node_pop(&head);
+
+	ck_assert(!head);
 }
 END_TEST
 
 /// TEST CASE -> pop node elements and test
-/// EXPECTED -> should free without issues 
+/// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
 {
-	static const char *a[] = {NULL, "", ""};
-	static const char *b[] = {"", NULL, ""};
-	static const char *c[] = {"", "", NULL};
+	static const char *a[] = {NULL, "12", "34"}; // diff values to avoid
+	static const char *b[] = {"56", NULL, "78"}; // compiler optimization
+	static const char *c[] = {"90", "ab", NULL};
 
 	node_push(&head);
 	head->psig = a == NULL ? strdup(a[_i]) : NULL;
@@ -43,6 +122,8 @@ START_TEST(orchdata_ndpop)
 }
 END_TEST
 
+/// TEST CASE -> pop node elements and test
+/// EXPECTED -> should not free elements as they are pointing to conf values
 START_TEST(orchdata_ndpop2)
 {
 	char *a = strdup("aa");
@@ -58,13 +139,16 @@ START_TEST(orchdata_ndpop2)
 	head->contid = b;
 	head->imgid = c;
 	head->param = &f;
+	node_t * p = head;	// save for test
 	node_pop(&head);
 
 	ck_assert(!head);
 
-	ck_assert(a);
-	ck_assert(b);
-	ck_assert(c);
+	// waring! accessing unallocated memrory
+	ck_assert(p);
+	ck_assert(p->psig);
+	ck_assert(p->contid);
+	ck_assert(p->imgid);
 
 	free(a);
 	free(b);
@@ -72,6 +156,8 @@ START_TEST(orchdata_ndpop2)
 }
 END_TEST
 
+/// TEST CASE -> pop node elements and test
+/// EXPECTED -> should free elements, they differ from conf values
 START_TEST(orchdata_ndpop3)
 {
 	char *a = strdup("aa");
@@ -80,24 +166,35 @@ START_TEST(orchdata_ndpop3)
 
 	cont_t d = {NULL, "sss"};
 	img_t e = {NULL, "xxx"};
-	pidc_t f = {NULL, a, NULL, NULL, &d, &e};
+	pidc_t f = {NULL, "ss", NULL, NULL, &d, &e};
 	
 	node_push(&head);
 	head->psig= a;
 	head->contid = b;
 	head->imgid = c;
 	head->param = &f;
+	node_t * p = head;	// save for test
 	node_pop(&head);
 
 	ck_assert(!head);
 
-	ck_assert(!a);
-	ck_assert(!b);
-	ck_assert(!c);
+	// waring! accessing unallocated memrory
+	ck_assert(p);
+	ck_assert(!p->psig);
+	ck_assert(!p->contid);
+	ck_assert(!p->imgid);
 }
 END_TEST
 
-/// Static setup for all tests in this batch
+/// TEST CASE -> sort a element by pid
+/// EXPECTED -> nodes are sorted in ascending order, all present
+START_TEST(orchdata_qsort)
+{	
+	
+}
+END_TEST
+
+/// Static setup for all tests in the following batch
 static void orchdata_setup() {
 	contparm = malloc (sizeof(containers_t));
 	contparm->img = NULL; // locals are not initialized
@@ -270,8 +367,8 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_ndpop);
 	tcase_add_test(tc0, orchdata_ndpop2);
 	tcase_add_test(tc0, orchdata_ndpop3);
+	tcase_add_test(tc0, orchdata_qsort);
     suite_add_tcase(s, tc0);
-
 
 	TCase *tc1 = tcase_create("orchdata_pidcont");
 	tcase_add_unchecked_fixture(tc1, orchdata_setup, orchdata_teardown);
