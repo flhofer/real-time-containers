@@ -8,21 +8,11 @@
 
 #include "../../src/schedstat/schedstat.h"
 #include "../../src/schedstat/update.h"
-#include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
-
-
-containers_t * contparm; // container parameter settings
-prgset_t * prgset; // programm setings structure
-
-// mutex to avoid read while updater fills or empties existing threads
-pthread_mutex_t dataMutex;
-// head of pidlist - PID runtime and configuration details
-node_t * head = NULL;
 
 static void schedstat_update_setup() {
 	prgset = malloc (sizeof(prgset_t));

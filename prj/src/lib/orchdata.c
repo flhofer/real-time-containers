@@ -193,7 +193,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		}
 
 		// found? if not, create entry
-		printDbg("... parameters not found, creating empty from PID\n");
+		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
@@ -221,6 +221,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			curr = curr->next; 
 		}
 	}
+	printDbg("... PID not found. Ignoring\n");
 
 	return -1;
 	// TODO: what if NULL?
@@ -285,7 +286,7 @@ void node_pop(node_t ** head) {
 		free((*head)->contid);
 	if (!((*head)->param) || (((*head)->param->img) 
 		&& (*head)->imgid != (*head)->param->img->imgid))
-		free((*head)->contid);
+		free((*head)->imgid);
 	// TODO: configuration of pid and container maybe as well?
 
 	pop((void**)head);
