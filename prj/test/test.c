@@ -9,6 +9,7 @@
 #include <check.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
 
 // debug output file
 FILE  * dbg_out;
@@ -21,6 +22,9 @@ FILE  * dbg_out;
 
 int main(void)
 {
+	// init pseudo-random tables
+	srand(time(NULL));
+
     int nf=0;
     SRunner *sr;
 

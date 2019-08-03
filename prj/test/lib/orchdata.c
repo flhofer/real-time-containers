@@ -186,13 +186,70 @@ START_TEST(orchdata_ndpop3)
 }
 END_TEST
 
+// for qsort, descending order
+static int cmpPidItem (const void * a, const void * b) {
+	return (((node_t *)b)->pid - ((node_t *)a)->pid);
+}
+
 /// TEST CASE -> sort a element by pid
-/// EXPECTED -> nodes are sorted in ascending order, all present
+/// EXPECTED -> nodes are sorted in descending order, all present
 START_TEST(orchdata_qsort)
 {	
-	
+	long sum = 0;
+	int no;
+	int cnt = rand() % 20 + 3;
+
+	ck_assert(!head);
+
+	for (int i = 0; i < cnt; i ++) {
+		node_push(&head);
+		no = rand() % 32768;
+		sum += no;
+		head->pid = no;
+	}
+
+	// apply quick sort!
+	qsortll((void **)&head, cmpPidItem);
+
+	no = 32768;
+	for (node_t * curr = head; ((curr)); curr=curr->next) {
+		ck_assert_int_le (curr->pid, no);	// old < new -> order verify
+		sum -= curr->pid; 					// create diff, -> sum must go to 0, mismatch verify
+		cnt--; 								// count down -> must go to 0, count verify
+		no = curr->pid;
+	}
+
+	ck_assert_int_eq(sum, 0);
+	ck_assert_int_eq(cnt, 0);
+
+	// cleanup	
+	while ((head))
+		node_pop(&head);
 }
 END_TEST
+
+/// TEST CASE -> sort basic tests
+/// EXPECTED -> should not fail
+START_TEST(orchdata_qsort2)
+{	
+	// apply quick sort!
+	qsortll(NULL, cmpPidItem);
+}
+END_TEST
+
+/// TEST CASE -> sort basic tests
+/// EXPECTED -> should not fail
+START_TEST(orchdata_qsort3)
+{	
+	node_push(&head);	
+	node_push(&head);	
+	// apply quick sort!
+	qsortll((void **)&head, NULL);
+	node_pop(&head);
+	node_pop(&head);
+}
+END_TEST
+
 
 /// Static setup for all tests in the following batch
 static void orchdata_setup() {
@@ -368,6 +425,8 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_ndpop2);
 	tcase_add_test(tc0, orchdata_ndpop3);
 	tcase_add_test(tc0, orchdata_qsort);
+	tcase_add_test(tc0, orchdata_qsort2);
+	tcase_add_test(tc0, orchdata_qsort3);
     suite_add_tcase(s, tc0);
 
 	TCase *tc1 = tcase_create("orchdata_pidcont");

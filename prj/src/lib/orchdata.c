@@ -37,7 +37,8 @@ static struct base *getTail(struct base *cur)
         cur = cur->next; 
     return cur; 
 } 
-  
+
+// TODO: this consumes a ton of stack. convert to array, use other alg, than back to ll
 // Partitions the list taking the last element as the pivot 
 static struct base *qsortll_partition(struct base *head, struct base *end, 
                        struct base **newHead, struct base **newEnd,
@@ -132,8 +133,9 @@ struct base *qsortll_recur(struct base *head, struct base *end,
 /// Return value: -
 void qsortll(void **head, int (*compar)(const void *, const void*) ) 
 { 
-    (*(struct base **)head) = qsortll_recur((struct base *)*head,
-		 getTail((struct base *)*head), compar); 
+	if ((head) && (*head) && (compar)) // check parameters are not null
+		(*(struct base **)head) = qsortll_recur((struct base *)*head,
+			 getTail((struct base *)*head), compar); 
 }
 
 /// node_findParams(): assigns the PID parameters list of a running container
