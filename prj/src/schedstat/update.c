@@ -147,7 +147,7 @@ void updateSched() {
 					cset = cset_full;
 				}
 
-				if (SCHED_OTHER != current->attr.sched_policy) { 
+//				if (SCHED_OTHER != current->attr.sched_policy) { 
 					// only if successful
 					if (!current->psig) 
 						current->psig = current->param->psig;
@@ -252,7 +252,7 @@ void updateSched() {
 						}
 					}
 
-				}
+/*				}
 				else if (prgset->affother) {
 					if (sched_setaffinity(current->pid, sizeof(cset), &cset ))
 						err_msg_n(errno, "setting affinity for PID %d",
@@ -262,7 +262,7 @@ void updateSched() {
 							current->param->rscs->affinity);
 				}
 				else
-					cont("Skipping non-RT PID %d from rescheduling", current->pid);
+					cont("Skipping non-RT PID %d from rescheduling", current->pid);*/
 			}
 		}
 
