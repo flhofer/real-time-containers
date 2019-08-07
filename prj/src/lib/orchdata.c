@@ -186,7 +186,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		struct pids_parm * curr = cont->pids;
 
 		while (NULL != curr) {
-			if(curr->pid->psig && node->psig && !strstr(node->psig, curr->pid->psig)) {
+			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
 				// found a matching pid inc root container
 				node->param = curr->pid;
 				return 0;
@@ -215,7 +215,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		struct pidc_parm * curr = conts->pids;
 
 		while (NULL != curr) {
-			if(curr->psig && node->psig && !strcmp(curr->psig, node->psig)) {
+			if(curr->psig && node->psig && strstr(node->psig, curr->psig)) {
 				warn("assigning container configuration to unrelated PID");
 				node->param = curr;
 				return 0;
@@ -285,7 +285,8 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->psig);
 #endif
-	if (!((*head)->param) || (*head)->contid != (*head)->param->cont->contid)
+	if (!((*head)->param) || (((*head)->param->cont) 
+		&& (*head)->contid != (*head)->param->cont->contid))
 #ifdef DEBUG
 	{
 		free((*head)->contid);

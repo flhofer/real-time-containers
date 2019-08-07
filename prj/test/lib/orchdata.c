@@ -349,8 +349,8 @@ static void orchdata_tc2_setup () {
 
 	{
 		const char *pids[] = {	"sleep",
-								"sleep 1",
-								"sleep 5",
+								"weep",
+								"hard 5",
 								NULL };
 
 		const char ** pidsig = pids;
@@ -370,7 +370,7 @@ static void orchdata_tc2_setup () {
 		cont = contparm->cont;
 		cont->contid=strdup("d7408531a3b4d7408531a3b4");
 
-		const char *pids[] = {	"sleep 4",
+		const char *pids[] = {	"p 4",
 								NULL };
 
 		const char ** pidsig = pids;
@@ -405,15 +405,38 @@ static void orchdata_tc2_teardown () {
 }
 
 /// TEST CASE -> test configuration find 
-/// EXPECTED -> 
+/// EXPECTED -> verifies that all parameters are found as expected 
 START_TEST(orchdata_findparams)
 {	
+	// complete match, center, beginning, end
+	static const char *sigs[] = { "hard 5", "do we sleep or more", "weep 1", "keep 4"};
+
 	node_push(&head);
-	head->psig = strdup("sleep 5");
+	head->psig = strdup(sigs[_i]);
 	int retv = node_findParams(head , contparm);
 	
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
+
+	node_pop(&head);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find 
+/// EXPECTED -> verifies that all parameters are found as expected 
+START_TEST(orchdata_findparams_fail)
+{	
+	// complete match, center, beginning, end
+	node_push(&head);
+	head->psig = _i 		? NULL : strdup("wleep 1 as");
+	head->imgid = _i == 2 	? NULL : strdup("32aeede2352d57f52");
+	head->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
+	int retv = node_findParams(head , contparm);
+	
+	ck_assert_int_eq(retv, -1);
+	ck_assert(!head->param);
+
+	node_pop(&head);
 }
 END_TEST
 
@@ -437,7 +460,8 @@ void library_orchdata (Suite * s) {
 	TCase *tc2 = tcase_create("orchdata_findparams");
 	tcase_add_unchecked_fixture(tc2, orchdata_setup, orchdata_teardown);
 	tcase_add_checked_fixture(tc2, orchdata_tc2_setup, orchdata_tc2_teardown);
-	tcase_add_test(tc2, orchdata_findparams);
+	tcase_add_loop_test(tc2, orchdata_findparams, 0, 4);
+	tcase_add_loop_test(tc2, orchdata_findparams_fail, 0, 4);
     suite_add_tcase(s, tc2);
 
 	return;
