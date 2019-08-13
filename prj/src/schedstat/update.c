@@ -218,48 +218,12 @@ static void setPidResources(node_t * node) {
 		else
 			cont("Skipping setting of scheduler for PID %d", node->pid);  
 
-
 		// controlling resource limits
-		struct rlimit rlim;		
-		// TODO: upgrade to a list of parameters, looping through.			
+		setPidRlimit(node->pid, node->param->rscs->rt_timew,  node->param->rscs->rt_time,
+			RLIMIT_RTTIME, "RT-Limit" );
 
-		// RT-Time limit
-		if (-1 != node->param->rscs->rt_timew || -1 != node->param->rscs->rt_time) {
-			if (prlimit(node->pid, RLIMIT_RTTIME, NULL, &rlim))
-				err_msg_n(errno, "getting RT-Limit for PID %d",
-					node->pid);
-			else {
-				if (-1 != node->param->rscs->rt_timew)
-					rlim.rlim_cur = node->param->rscs->rt_timew;
-				if (-1 != node->param->rscs->rt_time)
-					rlim.rlim_max = node->param->rscs->rt_time;
-				if (prlimit(node->pid, RLIMIT_RTTIME, &rlim, NULL ))
-					err_msg_n(errno,"setting RT-Limit for PID %d",
-						node->pid);
-				else
-					cont("PID %d RT-Limit set to %d-%d", node->pid,
-						rlim.rlim_cur, rlim.rlim_max);
-			}
-		}
-
-		// Data limit - Heap.. unitialized or not
-		if (-1 != node->param->rscs->mem_dataw || -1 != node->param->rscs->mem_data) {
-			if (prlimit(node->pid, RLIMIT_DATA, NULL, &rlim))
-				err_msg_n(errno, "getting Data-Limit for PID %d",
-					node->pid);
-			else {
-				if (-1 != node->param->rscs->mem_dataw)
-					rlim.rlim_cur = node->param->rscs->mem_dataw;
-				if (-1 != node->param->rscs->mem_data)
-					rlim.rlim_max = node->param->rscs->mem_data;
-				if (prlimit(node->pid, RLIMIT_DATA, &rlim, NULL ))
-					err_msg_n(errno, "setting Data-Limit for PID %d",
-						node->pid);
-				else
-					cont("PID %d Data-Limit set to %d-%d", node->pid,
-						rlim.rlim_cur, rlim.rlim_max);
-			}
-		}
+		setPidRlimit(node->pid, node->param->rscs->mem_dataw,  node->param->rscs->mem_data,
+			RLIMIT_DATA, "Data-Limit" );
 	}
 }
 

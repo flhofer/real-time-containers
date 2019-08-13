@@ -10,11 +10,13 @@
 #include "../../src/schedstat/update.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
+#include "../../src/include/rt-sched.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <limits.h>
 #include <sys/resource.h>
+#include <linux/sched.h>	// linux specific scheduling
 
 
 static void schedstat_update_setup() {
@@ -187,17 +189,17 @@ START_TEST(schedstat_update_rscs)
 
 	// push sig to config	
 	contparm->rscs = malloc (sizeof(struct sched_rscs));
-	contparm->rscs->affinity=-1;
-	contparm->rscs->rt_timew=-1;
-	contparm->rscs->rt_time=-1;
+	contparm->rscs->affinity=0;
+	contparm->rscs->rt_timew=95000;
+	contparm->rscs->rt_time=100000;
 	contparm->rscs->mem_dataw=100;
 	contparm->rscs->mem_data=-1;
 
 	contparm->attr = malloc (sizeof(struct sched_attr));
 	contparm->attr->size =48;
-	contparm->attr->sched_policy=0;
-	contparm->attr->sched_flags=0;
-	contparm->attr->sched_nice=0;
+	contparm->attr->sched_policy=SCHED_BATCH;
+	contparm->attr->sched_flags=SCHED_FLAG_RESET_ON_FORK;
+	contparm->attr->sched_nice=5;
 	contparm->attr->sched_priority=0;
 	contparm->attr->sched_runtime=0;
 	contparm->attr->sched_deadline=0;
@@ -231,6 +233,9 @@ START_TEST(schedstat_update_rscs)
 	ck_assert_int_eq(head->next->pid, pid1);
 	ck_assert_int_eq(head->pid, pid2);
 
+	ck_assert_ptr_eq(head->param, contparm->pids);
+	ck_assert_ptr_eq(head->next->param, contparm->pids);
+
 	{
 		struct rlimit rlim;		
 		// RT-Time limit
@@ -259,6 +264,19 @@ START_TEST(schedstat_update_rscs)
 		ck_assert_int_eq(contparm->pids->rscs->mem_dataw, rlim.rlim_cur);
 		ck_assert_int_eq(contparm->pids->rscs->mem_data,  rlim.rlim_max);
 	}
+
+	{
+		struct sched_attr attr;
+		if (sched_getattr (pid1, &(attr), sizeof(struct sched_attr), 0U) != 0) 
+			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));		
+		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
+
+		if (sched_getattr (pid2, &(attr), sizeof(struct sched_attr), 0U) != 0) 
+			warn("Unable to read params for PID %d: %s", pid2, strerror(errno));		
+
+		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
+
+	}
 	pclose(fd1);
 	pclose(fd2);
 
@@ -274,7 +292,7 @@ START_TEST(schedstat_update_rscs)
 		pop((void **)&contparm->pids);
 	}
 	free(contparm->rscs);
-
+	free(contparm->attr);
 }
 END_TEST
 

@@ -157,7 +157,7 @@
 		// parameters
 		int priority;				// priority parameter for FIFO and RR
 		int clocksel;				// selected clock 
-		uint32_t policy;					// default policy if not specified
+		uint32_t policy;			// default policy if not specified
 		int quiet;					// quiet enabled
 		int affother;				// set affinity of parent as well
 		int setdflag;				// set deadline overrun flag
