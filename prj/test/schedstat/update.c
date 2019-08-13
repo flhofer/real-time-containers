@@ -174,11 +174,12 @@ START_TEST(schedstat_update_rscs)
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
-	pid_t pid1;
-	FILE * fd1;
+	pid_t pid1, pid2;
+	FILE * fd1, * fd2;
 
 	// create pids
 	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 5", "r", &pid2);
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
@@ -189,7 +190,7 @@ START_TEST(schedstat_update_rscs)
 	contparm->rscs->affinity=-1;
 	contparm->rscs->rt_timew=-1;
 	contparm->rscs->rt_time=-1;
-	contparm->rscs->mem_dataw=-1;
+	contparm->rscs->mem_dataw=100;
 	contparm->rscs->mem_data=-1;
 
 	contparm->attr = malloc (sizeof(struct sched_attr));
@@ -223,20 +224,43 @@ START_TEST(schedstat_update_rscs)
 
 	// verify 2 nodes exist
 	ck_assert(head);
-	ck_assert(!head->next);
+	ck_assert(head->next);
+	ck_assert(!head->next->next);
 
 	// verify pids
-	ck_assert_int_eq(head->pid, pid1);
+	ck_assert_int_eq(head->next->pid, pid1);
+	ck_assert_int_eq(head->pid, pid2);
 
-	struct rlimit rlim;		
-	// RT-Time limit
-	if (prlimit(pid1, RLIMIT_RTTIME, NULL, &rlim))
-		err_msg_n(errno, "getting RT-Limit for PID %d", pid1);
+	{
+		struct rlimit rlim;		
+		// RT-Time limit
+		if (prlimit(pid1, RLIMIT_RTTIME, NULL, &rlim))
+			err_msg_n(errno, "getting RT-Limit for PID %d", pid1);
 
-	ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
-	ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
+		ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
 
+		if (prlimit(pid1, RLIMIT_DATA, NULL, &rlim))
+			err_msg_n(errno, "getting data-Limit for PID %d", pid1);
+
+		ck_assert_int_eq(contparm->pids->rscs->mem_dataw, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->rscs->mem_data,  rlim.rlim_max);
+
+
+		if (prlimit(pid2, RLIMIT_RTTIME, NULL, &rlim))
+			err_msg_n(errno, "getting RT-Limit for PID %d", pid2);
+
+		ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
+
+		if (prlimit(pid2, RLIMIT_DATA, NULL, &rlim))
+			err_msg_n(errno, "getting data-Limit for PID %d", pid2);
+
+		ck_assert_int_eq(contparm->pids->rscs->mem_dataw, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->rscs->mem_data,  rlim.rlim_max);
+	}
 	pclose(fd1);
+	pclose(fd2);
 
 	// set stop sig
 	stat1 = -1;

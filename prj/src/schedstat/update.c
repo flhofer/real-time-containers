@@ -772,9 +772,12 @@ static void scanNew () {
 	}
 
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end PID %d - on\n", lnew->pid);		
-		setPidResources(lnew); // find match and set resources
+		printDbg("\n... Insert at end, starting from PID %d - on\n", lnew->pid);		
 		tail->next = lnew;
+		while (tail->next){
+			setPidResources(tail->next); // find match and set resources
+			tail=tail->next;
+		}
 	}
 
 	// 

@@ -46,6 +46,7 @@
 
 	typedef struct sched_rscs { // resources 
 		int32_t affinity; // exclusive cpu-num
+		// TODO: verify data type -> rlim in gdb says unsigned long
 		int32_t rt_timew; // RT execution time soft limit
 		int32_t rt_time;  // RT execution time hard limit
 		int32_t mem_dataw; // Data memory soft limit
