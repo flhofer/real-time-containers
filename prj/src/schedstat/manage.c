@@ -29,6 +29,20 @@
 
 // parameter tree linked list head, resource linked list head
 static struct resTracer * rhead;
+static uint64_t scount = 0; // total scan count
+
+// Included in kernel 4.13
+#ifndef SCHED_FLAG_RECLAIM
+	#define SCHED_FLAG_RECLAIM		0x02
+#endif
+
+// Included in kernel 4.16
+#ifndef SCHED_FLAG_DL_OVERRUN
+	#define SCHED_FLAG_DL_OVERRUN		0x04
+#endif
+
+#define PIPE_BUFFER			4096
+
 
 ////// TEMP ---------------------------------------------
 
@@ -144,6 +158,201 @@ int manageSched(){
 	return 0;
 }
 
+/// get_sched_info(): get sched debug output info
+///
+/// Arguments: the node to get info for
+///
+/// Return value: error code, 0 = success
+///
+static int get_sched_info(node_t * item)
+{
+	char szFileName [_POSIX_PATH_MAX],
+		szStatBuff [PIPE_BUFFER],
+		ltag [80], // just tag of beginning, max lenght expected ~30 
+    	*s;
+
+	FILE *fp;
+
+	sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
+
+	if (-1 == access (szFileName, R_OK)) {
+		return -1;
+	} /** if **/
+
+	if ((fp = fopen (szFileName, "r")) == NULL) {
+		return -1;
+	} /** IF_NULL **/
+
+	// read output into buffer!
+	if (0 >= fread (szStatBuff, sizeof(char), PIPE_BUFFER-1, fp)) {
+		fclose (fp);
+		return -1;
+	}
+	szStatBuff[PIPE_BUFFER-1] = '\0'; // safety first
+
+	fclose (fp);
+
+	int64_t num;
+	int64_t diff = 0;
+	int64_t ltrt = 0; // last seen runtime
+
+	s = strtok (szStatBuff, "\n");
+	while (NULL != s) {
+		(void)sscanf(s,"%s %*c %ld", ltag, &num);
+		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
+			// store last seen runtime
+			ltrt = num;
+			if (num != item->mon.dl_rt)
+				item->mon.dl_count++;
+		}
+		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
+			if (0 == item->mon.dl_deadline) 
+				item->mon.dl_deadline = num;
+			else if (num != item->mon.dl_deadline) {
+				// it's not, updated deadline found
+
+				// calculate difference to last reading, should be 1 period
+				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
+
+				// difference is very close to multiple of period we might have a scan fail
+				// in addition to the overshoot
+				while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) { 
+					item->mon.dl_scanfail++;
+					diff -= (int64_t)item->attr.sched_period;
+				}
+
+				// overrun-GRUB handling statistics -- ?
+				if (diff)  {
+					item->mon.dl_overrun++;
+
+					// usually: we have jitter but execution stays constant -> more than a slot?
+					printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
+						item->pid, diff, item->mon.dl_diff); 
+				}
+
+				item->mon.dl_diff += diff;
+				item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+				item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+
+				// exponentially weighted moving average, alpha = 0.9
+				item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
+
+				// runtime replenished - deadline changed: old value may be real RT ->
+				// Works only if scan time < slack time 
+				diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+				item->mon.rt_min = MIN (item->mon.rt_min, diff);
+				item->mon.rt_max = MAX (item->mon.rt_max, diff);
+				item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+
+				item->mon.dl_deadline = num;
+			}	
+
+			// update last seen runtime
+			item->mon.dl_rt = ltrt;
+			break; // we're done reading
+		}
+		s = strtok (NULL, "\n");	
+	}
+
+  return 0;
+}
+
+/// updateStats(): update the real time statistics for all scheduled threads
+/// -- used for monitoring purposes ---
+///
+/// Arguments: - 
+///
+/// Return value: number of PIDs found (total)
+///
+static int updateStats ()
+{
+	static int prot = 0; // pipe rotation animation
+	static char const sp[4] = "/-\\|";
+
+	prot = (prot+1) % 4;
+	if (!prgset->quiet)	
+		(void)printf("\b%c", sp[prot]);		
+	fflush(stdout);
+
+	// init head
+	node_t * item = head;
+
+	scount++; // increase scan-count
+	// for now does only a simple update
+	while (item != NULL) {
+		// skip deactivated tracking items
+		if (item->pid<0){
+			item=item->next; 
+			continue;
+		}
+
+		// update only when defaulting -> new entry
+		if (SCHED_NODATA == item->attr.sched_policy) {
+			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
+
+				warn("Unable to read params for PID %d: %s", item->pid, strerror(errno));		
+			}
+
+			// set the flag for deadline notification if not enabled yet -- TEST
+			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) 
+				&& (KV_416 <= prgset->kernelversion) 
+				&& !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+
+				cont("Set dl_overrun flag for PID %d", item->pid);		
+
+				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
+				if (sched_setattr (item->pid, &item->attr, 0U))
+					err_msg_n(errno, "Can not set overrun flag");
+			} 
+		}
+
+		// get runtime value
+		if (SCHED_DEADLINE == item->attr.sched_policy) {
+			int ret;
+			if ((ret = get_sched_info(item)) ) {
+				err_msg ("reading thread debug details %d", ret);
+			} 
+		}
+
+		item=item->next; 
+	}
+
+	return 0;
+}
+
+/// dumpStats(): prints thread statistics to out
+///
+/// Arguments: -
+///
+/// Return value: -
+static void dumpStats (){
+
+	node_t * item = head;
+	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
+					" (others are omitted)\n"
+					"Average exponential with alpha=0.9\n\n"
+					"PID - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
+			        "----------------------------------------------------------------------------------\n",
+					scount );
+
+	// for now does only a simple update count
+	if (!item) {
+		(void)printf("(no PIDs)\n");
+	}
+	while (item) {
+		if (SCHED_DEADLINE == item->attr.sched_policy) 
+		(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
+			abs(item->pid), item->pid<0 ? '*' : ' ', 
+			item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+			item->mon.dl_count, item->mon.dl_scanfail, 
+			item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+
+		item=item->next; 
+	}
+
+}
+
 /// thread_manage(): thread function call to manage schedule list
 ///
 /// Arguments: - thread state/state machine, passed on to allow main thread stop
@@ -162,7 +371,7 @@ void *thread_manage (void *arg)
 		*pthread_state=1; // first thing
 		// set lolcal variable -- all cpus set.
 	  case 1: // normal thread loop, check and update data
-//		if ()
+		if (!updateStats())
 			break;
 	  case 2: //
 		// update resources
@@ -172,6 +381,7 @@ void *thread_manage (void *arg)
 
 	  case -1:
 		// tidy or whatever is necessary
+		dumpStats();
 		pthread_exit(0); // exit the thread signalling normal return
 		break;
 	  }
