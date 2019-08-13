@@ -108,10 +108,32 @@ static void dumpStats (){
 
 }
 
+static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
+
+	struct rlimit rlim;		
+	if (-1 != rls || -1 != rlh) {
+		if (prlimit(pid, type, NULL, &rlim))
+			err_msg_n(errno, "getting %s for PID %d", name,
+				pid);
+		else {
+			if (-1 != rls)
+				rlim.rlim_cur = rls;
+			if (-1 != rlh)
+				rlim.rlim_max = rlh;
+			if (prlimit(pid, type, &rlim, NULL ))
+				err_msg_n(errno,"setting %s for PID %d", name,
+					pid);
+			else
+				cont("PID %d %s set to %d-%d", pid, name,
+					rlim.rlim_cur, rlim.rlim_max);
+		}
+	}
+} 
+
 static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
 
 
-void setPidResources(node_t * node) {
+static void setPidResources(node_t * node) {
 
 	cpu_set_t cset;
 
@@ -213,7 +235,8 @@ void setPidResources(node_t * node) {
 					err_msg_n(errno,"setting RT-Limit for PID %d",
 						node->pid);
 				else
-					cont("PID %d RT-Limit set to %d-%d", node->pid, 											rlim.rlim_cur, rlim.rlim_max);
+					cont("PID %d RT-Limit set to %d-%d", node->pid,
+						rlim.rlim_cur, rlim.rlim_max);
 			}
 		}
 
@@ -231,7 +254,8 @@ void setPidResources(node_t * node) {
 					err_msg_n(errno, "setting Data-Limit for PID %d",
 						node->pid);
 				else
-					cont("PID %d Data-Limit set to %d-%d", node->pid, 											rlim.rlim_cur, rlim.rlim_max);
+					cont("PID %d Data-Limit set to %d-%d", node->pid,
+						rlim.rlim_cur, rlim.rlim_max);
 			}
 		}
 	}
