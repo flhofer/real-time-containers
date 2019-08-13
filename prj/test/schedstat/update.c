@@ -173,7 +173,14 @@ void schedstat_update (Suite * s) {
 	tcase_add_test(tc1, schedstat_update_findprocs);
 	tcase_add_test(tc1, schedstat_update_findprocsall);
 
-    suite_add_tcase(s, tc1);
+    suite_add_tcase(s, tc2);
+
+	TCase *tc2 = tcase_create("update_thread_resources");
+ 
+	tcase_add_checked_fixture(tc2, schedstat_update_setup, schedstat_update_teardown);
+//	tcase_add_test(tc2, schedstat_update_findprocsall);
+
+    suite_add_tcase(s, tc2);
 
 	return;
 }

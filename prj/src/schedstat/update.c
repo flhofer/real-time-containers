@@ -701,6 +701,8 @@ static void scanNew () {
 			node_t * tmp = tail->next;
 			tail->next = lnew;
 
+			setPidResources(lnew); // find match and set resources
+
 			// skip to next node, then overwrite added next ref
 			lnew = lnew->next;
 			tail = tail->next;
@@ -745,6 +747,7 @@ static void scanNew () {
 
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
 		printDbg("\n... Insert at end PID %d - on\n", lnew->pid);		
+		setPidResources(lnew); // find match and set resources
 		tail->next = lnew;
 	}
 
@@ -871,7 +874,7 @@ void *thread_update (void *arg)
 			if (!cc)
 				*pthread_state=1; // must be first thing
 			updateStats();
-			updateSched();
+//			updateSched();
 			updateDocker();
 			break;
 		case -1:
