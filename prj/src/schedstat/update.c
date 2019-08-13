@@ -227,31 +227,6 @@ static void setPidResources(node_t * node) {
 	}
 }
 
-/// updateSched(): main function called to verify status of threads
-//
-/// Arguments: 
-///
-/// Return value: N/D
-///
-void updateSched() {
-
-	(void)pthread_mutex_lock(&dataMutex);
-
-	for (node_t * current = head;((current)); current = current->next) {
-		// skip deactivated tracking items
-		if (current->pid<0){
-			current=current->next; 
-			continue;
-		}
-
-	// NEW Entry? Params are not assigned yet. Do it now and reschedule.
-		if (NULL == current->param) 
-			setPidResources(current);
-
-	}
-	(void)pthread_mutex_unlock(&dataMutex);
-}
-
 /// get_sched_info(): get sched debug output info
 ///
 /// Arguments: the node to get info for
@@ -867,7 +842,6 @@ void *thread_update (void *arg)
 			if (!cc)
 				*pthread_state=1; // must be first thing
 			updateStats();
-//			updateSched();
 			updateDocker();
 			break;
 		case -1:
