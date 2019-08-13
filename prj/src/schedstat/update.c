@@ -156,11 +156,13 @@ static void setPidResources(node_t * node) {
 
 		if (!node->psig) 
 			node->psig = node->param->psig;
-		if (!node->contid)
+		// TODO: fix once containers are managed properly
+		if (!node->contid && node->param->cont)
 			node->contid = node->param->cont->contid;
 
 		// TODO: track failed scheduling update?
 
+		// TODO: fix once containers are managed properly
 		// update CGroup setting of container if in CGROUP mode
 		if (DM_CGRP == prgset->use_cgroup && 
 			((0 <= node->param->rscs->affinity) & ~(SCHED_FAFMSK))) {

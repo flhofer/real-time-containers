@@ -13,6 +13,9 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
+#include <limits.h>
+#include <sys/resource.h>
+
 
 static void schedstat_update_setup() {
 	prgset = malloc (sizeof(prgset_t));
@@ -164,21 +167,108 @@ START_TEST(schedstat_update_findprocsall)
 }
 END_TEST
 
+/// TEST CASE -> test assign resources
+/// EXPECTED -> resources should match settings
+START_TEST(schedstat_update_rscs)
+{	
+	pthread_t thread1;
+	int  iret1;
+	int stat1 = 0;
+	pid_t pid1;
+	FILE * fd1;
+
+	// create pids
+	fd1 = popen2("sleep 4", "r", &pid1);
+	// set detect mode to pid 
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	prgset->use_cgroup = DM_CMDLINE;
+
+	// push sig to config	
+	contparm->rscs = malloc (sizeof(struct sched_rscs));
+	contparm->rscs->affinity=-1;
+	contparm->rscs->rt_timew=-1;
+	contparm->rscs->rt_time=-1;
+	contparm->rscs->mem_dataw=-1;
+	contparm->rscs->mem_data=-1;
+
+	contparm->attr = malloc (sizeof(struct sched_attr));
+	contparm->attr->size =48;
+	contparm->attr->sched_policy=0;
+	contparm->attr->sched_flags=0;
+	contparm->attr->sched_nice=0;
+	contparm->attr->sched_priority=0;
+	contparm->attr->sched_runtime=0;
+	contparm->attr->sched_deadline=0;
+	contparm->attr->sched_period=0;
+
+	const char *pids[] = {	"sleep",
+							NULL };
+
+	const char ** pidsig = pids;
+	while (*pidsig) {
+		// new pid
+		push((void**)&contparm->pids, sizeof(pidc_t));
+		contparm->pids->psig = strdup(*pidsig);
+		contparm->pids->attr = contparm->attr;
+		contparm->pids->rscs = contparm->rscs;
+		pidsig++;
+	}
+
+
+	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
+	ck_assert_int_eq(iret1, 0);
+
+	sleep(1);
+
+	// verify 2 nodes exist
+	ck_assert(head);
+	ck_assert(!head->next);
+
+	// verify pids
+	ck_assert_int_eq(head->pid, pid1);
+
+	struct rlimit rlim;		
+	// RT-Time limit
+	if (prlimit(pid1, RLIMIT_RTTIME, NULL, &rlim))
+		err_msg_n(errno, "getting RT-Limit for PID %d", pid1);
+
+	ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
+	ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
+
+	pclose(fd1);
+
+	// set stop sig
+	stat1 = -1;
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+
+	// free
+	while (contparm->pids) {
+		free(contparm->pids->psig);
+		pop((void **)&contparm->pids);
+	}
+	free(contparm->rscs);
+
+}
+END_TEST
 
 void schedstat_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
  
+	// TODO: reduce verbosity on failed pids... -> update.c
 	tcase_add_checked_fixture(tc1, schedstat_update_setup, schedstat_update_teardown);
 	tcase_add_exit_test(tc1, schedstat_update_stop, EXIT_SUCCESS);
 	tcase_add_test(tc1, schedstat_update_findprocs);
 	tcase_add_test(tc1, schedstat_update_findprocsall);
 
-    suite_add_tcase(s, tc2);
+    suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("update_thread_resources");
  
 	tcase_add_checked_fixture(tc2, schedstat_update_setup, schedstat_update_teardown);
-//	tcase_add_test(tc2, schedstat_update_findprocsall);
+	tcase_add_test(tc2, schedstat_update_rscs);
 
     suite_add_tcase(s, tc2);
 
