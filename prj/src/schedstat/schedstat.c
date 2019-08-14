@@ -536,9 +536,36 @@ sysend: // jumped here if not possible to create system
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity);
 
 	// ksoftirqd -> offline, online again
-	info("Trying to push CPU's");
-	
+	info("Trying to push CPU's interrupts");
+	{
+		char fstring[50]; // cpu string
+		// bring all affiity except 0 offline
+		for (int i=maxccpu-1;i>0;i--) {
 
+			if (numa_bitmask_isbitset(affinity, i)){ // filter by online/existing
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (!setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d offline", i);
+			}
+		}	
+		// bring all back online
+		for (int i=1;i<maxccpu;i++) {
+
+			if (numa_bitmask_isbitset(affinity, i)){ // filter by online/existing
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (!setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d online", i);
+			}
+		}	
+	}
 	// lockup detector
 	// echo 0 >  /proc/sys/kernel/watchdog
 	// or echo 9999 >  /proc/sys/kernel/watchdog
