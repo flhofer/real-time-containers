@@ -85,7 +85,7 @@ static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 ///
 /// Return value: --
 ///
-static void setPidMask (char * tag, struct bitmask * amask)
+static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 {
 	FILE *fp;
 
@@ -529,11 +529,11 @@ sysend: // jumped here if not possible to create system
 
 	info("moving kernel thread affinity affinity");
 	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity);
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity);
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 
 	// ksoftirqd -> offline, online again
 	info("Trying to push CPU's interrupts");
@@ -542,7 +542,7 @@ sysend: // jumped here if not possible to create system
 		// bring all affiity except 0 offline
 		for (int i=maxccpu-1;i>0;i--) {
 
-			if (numa_bitmask_isbitset(affinity, i)){ // filter by online/existing
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
@@ -555,7 +555,7 @@ sysend: // jumped here if not possible to create system
 		// bring all back online
 		for (int i=1;i<maxccpu;i++) {
 
-			if (numa_bitmask_isbitset(affinity, i)){ // filter by online/existing
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
