@@ -79,6 +79,47 @@ void inthand ( int signum ) {
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 
+/// setPidMask(): utlity function to set all pids of a certain mask's affinity
+/// Arguments: - tag to search for
+///			   - bitmask to set
+///
+/// Return value: --
+///
+static void setPidMask (char * tag, struct bitmask * amask)
+{
+	FILE *fp;
+
+	{
+		char req[40]; // TODO: might overrun if signatures are too long
+		if (30 < strlen (tag))
+			err_exit("Signature string too long! (FIXME)");
+
+		// prepare literal and open pipe request, request spid (thread) ids
+		// spid and pid coincide for main process
+		(void)sprintf (req,  "ps h -eo spid,command | grep -G '%s'", tag);
+
+		if(!(fp = popen(req,"r")))
+			return;
+	}
+
+	char pidline[BUFRD];
+	char *pid;
+	int mpid;
+	// Scan through string and put in array
+	while(fgets(pidline,BUFRD,fp)) {
+		pid = strtok (pidline," ");					
+		mpid = atoi(pid);
+        pid = strtok (NULL, "\n"); // end of line?
+
+		if (numa_sched_setaffinity(mpid, amask))
+			warn("could not set pid %d-'%s' affinity: %s", mpid, pid, strerror(errno));
+		else
+			cont("PID %d-'%s' reassigned to CPU's %s", mpid, pid, cpus);
+    }
+
+	pclose(fp);
+}
+
 /// prepareEnvironment(): gets the list of active pids at startup, sets up
 /// a CPU-shield if not present, prepares kernel settings for DL operation
 /// and populates initial state of pid list
@@ -485,6 +526,22 @@ sysend: // jumped here if not possible to create system
 	}
 	else //realloc issues
 		err_exit("could not allocate memory!\n");
+
+	info("moving kernel thread affinity affinity");
+	// kernel interrupt threads affinity
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity);
+
+	// ksoftirqd -> offline, online again
+	info("Trying to push CPU's");
+	
+
+	// lockup detector
+	// echo 0 >  /proc/sys/kernel/watchdog
+	// or echo 9999 >  /proc/sys/kernel/watchdog
 
 	// composed static or generated numa string? if generated > 1
 	if (1 < strlen(numastr))
