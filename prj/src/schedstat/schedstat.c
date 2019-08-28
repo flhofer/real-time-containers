@@ -433,6 +433,8 @@ static void prepareEnvironment(prgset_t *set) {
 
 	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER ids ------------
 	// we know of, so set it up-front
+	// TODO: simplify code using single function for all -> internal CG library?
+	cont("creating cgroup entries for configured CIDs");
 	{
 		char * fileprefix = NULL;
 
@@ -562,7 +564,7 @@ sysend: // jumped here if not possible to create system
 	else //realloc issues
 		err_exit("could not allocate memory!\n");
 
-	info("moving kernel thread affinity affinity");
+	info("moving kernel thread affinity");
 	// kernel interrupt threads affinity
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
