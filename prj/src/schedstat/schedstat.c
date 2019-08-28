@@ -421,7 +421,7 @@ static void prepareEnvironment(prgset_t *set) {
 				warn("Can not set cpu-affinity");
 			}
 			if (!setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set numa memory nodes");
+				warn("Can not set numa memory nodes");// TODO: separte numa settings
 			}
 			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 				warn("Can not set cpu exclusive");
@@ -430,6 +430,41 @@ static void prepareEnvironment(prgset_t *set) {
 			closedir(d);
 		}
 	}
+
+	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER ids ------------
+	// we know of, so set it up-front
+	{
+		char * fileprefix = NULL;
+
+		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
+			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
+
+				fileprefix[0] = '\0';   // ensures the memory is an empty string
+				// copy to new prefix
+				fileprefix = strcat(strcat(fileprefix,set->cpusetdfileprefix), cont->contid);
+
+				// try to create directory
+				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
+				{
+					warn("Can not set cgroup: %s", strerror(errno));
+					continue;
+				}
+
+				if (!setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){ 
+					warn("Can not set cpu-affinity");
+				}
+				if (!setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
+					warn("Can not set numa memory nodes"); // TODO: separte numa settings
+				}
+				if (!setkernvar(fileprefix, "/cpuset.cpu_exclusive", "1", set->dryrun)){
+					warn("Can not set cpu exclusive");
+				}
+			}
+			else //realloc issues
+				err_exit("could not allocate memory!\n");
+		}
+	}
+
 
 	//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	// system CGroup, possible tasks are moved -> do for all
