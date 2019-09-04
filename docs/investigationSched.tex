@@ -499,14 +499,14 @@ Consequently, allocation might reach theoretical utilization rates converging to
 Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
 For simplicity, task deadlines track their period.
 We have thus the run-time values of WCET $w_i$, period and deadline ($p_i = d_i$).
-Given these two assumptions we perform the implementation of a first version. 
+Given these two assumptions we perform the implementation of a first version, the static orchestrator.
 
 The static orchestrator is the simplest of the three and works with a plain logic. 
-It knows all real-time tasks that have to run, and where they have to run. 
-An offline computation writes schedule parameters to a file. 
+It knows all real-time tasks that have to run, and on which resources they have to run. 
+Using an offline computation, we write schedule parameters to a file. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
-A successful implementation allows us to proceed to the next iteration.
+A successful implementation allows us to proceed to the next iteration and concludes this first part of the project.
 
 The adaptive static orchestrator is a variant of the first program.
 It comes into play if we still know all existing applications, but not which of them actually runs or will run. 
@@ -518,15 +518,15 @@ The preference list will contain more entries than resources might allow, but we
 To reduce dynamism, we limit the maximum allowance of shifting containers to the set preference, and the determined best fit.
 If all containers would be allowed to shift to other resources, the schedule would get dynamic and undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
-
 % Advantages Why are we doing this
 The advantage of this version is that we can configure all possible containers that can run on all nodes of a group of servers upfront.
-No need to specify in detail, and offline, which is running where.
-This allows a management tool to dynamically decide the node that will run a new container.
+There is no need to specify in detail, and offline, which is running where.
+This allows a container management tool to dynamically decide the node that will run a new container.
+
 % Introduction of kubernetes into the equation.
 An example of such a management tool is Kubernetes. 
 Kubernetes can manage nodes, pods (groups of containers) and decide deployment and resource allocation (count).
-In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.
+In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.\footnote{ "Real-time container clusters for seamless computing", Fariz Huseynli, Master Thesis TUM, September 17th, 2018}
 Therefore, also migration and node mixing is possible.
 % Where this stops
 What Kubernetes cannot carry out, is monitoring resources in real-time and with no delay.
@@ -536,7 +536,7 @@ If we have to reallocate resources dynamically, a real-time monitor gets mandato
 % Switch over to dynamic scheduling
 %We have already seen that, 
 Without any additional assumptions, dynamic scheduling is undecidable. % TODO; check if that has been introduced.. actually or add reference to it
-Therefore, we will implement it at best using a variation and the following additional considerations.
+Therefore, in this project we will implement it at best using a variation and the following additional considerations.
 All tasks have a static, adaptive configuration.
 A parameter that changes is that we no longer set execution peak times as WCET. 
 To reduce the amount of unused resources, we reduce the programmed WCET to a much lower value, $w_{i_c}$.
@@ -565,7 +565,6 @@ Based on this example, we can now lie out the following.
 Setting $w_{i_c}$ closer to $c_{i_{max}}$, the probability $\pi_i$ of a task to exceed the set $w_{i_c}$ decreases according to the PDF measured for the task. 
 The relation in equation \ref{eq:buffer} gives the amount of buffer available for a task. It is the ``left-over'' computation time, decreasing the higher a task's $w_{i_c}$ is set.
 Or put differently, if we set $w_{i_c}$ closer to the average than to the peak, the resources freed will not be used with a probability $1-P$. 
-%TODO: REDOOOOO sum of probabilities...
 \begin{equation}
 	\label{eq:buffer}
 	U_B = 1 - U = 1 - \sum_{i \in T} \frac{w_{i_c}}{p_i}
@@ -575,33 +574,33 @@ Equation \ref{eq:delta} describes the amount a tasks frees for resource sharing.
 	\label{eq:delta}
 	U_{E_i} = c_{i_\delta} = \frac{w_{i}- w_{i_c}}{p_i}
 \end{equation}
-With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
-We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
-%TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
-%TODO: or an approximation might be average divide
-%TODO flaw task i in instant j .. -> have to coin this first. Lookup butazzo boook definition for formalisms..
-\begin{equation}
-	Let \ T_E = ( t_1, t_2 .. t_n) : i \in \lbrace 1,2,...,n \rbrace \land t_i \in T_E \ iff \ c_i > w_i, 
-	\bar U_E = \frac{\sum_{i \in T_E} U_{Ei}}{n}		
-\end{equation}
-%(Iverson bracket)
-\begin{equation}
-	\label{eq:accrate}
-	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
-\end{equation}
-The final probability of deadline failure depends on the following relation:
-\begin{equation}
-	\label{eq:prob}
-	P = \frac{n!}{c*(n-c)!} * p^c
-\end{equation}
+%With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
+%We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
+%%TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
+%%TODO: or an approximation might be average divide
+%%TODO flaw task i in instant j .. -> have to coin this first. Lookup butazzo boook definition for formalisms..
+%\begin{equation}
+%	Let \ T_E = ( t_1, t_2 .. t_n) : i \in \lbrace 1,2,...,n \rbrace \land t_i \in T_E \ iff \ c_i > w_i, 
+%	\bar U_E = \frac{\sum_{i \in T_E} U_{Ei}}{n}		
+%\end{equation}
+%%(Iverson bracket)
+%\begin{equation}
+%	\label{eq:accrate}
+%	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
+%\end{equation}
+%The final probability of deadline failure depends on the following relation:
+%\begin{equation}
+%	\label{eq:prob}
+%	P = \frac{n!}{c*(n-c)!} * p^c
+%\end{equation}
 
-Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
+%Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
 If the buffer big enough to accommodate more than one exceeding tasks, the probability of failure reduces.
 At the same time, the amount of buffer reclaimed per task can also vary ($\bar U_E$). 
 Even if there is only buffer enough for one task to fully run for a duration of WCET, there is space for multiple tasks exceeding $w_{i_c}$ a little.
 A set of tasks that in sum do not exceed $U_B$ are thus handled properly by the EDF scheduler. 
 The overshoots will be accounted to the buffer until there is none left. Only then the GRUB algorithm preempts the task.
-The task set remains thus schedulable with probability of failure $P$ and resource savings as long as it complies with the mentioned parameters. %  $U_S$
+The task set remains thus schedulable with a probability of failure $P$ and resource savings as long as it complies with the mentioned parameters, where $P$ is the sum of the random variables of the probability distributions. %  $U_S$
 These savings expressed as utilization factor are defined as:
 \begin{equation}
 	U_S = \sum_{i \in T} \frac{w_i - w_{i_c}}{p_i}.
@@ -653,10 +652,10 @@ We dispose then a set of test configurations to validate different running scena
 The rest of this section details these steps further.
 
 For the test results we get in this section, we reconfigured both AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} with the latest LTS operating system release, Ubuntu Server $18.04.2$.
-In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.31$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.31-rt18$.
+In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.50$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.50-rt24$.
 For the installation and update steps we used the same build scripts of \cite{Hoferetal2019} with only some minor changes.
 These changes should reduce interruption frequency and duration, significant details when trying to measure system introduced runtime noise.
-To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
+To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.50 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
 
 In these kernel configurations we disabled some debug features and increased the scheduler base tick frequency.
 In particular, settings disable the the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) to reduce kernel preemption duration.
@@ -919,12 +918,12 @@ An early deadline could avoid the sum effect to exceed the deadline by significa
 
 % Results = differences and conclusions
 
-\subsection{Adaptive scheduler -  structure}
+%\subsection{Adaptive scheduler -  structure}
 
 %TODO Changes to the program. From before to now
 
 
-\subsection{Dynamic Scheduler - structure}
+%\subsection{Dynamic Scheduler - structure}
 
 %TODO: well.. still to be defined
 
