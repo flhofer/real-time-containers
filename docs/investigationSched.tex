@@ -55,7 +55,7 @@ The contributions of this paper are:
 
 	\item Latency and determinism tests to confirm parameters and configurations enabling static and (quasi) dynamic container management;
 		
-	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
+%	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
 \end{itemize}
 
 %Setup of the paper
@@ -765,12 +765,12 @@ The test scripts, the source code and a detailed description of the orchestrator
 \subsubsection{Orchestrator settings}
 \label{sub:orchset}
 
-For our tests we used the following command line parameters for the orchestrator:
+For our tests we used the following parameters for the orchestrator:
 
 \begin{itemize} %TODO: Passivee!!
-	\item [-a] the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
+	\item the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
 	\item[-f] the force flag is needed to allow the orchestrator to reconfigure the system. This is to ensure that all options such as Hyper-threading are disabled;
-	\item[-r] the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
+	\item the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
 	\item[--policy]	sets the update thread policy of the container scan. With a default rate of $5000\mu s$ we use this setting to have a more reliable execution and continuous. The chosen policy is \texttt{FIFO};
 	\item[-d] enables the container deadline based threads to reclaim any unused bandwidth. This feature thus permits a task to grab all the free CPU-time there to not miss a deadline; 
 	%TODO: extend once done
@@ -799,20 +799,19 @@ It configures the system and verifies if the running process has all required ca
 If successful, the main thread starts the linked threads and waits for interruption or termination.
 
 Among its duties is also to test what detection mode is available.
-The latest version of the static orchestrator includes three detection modes:
+The latest version of the static orchestrator includes four detection modes:
 \begin{itemize}
 	\item via CGroup settings;
 	\item using the parent PID of the container daemon;
-	\item comparing the signature of the command line.
+	\item comparing the signature of the command line;
+	\item reading the Docker event server output and reacting to it.
 \end{itemize}
-The default selection is the first in list. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
+The default selection is the first in list, while the event server detection is always active. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
 
 %TODO: implement, extend this description.
 % how is the run-time exe, CGroups, affinity, and period configuration 
 In preparation for execution, the orchestrator identifies environment parameters and configures the kernel.
-In particular, the RT-containers are isolated via %``cpuset''
-%TODO: cpuset vs cgroups details
-\emph{CGroups} from system tasks.
+In particular, the RT-containers are isolated via \emph{CGroups} from system tasks.
 A separate control group called \texttt{system} is created and before allocating containers, all possible system or user tasks are moved from the root into the new group.
 The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
 The division and size of the CPU-sets can be configured via command line parameters.
@@ -825,19 +824,16 @@ D_i = \Phi_i + (j-1) p_i + d_i,
 \end{equation}
 where $\Phi_i$ is the task's absolute initial start time.
 
-The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time statistics current.  
-A linked list serves as memory database and all threads share it and may access it only if they get the corresponding lock.
+The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time parameters current.  
+A linked list serves as a shared data structure among all threads. 
 The scan executes periodically with a preset scan time of $5ms$. 
 By default, every $100^th$ scan the thread verifies if there are new containers present.
 The main thread parses these parameters from the CLI input at start-up.
 If the thread interrupts or stops, it prints a list of statistics for each real-time capable process.
-We placed the source code for this thread in ``update.c'' and the used linked lists in ``pidlist.c''. 
-
-The second started thread keeps track of resources. Its goal is to assign the configured resources to each container and set optional run-time parameters.
-The code in ``manage.c'' reads a configuration file for container settings.
-Like the update thread, this thread scans regularly for changes in the container linked list. 
-If it finds some new entry, the manager verifies for present parameters for the container and assigns them.
-For static orchestration this thread has not more duties. We add more advanced features for adaptive and dynamic scheduling. 
+We placed the source code for this thread in ``update.c'' and the used data structures are part of a developed shared static libary. 
+The second started thread keeps track of resources. Its goal is to monitor resource and set optional run-time parameters.
+A shared library has been created for tasks such as interaction with the kernel, reading JSON files or managing data structures.
+Further detail can be found in the manual inside the project repository.
 
 This first implementation of the tool is simple and reduced in functionality. Although this simplicity, we will see in the performance tests if it allows some resource savings and to which extent.
 
@@ -918,18 +914,16 @@ An early deadline could avoid the sum effect to exceed the deadline by significa
 
 % Results = differences and conclusions
 
-%\subsection{Adaptive scheduler -  structure}
-
-%TODO Changes to the program. From before to now
-
-
-%\subsection{Dynamic Scheduler - structure}
-
-%TODO: well.. still to be defined
-
-
 \section{Conclusions}
 \label{sec:conclusions}
+
+In this report we have seen the concept of resource orchestration to increase hardware utilization and reduce operational costs.
+Via a implementation example we have seen how static resource management is viable and opens the door to more complex orchestration scenarios. 
+We discussed algorithm variants, their advantages and possible difficulties.
+As a follow-up we plan to implement and test the adaptive and dynamic variants of the orchestration software.
+
+
+
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,bibliography,paper3}
