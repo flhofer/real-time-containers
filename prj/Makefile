@@ -89,7 +89,7 @@ all: $(TARGETS)
 #hwlatdetect | $(OBJDIR)
 
 $(OBJDIR):
-	mkdir $(OBJDIR)
+	mkdir -p $(OBJDIR)
 
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
