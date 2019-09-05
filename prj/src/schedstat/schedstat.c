@@ -90,9 +90,11 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	FILE *fp;
 
 	{
-		char req[40]; // TODO: might overrun if signatures are too long
-		if (30 < strlen (tag))
-			err_exit("Signature string too long! (FIXME)");
+		if (!tag) 
+			err_exit("Process signature tag is a null pointer!");
+
+		int tlen = strlen (tag) + 35;
+		char req[tlen];
 
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process

@@ -292,10 +292,12 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	FILE *fp;
 
 	{
-		char req[40]; // TODO: might overrun if signatures are too long
-		if (30 < strlen (tag))
-			err_exit("Signature string too long! (FIXME)");
+		if (!tag) 
+			err_exit("Process signature tag is a null pointer!");
 
+		int tlen = strlen (tag) + 21;
+		char req[tlen];
+		
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process
 		(void)sprintf (req,  "ps h -o spid,command %s", tag);
@@ -339,10 +341,11 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 static void getpPids (node_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
-	char req[40]; // TODO: might overrun if signatures are too long
+	if (!tag) 
+		err_exit("Process signature tag is a null pointer!");
 
-	if (30 < strlen (tag))
-		err_exit("Signature string too long! (FIXME)");
+	int tlen = strlen (tag) + 7;
+	char req[tlen];
 
 	// prepare literal and open pipe request
 	(void)sprintf (req,  "pidof %s", tag);
