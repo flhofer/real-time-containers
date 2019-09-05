@@ -14,3 +14,6 @@ sudo docker run --rm -v "$PWD":/home --name build2 -it debianbuild
 sudo docker build -t fedorabuild -f Dockerfile-Build-fedora .
 sudo docker run --rm -v "$PWD":/home --name build2 -it fedorabuild
 
+sudo docker build -t alpinebuild -f Dockerfile-Build-alpine .
+sudo docker run --rm -v "$PWD":/home --name build2 -it alpinebuild
+
