@@ -16,7 +16,7 @@ Suite * schedstat_suite(void) {
 
 	// these use dbgprint. check first
 	if (!dbg_out) {
-		dbg_out = (_IO_FILE *)stderr;
+		dbg_out = (FILE *)stderr;
 	}
 	schedstat_update(s);
 

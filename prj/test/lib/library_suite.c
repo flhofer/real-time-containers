@@ -31,7 +31,7 @@ Suite * library_suite(void) {
 	// these use dbgprint. check first
 //	dbg_out = fopen("/dev/null", "w");
 	if (!dbg_out) {
-		dbg_out = (_IO_FILE *)stderr;
+		dbg_out = (FILE *)stderr;
 	}
 	library_parse_config(s);
 	library_dockerlink(s);
