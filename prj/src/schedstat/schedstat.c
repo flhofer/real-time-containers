@@ -152,13 +152,16 @@ static void prepareEnvironment(prgset_t *set) {
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
-			if (!set->force) 
-				err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-
-			if (!setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
-				err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-
-			cont("SMT is now disabled, as required. Refresh configurations..");
+			if (set->dryrun)
+				cont("Skipping setting SMT.");
+			else
+				if (!set->force) 
+					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
+			else
+				if (!setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+			else
+				cont("SMT is now disabled, as required. Refresh configurations..");
 			sleep(1); // leave time to refresh conf buffers -> immediate query fails
 			maxcpu = get_nprocs();	// update
 		}
@@ -203,13 +206,17 @@ static void prepareEnvironment(prgset_t *set) {
 						if (strcmp(str, CPUGOVR)) {
 							// SMT - HT is on
 							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
-							if (!set->force)
-								err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"", str, i);
-
-							if (!setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
-								err_exit_n(errno, "CPU-freq change unsuccessful!");
-
-							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
+							
+							if (set->dryrun)
+								cont("Skipping setting of governor on CPU%d.", i);
+							else
+								if (!set->force)
+									err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"", str, i);
+							else
+								if (!setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
+									err_exit_n(errno, "CPU-freq change unsuccessful!");
+							else
+								cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
 						}
 						else
 							cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
