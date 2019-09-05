@@ -38,6 +38,17 @@
 #include <sys/capability.h>	// cap exploration
 #include <sys/sysinfo.h>	// system general information
 
+// for musl based systems
+#ifndef ACCESSPERMS
+	#define ACCESSPERMS (S_IRWXU|S_IRWXG|S_IRWXO) /* 0777 */
+#endif
+#ifndef ALLPERMS
+	#define ALLPERMS (S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)/* 07777 */
+#endif
+#ifndef DEFFILEMODE
+	#define DEFFILEMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)/* 0666*/
+#endif
+
 static void display_help(int); // declaration for compat
 
 /* --------------------------- Global variables for all the threads and programms ------------------ */

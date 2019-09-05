@@ -31,6 +31,11 @@
 static struct resTracer * rhead;
 static uint64_t scount = 0; // total scan count
 
+// for musl systems
+#ifndef _POSIX_PATH_MAX
+	#define _POSIX_PATH_MAX 1024
+#endif
+
 // Included in kernel 4.13
 #ifndef SCHED_FLAG_RECLAIM
 	#define SCHED_FLAG_RECLAIM		0x02

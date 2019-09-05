@@ -18,6 +18,10 @@
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
 
+// for MUSL based systems
+#ifndef RLIMIT_RTTIME
+	#define RLIMIT_RTTIME 15
+#endif
 
 static void schedstat_update_setup() {
 	prgset = malloc (sizeof(prgset_t));

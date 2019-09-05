@@ -14,7 +14,7 @@ sources = schedstat.c
 TARGETS = $(sources:.c=) check
 LIBS	= -lrt -lcap -lrttest -ljson-c
 # for tests
-TLIBS	= -lcheck_pic -lm -lsubunit $(LIBS)
+TLIBS	= -lcheck -lm -lsubunit $(LIBS)
 
 # for installation and rpm build
 DESTDIR	?=

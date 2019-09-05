@@ -41,6 +41,14 @@ static int clocksources[] = {
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 
+// for MUSL based systems
+#ifndef RLIMIT_RTTIME
+	#define RLIMIT_RTTIME 15
+#endif
+#ifndef pthread_yield
+	#define pthread_yield sched_yield
+#endif
+
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
 /// Arguments: pointer to timespec to check
