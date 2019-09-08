@@ -408,7 +408,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// cgroup present, fix cpu-sets of running containers
-	if (AFFINITY_USEALL != set->setaffinity){ // useall = ignore setting of exclusive
+	if (AFFINITY_USEALL != set->setaffinity){ // TODO: useall = ignore setting of exclusive
 
 		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
 
@@ -420,8 +420,8 @@ static void prepareEnvironment(prgset_t *set) {
 			{
 				char *contp = NULL; // clear pointer
 				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker cgroups, find them?
-					if (64 == strlen(dir->d_name)) {
+				// scan trough docker cgroups, find container IDs
+					if (64 == (strspn(dir->d_name, "abcdef123456789"))) {
 						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 							+ strlen(dir->d_name)+1))) {
 							contp[0] = '\0';   // ensures the memory is an empty string
