@@ -159,6 +159,8 @@ static void prepareEnvironment(prgset_t *set) {
 	if (numa_available())
 		err_exit( "NUMA is not available but mandatory for the orchestration");		
 
+	info("Starting environment setup");
+
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
 	if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
 		// value read ok
@@ -272,7 +274,7 @@ static void prepareEnvironment(prgset_t *set) {
 	/// --------------------
 	/// verify executable permissions	
 	{
-	info( "Verifying for process capabilities..");
+	cont( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of proc
 	if (!cap) 
 		err_exit_n(errno, "Can not get capability map");
@@ -421,7 +423,7 @@ static void prepareEnvironment(prgset_t *set) {
 				char *contp = NULL; // clear pointer
 				while ((dir = readdir(d)) != NULL) {
 				// scan trough docker cgroups, find container IDs
-					if (64 == (strspn(dir->d_name, "abcdef123456789"))) {
+					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
 						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 							+ strlen(dir->d_name)+1))) {
 							contp[0] = '\0';   // ensures the memory is an empty string
@@ -454,33 +456,32 @@ static void prepareEnvironment(prgset_t *set) {
 				warn("Can not set numa memory nodes");// TODO: separte numa settings
 			}*/
 
-			char *contp = NULL; // clear pointer
-			/// Reassigning preexisting containers?
-			while ((dir = readdir(d)) != NULL) {
-			// scan trough docker cgroups, find them?
-				if (64 == strlen(dir->d_name)) {
-					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-						+ strlen(dir->d_name)+1))) {
-						contp[0] = '\0';   // ensures the memory is an empty string
-						// copy to new prefix
-						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+			rewinddir(d);
+			{
+				char *contp = NULL; // clear pointer
+				/// Reassigning preexisting containers?
+				while ((dir = readdir(d)) != NULL) {
+				// scan trough docker cgroups, find them?
+					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
+						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+							+ strlen(dir->d_name)+1))) {
+							contp[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
-						// remove exlusive!
-						if (!setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-							warn("Can not remove cpu exclusive : %s", strerror(errno));
+							if (!setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
+								warn("Can not set cpu-affinity");
+							}
+							if (!setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
+								warn("Can not set numa memory nodes"); // TODO: separte numa settings
+							}
 						}
-						if (!setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-							warn("Can not set cpu-affinity");
-						}
-						if (!setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-							warn("Can not set numa memory nodes"); // TODO: separte numa settings
-						}
-					}
-					else // realloc error
-						err_exit("could not allocate memory!");
-				}	
+						else // realloc error
+							err_exit("could not allocate memory!");
+					}	
+				}
+				free (contp);
 			}
-			free (contp);
 
 			// Docker CGroup settings and affinity
 			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
@@ -507,7 +508,7 @@ static void prepareEnvironment(prgset_t *set) {
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
 
 			// check if a valid and full sha256 id
-			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef123456789"))))
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))
 				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
@@ -631,7 +632,7 @@ sysend: // jumped here if not possible to create system
 	else //realloc issues
 		err_exit("could not allocate memory!\n");
 
-	info("moving kernel thread affinity");
+	cont("moving kernel thread affinity");
 	// kernel interrupt threads affinity
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
@@ -640,7 +641,7 @@ sysend: // jumped here if not possible to create system
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 
 	// ksoftirqd -> offline, online again
-	info("Trying to push CPU's interrupts");
+	cont("Trying to push CPU's interrupts");
 	{
 		char fstring[50]; // cpu string
 		// bring all affiity except 0 offline
