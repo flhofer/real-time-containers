@@ -159,7 +159,7 @@ static void prepareEnvironment(prgset_t *set) {
 		err_exit( "NUMA is not available but mandatory for the orchestration");		
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str))){
+	if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
@@ -209,7 +209,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-				if (getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
+				if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
 					// value possible read ok
 					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
 					if (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
@@ -767,7 +767,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
+		int c = getopt_long(argc, argv, "a:bBc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -796,6 +796,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
+		case 'B':
+			set->blindrun = 1; break;
 		case 'c':
 		case OPT_CLOCK:
 			set->clocksel = atoi(optarg); break;

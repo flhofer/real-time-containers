@@ -169,6 +169,7 @@
 		int trackpids;				// keep track of left pids, do not delete from list
 		//int negiszero;
 		int dryrun;					// test only, no changes to environment
+		int blindrun;				// blind run of orchestrator, avoid settings (extension of dryrun)
 		int lock_pages;				// memory lock on startup
 		int force;					// force environment changes if needed
 		int smi;					// enable smi counter check

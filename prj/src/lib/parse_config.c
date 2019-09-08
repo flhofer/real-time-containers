@@ -726,6 +726,7 @@ void parse_config_set_default(prgset_t *set) {
 	set->trackpids = 0;
 	//set->negiszero = 0;
 	set->dryrun = 0;
+	set->blindrun = 0;
 	set->lock_pages = 0;
 	set->force = 0;
 	set->smi = 0;
