@@ -149,6 +149,7 @@ static void prepareEnvironment(prgset_t *set) {
 	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
 
 	char cpus[10]; // cpu allocation string
+	char constr[10]; // cpu online string
 	char str[100]; // generic string... 
 
 	info("This system has %d processors configured and "
@@ -197,8 +198,8 @@ static void prepareEnvironment(prgset_t *set) {
 		err_exit("could not allocate memory!");
 
 	// get online cpu's
-	if (getkernvar(set->cpusystemfileprefix, "online", str, sizeof(str))) {
-		con = numa_parse_cpustring_all(str);
+	if (getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
+		con = numa_parse_cpustring_all(constr);
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++) {
 
@@ -315,6 +316,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// running settings for scheduler
+	// TODO: detect possible cpu alignment cat /proc/$$/cpuset, maybe change it once all is done
 	struct sched_attr attr; 
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
@@ -415,19 +417,63 @@ static void prepareEnvironment(prgset_t *set) {
 		d = opendir(set->cpusetdfileprefix);// -> pointing to global
 		if (d) {
 
+			{
+				char *contp = NULL; // clear pointer
+				while ((dir = readdir(d)) != NULL) {
+				// scan trough docker cgroups, find them?
+					if (64 == strlen(dir->d_name)) {
+						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+							+ strlen(dir->d_name)+1))) {
+							contp[0] = '\0';   // ensures the memory is an empty string
+							// copy to new prefix
+							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+
+							// remove exlusive!
+							if (!setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+								warn("Can not remove cpu exclusive : %s", strerror(errno));
+							}
+						}
+						else // realloc error
+							err_exit("could not allocate memory!");
+					}	
+				}
+			free (contp);
+			}
+
+			// clear Docker CGroup settings and affinity first.. 
+			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+				warn("Can not remove cpu exclusive : %s", strerror(errno));
+			}
+			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+				// global reset failed, try affinity only
+				if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+					warn("Can not reset cpu-affinity. Expect malfunction!"); // set online cpus as default
+				}
+			}
+			/* if (!setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+				warn("Can not set numa memory nodes");// TODO: separte numa settings
+			}*/
+
 			char *contp = NULL; // clear pointer
 			/// Reassigning preexisting containers?
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker cgroups, find them?
-				if (strlen(dir->d_name)>60) {
+				if (64 == strlen(dir->d_name)) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
 						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
+						// remove exlusive!
+						if (!setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+							warn("Can not remove cpu exclusive : %s", strerror(errno));
+						}
 						if (!setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
 							warn("Can not set cpu-affinity");
+						}
+						if (!setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
+							warn("Can not set numa memory nodes"); // TODO: separte numa settings
 						}
 					}
 					else // realloc error
@@ -459,6 +505,10 @@ static void prepareEnvironment(prgset_t *set) {
 		char * fileprefix = NULL;
 
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
+
+			// check if a valid and full sha256 id
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef123456789"))))
+				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
 				fileprefix[0] = '\0';   // ensures the memory is an empty string
@@ -477,9 +527,6 @@ static void prepareEnvironment(prgset_t *set) {
 				}
 				if (!setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
 					warn("Can not set numa memory nodes"); // TODO: separte numa settings
-				}
-				if (!setkernvar(fileprefix, "/cpuset.cpu_exclusive", "1", set->dryrun)){
-					warn("Can not set cpu exclusive");
 				}
 			}
 			else //realloc issues
