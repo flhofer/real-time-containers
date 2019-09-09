@@ -1,32 +1,43 @@
-VERSION = 1.0
+VERSION = 0.65
+VERSUFF = "-beta"
+GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
+#uncomment the line below to create debug versions by default
+DEBUG=1
+COVERAGE=1
 
 OBJDIR = build
 
-sources = schedstat.c 
+sources = schedstat.c
 
-TARGETS = $(sources:.c=)
-# rem -lpthread
-LIBS	= -lrt -lcap -lrttest
-RTTESTLIB = -lrttest -L$(OBJDIR)
-EXTRA_LIBS ?= -ldl	# for get_cpu
+TARGETS = $(sources:.c=) check
+LIBS	= -lrt -lcap -lrttest -ljson-c
+# for tests
+TLIBS	= -lcheck -lm -lsubunit $(LIBS)
+
+# for installation and rpm build
 DESTDIR	?=
 prefix  ?= /usr/local
 bindir  ?= $(prefix)/bin
 mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
-#added prthread
-CFLAGS ?= -Wall -Wno-nonnull -pthread
-CPPFLAGS += -D_GNU_SOURCE -Isrc/include
-LDFLAGS ?= -pthread 
+CFLAGS ?= -Wall -Wno-nonnull 
+CPPFLAGS += -D _GNU_SOURCE -I src/include
+LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
 	CFLAGS	+= -O2
+	CPPFLAGS += -D VERSION=\"$(VERSION)\"
 else
 	CFLAGS	+= -O0 -g
+	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
+
+	ifdef COVERAGE
+		CFLAGS += -coverage
+	endif
 endif
 
 # We make some gueses on how to compile rt-tests based on the machine type
@@ -67,7 +78,7 @@ VPATH	= src/schedstat:
 VPATH	+= src/lib:
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -D VERSION=$(VERSION) -c $< $(CFLAGS) $(CPPFLAGS) -o $@
+	$(CC) -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
 
 # Pattern rule to generate dependency files from .c files
 $(OBJDIR)/%.d: %.c | $(OBJDIR)
@@ -78,67 +89,63 @@ all: $(TARGETS)
 #hwlatdetect | $(OBJDIR)
 
 $(OBJDIR):
-	mkdir $(OBJDIR)
+	mkdir -p $(OBJDIR)
 
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-schedstat: $(addprefix $(OBJDIR)/,schedstat.o pidlist.o manage.o update.o jsmn.o librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, pidlist.o manage.o update.o jsmn.o) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
-#	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(RTTESTLIB) $(NUMA_LIBS)
+#	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
+
+check: test/test.c $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+	./check_test
 
 # lib containing include lib in one binary file
-LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o)
+LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o orchdata.o parse_config.o dockerlink.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 
-CLEANUP  = $(TARGETS) *.o .depend *.*~ *.orig *.rej *.d *.a
+CLEANUP  = $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a *.gcno *.gcda *.gcov
 CLEANUP += $(if $(wildcard .git), ChangeLog)
 
 .PHONY: clean
 clean:
-	for F in $(CLEANUP); do find -type f -name $$F | xargs rm -f; done
-	rm -f rt-tests-*.tar
-	rm -f hwlatdetect
-	rm -f tags
-
-RPMDIRS = BUILD BUILDROOT RPMS SRPMS SPECS
-.PHONY: distclean
-distclean: clean
-	rm -rf $(RPMDIRS) releases *.tar.gz *.tar.asc tmp
+	for F in $(CLEANUP); do find -type f -name "$$F" | xargs rm -f; done
 
 .PHONY: rebuild
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
 
-.PHONY: install
-install: all 
-	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
-	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
-	cp $(TARGETS) "$(DESTDIR)$(bindir)"
-	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
-
+#
+#.PHONY: install
+#install: all 
+#	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
+#	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
+#	cp $(TARGETS) "$(DESTDIR)$(bindir)"
+#	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
 
 .PHONY: tarball
 tarball:
-	git archive --worktree-attributes --prefix=rt-tests-${VERSION}/ -o rt-tests-${VERSION}.tar v${VERSION}
+	git archive --worktree-attributes --prefix=orch-${VERSION}/ -o orch-${VERSION}.tar v${VERSION}
 
 .PHONY: help
 help:
-	@echo ""
-	@echo " rt-tests useful Makefile targets:"
+	@echo " DC orchestrator useful Makefile targets:"
 	@echo ""
 	@echo "    all       :  build all tests (default)"
 	@echo "    install   :  install tests to local filesystem"
+	@echo "    check     :  build and run unit tests
 	@echo "    clean     :  remove object files"
-	@echo "    distclean :  remove all generated files"
-	@echo "    tarball   :  make a rt-tests tarball suitable for release"
+	@echo "    tarball   :  make a tarball suitable for release"
 	@echo "    help      :  print this message"
 
 .PHONY: tags
 tags:
 	ctags -R --extra=+f --c-kinds=+p --exclude=tmp --exclude=BUILD *
+

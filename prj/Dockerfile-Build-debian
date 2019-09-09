@@ -1,0 +1,8 @@
+FROM debian:latest
+
+RUN apt-get update && \
+	apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
+
+WORKDIR /home
+CMD ["make", "-B"]
+

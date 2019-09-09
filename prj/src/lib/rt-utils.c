@@ -7,6 +7,9 @@
  * (C) 2008-2009 Clark Williams <williams@redhat.com>
  * (C) 2005-2007 Thomas Gleixner <tglx@linutronix.de>
  */
+
+#include "rt-utils.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,13 +17,13 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/syscall.h> /* For SYS_gettid definitions */
-#include "rt-utils.h"
+
 #include "rt-sched.h"
 #include "error.h"
+#include "orchdata.h"
 
 static char debugfileprefix[MAX_PATH];
 
@@ -298,23 +301,37 @@ const char *policy_to_string(int policy)
 	return "unknown";
 }
 
-uint32_t string_to_policy(const char *str)
+int string_to_policy(const char *policy_name, uint32_t *policy)
 {
-	if (!strcmp(str, "other"))
-		return SCHED_OTHER;
-	else if (!strcmp(str, "fifo"))
-		return SCHED_FIFO;
-	else if (!strcmp(str, "rr"))
-		return SCHED_RR;
-	else if (!strcmp(str, "batch"))
-		return SCHED_BATCH;
-	else if (!strcmp(str, "idle"))
-		return SCHED_IDLE;
-	else if (!strcmp(str, "deadline"))
-		return SCHED_DEADLINE;
-
+	if (strcmp(policy_name, "SCHED_OTHER") == 0)
+		*policy = SCHED_OTHER;
+	else if (strcmp(policy_name, "SCHED_IDLE") == 0)
+		*policy = SCHED_IDLE;
+	else if (strcmp(policy_name, "SCHED_BATCH") == 0)
+		*policy = SCHED_BATCH;
+	else if (strcmp(policy_name, "SCHED_RR") == 0)
+		*policy =  SCHED_RR;
+	else if (strcmp(policy_name, "SCHED_FIFO") == 0)
+		*policy =  SCHED_FIFO;
+	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
+		*policy =  SCHED_DEADLINE;
+	else
+		return -1;
 	return 0;
 }
+
+uint32_t string_to_affinity(const char *str)
+{
+	if (!strcmp(str, "unspecified"))
+		return AFFINITY_UNSPECIFIED;
+	else if (!strcmp(str, "specified"))
+		return AFFINITY_SPECIFIED;
+	else if (!strcmp(str, "useall"))
+		return AFFINITY_USEALL;
+
+	return 0; // default to other
+}
+
 
 pid_t gettid(void)
 {

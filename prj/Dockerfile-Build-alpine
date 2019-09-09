@@ -1,0 +1,8 @@
+FROM alpine:latest
+
+RUN apk update && \
+	apk add gcc make git check check-dev subunit-dev json-c-dev numactl-dev libcap-dev libc-dev
+
+WORKDIR /home
+CMD ["make", "-B"]
+

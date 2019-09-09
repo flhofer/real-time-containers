@@ -1,0 +1,8 @@
+FROM fedora:latest
+
+RUN dnf update -y && \
+	dnf install -y gcc make git check check-devel subunit-devel json-c-devel numactl-devel libcap-devel
+
+WORKDIR /home
+CMD ["make", "-B"]
+
