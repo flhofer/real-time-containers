@@ -205,14 +205,19 @@ int node_findParams(node_t* node, struct containers * conts){
 		if (useimg) {
 			push((void**)&img->pids, sizeof(pids_t));
 			img->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+			conts->pids->rscs = img->rscs;
+			conts->pids->attr = img->attr;
 		}
 		else {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+			conts->pids->rscs = cont->rscs;
+			conts->pids->attr = cont->attr;
 		}
-		conts->pids->rscs = conts->rscs;
-		conts->pids->attr = conts->attr;
 		node->param = conts->pids;
+		node->param->img = img;
+		node->param->cont = cont;
+		node->psig = node->param->psig;
 		// update counter
 		conts->nthreads++;
 		return 0;

@@ -140,7 +140,7 @@ static void setPidResources(node_t * node) {
 
 		// TODO: track failed scheduling update?
 
-		// TODO: fix once containers are managed properly
+		// TODO: change to consider multiple pids with different affinity
 		// update CGroup setting of container if in CGROUP mode
 		if (DM_CGRP == prgset->use_cgroup) {
 			if (0 <= (node->param->rscs->affinity)) {
@@ -150,8 +150,7 @@ static void setPidResources(node_t * node) {
 				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
 
 				cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
-				if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
-						+ strlen(node->contid)+1)) {
+				if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
 					contp[0] = '\0';   // ensures the memory is an empty string
 					// copy to new prefix
 					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		

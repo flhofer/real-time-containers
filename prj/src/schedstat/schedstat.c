@@ -439,7 +439,7 @@ static void prepareEnvironment(prgset_t *set) {
 							err_exit("could not allocate memory!");
 					}	
 				}
-			free (contp);
+				free (contp);
 			}
 
 			// clear Docker CGroup settings and affinity first.. 
