@@ -865,10 +865,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		}
 	} // END pids settings block
 
-	// end parsing JSON
-	if (!json_object_put(root))
-		err_exit(PFX "Could not free objects!");
-
 }
 
 /// parse_config_pipe(): parse the json configuration from a pipe until EOF
@@ -887,6 +883,10 @@ void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
 	buf[in_length] = '\0';
 	js = json_tokener_parse(buf);
 	parse_config(js, set, conts);
+
+	// end parsing JSON TODO: fix memory leak?? changes first long string
+//	if (!json_object_put(js))
+//		err_exit(PFX "Could not free objects!");
 }
 
 /// parse_config_stdin(): parse the json configuration from stin until EOF
@@ -911,5 +911,9 @@ void parse_config_file (const char *filename, prgset_t *set, containers_t *conts
 	js = json_object_from_file(fn);
 	free(fn);
 	parse_config(js, set, conts);
+
+	// end parsing JSON TODO: fix memory leak?? changes first long string
+//	if (!json_object_put(js))
+//		err_exit(PFX "Could not free objects!");
 }
 

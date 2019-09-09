@@ -152,16 +152,18 @@ int node_findParams(node_t* node, struct containers * conts){
 	// check for image match fitst
 	while (NULL != img) {
 		// 12 is standard docker short signature
-		if(img->imgid && node->contid && !strncmp(img->imgid, node->contid, 12)) {
+		if(img->imgid && node->contid && !strncmp(img->imgid, node->imgid, 12)) {
 			conts_t * imgcont = img->conts;	
 			// check for container match
 			while (NULL != imgcont) {
 				// 12 is standard docker short signature
 				if(imgcont->cont->contid && node->contid && !strncmp(imgcont->cont->contid, node->contid, 12)) {
+					cont = imgcont->cont;
 					break;
 				}
 				imgcont = imgcont->next; 
 			}
+			break; // if imgid is found, keep trace in img -> default if nothing else found
 		}
 		img = img->next; 
 	}
@@ -181,9 +183,12 @@ int node_findParams(node_t* node, struct containers * conts){
 	}
 
 	// did we find a container match?
-	if (cont) {
+	if (img || cont) {
 		// read all associated pids. Is it there?
-		struct pids_parm * curr = cont->pids;
+
+		// assign pids from cont or img, depending whats found
+		int useimg = (img && !cont);
+		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
 		while (NULL != curr) {
 			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
@@ -197,13 +202,20 @@ int node_findParams(node_t* node, struct containers * conts){
 		// found? if not, create entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
-		push((void**)&cont->pids, sizeof(pids_t));
-		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		if (useimg) {
+			push((void**)&img->pids, sizeof(pids_t));
+			img->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		}
+		else {
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		}
 		conts->pids->rscs = conts->rscs;
 		conts->pids->attr = conts->attr;
 		node->param = conts->pids;
 		// update counter
 		conts->nthreads++;
+		return 0;
 	}
 	else{ 
 		// no match found. an now?

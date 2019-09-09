@@ -642,6 +642,7 @@ sysend: // jumped here if not possible to create system
 
 	// ksoftirqd -> offline, online again
 	cont("Trying to push CPU's interrupts");
+	if (!set->blindrun)
 	{
 		char fstring[50]; // cpu string
 		// bring all affiity except 0 offline
