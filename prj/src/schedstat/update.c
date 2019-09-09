@@ -142,28 +142,29 @@ static void setPidResources(node_t * node) {
 
 		// TODO: fix once containers are managed properly
 		// update CGroup setting of container if in CGROUP mode
-		if (DM_CGRP == prgset->use_cgroup && 
-			((0 <= node->param->rscs->affinity) & ~(SCHED_FAFMSK))) {
+		if (DM_CGRP == prgset->use_cgroup) {
+			if (0 <= (node->param->rscs->affinity)) {
 
-			char *contp = NULL;
-			char affinity[5];
-			(void)sprintf(affinity, "%d", node->param->rscs->affinity);
+				char *contp = NULL;
+				char affinity[5];
+				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
 
-			cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
-			if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
-					+ strlen(node->contid)+1)) {
-				contp[0] = '\0';   // ensures the memory is an empty string
-				// copy to new prefix
-				contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		
-				
-				if (!setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-					warn("Can not set cpu-affinity");
+				cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
+				if ((contp=malloc(strlen(prgset->cpusetdfileprefix))
+						+ strlen(node->contid)+1)) {
+					contp[0] = '\0';   // ensures the memory is an empty string
+					// copy to new prefix
+					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		
+					
+					if (!setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+						warn("Can not set cpu-affinity");
+					}
 				}
-			}
-			else 
-				warn("malloc failed!");
+				else 
+					warn("malloc failed!");
 
-			free (contp);
+				free (contp);
+			}
 		}
 		// should it be else??
 		else {
