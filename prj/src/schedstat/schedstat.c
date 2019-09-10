@@ -316,6 +316,51 @@ static void prepareEnvironment(prgset_t *set) {
 		}
 	}
 
+	// here.. offline messes up cset
+	cont("moving kernel thread affinity");
+	// kernel interrupt threads affinity
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+
+	// ksoftirqd -> offline, online again
+	cont("Trying to push CPU's interrupts");
+	if (!set->blindrun)
+	{
+		char fstring[50]; // cpu string
+		// bring all affiity except 0 offline
+		for (int i=maxccpu-1;i>0;i--) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (!setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d offline", i);
+			}
+		}	
+		// bring all back online
+		for (int i=1;i<maxccpu;i++) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (!setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d online", i);
+			}
+		}	
+	}
+	// lockup detector
+	// echo 0 >  /proc/sys/kernel/watchdog
+	// or echo 9999 >  /proc/sys/kernel/watchdog
+
 	/// --------------------
 	/// running settings for scheduler
 	// TODO: detect possible cpu alignment cat /proc/$$/cpuset, maybe change it once all is done
@@ -631,50 +676,6 @@ sysend: // jumped here if not possible to create system
 	}
 	else //realloc issues
 		err_exit("could not allocate memory!\n");
-
-	cont("moving kernel thread affinity");
-	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
-
-	// ksoftirqd -> offline, online again
-	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun)
-	{
-		char fstring[50]; // cpu string
-		// bring all affiity except 0 offline
-		for (int i=maxccpu-1;i>0;i--) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
-
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (!setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d offline", i);
-			}
-		}	
-		// bring all back online
-		for (int i=1;i<maxccpu;i++) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
-
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (!setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d online", i);
-			}
-		}	
-	}
-	// lockup detector
-	// echo 0 >  /proc/sys/kernel/watchdog
-	// or echo 9999 >  /proc/sys/kernel/watchdog
 
 	// composed static or generated numa string? if generated > 1
 	if (1 < strlen(numastr))
