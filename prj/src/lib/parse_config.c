@@ -553,10 +553,15 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->logsize = 0;
 
 		// signatures and folders
-		if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
-			!(set->cont_pidc = strdup(CONT_PID)) ||
-			!(set->cont_cgrp = strdup(CONT_DCKR)))
-			err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_ppidc)
+			if (!(set->cont_ppidc = strdup(CONT_PPID)))
+				err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_pidc)
+			if (!(set->cont_pidc = strdup(CONT_PID)))
+				err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_cgrp)
+			if (!(set->cont_cgrp = strdup(CONT_DCKR)))
+				err_exit_n(errno, "Can not set parameter");
 
 		// filepaths virtual file system
 		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
