@@ -1,10 +1,11 @@
 #!/bin/sh
 
 set -e
-linux_ver="4.9.115"
-linux_patch="rt93"
-balena_tag="17.06-rev1"
-balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
+linux_ver="4.19.50"
+linux_patch="rt22"
+linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
+#balena_tag="17.06-rev1"
+#balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
 
 machine=$(uname -m)
 
@@ -57,7 +58,8 @@ esac
 #################################
 echo
 echo "## Installing dependencies..."
-sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl
+sudo apt-get update
+sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl libncurses5-dev pkg-config bison flex libelf-dev
 # if xconfig...
 sudo apt-get install -y qt5-default
 # if create-pkg...
@@ -69,14 +71,22 @@ sudo apt-get install -y checkinstall
 mkdir -p polena-build
 cd polena-build
 
-echo
-echo "## Downloading Linux Kernel"
-wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-${linux_ver}.tar.gz
+if [ ! -e "./linux-${linux_ver}" ]; then
+	echo
+	echo "## Downloading Linux Kernel"
+	wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-${linux_ver}.tar.gz
+else
+	# cleanup
+	rm -r linux-${linux_ver}
+fi
 tar xf linux-${linux_ver}.tar.gz
 
-echo
-echo "## Downloading RT patch"
-wget https://www.kernel.org/pub/linux/kernel/projects/rt/4.9/patch-${linux_ver}-${linux_patch}.patch.xz
+if [ ! -f "patch-${linux_ver}-${linux_patch}.patch.xz" ]; then
+	echo
+	echo "## Downloading RT patch"
+	wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_root}/patch-${linux_ver}-${linux_patch}.patch.xz
+
+fi
 
 echo
 echo "## Patching Linux Kernel"
@@ -107,10 +117,11 @@ GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
 ' >> grub
 sudo mv grub /etc/default/grub
+sudo update-grub2
 
-echo "## Installing Balena"
-url="https://github.com/resin-os/balena/releases/download/${balena_tag}/balena-${balena_tag}-${arch}.tar.gz"
-curl -sL "$url" | tar xzv -C /usr/local/bin --strip-components=1
+#echo "## Installing Balena"
+#url="https://github.com/resin-os/balena/releases/download/${balena_tag}/balena-${balena_tag}-${arch}.tar.gz"
+#curl -sL "$url" | tar xzv -C /usr/local/bin --strip-components=1
 
 cat <<EOF
 

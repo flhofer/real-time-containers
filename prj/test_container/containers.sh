@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if [[ ! "$1" == "quiet" ]]; then
+
 cat <<EOF
 
 ######################################
@@ -17,6 +19,9 @@ simply real-time containers
 ######################################
 
 EOF
+else 
+	shift
+fi
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 
@@ -46,32 +51,53 @@ if [[ "$cmd" == "build" ]]; then
 
 	eval "docker build . -t testcnt"
 
-elif [[ "$cmd" == "run" ]]; then
-# START ALL CONTAINERS OF GRP
+elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
+# CREATE CONTAINERS OF GRP
 
 	eval "mkdir log"
 	eval "chown 1000:1000 log"
 
-	for filename in rt-app-tst-${grp}*.json; do
-		filen="${filename%%.*}"
-		#create directory for log output and then symlink
-		eval "mkdir log-${filen} && chown 1000:1000 log-${filen}"
-		eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
-		# start new container
-		eval "docker run -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+	while [ "$2" != "" ]; do
+		# all matching files
+
+		for filename in rt-app-tst-${grp}*.json; do
+			filen="${filename%%.*}"
+			#create directory for log output and then symlink
+			eval "mkdir log-${filen} && chown -R 1000:1000 log-${filen}"
+			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
+			# start new container
+			eval "docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+		done
+
+	    # Shift all the parameters down by one
+	    shift
 	done
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
-# START ALL CONTAINERS OF GRP
+# APPLY CMD TO ALL CONTAINERS OF GRP
 
-	for filename in rt-app-tst-${grp}*.json; do
-		filen="${filename%%.*}"
-		eval "docker container ${cmd} ${filen}"
+	while [ "$2" != "" ]; do
+		# all matching files
+
+		for filename in rt-app-tst-${grp}*.json; do
+			filen="${filename%%.*}"
+			eval "docker container ${cmd} ${filen}"
+		done
+
+	    # Shift all the parameters down by one
+	    shift
 	done
+
 elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
 	# remove old log file first 
 	eval "rm log/orchestrator.txt"
+
+	# start orchestrator and wait for termination
+	eval ./schedstat -bfPn rt-app --policy=fifo > log/orchestrator.txt &
+	sleep 10
+	SPID=$(ps h -o pid -C schedstat)
+
 	# start containers -> test group
 	while [ "$2" != "" ]; do
 		# start all matching files
@@ -85,10 +111,15 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	    # Shift all the parameters down by one
 	    shift
 	done
+	sleep 60
 
-	# start orchestrator and wait for termination
-	eval ./schedstat.o -a 1 -b --policy=fifo -r 900 -nrt-app -P > log/orchestrator.txt
-	eval "chown 1000:1000 log/*"
+	# end orchestrator
+	kill -SIGINT $SPID
+	sleep 1
+
+	# move stuff 
+	eval "chown -R 1000:1000 log/*"
+
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 

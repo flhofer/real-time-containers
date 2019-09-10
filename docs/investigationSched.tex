@@ -55,7 +55,7 @@ The contributions of this paper are:
 
 	\item Latency and determinism tests to confirm parameters and configurations enabling static and (quasi) dynamic container management;
 		
-	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
+%	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
 \end{itemize}
 
 %Setup of the paper
@@ -466,7 +466,7 @@ Third, we report these tests for each of the three versions in a separate sub-se
 In \cite{Hoferetal2019} we assessed the feasibility of real-time tasks in the cloud. 
 Now we address the system efficiency of this bounded execution instead.
 If we place these tasks into containers, we can increase their efficiency by managing and sharing the latter's resources.
-We will use an \emph{orchestrator} including the needed algorithms to perform these tasks.
+We will use an \emph{orchestrator} and the needed algorithms to perform these tasks.
 
 The orchestrator's primary goal is to allocate container resources to maintain determinism at best.
 To achieve this, it has to confine containers, and their running processes in their execution context.
@@ -499,14 +499,14 @@ Consequently, allocation might reach theoretical utilization rates converging to
 Second, for our first implementations we assume knowledge of all the data of all possible real-time tasks.
 For simplicity, task deadlines track their period.
 We have thus the run-time values of WCET $w_i$, period and deadline ($p_i = d_i$).
-Given these two assumptions we perform the implementation of a first version. 
+Given these two assumptions we perform the implementation of a first version, the static orchestrator.
 
 The static orchestrator is the simplest of the three and works with a plain logic. 
-It knows all real-time tasks that have to run, and where they have to run. 
-An offline computation writes schedule parameters to a file. 
+It knows all real-time tasks that have to run, and on which resources they have to run. 
+Using an offline computation, we write schedule parameters to a file. 
 Once running, the orchestrator prepares the environment and reads the container configurations.
 It scans for running containers and if found, the algorithm assigns the configured resources to the new container.
-A successful implementation allows us to proceed to the next iteration.
+A successful implementation allows us to proceed to the next iteration and concludes this first part of the project.
 
 The adaptive static orchestrator is a variant of the first program.
 It comes into play if we still know all existing applications, but not which of them actually runs or will run. 
@@ -518,15 +518,15 @@ The preference list will contain more entries than resources might allow, but we
 To reduce dynamism, we limit the maximum allowance of shifting containers to the set preference, and the determined best fit.
 If all containers would be allowed to shift to other resources, the schedule would get dynamic and undecidable again.
 A correct implementation of this version opens the path for the most complex of the algorithms.
-
 % Advantages Why are we doing this
 The advantage of this version is that we can configure all possible containers that can run on all nodes of a group of servers upfront.
-No need to specify in detail, and offline, which is running where.
-This allows a management tool to dynamically decide the node that will run a new container.
+There is no need to specify in detail, and offline, which is running where.
+This allows a container management tool to dynamically decide the node that will run a new container.
+
 % Introduction of kubernetes into the equation.
 An example of such a management tool is Kubernetes. 
 Kubernetes can manage nodes, pods (groups of containers) and decide deployment and resource allocation (count).
-In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.
+In a master's thesis, a student uses labels to configure and allocate real-time containers to capable nodes only.\footnote{ "Real-time container clusters for seamless computing", Fariz Huseynli, Master Thesis TUM, September 17th, 2018}
 Therefore, also migration and node mixing is possible.
 % Where this stops
 What Kubernetes cannot carry out, is monitoring resources in real-time and with no delay.
@@ -536,7 +536,7 @@ If we have to reallocate resources dynamically, a real-time monitor gets mandato
 % Switch over to dynamic scheduling
 %We have already seen that, 
 Without any additional assumptions, dynamic scheduling is undecidable. % TODO; check if that has been introduced.. actually or add reference to it
-Therefore, we will implement it at best using a variation and the following additional considerations.
+Therefore, in this project we will implement it at best using a variation and the following additional considerations.
 All tasks have a static, adaptive configuration.
 A parameter that changes is that we no longer set execution peak times as WCET. 
 To reduce the amount of unused resources, we reduce the programmed WCET to a much lower value, $w_{i_c}$.
@@ -574,33 +574,33 @@ Equation \ref{eq:delta} describes the amount a tasks frees for resource sharing.
 	\label{eq:delta}
 	U_{E_i} = c_{i_\delta} = \frac{w_{i}- w_{i_c}}{p_i}
 \end{equation}
-With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
-We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
-%TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
-%TODO: or an approximation might be average divide
-%TODO flaw task i in instant j .. -> have to coin this first. Lookup butazzo boook definition for formalisms..
-\begin{equation}
-	Let \ T_E = ( t_1, t_2 .. t_n) : i \in \lbrace 1,2,...,n \rbrace \land t_i \in T_E \ iff \ c_i > w_i, 
-	\bar U_E = \frac{\sum_{i \in T_E} U_{Ei}}{n}		
-\end{equation}
-%(Iverson bracket)
-\begin{equation}
-	\label{eq:accrate}
-	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
-\end{equation}
-The final probability of deadline failure depends on the following relation:
-\begin{equation}
-	\label{eq:prob}
-	P = \frac{n!}{c*(n-c)!} * p^c
-\end{equation}
+%With this two equations we can then compute the accommodation rate of the buffer. This rate $c$ determines how many tasks assigned to the same resources may take overtime in the same schedule cycle.
+%We define it in equation \ref{eq:accrate} based on the average task overtime $\bar U_E$.
+%%TODO: average, how does it work with two peaks? Ordered by maximum, sum down, divide by that?
+%%TODO: or an approximation might be average divide
+%%TODO flaw task i in instant j .. -> have to coin this first. Lookup butazzo boook definition for formalisms..
+%\begin{equation}
+%	Let \ T_E = ( t_1, t_2 .. t_n) : i \in \lbrace 1,2,...,n \rbrace \land t_i \in T_E \ iff \ c_i > w_i, 
+%	\bar U_E = \frac{\sum_{i \in T_E} U_{Ei}}{n}		
+%\end{equation}
+%%(Iverson bracket)
+%\begin{equation}
+%	\label{eq:accrate}
+%	c = 1 + {\left\lfloor \frac{U_B}{\bar U_E} \right\rfloor}
+%\end{equation}
+%The final probability of deadline failure depends on the following relation:
+%\begin{equation}
+%	\label{eq:prob}
+%	P = \frac{n!}{c*(n-c)!} * p^c
+%\end{equation}
 
-Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
+%Equation \ref{eq:prob} shows how the risk taken is influenced by multiple factors. 
 If the buffer big enough to accommodate more than one exceeding tasks, the probability of failure reduces.
 At the same time, the amount of buffer reclaimed per task can also vary ($\bar U_E$). 
 Even if there is only buffer enough for one task to fully run for a duration of WCET, there is space for multiple tasks exceeding $w_{i_c}$ a little.
 A set of tasks that in sum do not exceed $U_B$ are thus handled properly by the EDF scheduler. 
 The overshoots will be accounted to the buffer until there is none left. Only then the GRUB algorithm preempts the task.
-The task set remains thus schedulable with probability of failure $P$ and resource savings as long as it complies with the mentioned parameters. %  $U_S$
+The task set remains thus schedulable with a probability of failure $P$ and resource savings as long as it complies with the mentioned parameters, where $P$ is the sum of the random variables of the probability distributions. %  $U_S$
 These savings expressed as utilization factor are defined as:
 \begin{equation}
 	U_S = \sum_{i \in T} \frac{w_i - w_{i_c}}{p_i}.
@@ -652,10 +652,10 @@ We dispose then a set of test configurations to validate different running scena
 The rest of this section details these steps further.
 
 For the test results we get in this section, we reconfigured both AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} with the latest LTS operating system release, Ubuntu Server $18.04.2$.
-In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.31$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.31-rt18$.
+In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.50$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.50-rt24$.
 For the installation and update steps we used the same build scripts of \cite{Hoferetal2019} with only some minor changes.
 These changes should reduce interruption frequency and duration, significant details when trying to measure system introduced runtime noise.
-To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.31 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
+To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.50 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
 
 In these kernel configurations we disabled some debug features and increased the scheduler base tick frequency.
 In particular, settings disable the the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) to reduce kernel preemption duration.
@@ -765,12 +765,12 @@ The test scripts, the source code and a detailed description of the orchestrator
 \subsubsection{Orchestrator settings}
 \label{sub:orchset}
 
-For our tests we used the following command line parameters for the orchestrator:
+For our tests we used the following parameters for the orchestrator:
 
 \begin{itemize} %TODO: Passivee!!
-	\item [-a] the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
+	\item the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
 	\item[-f] the force flag is needed to allow the orchestrator to reconfigure the system. This is to ensure that all options such as Hyper-threading are disabled;
-	\item[-r] the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
+	\item the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
 	\item[--policy]	sets the update thread policy of the container scan. With a default rate of $5000\mu s$ we use this setting to have a more reliable execution and continuous. The chosen policy is \texttt{FIFO};
 	\item[-d] enables the container deadline based threads to reclaim any unused bandwidth. This feature thus permits a task to grab all the free CPU-time there to not miss a deadline; 
 	%TODO: extend once done
@@ -799,20 +799,19 @@ It configures the system and verifies if the running process has all required ca
 If successful, the main thread starts the linked threads and waits for interruption or termination.
 
 Among its duties is also to test what detection mode is available.
-The latest version of the static orchestrator includes three detection modes:
+The latest version of the static orchestrator includes four detection modes:
 \begin{itemize}
 	\item via CGroup settings;
 	\item using the parent PID of the container daemon;
-	\item comparing the signature of the command line.
+	\item comparing the signature of the command line;
+	\item reading the Docker event server output and reacting to it.
 \end{itemize}
-The default selection is the first in list. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
+The default selection is the first in list, while the event server detection is always active. If CGroups are not available, the orchestrator switches down the list to the next detection mode.
 
 %TODO: implement, extend this description.
 % how is the run-time exe, CGroups, affinity, and period configuration 
 In preparation for execution, the orchestrator identifies environment parameters and configures the kernel.
-In particular, the RT-containers are isolated via %``cpuset''
-%TODO: cpuset vs cgroups details
-\emph{CGroups} from system tasks.
+In particular, the RT-containers are isolated via \emph{CGroups} from system tasks.
 A separate control group called \texttt{system} is created and before allocating containers, all possible system or user tasks are moved from the root into the new group.
 The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
 The division and size of the CPU-sets can be configured via command line parameters.
@@ -825,19 +824,16 @@ D_i = \Phi_i + (j-1) p_i + d_i,
 \end{equation}
 where $\Phi_i$ is the task's absolute initial start time.
 
-The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time statistics current.  
-A linked list serves as memory database and all threads share it and may access it only if they get the corresponding lock.
+The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time parameters current.  
+A linked list serves as a shared data structure among all threads. 
 The scan executes periodically with a preset scan time of $5ms$. 
 By default, every $100^th$ scan the thread verifies if there are new containers present.
 The main thread parses these parameters from the CLI input at start-up.
 If the thread interrupts or stops, it prints a list of statistics for each real-time capable process.
-We placed the source code for this thread in ``update.c'' and the used linked lists in ``pidlist.c''. 
-
-The second started thread keeps track of resources. Its goal is to assign the configured resources to each container and set optional run-time parameters.
-The code in ``manage.c'' reads a configuration file for container settings.
-Like the update thread, this thread scans regularly for changes in the container linked list. 
-If it finds some new entry, the manager verifies for present parameters for the container and assigns them.
-For static orchestration this thread has not more duties. We add more advanced features for adaptive and dynamic scheduling. 
+We placed the source code for this thread in ``update.c'' and the used data structures are part of a developed shared static libary. 
+The second started thread keeps track of resources. Its goal is to monitor resource and set optional run-time parameters.
+A shared library has been created for tasks such as interaction with the kernel, reading JSON files or managing data structures.
+Further detail can be found in the manual inside the project repository.
 
 This first implementation of the tool is simple and reduced in functionality. Although this simplicity, we will see in the performance tests if it allows some resource savings and to which extent.
 
@@ -918,18 +914,16 @@ An early deadline could avoid the sum effect to exceed the deadline by significa
 
 % Results = differences and conclusions
 
-\subsection{Adaptive scheduler -  structure}
-
-%TODO Changes to the program. From before to now
-
-
-\subsection{Dynamic Scheduler - structure}
-
-%TODO: well.. still to be defined
-
-
 \section{Conclusions}
 \label{sec:conclusions}
+
+In this report we have seen the concept of resource orchestration to increase hardware utilization and reduce operational costs.
+Via a implementation example we have seen how static resource management is viable and opens the door to more complex orchestration scenarios. 
+We discussed algorithm variants, their advantages and possible difficulties.
+As a follow-up we plan to implement and test the adaptive and dynamic variants of the orchestration software.
+
+
+
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,bibliography,paper3}
