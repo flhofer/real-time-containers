@@ -571,6 +571,19 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		*set->cpusetdfileprefix = '\0'; // set first chat to null
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 
+
+		// affinity default setting
+		if (!set->affinity){
+			char *defafin;
+			if (!(defafin = malloc(10))) // has never been set
+				err_exit("could not allocate memory!");
+
+			(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
+			// no mask specified, use default
+			set->affinity = strdup(defafin);
+			free(defafin);
+		}
+
 		return;
 	}
 
