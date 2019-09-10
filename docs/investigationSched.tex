@@ -53,7 +53,7 @@ The contributions of this paper are:
 	
 	\item Static scheduling of application containers as real-time tasks;
 
-	\item Latency and determinism tests to confirm parameters and configurations enabling static and (quasi) dynamic container management;
+%	\item Latency and determinism tests to confirm parameters and configurations enabling static and (quasi) dynamic container management;
 		
 %	\item Demonstration of how, under specific conditions, the same containers can be managed dynamically.
 \end{itemize}
@@ -61,7 +61,7 @@ The contributions of this paper are:
 %Setup of the paper
 The rest of this paper is structured as follows. Section~\ref{sec:relwork} analyzes related work, while Section~\ref{sec:context} introduces the problem and the environment.
 We next investigate how an orchestration and resource management might be performed analyzing a variety of options in Section~\ref{sec:mgmttest}, and perform a test implementation of the chosen method in Section~\ref{sec:testimp}.
-Finally, we document the performed performance tests in Section~\ref{sec:perftest} and conclude in Section~\ref{sec:conclusions}.
+Finally, we document a first software implementation Section~\ref{sec:perftest} and conclude in Section~\ref{sec:conclusions}.
 
 \section{Related work}
 \label{sec:relwork}
@@ -103,10 +103,6 @@ In 2014, Garcia-Vallas et al. \cite{Garcia-Vallsetal2014} analyzed challenges fo
 Even though the focus of their paper is on soft real-time applications, certain aspects and limits can be applied to any real-time systems.
 Merging cloud computing with real-time requirements is a challenging task; the authors state that the guest OS has only limited access to physical hardware and thus suffers from unpredictability of non-hierarchical scheduling, and thick stack communications. 
 
-%TODO: missing work about scheduling of rt-tasks
-
-%But there is noone investigating the combination
-%TODO: add reference to ICAC paper if accepted
 So far, we have seen that containerization techniques have been tested with early positive results in a variety of contexts.
 However, a combination of containers executed on cloud resources and control application containerization has not yet been examined in the literature, left alone the management and orchestration of the latter. 
 In this paper, we assess the feasibility of a centralized resource orchestrator for a static set of real-time enabled containers.
@@ -140,7 +136,7 @@ For the purpose of out project, each container will have only one task.
 Thus, the configuration will contain only one entry for thread and a global configuration.
 Times defined in the configuration are in $\mu s$.
 %% Considerations
-The configuration sample can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
+The configuration sample of the test container can be found in the git repository, inside the folder \texttt{prj/test\_cont}.
 
 %POSIX Standard
 The IEEE Std 1003.1 defines the interface every compliant operating system must have.
@@ -270,7 +266,7 @@ For further details see "A complete guide to Linux process scheduling"  by Nikit
 
 During the exploration of the namespace and PID function, some features to be implemented in future where discovered. 
 The PID 1 inside the container is parent of all the namespace. If it dies, all the children are orphaned and will be killed. As parent, it is also target of sigs without implicit binding, thus it must manually handle incoming signals such as sig\_int.
-The userspace in the container can be mapped. To avoid root as well as other accesses from a container, a proper map should be set up and incorporated in all the containers at load.
+The userspace in the container can be mapped. To avoid root as well as other accesses from a container, a proper map should be set up for all the containers at load.
 
 \section{Test implementation}
 \label{sec:testimp}
@@ -652,22 +648,17 @@ We dispose then a set of test configurations to validate different running scena
 The rest of this section details these steps further.
 
 For the test results we get in this section, we reconfigured both AWS T3/C5 instances and the bare metal server used in \cite{Hoferetal2019} with the latest LTS operating system release, Ubuntu Server $18.04.2$.
-In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.50$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.50-rt24$.
+In addition, we upgraded the kernel of all systems to their latest available version close or equal to $4.19.50$, and patched it with the latest \emph{PREEMPT-RT} release, $4.19.50-rt22$.
 For the installation and update steps we used the same build scripts of \cite{Hoferetal2019} with only some minor changes.
 These changes should reduce interruption frequency and duration, significant details when trying to measure system introduced runtime noise.
 To increase preemption performance, we reused the configurations of the latest available official kernel releases (4.19.50 and 4.15.0-1035 for bare metal and AWS versions, respectively) as a template for the compilation process.
 
-In these kernel configurations we disabled some debug features and increased the scheduler base tick frequency.
-In particular, settings disable the the PREEMPT debugging feature (\texttt{CONFIG\_DEBUG\_PREEMPT}) to reduce kernel preemption duration.
-We disabled the flag \texttt{CONFIG\_DEBUG\_SHIRQ} to prohibit generation of spurious debug interrupts.
-In addition, the configuration disables the settings for the Read-Copy-Update synchronization kernel tracing  (\texttt{CONFIG\_RCU\_TRACE} and \texttt{CONFIG\_TREE\_RCU\_TRACE}) to reduce synchronization-induced latencies.
-Via the \texttt{CONFIG\_HZ\_1000} and \texttt{CONFIG\_HZ} flags, we changed the tick rate from the default value of $250Hz$ (or $100Hz$ depending on the distribution) to $1000Hz$.
-Although adding some scheduling overhead, this change allows schedule evaluation up to every millisecond. 
-In combination with high resolution timers (\texttt{CONFIG\_HIGH\_RES\_TIMERS}), this enables higher scheduling granularity and fractional allocation of computation time.
-%TODO: verify if in the end we did that!
+In these kernel configurations we changed the scheduler base tick settings in some test batches.
 Our system runs with dynamic ticks enabled (\texttt{CONFIG\_NO\_HZ\_IDLE}) for the first round of test batches.
+In combination with high resolution timers (\texttt{CONFIG\_HIGH\_RES\_TIMERS}), this enables higher scheduling granularity and fractional allocation of computation time.
 During this first round, the scheduler adapts the rescheduling of tasks to a minimum for each core with \texttt{CONFIG\_HZ} as upper bound. 
 The second batch runs with full ticks, a second recompiled kernel forcing scheduler evocation every millisecond (flag \texttt{CONFIG\_HZ\_FULL}).
+Other settings used during the performance tests such as scheduler isolation and RCU backoff are set as boot parameter and do thus not require kernel recompilation.
 
 %TODO: add paper information here! se latest acqisitions, -> to be commited
 All test use the EDF scheduler including the Greedy Reclamation of Unused Bandwidth (GRUB) server shipped with the Linux kernel since version 4.13.
@@ -683,7 +674,6 @@ Each task $i$ in an EDF schedule requires three parameters: programmed worst cas
 \begin{equation}
 w_{i_c} \le d_i \le p_i
 \end{equation}
-
 For a generic periodic task, the run-time $w_{i_c}$ is set equal to the WCET $w_c$, $p$ is the repetition period. The deadline $d$ is the relative point in time since period start where the computation must be finished. 
 During run-time, the scheduler will use these settings to compute the absolute deadline $D_i$ and the absolute period end $P_i$ based on the absolute start time $S_i$ of the new period.
 A partitioned or affinity managed system can furthermore be considered equal to a set of isolated subsystems.
@@ -696,19 +686,19 @@ which also equals the theoretical utilization limit $U_l$~\cite{Buttazzo2011}.
 The ideated tests consist of a set of preliminary boundary tests, and a simulation test.
 In particular, we have created the following preliminary test settings:
 \begin{itemize}
-	\item \textit{Test lower bound:} homogeneous period and run-time among all containers executing on the same resources with a WCET $w_i$ smaller than the scheduler's granularity ($1000\mu s$);
+	\item \textit{Test lower bound:} homogeneous period and run-time among all containers executing on the same resources with a WCET $w_i$ smaller than the best case scheduler's wake-up granularity ($1000\mu s$);
 	\item \textit{Test upper bound:} homogeneous period and run-time among containers executing on the same resources, with a runtime to period ratio $(\frac{t_i}{p_i})$ close to $0.5$.
 	\item \textit{Test diversity:} mixed periods and run-times each container executing on the same resources.
 \end{itemize}
 As a conclusive test, we emulate the scenario of our initial problem statement. 
 The parallel operation of multiple instances of the flow control software is verified creating an additional test set.
-The test configuration foresees a homogeneous period and run-time among all containers on the same resources, with timing based on the values of Section ``Problem Statement'' in \cite{Hoferetal2019} ($10ms$ run-time, $100ms$ deadline and period).
+The test configuration foresees a homogeneous period and run-time among all containers on the same resources, with timing based on the values of Section ``Problem Statement'' in \cite{Hoferetal2019}(first edition) ($10ms$ run-time, $100ms$ deadline and period).
 
 For the first test batch execution, we set up one resource configuration for each of the tests discussed in the previous section.
 %TODO: check if we can do 11 !!
 The first group consists of ten containers with a WCET $w_i$ of $900\mu s$ . 
 With a period and deadline of $10ms$, this results in a utilization factor $U_l$ of $0.9$.
-This configuration represents a scheduling challenge as the kernel setting (HZ\_1000) limits scheduler's refresh rate to $1000\mu s$. 
+This configuration represents a scheduling challenge as the best case kernel interrupt setting (HZ\_1000) limits scheduler's refresh rate to $1000\mu s$. 
 The latter exceeds the container's WCET, forcing the kernel to more than 1000 scheduler invocations per second, continuously using the high resolution timer slicing feature.
 The second configured group includes two containers with %TODO: verify these once all is set. $2.4ms$ run-time $t_i$, 
 $2.5ms$ WCET and $5ms$ period.
@@ -716,9 +706,6 @@ Although this configuration has only two containers, scheduling consists a chall
 Group number three consists of a mixed set of containers: one container set to $2.5/5ms$, one $900\mu s/10ms$, and one configured as $3/9ms$ for worst case computation time and deadline/period, respectively.
 The orchestrator manages configuration and resource affinity automatically based on a static scheduling file.
 The last test in the batch is the simulation of the parallel operation of multiple containers running the flow-control program. 
-%TODO: this is not fitting. Only one group at a time.. hmm
-%For this test, we fill all three groups with instances of the test container. 
-%These instances set computation and period to $10$ and $100ms$, respectively.
 
 The execution of tests will be supported by test tools and scripts. 
 We describe in Section \ref{sub:rtapp} the tool we used for the application simulation and test. Furthermore, we created two bash scripts to support sequence and container management. Section \ref{sub:scripts} describes script details while Section \ref{sub:orchset} explains the used execution parameters of the orchestrator.
@@ -736,7 +723,6 @@ The configuration of each of the containers specifies their running periods and 
 For simplicity, we set the relative computation deadline $d_i$ to the same as the period $p_i$ in all tests.
 In addition to the worst case runtime $w_i$, the configuration requires a simulated runtime parameter $t_i$ which is the supposed effective runtime of the simulated task.
 %TODO: wrong.. we changed that
-%The simulated runtimes of the test software is configured to allow a margin of $30\%$, i.e. $t_i = w_i / 1.3$.
 As the number of loops to perform is a constant value set at startup, the actual execution time depends solely on interaction with the system.
 \emph{rt-app} tracks the absolute elapsed time between computation start and computation end.
 Monitoring the resulting value will therefore allow detection of execution jitter and capture of eventual deadline miss caused by the tested system configuration.
@@ -750,10 +736,9 @@ The measured performance ranged between $17$ and $40$ nanoseconds with a accurac
 This makes it hard to predict the resulting execution time and either under-perform or overshoot at every cycle.
 As example, a rounding error in pretest 1 could cause the test program to perform about 3000 loops less than required.
 To reduce this issue, we applied a patch to the calibration procedure of \emph{rt-app}. 
-Instead of an average loop time in $ns$, for loop times lower than $1\mu s$ rt-app now store the average execution time of 1000 loops in $ns$.
-%TODOL: changes
-%However, the $30\%$ margin between runtime and WCET should suffice to account for this discrepancy.
-In addition, to align loop execution period among all containers and avoid anomalies, we perform  the calibration  in advance and pass it as a parameter to all instances of \emph{rt-app}.
+Instead of an average loop time in $ns$, for loop times lower than $1\mu s$ rt-app now stores the average execution time of 1000 loops in $ns$.
+In addition, to align loop execution period among all containers and avoid anomalies, we perform  the calibration in advance and pass it as a parameter to all instances of \emph{rt-app}.
+The code changes have been commited to GitHub and will be listed for a pull request.
 
 During test execution, the orchestrator and \emph{rt-app} monitor run-time behavior of the system.
 \emph{rt-app} creates a log file detailing each execution cycle to be inspected for possible deadline failures.
@@ -770,22 +755,25 @@ For our tests we used the following parameters for the orchestrator:
 \begin{itemize} %TODO: Passivee!!
 	\item the affinity parameter is set either to 1 or to 1-2. The first set of tests uses only one real-time CPU, thus the former. All other sets go for multicore testsl;
 	\item[-f] the force flag is needed to allow the orchestrator to reconfigure the system. This is to ensure that all options such as Hyper-threading are disabled;
-	\item the run-time of our tests is limited to $900s$, thus this flag is accompanied by 900;
-	\item[--policy]	sets the update thread policy of the container scan. With a default rate of $5000\mu s$ we use this setting to have a more reliable execution and continuous. The chosen policy is \texttt{FIFO};
-	\item[-d] enables the container deadline based threads to reclaim any unused bandwidth. This feature thus permits a task to grab all the free CPU-time there to not miss a deadline; 
+	\item the run-time of our tests is limited to $900s$;
+	\item we set the update thread policy of the container scan. With a default rate of $5000\mu s$ we use this setting to have a more reliable execution and continuous. The chosen policy is \texttt{FIFO};
+	\item the container deadline based threads can reclaim any unused bandwidth. This feature thus permits a task to grab all the free CPU-time there to not miss a deadline;
 	%TODO: extend once done
 \end{itemize}
 
+All other parameters are set to default. 
 In case of exceptions, we detail the additional parameters in the sections following.
 
 \subsubsection{Execution and automation scripts}
 \label{sub:scripts}
 
 %TODO: maybe a bit short?
-During the tests we used two automation scripts. 
+During the tests we used three automation scripts. 
 The first one automates the container management. It systematically applies all commands to the configured containers for our test suite. The usage is very similar to docker itself and thus we do not detail it further.
 The second script contains all the tests to be executed, the preparatory and the final steps.
 It is the main script that is run when starting a test batch.
+The last script manages kernel settings, updates the boot manager and reboots the system when needed. It is the launching script and performs multiple batch runs with varying parameters. 
+The varying parameters thus are: scheduler isolation, full dynamic ticks and RCU fallback CPU numbers in combination with standard PREEMPT\_RT of full dynamic tick enabled kernels. 
 %
 Again, the test scripts can be found in the project repository, and in ~\cite{homep01}.
 
@@ -816,13 +804,13 @@ A separate control group called \texttt{system} is created and before allocating
 The CPUs are then divided in two sets and allocated exclusively to either \texttt{system} or the running containers.
 The division and size of the CPU-sets can be configured via command line parameters.
 In addition, at start-up, the orchestrator sets the maximum real-time run-time to $-1$. This is to avoid throttling of RT tasks and to enable CPU affinity for EDF scheduled processes.
-Unfortunately, there is no direct access to the scheduler's kernel data.
-Therefore, the orchestrator scans continuously the kernel debug output for each process to analyze remaining runtime budget and verify period and deadline consistency. 
-If a deadline is missed, the reported absolute deadline will deviate from the programmed period. By definition, the absolute deadline $D_i$ of a task $i$ with execution period $j$ is given by:
-\begin{equation}
-D_i = \Phi_i + (j-1) p_i + d_i,
-\end{equation}
-where $\Phi_i$ is the task's absolute initial start time.
+%Unfortunately, there is no direct access to the scheduler's kernel data.
+%Therefore, the orchestrator scans continuously the kernel debug output for each process to analyze remaining %runtime budget and verify period and deadline consistency. 
+%If a deadline is missed, the reported absolute deadline will deviate from the programmed period. By definition, the absolute deadline $D_i$ of a task $i$ with execution period $j$ is given by:
+%\begin{equation}
+%D_i = \Phi_i + (j-1) p_i + d_i,
+%\end{equation}
+%where $\Phi_i$ is the task's absolute initial start time.
 
 The first of the \emph{main} started threads manages updates. It scans for containers and keeps their run-time parameters current.  
 A linked list serves as a shared data structure among all threads. 
@@ -835,84 +823,7 @@ The second started thread keeps track of resources. Its goal is to monitor resou
 A shared library has been created for tasks such as interaction with the kernel, reading JSON files or managing data structures.
 Further detail can be found in the manual inside the project repository.
 
-This first implementation of the tool is simple and reduced in functionality. Although this simplicity, we will see in the performance tests if it allows some resource savings and to which extent.
-
-\subsection{Static scheduler - performance tests}
-
-The results on both AWS T3/C5 and Bare Metal are reported in Table~\ref{tab:schedprel}.
-
-\begin{table}[bt]
-	\centering
-	\caption{Test batch 1 results, three container groups on Bare metal and IAAS}
-		\begin{tabular}{lccccccccc}
-%			\headrow
-			\thead{Variables} & \multicolumn{3}{}{\thead{Bare Metal}}& \multicolumn{3}{}{\thead{Aws T3}}& \multicolumn{3}{}{\thead{Aws C5}}\\
-			& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}\\
-			Group 1, 4 units <50\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-			Group 2, 1 unit <50\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-			Group 3, 1 unit <50\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-			Group 1, 6 units <70\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-			Group 3, 2 units <70\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-			Group 1, 8 units <90\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-			Group 2, 2 units <90\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-			Group 1, 9 units <100\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-			Group 3, 3 unit <100\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-			\hline  % Please only put a hline at the end of the table
-		\end{tabular}
-		
-		%        \begin{tablenotes}
-		%            \item JKL, just keep laughing; MN, merry noise.
-		%        \end{tablenotes}
-	\label{tab:schedprel}
-\end{table}
-
-In test batch Two, we repeated the same tests on all three systems with a kernel having forced tick rate.
-Table \ref{tab:schedsim} shows results of the second test batch for different utilization rates.
-
-\begin{table}[bt]
-	\centering
-	\caption{Test batch 2 results, all groups running an equal number of simulation containers. Experiments run on Bare metal and IAAS AWS T3 and C5.}
-	\begin{tabular}{l ccccccccc}
-%^		\headrow
-		\thead{Variables} & \multicolumn{3}{}{\thead{Bare Metal}}& \multicolumn{3}{}{\thead{Aws T3}}& \multicolumn{3}{}{\thead{Aws C5}}\\
-		& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}& \thead{OV} & \thead{AV} & \thead{JS}\\
-		4 units <50\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-		5 units <60\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-		6 units <70\%  & 0 & 800 & +32/-25 & 0 & 800 & +32/-25 & 0 & 800 & +32/-25\\
-		7 units <80\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-		8 units <90\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-		9 units <100\% & 0 & 800 & +32/-25 & 0 & 800 & +32/-25& 0 & 800 & +32/-25\\
-		\hline  % Please only put a hline at the end of the table
-	\end{tabular}
-	\label{tab:schedsim}
-\end{table}
-
-The data from both test batches shows that multiple runs of containers are feasible.
-In particular, if configured properly, an utilization limit close to $0.8$, or $80\%$, can be reached.
-With a variety of tests and combinations, it has been shown that even in an IAAS infrastructure, latency and determinism required to obtain such resource savings can be reached.
-%With utilization factors $U_l$ up to $60\%$, all the containers stay constant and execute without missing deadlines.
-
-Although higher utilization factors cause some deadline overshoot, the amount is minimal and can be attained to system overhead.
-In many cases, the scheduler allows some grace time which has been reclaimed from other EDF tasks.
-However, the execution logs also show how the GRUB algorithm preempts overrunning tasks once this grace period is over. 
-This is to restrain the container from starving other processes and influencing their execution times.
-The data in Tables \ref{tab:schedprel} and \ref{tab:schedsim} includes some deadline jitter, which seems to depend mostly on background activity of the system.
-Although latency and execution jitter stay within limits of $xxx \mu s$, these values have to be considered when dealing with very small hard deadlines. 
-An early deadline could avoid the sum effect to exceed the deadline by significant amounts of time. 
-
-
-% Tests run on the bare metal machine
-% test T3
-% test C5
-% Test T3U? <- important to check this!!
-
-% Different configurations
-% -> maybe start from 30% -. 10 step ?
-% upto 100%
-
-% test-run with multiple rt-cores in parallel .. ->> same tests again
-
-% Results = differences and conclusions
+This first implementation of the tool is simple and reduced in functionality. Although this simplicity, a set of performance tests will show if it allows some resource savings and to which extent.
 
 \section{Conclusions}
 \label{sec:conclusions}
@@ -921,9 +832,6 @@ In this report we have seen the concept of resource orchestration to increase ha
 Via a implementation example we have seen how static resource management is viable and opens the door to more complex orchestration scenarios. 
 We discussed algorithm variants, their advantages and possible difficulties.
 As a follow-up we plan to implement and test the adaptive and dynamic variants of the orchestration software.
-
-
-
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,bibliography,paper3}
