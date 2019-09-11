@@ -1,6 +1,6 @@
 #!/bin/bash
 source ~user/.bashrc
-launchDir="./logs"
+launchDir="/opt/usecase/logs"
 local_resultsDir="$launchDir/UC1.`date +%Y%m%d`"
 
 container_resultsDir="/home/logs"
@@ -9,18 +9,20 @@ fifoDir=/tmp
 fpsFile=$fifoDir/fps
 
 workerPolicy="--fifo"
-workerPriority=1
+workerPriority=99
 datageneratorPolicy="--fifo"
-datageneratorPriority=1
+datageneratorPriority=98
 datadistributorPolicy="--fifo"
-datadistributorPriority=1
+datadistributorPriority=97
+
+mkdir $launchDir
 
 #REGULAR
 #For executing the regular test, sleep 30 minutes between FPS changes
 #let sleepTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between FPS changes
-let sleepTime=2*60
+let sleepTime=30*60
 #TEMPORARY
 #For debugging, sleep 1 minute between FPS changes
 #let sleepTime=60
@@ -180,61 +182,61 @@ startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPo
 cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
 startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
 
-# echo "Sleeping for 30 seconds"
-# sleep 30
+echo "Sleeping for 30 seconds"
+sleep 30
 
-#     #Set initial FPS=24
-# let fps=24
-# echo "Set initial FPS = $fps"
-# echo $fps >>$fpsFile
+    #Set initial FPS=24
+let fps=24
+echo "Set initial FPS = $fps"
+echo $fps >>$fpsFile
 
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# i=3
-# let fps=${fps}+8
-# startNewTest $fps $i
+i=3
+let fps=${fps}+8
+startNewTest $fps $i
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# i=4
-# let fps=${fps}+8
-# startNewTest $fps $i
+i=4
+let fps=${fps}+8
+startNewTest $fps $i
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# i=5
-# let fps=${fps}+8
-# startNewTest $fps $i
+i=5
+let fps=${fps}+8
+startNewTest $fps $i
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# i=6
-# let fps=${fps}+8
-# startNewTest $fps $i
+i=6
+let fps=${fps}+8
+startNewTest $fps $i
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# i=7
-# let fps=${fps}+8
-# startNewTest $fps $i
+i=7
+let fps=${fps}+8
+startNewTest $fps $i
 
-# echo "Sleeping for $sleepTime seconds"
-# sleep $sleepTime
+echo "Sleeping for $sleepTime seconds"
+sleep $sleepTime
 
-# let fps=-2
-# echo "Setting FPS = $fps"
-# echo "$fps" >>$fpsFile
+let fps=-2
+echo "Setting FPS = $fps"
+echo "$fps" >>$fpsFile
 
-# echo "Sleeping for 2 minutes "
-# sleep 120
+echo "Sleeping for 2 minutes "
+sleep 120
 
-# echo "Calling killRemnantsFunc"
-# killRemnantsFunc
+echo "Calling killRemnantsFunc"
+killRemnantsFunc
 
 echo Exiting
