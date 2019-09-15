@@ -382,6 +382,20 @@ static void getpPids (node_t **pidlst, char * tag)
 }
 
 static contevent_t * lstevent;
+pthread_t thread_dlink;
+int  iret_dlink; // Timeout is set to 4 secs by default
+
+/// startDocker(): start docker verification thread
+///
+/// Arguments: 
+///
+/// Return value: 
+///
+static void startDocker() {
+	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
+
+}
+
 
 /// updateDocker(): pull event from dockerlink and verify
 ///
@@ -647,6 +661,9 @@ void *thread_update (void *arg)
 						policy_to_string(prgset->policy), prgset->priority);
 			}
 
+			// start docker link thread
+			startDocker();
+
 			// set lolcal variable -- all cpus set.
 			// TODO: adapt to cpu mask
 			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
@@ -733,6 +750,12 @@ void *thread_update (void *arg)
 
 		cc++;
 		cc%=prgset->loops;
+	}
+	// set stop sig
+
+	if (!iret_dlink) { // thread started successfully
+		pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+		iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
 	}
 	// TODO: Start using return value
 	return EXIT_SUCCESS;

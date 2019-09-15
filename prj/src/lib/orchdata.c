@@ -152,7 +152,7 @@ int node_findParams(node_t* node, struct containers * conts){
 	// check for image match fitst
 	while (NULL != img) {
 		// 12 is standard docker short signature
-		if(img->imgid && node->contid && !strncmp(img->imgid, node->imgid, 12)) {
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid, 12)) {
 			conts_t * imgcont = img->conts;	
 			// check for container match
 			while (NULL != imgcont) {

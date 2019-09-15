@@ -376,7 +376,7 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "rx", &pid)))
+				if (!(inpipe = popen2 (pcmd, "r", &pid)))
 					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
 
