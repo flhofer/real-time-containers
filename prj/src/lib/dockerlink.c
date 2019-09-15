@@ -23,7 +23,7 @@
 
 //// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
 
-#define PFX "[json] "
+#define PFX "[dockerlink] "
 #define PFL "         "PFX
 #define PIN PFX"    "
 #define PIN2 PIN"    "
@@ -414,26 +414,6 @@ void *thread_watch_docker(void *arg) {
 		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
-		else
-		if (1 == pstate) {
-			// abs-time relative interval shift
-
-			// calculate next execution intervall
-			intervaltv.tv_sec += INTERV_RFSH / USEC_PER_SEC;
-			intervaltv.tv_nsec+= (INTERV_RFSH % USEC_PER_SEC) * 1000;
-			tsnorm(&intervaltv);
-
-			// sleep for interval nanoseconds
-			ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &intervaltv, NULL);
-			if (0 != ret) {
-				// Set warning only.. shouldn't stop working
-				// probably overrun, restarts immediately in attempt to catch up
-				if (EINTR != ret) {
-					warn("clock_nanosleep() failed. errno: %s",strerror (ret));
-				}
-			}
-		}
-
 	}
 }
 

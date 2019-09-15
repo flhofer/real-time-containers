@@ -419,6 +419,18 @@ static void updateDocker() {
 				// do nothing, call for pids
 				// update container break
 				//settings;
+				;
+				node_t * linked = NULL;
+				push((void**)&linked, sizeof(node_t));
+				linked->pid = 0; // impossible id -> sets value for cnt only
+				linked->contid = lstevent->id;
+				linked->imgid = lstevent->image;
+
+				free(lstevent);
+				lstevent = NULL;
+				setPidResources(linked);
+
+				pop((void**)linked);
 				break;
 
 			case cnt_remove: ;
@@ -434,6 +446,7 @@ static void updateDocker() {
 				(void)pthread_mutex_unlock(&dataMutex);
 				break;
 
+			default:
 			case cnt_pending:
 				// clear last event, do nothing
 				free(lstevent);

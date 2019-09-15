@@ -203,17 +203,24 @@ int node_findParams(node_t* node, struct containers * conts){
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
-			push((void**)&img->pids, sizeof(pids_t));
-			img->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-			conts->pids->rscs = img->rscs;
-			conts->pids->attr = img->attr;
+			// add new items
+			push((void**)&conts->cont, sizeof(cont_t));
+			push((void**)&img->conts, sizeof(conts_t));
+			img->conts->cont = conts->cont; 
+			cont = conts->cont;
+			cont->img = img;
+
+			// assign values
+			cont->contid = node->contid;
+			cont->rscs = img->rscs;
+			cont->attr = img->attr;
 		}
-		else {
-			push((void**)&cont->pids, sizeof(pids_t));
-			cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-			conts->pids->rscs = cont->rscs;
-			conts->pids->attr = cont->attr;
-		}
+		// add to container pids
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		conts->pids->rscs = cont->rscs;
+		conts->pids->attr = cont->attr;
+
 		node->param = conts->pids;
 		node->param->img = img;
 		node->param->cont = cont;
