@@ -94,7 +94,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./schedstat -bfPn rt-app --policy=fifo > log/orchestrator.txt &
+	eval ./schedstat -f --policy=fifo > log/orchestrator.txt &
 	sleep 10
 	SPID=$(ps h -o pid -C schedstat)
 
