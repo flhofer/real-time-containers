@@ -1,0 +1,13 @@
+FROM debian
+
+RUN mkdir /home/logs && \
+    chmod 777 /home/logs
+
+RUN mkdir /home/tmp && \
+    chmod 777 /home/tmp
+
+COPY workerapp  /home/workerapp4
+
+CMD chrt $scheduling /home/workerapp4 $cmdargs > /home/logs/workerapp4.log 2>&1
+
+# CMD /home/workerapp4 $cmdargs > /home/logs/workerapp4.log 2>&1

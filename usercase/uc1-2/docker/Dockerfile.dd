@@ -1,0 +1,14 @@
+FROM debian
+
+#RUN apt-get update && apt-get install -y build-essential libcap-dev libnuma-dev  
+RUN mkdir /home/logs && \
+    chmod 777 /home/logs
+
+RUN mkdir /home/tmp && \
+    chmod 777 /home/tmp
+
+COPY datagenerator /home/datadistributor
+
+CMD chrt $scheduling /home/datadistributor $cmdargs >/home/logs/datadistributor.log 2>&1
+
+# CMD /home/datadistributor $cmdargs >/home/logs/datadistributor.log 2>&1
