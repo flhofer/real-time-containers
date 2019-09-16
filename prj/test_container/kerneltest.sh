@@ -109,7 +109,11 @@ function update_kernel () {
 	# update grub menu
 	update-grub2
 	if [ ! "$?" -eq 0 ]; then
-		exit 1
+		echo "grub failed.. retry in 5.."
+		sleep 5
+		update-grub2
+		if [ ! "$?" -eq 0 ]; then
+			exit 1
 	fi
 }
 
@@ -133,7 +137,7 @@ else
 	sleep 60
 	echo "... run test"
 	#execute test
-	./test.sh quiet 1
+	./test.sh quiet 
 	#move tests to their directory
 	mkdir -p log/test${runno}
 	mv log/?-* log/test${runno}/
