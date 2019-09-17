@@ -1,6 +1,6 @@
 #!/bin/bash
-source ~user/.bashrc
-launchDir="./logs"
+#source ~user/.bashrc
+launchDir="/opt/usecase/logs"
 base_resultsDir="$launchDir/UC2.`date +%Y%m%d`"
 container_resultsDir="/home/logs"
 local_resultsDir="$base_resultsDir"
