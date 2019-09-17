@@ -24,13 +24,18 @@ void monitorDesiredFPS(const char *fileName, int &desiredFPS, OptParams &params,
     spec.tv_sec = 0;
     spec.tv_nsec = 250*1e6;  //sleep for 250 ms between checks
     bool initialFPS = true;
+    int bytesRead = 0;
     while (!terminateProcess)
     {
         if (fgets(buf, maxChars, fpsIn) != buf )
         {
+            if(feof(fpsIn))
+                fseek(fpsIn, bytesRead, SEEK_SET);
+            
             clock_nanosleep(CLOCK_REALTIME, 0, &spec, NULL);
             continue;
         }
+        bytesRead+= strlen(buf);
         nxtFPS = std::stoi(buf);
 
         if (nxtFPS == (int)terminationMsg)
