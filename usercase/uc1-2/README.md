@@ -42,7 +42,7 @@ sudo ./runDockerUC1.sh
 ```
 The test runs for **3 hours** following a dynamic schedule (the containers can dynamically transition to next stage) shown in the table
 
-| Time                  | Num Workers   | FPS   |
+| Time                  | Workers   | FPS   |
 | -------------         |:-------------:| -----:|
 | 0-30 Minutes          | 3             | 24    |
 | 30-60 Minutes         | 4             | 32    |
@@ -68,14 +68,15 @@ sudo ./runDockerUC2.sh
 ```
 The test runs for **3 hours** following a static schedule (the containers are killed and restarted with new parameters) shown in the table:
 
-| Time                  | Num Workers   | 
-| -------------         |:-------------:| 
-| 0-30 Minutes          | 3             | 
-| 30-60 Minutes         | 4             | 
-| 60-90 Minutes         | 5             | 
-| 90-120 Minutes        | 6             | 
-| 120-150 Minutes       | 7             |
-| 150-180 Minutes       | 8             |
+| Time                   | Workers   |
+| -------------          | -------------:|
+| 0-30 Minutes           | 3    |
+| 30-60 Minutes          | 4    |
+| 60-90 Minutes          | 5    |
+| 90-120 Minutes         | 6    |
+| 120-150 Minutes        | 7    |
+| 150-180 Minutes        | 8    |
+
 *Data Generator* is scheduled with **SCHED_FIFO 98** while *Workers* are scheduled using **SCHED_DEADLINE** policy.
 
 At test completion, full results are available under **/opt/usecase/logs**
