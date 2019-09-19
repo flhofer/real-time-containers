@@ -54,7 +54,7 @@ if [[ "$cmd" == "build" ]]; then
 elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 # CREATE CONTAINERS OF GRP
 
-	eval "mkdir log"
+	eval "mkdir -p log"
 	eval "chown 1000:1000 log"
 
 	while [ "$2" != "" ]; do
@@ -94,7 +94,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./schedstat -f --policy=fifo > log/orchestrator.txt &
+	eval ./schedstat -df --policy=fifo > log/orchestrator.txt &
 	sleep 10
 	SPID=$(ps h -o pid -C schedstat)
 

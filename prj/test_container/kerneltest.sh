@@ -114,6 +114,7 @@ function update_kernel () {
 		update-grub2
 		if [ ! "$?" -eq 0 ]; then
 			exit 1
+		fi
 	fi
 }
 
