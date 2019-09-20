@@ -66,16 +66,13 @@ To run UseCase-2 execute the script
 ```
 sudo ./runDockerUC2.sh
 ```
-The test runs for **3 hours** following a static schedule (the containers are killed and restarted with new parameters) shown in the table:
+The test runs for **90 minutes** following a static schedule (the containers are killed and restarted with new parameters) shown in the table:
 
 | Time                   | Workers   |
 | -------------          | -------------:|
 | 0-30 Minutes           | 3    |
 | 30-60 Minutes          | 4    |
 | 60-90 Minutes          | 5    |
-| 90-120 Minutes         | 6    |
-| 120-150 Minutes        | 7    |
-| 150-180 Minutes        | 8    |
 
 *Data Generator* is scheduled with **SCHED_FIFO 99** while *Workers* are scheduled using **SCHED_DEADLINE** policy.
 
