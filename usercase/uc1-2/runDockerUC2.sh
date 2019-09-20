@@ -226,17 +226,17 @@ runTest() {
         startWorkerPolling $ip $workerPeriodPolling
     done
 
-    #Launch event-driven workers
-    for (( iw=0 ; iw<maxWorkers; iw++ )); do
-        let instance=5+$iw
-        echo "Calling startWorkerEventDriven $instance"
-        startWorkerEventDriven $instance 
-    done
+    # #Launch event-driven workers
+    # for (( iw=0 ; iw<maxWorkers; iw++ )); do
+    #     let instance=5+$iw
+    #     echo "Calling startWorkerEventDriven $instance"
+    #     startWorkerEventDriven $instance 
+    # done
 
 
-    #Launch Event-driver datagenerator
-    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
-    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
+    # #Launch Event-driver datagenerator
+    # cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    # startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
