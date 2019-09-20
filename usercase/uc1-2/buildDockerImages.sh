@@ -16,7 +16,8 @@ echo
 echo "Stop all running workerapp containers"
 docker rm $(docker stop $(docker ps -a | egrep -e 'datagenerator|datadistributor|workerapp' | awk '{print $1}'))
 
-for (( i=0; i<10; i++ )); do
+for i in 0 1 2 3 4 4 5 6 7 8 9
+do
     docker image rm -f rt-workerapp$i
 done
 
@@ -28,7 +29,8 @@ echo "Docker images before build:"
 docker images
 echo
 
-for (( i=0; i<10; i++ )); do
+for i in 0 1 2 3 4 5 6 7 8 9
+do
     docker build -f ./Dockerfile.wa$i -t rt-workerapp$i .
 done
 
