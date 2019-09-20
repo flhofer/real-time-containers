@@ -9,6 +9,6 @@ RUN mkdir /home/tmp && \
 
 COPY datagenerator  /home/datagenerator
 
-CMD chrt $scheduling /home/datagenerator $cmdargs > /home/logs/datagenerator.log 2>&1
+CMD chrt $scheduling /home/datagenerator $cmdargs > /home/logs/datagenerator$sch.log 2>&1
 
 # CMD /home/datagenerator $cmdargs > /home/logs/datagenerator.log 2>&1

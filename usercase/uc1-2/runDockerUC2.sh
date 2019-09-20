@@ -9,7 +9,7 @@ fpsFile=$fifoDir/fps
 if [ $# -gt 0 ] ; then
     totalTests=$1
 else
-    totalTests=1
+    totalTests=3
 fi
 
 echo "totalTests=$totalTests"
@@ -48,7 +48,7 @@ datadistributorPriority=97
 #let testTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between tests
-let testTime=2*60
+let testTime=30*60
 #TEMPORARY
 #For debugging, sleep 1 minute between tests
 #let testTime=60
@@ -106,6 +106,7 @@ startContainer() {
     cmdargs="$2"
     progName=$3
     scheduling="$4"
+    sch="$5"
     
     echo "Launching $imageName (executable $progName) with argument [$cmdargs] and scheduling [$scheduling]. local_resultsDir=$local_resultsDir "
 
@@ -113,6 +114,7 @@ startContainer() {
 	    -d \
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling" \
+        -e sch="$sch"  \
 	    -v $fifoDir:"$fifoDir"  \
 	    -v "$local_resultsDir":"$container_resultsDir" \
 	    --privileged \
@@ -148,10 +150,11 @@ startFIFOorRRContainer() {
     progName=$3
     policy="$4"
     priority=$5
+    sch="$6"
 
     scheduling="$policy $priority"
     echo "startFIFOorRRContainer: scheduling=[$scheduling]"
-    startContainer $imageName "$cmdargs" $progName "$scheduling"
+    startContainer $imageName "$cmdargs" $progName "$scheduling" "$sch"
 }
     
 startDeadlineContainer() {
@@ -165,6 +168,7 @@ startDeadlineContainer() {
     runtime="$4"
     period=$5
     deadline=$6
+    sch="$7"
     
     echo "startDeadlineContainer: imageName=[$1], progName=[$progName] runtime=$runtime, period=$period, deadline=$deadline"
 
@@ -174,7 +178,7 @@ startDeadlineContainer() {
     scheduling="--deadline --sched-runtime $runtime --sched-period $period --sched-deadline $deadline 0 "   
     echo "                        scheduling=[ $scheduling ]"
 
-    startContainer $imageName "$cmdargs" $progName "$scheduling"
+    startContainer $imageName "$cmdargs" $progName "$scheduling" "$7"
 }
 
 startWorkerEventDriven() {
@@ -185,7 +189,7 @@ startWorkerEventDriven() {
     imageName=${baseworkerImage}$i
     progName=workerapp${i}
     cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 500 --basePipeName $fifoDir/worker --endInSeconds $testTime"
-    startFIFOorRRContainer $imageName "$cmdargs" workerapp$i "$workerPolicyEvent" $workerPriorityEvent
+    startFIFOorRRContainer $imageName "$cmdargs" workerapp$i "$workerPolicyEvent" $workerPriorityEvent "-fifo"
 }
     
 startWorkerPolling() {
@@ -197,9 +201,9 @@ startWorkerPolling() {
     baseworkerImage=rt-workerapp
     imageName=${baseworkerImage}$i
     progName=workerapp${i}
-    cmdargs="--instnum $i --innerloops 25 --outerloops 50 --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
+    cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
 
-    startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling
+    startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling "-deadline"
 }
 
 runTest() {
@@ -232,11 +236,11 @@ runTest() {
 
     #Launch Event-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
-    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
+    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
-    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
+    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-deadline"
 
     echo "Sleeping for $testTime seconds"
     sleep $testTime

@@ -22,7 +22,7 @@ mkdir $launchDir
 #let sleepTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between FPS changes
-let sleepTime=1*60
+let sleepTime=30*60
 #TEMPORARY
 #For debugging, sleep 1 minute between FPS changes
 #let sleepTime=60
@@ -85,6 +85,7 @@ startContainer() {
 	    -d \
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling"   \
+        -e sch=""  \
 	    -v $fifoDir:"$fifoDir"  \
 	    -v "$local_resultsDir":"$container_resultsDir" \
 	    --privileged \
