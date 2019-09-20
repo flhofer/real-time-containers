@@ -1,5 +1,5 @@
 #!/bin/bash
-source ~user/.bashrc
+#source ~user/.bashrc
 launchDir="/opt/usecase/logs"
 local_resultsDir="$launchDir/UC1.`date +%Y%m%d`"
 
@@ -22,7 +22,7 @@ mkdir $launchDir
 #let sleepTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between FPS changes
-let sleepTime=30*60
+let sleepTime=1*60
 #TEMPORARY
 #For debugging, sleep 1 minute between FPS changes
 #let sleepTime=60

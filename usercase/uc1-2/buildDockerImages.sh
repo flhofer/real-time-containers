@@ -16,7 +16,7 @@ echo
 echo "Stop all running workerapp containers"
 docker rm $(docker stop $(docker ps -a | egrep -e 'datagenerator|datadistributor|workerapp' | awk '{print $1}'))
 
-for (( i=0; i<10; i++ ));do
+for (( i=0; i<10; i++ )); do
     docker image rm -f rt-workerapp$i
 done
 

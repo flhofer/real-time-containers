@@ -70,14 +70,25 @@ void openPipeAndGenerateData(PipeStruct *pWritePipe, PipeStruct * pReadPipe, Opt
         ++numPipes; //main has to know how many pipes are open
         generateData(pWritePipe, pReadPipe, params, n, 1);
     }
+    else
+    {
+        fprintf(stderr, "DataGenerator.cpp:393: Error Opening pipe for %s\n", progName);
+    }
+    
 }
 
 //Thread function which just does a blocking open on a write pipe
 // and increments the atomic variable numPipes when the call returns successfully
 void updateOpenWritePipes(PipeStruct *p, std::atomic<int> &numPipes)
 {
-    if (p->openPipe(O_WRONLY, progName) != -1)
+    if (p->openPipe(O_WRONLY, progName) != -1){
         ++numPipes;
+    }
+    else
+    {
+        fprintf(stderr, "DataGenerator.cpp:407: Error Opening pipe for %s\n", progName);
+    }
+        
 }
 
 void signal_handler(int signal)
@@ -139,7 +150,12 @@ int main(int argc, char *argv[])
 
     std::atomic_int numPipes(0);
     std::thread singleThread;
-    std::thread fpsMonitorThread;
+    std::thread monitorThread;
+
+    /* Delete and recreate FPS file */
+    
+    int fd = open(fpsName, O_WRONLY|O_CREAT|O_TRUNC);
+    close(fd);
 
     /********************************************
      * Create threads to generate/read data, publish,
@@ -159,6 +175,8 @@ int main(int argc, char *argv[])
                 //Data Distributor only
                 if (pReadPipe->openPipe(O_RDONLY, progName) == -1)
                 {
+                    fprintf(stderr, "DataGenerator.cpp:491: Error Opening pipe for %s\n", progName.c_str());
+
                     exit(-1);
                 }
             }
@@ -180,8 +198,8 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "%s: successfully executed mlockall and start_low_latency\n", progName.c_str());
 #endif
                 
-                fprintf(stderr, "Creating fpsMonitorThread\n");
-                fpsMonitorThread = std::thread(monitorDesiredFPS, fpsName, std::ref(desiredFPS), std::ref(optParams), 60 );
+                fprintf(stderr, "Creating monitorThread desiredFPS: %d\n", desiredFPS);
+                monitorThread = std::thread(monitorDesiredFPS, fpsName, std::ref(desiredFPS), std::ref(optParams), 60 );
             }
         
             PipeStruct *p = pWritePipes;
@@ -227,6 +245,10 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Use Case 2 Polling: Creating singleThread generateData \n");
                 singleThread = std::thread(generateData, pWritePipes, pReadPipe, std::ref(optParams), std::ref(numPipes), optParams.maxWritePipes );
             }
+           
+            fprintf(stderr, "Thread to control worker process lifetime.\n");
+            monitorThread = std::thread(monitorFPSFileForTermination, fpsName, std::ref(desiredFPS), std::ref(optParams));
+
             break;
         }
     default:
@@ -244,16 +266,15 @@ int main(int argc, char *argv[])
     else
         optParams.dbg && fprintf(stderr, "%s: singleThread is NOT joinable\n", progName.c_str());
 
-    if (optParams.datagenerator == 1)
+    if (optParams.datagenerator >= 1)
     {
-        if (fpsMonitorThread.joinable())
-        
+        if (monitorThread.joinable())
         {
-            fpsMonitorThread.join();
-            fprintf(stderr, "%s: fpsThread has been joined\n", progName.c_str());
+            monitorThread.join();
+            fprintf(stderr, "%s: monitorThread has been joined\n", progName.c_str());
         }
         else
-            optParams.dbg && fprintf(stderr, "%s: fpsMonitorThread is NOT joinable\n", progName.c_str());
+            optParams.dbg && fprintf(stderr, "%s: monitorThread is NOT joinable\n", progName.c_str());
     }    
 
     PipeStruct *p = pWritePipes;
