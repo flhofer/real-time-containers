@@ -308,7 +308,7 @@ static void prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
-	if (SCHED_RR == set->policy && 0 < set->rrtime) {
+	if (SCHED_RR == set->policy && 0 < set->rrtime) { //TODO: rrtime always?
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (!setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
@@ -644,7 +644,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 						// fileprefix still pointing to system/
 						if (!setkernvar(fileprefix, "tasks", pid, set->dryrun)){
-							printDbg( KMAG "Warn!" KNRM " Can not move task %s", pid);
+							printDbg( "Warn! Can not move task %s\n", pid);
 							mtask++;
 						}
 						nleft-=strlen(pid)+1;
