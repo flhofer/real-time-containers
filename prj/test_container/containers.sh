@@ -35,7 +35,7 @@ Usag: ./container.sh command testgrp
 
 Defaults are:
 command = start         command to apply to containers in group
-testgrp = *		all test groups present are applied (once per json)
+testgrp = *             all test groups present are applied (once per json)
 EOF
         exit 1
 fi
@@ -90,6 +90,7 @@ elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; 
 
 elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
+	echo "Starting 15 min tests"
 	# remove old log file first 
 	eval "rm log/orchestrator.txt"
 
@@ -111,7 +112,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	    # Shift all the parameters down by one
 	    shift
 	done
-	sleep 60
+	sleep 900
 
 	# end orchestrator
 	kill -SIGINT $SPID
