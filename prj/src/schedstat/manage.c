@@ -36,11 +36,6 @@ static uint64_t scount = 0; // total scan count
 	#define _POSIX_PATH_MAX 1024
 #endif
 
-// Included in kernel 4.13
-#ifndef SCHED_FLAG_RECLAIM
-	#define SCHED_FLAG_RECLAIM		0x02
-#endif
-
 // Included in kernel 4.16
 #ifndef SCHED_FLAG_DL_OVERRUN
 	#define SCHED_FLAG_DL_OVERRUN		0x04

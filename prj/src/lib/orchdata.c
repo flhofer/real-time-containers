@@ -168,6 +168,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		img = img->next; 
 	}
 
+	// we might have found the image, but still 
 	// not in the images, check all containers
 	if (!cont) {
 		cont = conts->cont;
