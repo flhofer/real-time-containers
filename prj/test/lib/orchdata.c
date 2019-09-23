@@ -342,6 +342,7 @@ START_TEST(orchdata_pidcont)
 END_TEST
 
 static void orchdata_tc2_setup () {
+
 	// container
 	push((void**)&contparm->cont, sizeof(cont_t));
 	cont_t * cont = contparm->cont;
@@ -384,9 +385,32 @@ static void orchdata_tc2_setup () {
 		}
 	}
 
+	// image by tag
+	push((void**)&contparm->img, sizeof(img_t));
+	img_t * img = contparm->img;
+	img->imgid= strdup("testimg");
+	// relate to last container
+	push((void**)&img->conts, sizeof(conts_t));
+	img->conts->cont = cont;
+	// image by digest
+	push((void**)&contparm->img, sizeof(img_t));
+	img = contparm->img;
+	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
+
 }
 
 static void orchdata_tc2_teardown () {
+
+	while (contparm->img){
+		while (contparm->img->conts)
+			pop((void**)&contparm->img->conts);
+
+		while (contparm->img->pids)
+			pop((void**)&contparm->img->pids);
+
+		free (contparm->img->imgid);
+		pop((void**)&contparm->img);
+	}
 
 	while (contparm->cont){
 		while (contparm->cont->pids)
@@ -418,6 +442,58 @@ START_TEST(orchdata_findparams)
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
 
+	node_pop(&head);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find 
+/// EXPECTED -> verifies that all parameters are found as expected 
+START_TEST(orchdata_findparams_cont)
+{	
+	// complete match, center, beginning, end
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
+
+	node_push(&head);
+	head->psig = strdup(sigs[_i]);
+	head->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
+	int retv = node_findParams(head , contparm);
+	
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param->cont);
+	ck_assert(head->param->cont->contid);
+	ck_assert_str_eq(head->param->cont->contid, head->contid);
+
+	node_pop(&head);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find 
+/// EXPECTED -> verifies that all parameters are found as expected 
+START_TEST(orchdata_findparams_image)
+{	
+	// complete match, center, beginning, end
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
+
+	node_push(&head);
+	head->psig = strdup(sigs[_i]);
+	head->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
+	head->imgid = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
+	int retv = node_findParams(head , contparm);
+	
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param->img);
+	ck_assert(head->param->img->imgid);
+	ck_assert_str_eq(head->param->img->imgid, head->imgid);
+
+	
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param->cont);
+	ck_assert(head->param->cont->contid);
+	ck_assert_str_eq(head->param->cont->contid, head->contid);
+	
 	node_pop(&head);
 }
 END_TEST
@@ -461,6 +537,8 @@ void library_orchdata (Suite * s) {
 	tcase_add_unchecked_fixture(tc2, orchdata_setup, orchdata_teardown);
 	tcase_add_checked_fixture(tc2, orchdata_tc2_setup, orchdata_tc2_teardown);
 	tcase_add_loop_test(tc2, orchdata_findparams, 0, 4);
+	tcase_add_loop_test(tc2, orchdata_findparams_cont, 0, 4);
+	tcase_add_loop_test(tc2, orchdata_findparams_image, 0, 4);
 	tcase_add_loop_test(tc2, orchdata_findparams_fail, 0, 4);
     suite_add_tcase(s, tc2);
 

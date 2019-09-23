@@ -108,13 +108,11 @@ function update_kernel () {
 
 	# update grub menu
 	update-grub2
-	if [ ! "$?" -eq 0 ]; then
-		echo "grub failed.. retry in 5.."
-		sleep 5
-		update-grub2
-		if [ ! "$?" -eq 0 ]; then
-			exit 1
-		fi
+	old=$?
+	if [ "$old" -ne 0 ]; then
+		echo "update-grub failed.."
+		eval echo "$old" >> return.txt
+		exit 1
 	fi
 }
 

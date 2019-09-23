@@ -315,6 +315,8 @@ int string_to_policy(const char *policy_name, uint32_t *policy)
 		*policy =  SCHED_FIFO;
 	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
 		*policy =  SCHED_DEADLINE;
+	else if (strcmp(policy_name, "default") == 0) // No change to programm settings 
+		*policy =  SCHED_NODATA;
 	else
 		return -1;
 	return 0;
