@@ -187,6 +187,8 @@ int node_findParams(node_t* node, struct containers * conts){
 	if (img || cont) {
 		// read all associated pids. Is it there?
 
+		// TODO: if container has no settings, use image. Even just for one
+
 		// assign pids from cont or img, depending whats found
 		int useimg = (img && !cont);
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
@@ -199,6 +201,8 @@ int node_findParams(node_t* node, struct containers * conts){
 			}
 			curr = curr->next; 
 		}
+
+		// TODO: - Expand to double check also image.
 
 		// found? if not, create entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
