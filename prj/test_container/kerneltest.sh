@@ -108,9 +108,10 @@ function update_kernel () {
 
 	# update grub menu
 	update-grub2
-	if [ "$?" -ne 0 ]; then
+	old=$?
+	if [ "$old" -ne 0 ]; then
 		echo "update-grub failed.."
-		eval echo "$? d" >> return.txt
+		eval echo "$old" >> return.txt
 		exit 1
 	fi
 }
