@@ -354,6 +354,9 @@ static void orchdata_tc2_setup () {
 								"hard 5",
 								NULL };
 
+		cont->rscs = contparm->rscs;
+		cont->attr = contparm->attr;
+
 		const char ** pidsig = pids;
 		while (*pidsig) {
 			// new pid
@@ -361,19 +364,37 @@ static void orchdata_tc2_setup () {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
 			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;
 			pidsig++;
 		}
+
 	}
 	
+	// image by digest
+	push((void**)&contparm->img, sizeof(img_t));
+	img_t * img = contparm->img;
+	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
+	img->rscs = contparm->rscs;
+	img->attr = contparm->attr;
+
+	// image by tag
+	push((void**)&contparm->img, sizeof(img_t));
+	img = contparm->img;
+	img->imgid= strdup("testimg");
+	img->rscs = contparm->rscs;
+	img->attr = contparm->attr;
+
 	{	
 		// add one more container
 		push((void**)&contparm->cont, sizeof(cont_t));
 		cont = contparm->cont;
 		cont->contid=strdup("d7408531a3b4d7408531a3b4");
+		cont->rscs = img->rscs;
+		cont->attr = img->attr;
 
 		const char *pids[] = {	"p 4",
 								NULL };
-
 		const char ** pidsig = pids;
 		while (*pidsig) {
 			// new pid
@@ -381,21 +402,15 @@ static void orchdata_tc2_setup () {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
 			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;			
 			pidsig++;
 		}
 	}
 
-	// image by tag
-	push((void**)&contparm->img, sizeof(img_t));
-	img_t * img = contparm->img;
-	img->imgid= strdup("testimg");
-	// relate to last container
+	// relate to last container - image by tag
 	push((void**)&img->conts, sizeof(conts_t));
 	img->conts->cont = cont;
-	// image by digest
-	push((void**)&contparm->img, sizeof(img_t));
-	img = contparm->img;
-	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
 
 }
 
@@ -441,6 +456,8 @@ START_TEST(orchdata_findparams)
 	
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
+	ck_assert(head->param->rscs);
+	ck_assert(head->param->attr);
 
 	node_pop(&head);
 }
@@ -463,6 +480,8 @@ START_TEST(orchdata_findparams_cont)
 	ck_assert(head->param->cont);
 	ck_assert(head->param->cont->contid);
 	ck_assert_str_eq(head->param->cont->contid, head->contid);
+	ck_assert(head->param->rscs);
+	ck_assert(head->param->attr);
 
 	node_pop(&head);
 }
@@ -483,16 +502,24 @@ START_TEST(orchdata_findparams_image)
 	
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
+	ck_assert(head->param->rscs);
+	ck_assert(head->param->attr);
+
 	ck_assert(head->param->img);
 	ck_assert(head->param->img->imgid);
 	ck_assert_str_eq(head->param->img->imgid, head->imgid);
+	ck_assert(head->param->img->rscs);
+	ck_assert(head->param->img->attr);
 
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
 	ck_assert(head->param->cont);
 	ck_assert(head->param->cont->contid || _i >= 2);
-	if (_i<2)
+	if (_i<2) {
 		ck_assert_str_eq(head->param->cont->contid, head->contid);
+		ck_assert(head->param->cont->rscs);
+		ck_assert(head->param->cont->attr);
+	}
 	
 	node_pop(&head);
 }
