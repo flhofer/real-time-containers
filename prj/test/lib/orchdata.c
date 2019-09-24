@@ -496,8 +496,8 @@ START_TEST(orchdata_findparams_image)
 
 	node_push(&head);
 	head->psig = strdup(sigs[_i]);
-	head->contid = _i  >= 2 ? NULL : strdup("d7408531a3b4d7408531a3b4");
-	head->imgid = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
+	head->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
+	head->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
 	int retv = node_findParams(head , contparm);
 	
 	ck_assert_int_eq(retv, 0);
@@ -532,12 +532,35 @@ START_TEST(orchdata_findparams_fail)
 	// complete match, center, beginning, end
 	node_push(&head);
 	head->psig = _i 		? NULL : strdup("wleep 1 as");
-	head->imgid = _i == 2 	? NULL : strdup("32aeede2352d57f52");
 	head->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
+	head->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
 	int retv = node_findParams(head , contparm);
 	
 	ck_assert_int_eq(retv, -1);
 	ck_assert(!head->param);
+
+	node_pop(&head);
+}
+END_TEST
+
+
+/// TEST CASE -> test configuration find 
+/// EXPECTED -> verifies that with data from dockerlink the function finds the parameters
+START_TEST(orchdata_findparams_link)
+{	
+	// complete match, center, beginning, end
+	node_push(&head);
+	head->pid = 0;
+	head->psig = NULL;
+	head->contid = _i == 1 	? NULL : strdup("d7408531a3b4d7408531a3b4");
+	head->imgid  = _i == 0 	? NULL : strdup("51c3cc77fcf051c3cc77fcf0");
+	int retv = node_findParams(head , contparm);
+	
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param);
+	ck_assert(head->param->rscs);
+	ck_assert(head->param->attr);
 
 	node_pop(&head);
 }
@@ -567,6 +590,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_loop_test(tc2, orchdata_findparams_cont, 0, 4);
 	tcase_add_loop_test(tc2, orchdata_findparams_image, 0, 4);
 	tcase_add_loop_test(tc2, orchdata_findparams_fail, 0, 4);
+	tcase_add_loop_test(tc2, orchdata_findparams_link, 0, 2);
     suite_add_tcase(s, tc2);
 
 	return;
