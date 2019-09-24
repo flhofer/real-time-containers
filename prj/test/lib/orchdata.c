@@ -477,7 +477,7 @@ START_TEST(orchdata_findparams_image)
 
 	node_push(&head);
 	head->psig = strdup(sigs[_i]);
-	head->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
+	head->contid = _i  >= 2 ? NULL : strdup("d7408531a3b4d7408531a3b4");
 	head->imgid = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
 	int retv = node_findParams(head , contparm);
 	
@@ -487,12 +487,12 @@ START_TEST(orchdata_findparams_image)
 	ck_assert(head->param->img->imgid);
 	ck_assert_str_eq(head->param->img->imgid, head->imgid);
 
-	
 	ck_assert_int_eq(retv, 0);
 	ck_assert(head->param);
 	ck_assert(head->param->cont);
-	ck_assert(head->param->cont->contid);
-	ck_assert_str_eq(head->param->cont->contid, head->contid);
+	ck_assert(head->param->cont->contid || _i >= 2);
+	if (_i<2)
+		ck_assert_str_eq(head->param->cont->contid, head->contid);
 	
 	node_pop(&head);
 }
