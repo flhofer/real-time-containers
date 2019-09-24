@@ -426,7 +426,7 @@ static void updateDocker() {
 				//settings;
 				;
 				node_t * linked = NULL;
-				node_push(linked);
+				node_push(&linked);
 				linked->pid = 0; // impossible id -> sets value for cnt only
 				linked->contid = lstevent->id;
 				linked->imgid = lstevent->image;
@@ -435,7 +435,7 @@ static void updateDocker() {
 				lstevent = NULL;
 				setPidResources(linked);
 
-				node_pop(linked);
+				node_pop(&linked);
 				break;
 
 			case cnt_remove: ;
