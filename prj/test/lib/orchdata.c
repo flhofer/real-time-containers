@@ -443,6 +443,33 @@ static void orchdata_tc2_teardown () {
 	node_pop(&head);
 }
 
+static void findparamsCheck (int imgtest, int conttest) {	
+
+	int retv = node_findParams(head , contparm);
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param->rscs);
+	ck_assert(head->param->attr);
+
+	if (imgtest){
+		ck_assert(head->param->img);
+		ck_assert(head->param->img->imgid);
+		ck_assert_str_eq(head->param->img->imgid, head->imgid);
+		ck_assert(head->param->img->rscs);
+		ck_assert(head->param->img->attr);
+	}
+
+	ck_assert_int_eq(retv, 0);
+	ck_assert(head->param);
+	ck_assert(head->param->cont);
+	ck_assert(head->param->cont->contid || !(conttest));
+	if (conttest) {
+		ck_assert_str_eq(head->param->cont->contid, head->contid);
+		ck_assert(head->param->cont->rscs);
+		ck_assert(head->param->cont->attr);
+	}
+}
+
 /// TEST CASE -> test configuration find 
 /// EXPECTED -> verifies that all parameters are found as expected 
 START_TEST(orchdata_findparams)
@@ -498,29 +525,9 @@ START_TEST(orchdata_findparams_image)
 	head->psig = strdup(sigs[_i]);
 	head->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
 	head->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
-	int retv = node_findParams(head , contparm);
-	
-	ck_assert_int_eq(retv, 0);
-	ck_assert(head->param);
-	ck_assert(head->param->rscs);
-	ck_assert(head->param->attr);
 
-	ck_assert(head->param->img);
-	ck_assert(head->param->img->imgid);
-	ck_assert_str_eq(head->param->img->imgid, head->imgid);
-	ck_assert(head->param->img->rscs);
-	ck_assert(head->param->img->attr);
+	findparamsCheck( 0, (_i<2) );
 
-	ck_assert_int_eq(retv, 0);
-	ck_assert(head->param);
-	ck_assert(head->param->cont);
-	ck_assert(head->param->cont->contid || _i >= 2);
-	if (_i<2) {
-		ck_assert_str_eq(head->param->cont->contid, head->contid);
-		ck_assert(head->param->cont->rscs);
-		ck_assert(head->param->cont->attr);
-	}
-	
 	node_pop(&head);
 }
 END_TEST
