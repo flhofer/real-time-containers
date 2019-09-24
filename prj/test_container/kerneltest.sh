@@ -107,13 +107,7 @@ function update_kernel () {
 	fi
 
 	# update grub menu
-	update-grub2
-	old=$?
-	if [ "$old" -ne 0 ]; then
-		echo "update-grub failed.."
-		eval echo "$old" >> return.txt
-		exit 1
-	fi
+	eval /usr/sbin/update-grub
 }
 
 function update_runno () {
@@ -147,5 +141,5 @@ update_runno
 update_kernel
 
 #reboot system
-reboot
+eval /sbin/reboot
 
