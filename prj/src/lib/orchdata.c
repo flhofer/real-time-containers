@@ -138,6 +138,19 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 			 getTail((struct base *)*head), compar); 
 }
 
+static inline void duplicateContainer(node_t* node, struct containers * conts, cont_t ** cont) {
+	push((void**)&conts->cont, sizeof(cont_t));
+	// copy contents but skip first pointer, pidlist can be referenced -> forking, add only
+	(void)memcpy((void*)conts->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
+		sizeof(cont_t) - sizeof(cont_t *));
+	// update pointer to newly updated, assign id
+	*cont = conts->cont;
+	(*cont)->contid = strdup(node->contid);
+
+	free(node->psig); // clear entry to avoid confusion
+	node->psig = NULL;
+}
+
 /// node_findParams(): assigns the PID parameters list of a running container
 //
 /// Arguments: - node to chek for matching parameters
@@ -152,14 +165,22 @@ int node_findParams(node_t* node, struct containers * conts){
 	// check for image match fitst
 	while (NULL != img) {
 		// 12 is standard docker short signature
-		if(img->imgid && node->contid && !strncmp(img->imgid, node->imgid, 12)) {
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid, 12)) {
 			conts_t * imgcont = img->conts;	
 			// check for container match
 			while (NULL != imgcont) {
-				// 12 is standard docker short signature
-				if(imgcont->cont->contid && node->contid && !strncmp(imgcont->cont->contid, node->contid, 12)) {
-					cont = imgcont->cont;
-					break;
+				if (imgcont->cont->contid && node->contid) {
+					// 12 is standard docker short signature
+					if  (!strncmp(imgcont->cont->contid, node->contid, 12)) {
+						cont = imgcont->cont;
+						break;
+					}
+					// if node pid = 0, psig is the name of the container coming from dockerlink
+					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
+						cont = imgcont->cont;
+						duplicateContainer(node, conts, &cont);
+						break;
+					}
 				}
 				imgcont = imgcont->next; 
 			}
@@ -168,6 +189,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		img = img->next; 
 	}
 
+	// we might have found the image, but still 
 	// not in the images, check all containers
 	if (!cont) {
 		cont = conts->cont;
@@ -175,8 +197,15 @@ int node_findParams(node_t* node, struct containers * conts){
 		// check for container match
 		while (NULL != cont) {
 			// 12 is standard docker short signature
-			if(cont->contid && node->contid && !strncmp(cont->contid, node->contid, 12)) {
-				break;
+			if(cont->contid && node->contid) {
+				if (!strncmp(cont->contid, node->contid, 12))
+					break;
+
+				// if node pid = 0, psig is the name of the container coming from dockerlink
+				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
+					duplicateContainer(node, conts, &cont);
+					break;
+				}
 			}
 			cont = cont->next; 
 		}
@@ -185,6 +214,8 @@ int node_findParams(node_t* node, struct containers * conts){
 	// did we find a container match?
 	if (img || cont) {
 		// read all associated pids. Is it there?
+
+		// TODO: if container has no settings, use image. Even just for one
 
 		// assign pids from cont or img, depending whats found
 		int useimg = (img && !cont);
@@ -199,21 +230,30 @@ int node_findParams(node_t* node, struct containers * conts){
 			curr = curr->next; 
 		}
 
+		// TODO: - Expand to double check also image.
+
 		// found? if not, create entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
-			push((void**)&img->pids, sizeof(pids_t));
-			img->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-			conts->pids->rscs = img->rscs;
-			conts->pids->attr = img->attr;
+			// add new items
+			push((void**)&conts->cont, sizeof(cont_t));
+			push((void**)&img->conts, sizeof(conts_t));
+			img->conts->cont = conts->cont; 
+			cont = conts->cont;
+			cont->img = img;
+
+			// assign values
+			cont->contid = node->contid;
+			cont->rscs = img->rscs;
+			cont->attr = img->attr;
 		}
-		else {
-			push((void**)&cont->pids, sizeof(pids_t));
-			cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-			conts->pids->rscs = cont->rscs;
-			conts->pids->attr = cont->attr;
-		}
+		// add to container pids
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		conts->pids->rscs = cont->rscs;
+		conts->pids->attr = cont->attr;
+
 		node->param = conts->pids;
 		node->param->img = img;
 		node->param->cont = cont;

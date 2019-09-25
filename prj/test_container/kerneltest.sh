@@ -107,10 +107,7 @@ function update_kernel () {
 	fi
 
 	# update grub menu
-	update-grub2
-	if [ ! "$?" -eq 0 ]; then
-		exit 1
-	fi
+	eval /usr/sbin/update-grub
 }
 
 function update_runno () {
@@ -133,7 +130,7 @@ else
 	sleep 60
 	echo "... run test"
 	#execute test
-	./test.sh quiet 1
+	./test.sh quiet 
 	#move tests to their directory
 	mkdir -p log/test${runno}
 	mv log/?-* log/test${runno}/
@@ -144,5 +141,5 @@ update_runno
 update_kernel
 
 #reboot system
-reboot
+eval /sbin/reboot
 

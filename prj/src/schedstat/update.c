@@ -41,6 +41,11 @@ static int clocksources[] = {
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
 
+// Included in kernel 4.13
+#ifndef SCHED_FLAG_RECLAIM
+	#define SCHED_FLAG_RECLAIM		0x02
+#endif
+
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME
 	#define RLIMIT_RTTIME 15
@@ -382,6 +387,20 @@ static void getpPids (node_t **pidlst, char * tag)
 }
 
 static contevent_t * lstevent;
+pthread_t thread_dlink;
+int  iret_dlink; // Timeout is set to 4 secs by default
+
+/// startDocker(): start docker verification thread
+///
+/// Arguments: 
+///
+/// Return value: 
+///
+static void startDocker() {
+	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
+
+}
+
 
 /// updateDocker(): pull event from dockerlink and verify
 ///
@@ -405,6 +424,19 @@ static void updateDocker() {
 				// do nothing, call for pids
 				// update container break
 				//settings;
+				;
+				node_t * linked = NULL;
+				node_push(&linked);
+				linked->pid = 0; // impossible id -> sets value for cnt only
+				linked->psig = lstevent->name; // used to store container name just fot find
+				linked->contid = lstevent->id;
+				linked->imgid = lstevent->image;
+
+				free(lstevent);
+				lstevent = NULL;
+				setPidResources(linked);
+
+				node_pop(&linked);
 				break;
 
 			case cnt_remove: ;
@@ -420,6 +452,7 @@ static void updateDocker() {
 				(void)pthread_mutex_unlock(&dataMutex);
 				break;
 
+			default:
 			case cnt_pending:
 				// clear last event, do nothing
 				free(lstevent);
@@ -647,6 +680,9 @@ void *thread_update (void *arg)
 						policy_to_string(prgset->policy), prgset->priority);
 			}
 
+			// start docker link thread
+			startDocker();
+
 			// set lolcal variable -- all cpus set.
 			// TODO: adapt to cpu mask
 			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
@@ -733,6 +769,12 @@ void *thread_update (void *arg)
 
 		cc++;
 		cc%=prgset->loops;
+	}
+	// set stop sig
+
+	if (!iret_dlink) { // thread started successfully
+		pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+		iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
 	}
 	// TODO: Start using return value
 	return EXIT_SUCCESS;

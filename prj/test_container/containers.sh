@@ -35,7 +35,7 @@ Usag: ./container.sh command testgrp
 
 Defaults are:
 command = start         command to apply to containers in group
-testgrp = *		all test groups present are applied (once per json)
+testgrp = *             all test groups present are applied (once per json)
 EOF
         exit 1
 fi
@@ -54,7 +54,7 @@ if [[ "$cmd" == "build" ]]; then
 elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 # CREATE CONTAINERS OF GRP
 
-	eval "mkdir log"
+	eval "mkdir -p log"
 	eval "chown 1000:1000 log"
 
 	while [ "$2" != "" ]; do
@@ -90,11 +90,12 @@ elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; 
 
 elif [[ "$cmd" == "test" ]]; then # run a test procedure
 
+	echo "Starting 15 min tests"
 	# remove old log file first 
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./schedstat -bfPn rt-app --policy=fifo > log/orchestrator.txt &
+	eval ./schedstat -df --policy=fifo > log/orchestrator.txt &
 	sleep 10
 	SPID=$(ps h -o pid -C schedstat)
 
@@ -111,7 +112,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	    # Shift all the parameters down by one
 	    shift
 	done
-	sleep 60
+	sleep 900
 
 	# end orchestrator
 	kill -SIGINT $SPID

@@ -553,10 +553,15 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->logsize = 0;
 
 		// signatures and folders
-		if (!(set->cont_ppidc = strdup(CONT_PPID)) ||
-			!(set->cont_pidc = strdup(CONT_PID)) ||
-			!(set->cont_cgrp = strdup(CONT_DCKR)))
-			err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_ppidc)
+			if (!(set->cont_ppidc = strdup(CONT_PPID)))
+				err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_pidc)
+			if (!(set->cont_pidc = strdup(CONT_PID)))
+				err_exit_n(errno, "Can not set parameter");
+		if (!set->cont_cgrp)
+			if (!(set->cont_cgrp = strdup(CONT_DCKR)))
+				err_exit_n(errno, "Can not set parameter");
 
 		// filepaths virtual file system
 		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
@@ -570,6 +575,19 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 		*set->cpusetdfileprefix = '\0'; // set first chat to null
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+
+
+		// affinity default setting
+		if (!set->affinity){
+			char *defafin;
+			if (!(defafin = malloc(10))) // has never been set
+				err_exit("could not allocate memory!");
+
+			(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
+			// no mask specified, use default
+			set->affinity = strdup(defafin);
+			free(defafin);
+		}
 
 		return;
 	}
