@@ -343,12 +343,14 @@ END_TEST
 
 static void orchdata_tc2_setup () {
 
+	cont_t * cont;
+	{
 	// container
 	push((void**)&contparm->cont, sizeof(cont_t));
-	cont_t * cont = contparm->cont;
+	cont = contparm->cont;
 	cont->contid= strdup("a2aa8c37ce4ca2aa8c37ce4c");
 
-	{
+
 		const char *pids[] = {	"sleep",
 								"weep",
 								"hard 5",
@@ -394,6 +396,30 @@ static void orchdata_tc2_setup () {
 		cont->attr = img->attr;
 
 		const char *pids[] = {	"p 4",
+								NULL };
+		const char ** pidsig = pids;
+		while (*pidsig) {
+			// new pid
+			push((void**)&contparm->pids, sizeof(pidc_t));
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
+			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;			
+			pidsig++;
+		}
+	}
+
+
+	{	
+		// add one more container
+		push((void**)&contparm->cont, sizeof(cont_t));
+		cont = contparm->cont;
+		cont->contid=strdup("mytestcontainer");
+		cont->rscs = img->rscs;
+		cont->attr = img->attr;
+
+		const char *pids[] = {	"rt-testapp",
 								NULL };
 		const char ** pidsig = pids;
 		while (*pidsig) {
@@ -485,6 +511,7 @@ START_TEST(orchdata_findparams)
 	static const char *sigs[] = { "hard 5", "do we sleep or more", "weep 1", "keep 4"};
 
 	node_push(&head);
+	head->pid = 1;
 	head->psig = strdup(sigs[_i]);
 
 	findparamsCheck( 0, 0 );
@@ -497,10 +524,11 @@ END_TEST
 /// EXPECTED -> verifies that all parameters are found as expected 
 START_TEST(orchdata_findparams_cont)
 {	
-	// complete match, center, beginning, end
+	// some match, 2,3
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&head);
+	head->pid = 1;
 	head->psig = strdup(sigs[_i]);
 	head->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
 
@@ -514,10 +542,11 @@ END_TEST
 /// EXPECTED -> verifies that all parameters are found as expected 
 START_TEST(orchdata_findparams_image)
 {	
-	// complete match, center, beginning, end
+	// some match, 2,3
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&head);
+	head->pid = 1;
 	head->psig = strdup(sigs[_i]);
 	head->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
 	head->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
@@ -532,8 +561,9 @@ END_TEST
 /// EXPECTED -> verifies that all parameters are found as expected 
 START_TEST(orchdata_findparams_fail)
 {	
-	// complete match, center, beginning, end
+	// sometimes null, sometimes with id, but never fitting -> check segfaults
 	node_push(&head);
+	head->pid = 1;
 	head->psig = _i 		? NULL : strdup("wleep 1 as");
 	head->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
 	head->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
@@ -551,14 +581,33 @@ END_TEST
 /// EXPECTED -> verifies that with data from dockerlink the function finds the parameters
 START_TEST(orchdata_findparams_link)
 {	
-	// complete match, center, beginning, end
 	node_push(&head);
 	head->pid = 0;
 	head->psig = NULL;
-	head->contid = _i == 1 	? NULL : strdup("d7408531a3b4d7408531a3b4");
-	head->imgid  = _i == 1 	? NULL : strdup("51c3cc77fcf051c3cc77fcf0");
+	head->contid = strdup("d7408531a3b4d7408531a3b4");
+	head->imgid  = strdup("51c3cc77fcf051c3cc77fcf0");
 	
 	findparamsCheck( 1, 1 );
+
+	node_pop(&head);
+}
+END_TEST
+
+
+/// TEST CASE -> test configuration find 
+/// EXPECTED -> verifies that with data from dockerlink the function finds the parameters, container name
+START_TEST(orchdata_findparams_link2)
+{	
+	node_push(&head);
+	head->pid = 0;
+	head->psig = strdup("mytestcontainer");
+	head->contid = strdup("32aeede2352d57f52");
+	head->imgid  = strdup("c3cc77fcf051c3cc7");
+	
+	findparamsCheck( 0, 1 );
+
+	// fix for r/o test -> duplicate manual free
+	head->param->cont->pids = NULL;
 
 	node_pop(&head);
 }
@@ -589,6 +638,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_loop_test(tc2, orchdata_findparams_image, 0, 4);
 	tcase_add_loop_test(tc2, orchdata_findparams_fail, 0, 4);
 	tcase_add_test(tc2, orchdata_findparams_link);
+	tcase_add_test(tc2, orchdata_findparams_link2);
     suite_add_tcase(s, tc2);
 
 	return;

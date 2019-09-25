@@ -138,6 +138,19 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 			 getTail((struct base *)*head), compar); 
 }
 
+static inline void duplicateContainer(node_t* node, struct containers * conts, cont_t ** cont) {
+	push((void**)&conts->cont, sizeof(cont_t));
+	// copy contents but skip first pointer, pidlist can be referenced -> forking, add only
+	(void)memcpy((void*)conts->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
+		sizeof(cont_t) - sizeof(cont_t *));
+	// update pointer to newly updated, assign id
+	*cont = conts->cont;
+	(*cont)->contid = strdup(node->contid);
+
+	free(node->psig); // clear entry to avoid confusion
+	node->psig = NULL;
+}
+
 /// node_findParams(): assigns the PID parameters list of a running container
 //
 /// Arguments: - node to chek for matching parameters
@@ -156,10 +169,18 @@ int node_findParams(node_t* node, struct containers * conts){
 			conts_t * imgcont = img->conts;	
 			// check for container match
 			while (NULL != imgcont) {
-				// 12 is standard docker short signature
-				if(imgcont->cont->contid && node->contid && !strncmp(imgcont->cont->contid, node->contid, 12)) {
-					cont = imgcont->cont;
-					break;
+				if (imgcont->cont->contid && node->contid) {
+					// 12 is standard docker short signature
+					if  (!strncmp(imgcont->cont->contid, node->contid, 12)) {
+						cont = imgcont->cont;
+						break;
+					}
+					// if node pid = 0, psig is the name of the container coming from dockerlink
+					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
+						cont = imgcont->cont;
+						duplicateContainer(node, conts, &cont);
+						break;
+					}
 				}
 				imgcont = imgcont->next; 
 			}
@@ -176,8 +197,15 @@ int node_findParams(node_t* node, struct containers * conts){
 		// check for container match
 		while (NULL != cont) {
 			// 12 is standard docker short signature
-			if(cont->contid && node->contid && !strncmp(cont->contid, node->contid, 12)) {
-				break;
+			if(cont->contid && node->contid) {
+				if (!strncmp(cont->contid, node->contid, 12))
+					break;
+
+				// if node pid = 0, psig is the name of the container coming from dockerlink
+				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
+					duplicateContainer(node, conts, &cont);
+					break;
+				}
 			}
 			cont = cont->next; 
 		}
