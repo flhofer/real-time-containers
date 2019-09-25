@@ -7,10 +7,11 @@
 	enum cont_events { cnt_add, cnt_remove, cnt_pending };
 
 	typedef struct cont_event {
-		int event;
-		char * id;
-		char * image;
-		uint64_t timenano;
+		int event;			// enum cont_events
+		char * name;		// name-tag of the container
+		char * id;			// id of the container
+		char * image;		// image id or tag (docker chooses)
+		uint64_t timenano;	// timestamp in nanoseconds
 	} contevent_t;
 
 	extern pthread_mutex_t containerMutex; // data access mutex

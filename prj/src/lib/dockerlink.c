@@ -11,7 +11,7 @@
 #define USEC_PER_SEC		1000000
 #define NSEC_PER_SEC		1000000000
 #define TIMER_RELTIME		0
-#define INTERV_RFSH			100000
+#define INTERV_RFSH			1000
 
 // TODO: remove and or ext parsing code
 // TODO: impement rt signal interface
@@ -212,6 +212,7 @@ contevent_t * containerEvent; // data
 struct eventData {
 	char * type;
 	char * status;
+	char * name;
 	char * id;
 	char * from;
 	char * scope;
@@ -256,7 +257,6 @@ static void docker_read_pipe(struct eventData * evnt){
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
 
-	printDbg(PFX "Reading JSON output from pipe...\n");
 	buf[0] = '\0';
 	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
 		return;
@@ -274,6 +274,20 @@ static void docker_read_pipe(struct eventData * evnt){
 		evnt->status = get_string_value_from(root, "status", FALSE, NULL);
 		evnt->id = get_string_value_from(root, "id", FALSE, NULL);
 		evnt->from = get_string_value_from(root, "from", FALSE, NULL);
+		struct json_object *actor, *attrib;
+
+		actor = get_in_object(root, "Actor", TRUE);
+		if (actor) {
+			// not status type, ID is here
+//			if (!evnt->id)
+//				evnt->id = get_string_value_from(actor, "ID", FALSE, NULL);
+			attrib = get_in_object(actor, "Attributes", TRUE);
+			if (attrib)
+				evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);		
+
+			json_object_put(attrib);
+			json_object_put(actor);
+		}
 	}
 	evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
 	evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
@@ -299,6 +313,7 @@ static contevent_t * docker_check_event() {
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_remove;
+			cntevent->name = strdup(evnt.name);
 			cntevent->id = strdup(evnt.id);
 			cntevent->image = strdup(evnt.from);
 			cntevent->timenano = evnt.timenano;
@@ -310,6 +325,7 @@ static contevent_t * docker_check_event() {
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_add;
+			cntevent->name = strdup(evnt.name);
 			cntevent->id = strdup(evnt.id);
 			cntevent->image = strdup(evnt.from);
 			cntevent->timenano = evnt.timenano;
@@ -376,9 +392,10 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "r", &pid)))
+				if (!(inpipe = popen2 (pcmd, "rx", &pid)))
 					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
+				printDbg(PFX "Reading JSON output from pipe...\n");
 
 			case 1:
 				if (feof(inpipe))
@@ -414,6 +431,24 @@ void *thread_watch_docker(void *arg) {
 		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
+		else if (1 == pstate) {
+	        // abs-time relative interval shift
+
+	        // calculate next execution intervall
+	        intervaltv.tv_sec += INTERV_RFSH / USEC_PER_SEC;
+	        intervaltv.tv_nsec+= (INTERV_RFSH % USEC_PER_SEC) * 1000;
+	        tsnorm(&intervaltv);
+
+	        // sleep for interval nanoseconds
+	        ret = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &intervaltv, NULL);
+	        if (0 != ret) {
+	                // Set warning only.. shouldn't stop working
+	                // probably overrun, restarts immediately in attempt to catch up
+	                if (EINTR != ret) {
+	                        warn("clock_nanosleep() failed. errno: %s",strerror (ret));
+	                }
+	        }
+        }		
 	}
 }
 
