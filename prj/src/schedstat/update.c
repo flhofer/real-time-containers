@@ -428,6 +428,7 @@ static void updateDocker() {
 				node_t * linked = NULL;
 				node_push(&linked);
 				linked->pid = 0; // impossible id -> sets value for cnt only
+				linked->psig = lstevent->name; // used to store container name just fot find
 				linked->contid = lstevent->id;
 				linked->imgid = lstevent->image;
 
