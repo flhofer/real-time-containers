@@ -174,11 +174,11 @@ static void setPidResources(node_t * node) {
 		else {
 
 			// add pid to docker CGroup
-			char pid[5];
+			char pid[6]; // pid is 5 digits + \0
 			(void)sprintf(pid, "%d", node->pid);
 
 			if (!setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
-				printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+				printDbg( "Warn! Can not move task %s\n", pid);
 			}
 
 			// Set affinity
@@ -189,6 +189,9 @@ static void setPidResources(node_t * node) {
 				cont("PID %d reassigned to CPU%d", node->pid, 
 					node->param->rscs->affinity);
 		}
+
+		if (0 == node->pid) // pid 0 = detected containers
+			return;
 
 		// only do if different than -1, <- not set values
 		if (SCHED_NODATA != node->param->attr->sched_policy) {
@@ -260,7 +263,7 @@ static void getContPids (node_t **pidlst)
 								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
 								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
 									// try to read cmdline of pid
-									warn("can not read pid %d's command line", (*pidlst)->pid);
+									warn("can not read pid %d's command line: %s", (*pidlst)->pid, strerror(errno));
 
 								// cut to exact (reduction = no issue)
 								(*pidlst)->psig=realloc((*pidlst)->psig, 

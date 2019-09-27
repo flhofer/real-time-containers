@@ -277,6 +277,8 @@ static int updateStats ()
 	// init head
 	node_t * item = head;
 
+	(void)pthread_mutex_lock(&dataMutex);
+
 	scount++; // increase scan-count
 	// for now does only a simple update
 	while (item != NULL) {
@@ -294,7 +296,9 @@ static int updateStats ()
 			}
 
 			// set the flag for deadline notification if not enabled yet -- TEST
-			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) 
+			if ((prgset->setdflag) 
+				&& ((SCHED_DEADLINE == item->attr.sched_policy) || 
+					(item->param && item->param->attr && (SCHED_DEADLINE == item->param->attr->sched_policy))) 
 				&& (KV_416 <= prgset->kernelversion) 
 				&& !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
 
@@ -316,6 +320,8 @@ static int updateStats ()
 
 		item=item->next; 
 	}
+
+	(void)pthread_mutex_unlock(&dataMutex); 
 
 	return 0;
 }
