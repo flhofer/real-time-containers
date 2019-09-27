@@ -265,8 +265,8 @@ static void docker_read_pipe(struct eventData * evnt){
 
 	// root read successfully?
 	if (root == NULL) {
-		err_msg(PFX "Error while parsing input JSON");
-		exit(EXIT_INV_CONFIG);
+		warn(PFX "Empty JSON buffer");
+		return;
 	}
 
 	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);

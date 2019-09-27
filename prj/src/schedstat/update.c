@@ -54,6 +54,9 @@ static int clocksources[] = {
 	#define pthread_yield sched_yield
 #endif
 
+// declarations 
+static void scanNew();
+
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
 /// Arguments: pointer to timespec to check
@@ -123,7 +126,12 @@ static void setPidResources(node_t * node) {
 	// params unassigned
 	if (!prgset->quiet)
 		(void)printf("\n");
-	info("new pid in list %d", node->pid);
+	if (node->pid)
+		info("new pid in list %d", node->pid);
+	else if (node->contid)
+		info("new container in list '%s'", node->contid);
+	else
+		warn("SetPidResources: Container not specified");
 
 	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
 		// precompute affinity
@@ -438,6 +446,8 @@ static void updateDocker() {
 				free(lstevent);
 				lstevent = NULL;
 				setPidResources(linked);
+				// scan for new pids
+				scanNew(); 
 
 				node_pop(&linked);
 				break;
