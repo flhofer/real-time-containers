@@ -143,9 +143,10 @@ int manageSched(){
 
 	// TODO: this is for the dynamic and adaptive scheduler only
 
-    node_t * current = head;
-
+	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
+
+    node_t * current = head;
 
 	while (current != NULL) {
 
@@ -274,10 +275,11 @@ static int updateStats ()
 		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
 	// init head
 	node_t * item = head;
-
-	(void)pthread_mutex_lock(&dataMutex);
 
 	scount++; // increase scan-count
 	// for now does only a simple update
@@ -305,7 +307,7 @@ static int updateStats ()
 				cont("Set dl_overrun flag for PID %d", item->pid);		
 
 				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
-				if (sched_setattr (item->pid, &item->attr, 0U))
+				if (sched_setattr (item->pid, &(item->attr), 0U))
 					err_msg_n(errno, "Can not set overrun flag");
 			} 
 		}

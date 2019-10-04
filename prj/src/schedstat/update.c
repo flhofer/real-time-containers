@@ -271,12 +271,13 @@ static void getContPids (node_t **pidlst)
 						printDbg("%s: Pid string return %s\n", __func__, pidline);
 						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
 						pid = strtok_r (pidline,"\n", &pid_ptr);	
+						printDbg("%s: processing ", __func__);
 						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
 							node_push(pidlst);
 							// pid found
 							(*pidlst)->pid = atoi(pid);
-							printDbg("processing->%d\n",(*pidlst)->pid);
+							printDbg("->%d ",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
 
 							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
@@ -298,6 +299,7 @@ static void getContPids (node_t **pidlst)
 							nleft -= strlen(pid)+1;
 							pid = strtok_r (NULL,"\n", &pid_ptr);	
 						}
+						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
 					}
@@ -527,16 +529,19 @@ static void scanNew () {
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
+	printDbg("\nResult update pid: ");
 	for (node_t * curr = lnew; ((curr)); curr=curr->next)
-		printDbg("Result update pid %d\n", curr->pid);		
+		printDbg("%d ", curr->pid);
+	printDbg("\n");
 #endif
+
+	printDbg("\nEntering node update");		
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
 
 	node_t	dummy = { head }; // dummy placeholder for head list
 	node_t	*tail = &dummy;	  // pointer to tail element
-	printDbg("\nEntering node update");		
 
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
 	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
 
 		// insert a missing item		
@@ -604,12 +609,15 @@ static void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
+	printDbg("\nExiting node update\n");
+
 #ifdef DEBUG
+	printDbg("\nResult list: ");
 	for (node_t * curr = head; ((curr)); curr=curr->next)
-		printDbg("\nResult list %d\n", curr->pid);		
+		printDbg("%d ", curr->pid);
+	printDbg("\n");
 #endif
 
-	printDbg("\nExiting node update\n");	
 }
 
 /// thread_update(): thread function call to manage and update present pids list
