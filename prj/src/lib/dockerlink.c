@@ -258,8 +258,10 @@ static void docker_read_pipe(struct eventData * evnt){
 	struct json_object *root;
 
 	buf[0] = '\0';
-	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
-		return;
+	while (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)) && !(stop));
+
+//	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
+//		return;
 	
 	root = json_tokener_parse(buf);
 
