@@ -463,8 +463,6 @@ static void updateDocker() {
 				free(lstevent);
 				lstevent = NULL;
 				setPidResources(linked);
-				// scan for new pids
-				scanNew(); 
 
 				node_pop(&linked);
 				break;
@@ -489,6 +487,9 @@ static void updateDocker() {
 				break;
 		}
 	}
+
+	// scan for pid updates
+	scanNew(); 
 }
 
 /// scanNew(): main function for thread_update, scans for pids and inserts
