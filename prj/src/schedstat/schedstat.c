@@ -638,7 +638,7 @@ static void prepareEnvironment(prgset_t *set) {
 				// Scan through string and put in array, leave one byte extra, needed for strtok to work
 				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) { 	// TODO: read vs fread
 					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
-					printDbg("Pid string return %s", pidline);
+					printDbg("%s: Pid string return %s", __func__, pidline);
 					pid = strtok (pidline,"\n");	
 					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
 

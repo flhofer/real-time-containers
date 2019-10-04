@@ -248,7 +248,7 @@ static void getContPids (node_t **pidlst)
 	if (d) {
 		char *fname = NULL; // clear pointer again
 		char pidline[BUFRD];
-		char *pid;
+		char *pid, *pid_ptr;
 		char kparam[15]; // pid+/cmdline read string
 
 		printDbg( "\nContainer detection!\n");
@@ -262,17 +262,18 @@ static void getContPids (node_t **pidlst)
 					fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
 					fname = strcat(fname,"/tasks");
 
+					pidline[BUFRD-1] = '\0';  // end of read check
+
 					// prepare literal and open pipe request
-					pidline[BUFRD-1] = '\0'; // safety to avoid overrun
 					int path = open(fname,O_RDONLY);
 
 					// Scan through string and put in array
 					int nleft = 0;
 					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
 						printDbg("%s: Pid string return %s\n", __func__, pidline);
-						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
-						pid = strtok (pidline,"\n");	
-						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n
+						pid = strtok_r (pidline,"\n", &pid_ptr);	
+						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+							// DO STUFF
 							node_push(pidlst);
 							// pid found
 							(*pidlst)->pid = atoi(pid);
@@ -296,10 +297,10 @@ static void getContPids (node_t **pidlst)
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
-							pid = strtok (NULL,"\n");	
+							pid = strtok_r (pidline,"\n", &pid_ptr);	
 						}
 						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
+							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
 					}
 					close(path);
 				}
