@@ -36,6 +36,11 @@ static uint64_t scount = 0; // total scan count
 	#define _POSIX_PATH_MAX 1024
 #endif
 
+// Included in kernel 4.13
+#ifndef SCHED_FLAG_RECLAIM
+	#define SCHED_FLAG_RECLAIM		0x02
+#endif
+
 // Included in kernel 4.16
 #ifndef SCHED_FLAG_DL_OVERRUN
 	#define SCHED_FLAG_DL_OVERRUN		0x04
@@ -290,23 +295,30 @@ static int updateStats ()
 			continue;
 		}
 
-		// update only when defaulting -> new entry
-		if (SCHED_NODATA == item->attr.sched_policy) {
-			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
+		// update only when defaulting -> new entry, or every 100th scan
+		if (!(scount%prgset->loops) || (SCHED_NODATA == item->attr.sched_policy)) {
+			struct sched_attr attr_act;
+			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
 
 				warn("Unable to read params for PID %d: %s", item->pid, strerror(errno));		
 			}
 
+			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
+				
+				if (SCHED_NODATA != item->attr.sched_policy)
+					info("scheduling attributes changed for pid %d", item->pid);
+				item->attr = attr_act;
+			}
+
 			// set the flag for deadline notification if not enabled yet -- TEST
 			if ((prgset->setdflag) 
-				&& ((SCHED_DEADLINE == item->attr.sched_policy) || 
-					(item->param && item->param->attr && (SCHED_DEADLINE == item->param->attr->sched_policy))) 
+				&& (SCHED_DEADLINE == item->attr.sched_policy) 
 				&& (KV_416 <= prgset->kernelversion) 
-				&& !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+				&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
 
 				cont("Set dl_overrun flag for PID %d", item->pid);		
 
-				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
+				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
 				if (sched_setattr (item->pid, &(item->attr), 0U))
 					err_msg_n(errno, "Can not set overrun flag");
 			} 
@@ -393,7 +405,8 @@ void *thread_manage (void *arg)
 		pthread_exit(0); // exit the thread signalling normal return
 		break;
 	  }
-	  sleep(1);
+	  // TODO: change to timer and settings based loop
+	  usleep(10000);
 	}
 	// TODO: Start using return value
 }

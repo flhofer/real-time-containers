@@ -217,7 +217,7 @@ static void setPidResources(node_t * node) {
 				&& (KV_416 <= prgset->kernelversion)) {
 
 				cont("Set dl_overrun flag for PID %d", node->pid);		
-				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN;
+				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
 			}			
 
 			if (sched_setattr (node->pid, node->param->attr, 0U))
