@@ -262,8 +262,6 @@ static void getContPids (node_t **pidlst)
 					fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
 					fname = strcat(fname,"/tasks");
 
-					pidline[BUFRD-1] = '\0';  // end of read check
-
 					// prepare literal and open pipe request
 					int path = open(fname,O_RDONLY);
 
@@ -271,6 +269,7 @@ static void getContPids (node_t **pidlst)
 					int nleft = 0;
 					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
 						printDbg("%s: Pid string return %s\n", __func__, pidline);
+						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
 						pid = strtok_r (pidline,"\n", &pid_ptr);	
 						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
@@ -297,7 +296,7 @@ static void getContPids (node_t **pidlst)
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
-							pid = strtok_r (pidline,"\n", &pid_ptr);	
+							pid = strtok_r (NULL,"\n", &pid_ptr);	
 						}
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
