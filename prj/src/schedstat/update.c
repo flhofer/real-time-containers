@@ -46,6 +46,11 @@ static int clocksources[] = {
 	#define SCHED_FLAG_RECLAIM		0x02
 #endif
 
+// Included in kernel 4.16
+#ifndef SCHED_FLAG_DL_OVERRUN
+	#define SCHED_FLAG_DL_OVERRUN		0x04
+#endif
+
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME
 	#define RLIMIT_RTTIME 15
@@ -53,6 +58,9 @@ static int clocksources[] = {
 #ifndef pthread_yield
 	#define pthread_yield sched_yield
 #endif
+
+// declarations 
+static void scanNew();
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
 ///
@@ -123,7 +131,12 @@ static void setPidResources(node_t * node) {
 	// params unassigned
 	if (!prgset->quiet)
 		(void)printf("\n");
-	info("new pid in list %d", node->pid);
+	if (node->pid)
+		info("new pid in list %d", node->pid);
+	else if (node->contid)
+		info("new container in list '%s'", node->contid);
+	else
+		warn("SetPidResources: Container not specified");
 
 	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
 		// precompute affinity
@@ -174,11 +187,11 @@ static void setPidResources(node_t * node) {
 		else {
 
 			// add pid to docker CGroup
-			char pid[5];
+			char pid[6]; // pid is 5 digits + \0
 			(void)sprintf(pid, "%d", node->pid);
 
 			if (!setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
-				printDbg( KMAG "Warn!" KNRM " Can not move task %s\n", pid);
+				printDbg( "Warn! Can not move task %s\n", pid);
 			}
 
 			// Set affinity
@@ -190,10 +203,23 @@ static void setPidResources(node_t * node) {
 					node->param->rscs->affinity);
 		}
 
+		if (0 == node->pid) // pid 0 = detected containers
+			return;
+
 		// only do if different than -1, <- not set values
 		if (SCHED_NODATA != node->param->attr->sched_policy) {
 			cont("Setting Scheduler of PID %d to '%s'", node->pid,
 				policy_to_string(node->param->attr->sched_policy));
+
+			// set the flag right away, if set..
+			if ((prgset->setdflag) 
+				&& (SCHED_DEADLINE == node->param->attr->sched_policy) 
+				&& (KV_416 <= prgset->kernelversion)) {
+
+				cont("Set dl_overrun flag for PID %d", node->pid);		
+				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
+			}			
+
 			if (sched_setattr (node->pid, node->param->attr, 0U))
 				err_msg_n(errno, "setting attributes for PID %d",
 					node->pid);
@@ -222,7 +248,7 @@ static void getContPids (node_t **pidlst)
 	if (d) {
 		char *fname = NULL; // clear pointer again
 		char pidline[BUFRD];
-		char *pid;
+		char *pid, *pid_ptr;
 		char kparam[15]; // pid+/cmdline read string
 
 		printDbg( "\nContainer detection!\n");
@@ -237,20 +263,21 @@ static void getContPids (node_t **pidlst)
 					fname = strcat(fname,"/tasks");
 
 					// prepare literal and open pipe request
-					pidline[BUFRD-1] = '\0'; // safety to avoid overrun
 					int path = open(fname,O_RDONLY);
 
 					// Scan through string and put in array
 					int nleft = 0;
 					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
-						printDbg("Pid string return %s\n", pidline);
-						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
-						pid = strtok (pidline,"\n");	
-						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n
+						printDbg("%s: Pid string return %s\n", __func__, pidline);
+						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
+						pid = strtok_r (pidline,"\n", &pid_ptr);	
+						printDbg("%s: processing ", __func__);
+						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+							// DO STUFF
 							node_push(pidlst);
 							// pid found
 							(*pidlst)->pid = atoi(pid);
-							printDbg("%d\n",(*pidlst)->pid);
+							printDbg("->%d ",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
 
 							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
@@ -260,7 +287,7 @@ static void getContPids (node_t **pidlst)
 								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
 								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
 									// try to read cmdline of pid
-									warn("can not read pid %d's command line", (*pidlst)->pid);
+									warn("can not read pid %d's command line: %s", (*pidlst)->pid, strerror(errno));
 
 								// cut to exact (reduction = no issue)
 								(*pidlst)->psig=realloc((*pidlst)->psig, 
@@ -270,10 +297,11 @@ static void getContPids (node_t **pidlst)
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
-							pid = strtok (NULL,"\n");	
+							pid = strtok_r (NULL,"\n", &pid_ptr);	
 						}
+						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
+							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
 					}
 					close(path);
 				}
@@ -320,19 +348,19 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	}
 
 	char pidline[BUFRD];
-	char *pid;
+	char *pid, *pid_ptr;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg("Pid string return %s\n", pidline);
-		pid = strtok (pidline," ");					
+		printDbg("%s: Pid string return %s\n", __func__, pidline);
+		pid = strtok_r (pidline," ", &pid_ptr);					
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
-        printDbg("%d",(*pidlst)->pid);
+        printDbg("processing->%d",(*pidlst)->pid);
 		(*pidlst)->det_mode = mode;
 
 		// find command string and copy to new allocation
-        pid = strtok (NULL, "\n"); // end of line?
+        pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
@@ -459,6 +487,9 @@ static void updateDocker() {
 				break;
 		}
 	}
+
+	// scan for pid updates
+	scanNew(); 
 }
 
 /// scanNew(): main function for thread_update, scans for pids and inserts
@@ -499,16 +530,19 @@ static void scanNew () {
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
+	printDbg("\nResult update pid: ");
 	for (node_t * curr = lnew; ((curr)); curr=curr->next)
-		printDbg("Result update pid %d\n", curr->pid);		
+		printDbg("%d ", curr->pid);
+	printDbg("\n");
 #endif
+
+	printDbg("\nEntering node update");		
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
 
 	node_t	dummy = { head }; // dummy placeholder for head list
 	node_t	*tail = &dummy;	  // pointer to tail element
-	printDbg("\nEntering node update");		
 
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
 	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
 
 		// insert a missing item		
@@ -576,12 +610,15 @@ static void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
+	printDbg("\nExiting node update\n");
+
 #ifdef DEBUG
+	printDbg("\nResult list: ");
 	for (node_t * curr = head; ((curr)); curr=curr->next)
-		printDbg("\nResult list %d\n", curr->pid);		
+		printDbg("%d ", curr->pid);
+	printDbg("\n");
 #endif
 
-	printDbg("\nExiting node update\n");	
 }
 
 /// thread_update(): thread function call to manage and update present pids list
@@ -687,16 +724,15 @@ void *thread_update (void *arg)
 			// TODO: adapt to cpu mask
 			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 
-		case 1: 
-			// startup-refresh: this should be executed only once every td
-			*pthread_state=2; // must be first thing! -> main writes -1 to stop
+			*pthread_state=1;
+		case 1: // normal thread loop
+			updateDocker();
+			if (cc)
+				break;
+			// update, once every td
 			scanNew(); 
 			if (!prgset->quiet)	
 				(void)printf("\rNode Stats update  ");		
-		case 2: // normal thread loop
-			if (!cc)
-				*pthread_state=1; // must be first thing
-			updateDocker();
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop

@@ -258,15 +258,17 @@ static void docker_read_pipe(struct eventData * evnt){
 	struct json_object *root;
 
 	buf[0] = '\0';
-	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
-		return;
+	while (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)) && !(stop));
+
+//	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
+//		return;
 	
 	root = json_tokener_parse(buf);
 
 	// root read successfully?
 	if (root == NULL) {
-		err_msg(PFX "Error while parsing input JSON");
-		exit(EXIT_INV_CONFIG);
+		warn(PFX "Empty JSON buffer");
+		return;
 	}
 
 	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
@@ -392,7 +394,7 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "rx", &pid)))
+				if (!(inpipe = popen2 (pcmd, "r", &pid)))
 					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
 				printDbg(PFX "Reading JSON output from pipe...\n");
@@ -431,7 +433,7 @@ void *thread_watch_docker(void *arg) {
 		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
-		else if (1 == pstate) {
+/*		else if (1 == pstate) {
 	        // abs-time relative interval shift
 
 	        // calculate next execution intervall
@@ -448,7 +450,7 @@ void *thread_watch_docker(void *arg) {
 	                        warn("clock_nanosleep() failed. errno: %s",strerror (ret));
 	                }
 	        }
-        }		
+        }	*/	
 	}
 }
 
