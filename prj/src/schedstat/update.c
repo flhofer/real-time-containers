@@ -46,6 +46,11 @@ static int clocksources[] = {
 	#define SCHED_FLAG_RECLAIM		0x02
 #endif
 
+// Included in kernel 4.16
+#ifndef SCHED_FLAG_DL_OVERRUN
+	#define SCHED_FLAG_DL_OVERRUN		0x04
+#endif
+
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME
 	#define RLIMIT_RTTIME 15
@@ -205,6 +210,16 @@ static void setPidResources(node_t * node) {
 		if (SCHED_NODATA != node->param->attr->sched_policy) {
 			cont("Setting Scheduler of PID %d to '%s'", node->pid,
 				policy_to_string(node->param->attr->sched_policy));
+
+			// set the flag right away, if set..
+			if ((prgset->setdflag) 
+				&& (SCHED_DEADLINE == node->param->attr->sched_policy) 
+				&& (KV_416 <= prgset->kernelversion)) {
+
+				cont("Set dl_overrun flag for PID %d", node->pid);		
+				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN;
+			}			
+
 			if (sched_setattr (node->pid, node->param->attr, 0U))
 				err_msg_n(errno, "setting attributes for PID %d",
 					node->pid);
