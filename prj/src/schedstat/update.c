@@ -269,14 +269,14 @@ static void getContPids (node_t **pidlst)
 					// Scan through string and put in array
 					int nleft = 0;
 					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
-						printDbg("Pid string return %s\n", pidline);
+						printDbg("%s: Pid string return %s\n", __func__, pidline);
 						pidline[BUFRD-2] = '\n';  // end of read check, set\n to be sure to end strtok, not on \0
 						pid = strtok (pidline,"\n");	
 						while (pid != NULL && nleft && ( '\0' != pidline[BUFRD-2])) { // <6 = 5 pid no + \n
 							node_push(pidlst);
 							// pid found
 							(*pidlst)->pid = atoi(pid);
-							printDbg("%d\n",(*pidlst)->pid);
+							printDbg("processing->%d\n",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
 
 							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
@@ -349,12 +349,12 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	char *pid;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg("Pid string return %s\n", pidline);
+		printDbg("%s: Pid string return %s\n", __func__, pidline);
 		pid = strtok (pidline," ");					
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
-        printDbg("%d",(*pidlst)->pid);
+        printDbg("processing->%d",(*pidlst)->pid);
 		(*pidlst)->det_mode = mode;
 
 		// find command string and copy to new allocation
