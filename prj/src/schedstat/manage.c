@@ -166,10 +166,10 @@ int manageSched(){
 ///
 static int get_sched_info(node_t * item)
 {
-	char szFileName [_POSIX_PATH_MAX],
-		szStatBuff [PIPE_BUFFER],
-		ltag [80], // just tag of beginning, max lenght expected ~30 
-    	*s;
+	char szFileName [_POSIX_PATH_MAX];
+	char szStatBuff [PIPE_BUFFER];
+	char ltag [80]; // just tag of beginning, max lenght expected ~30 
+    char *s, *s_ptr;
 
 	FILE *fp;
 
@@ -196,7 +196,7 @@ static int get_sched_info(node_t * item)
 	int64_t diff = 0;
 	int64_t ltrt = 0; // last seen runtime
 
-	s = strtok (szStatBuff, "\n");
+	s = strtok_r (szStatBuff, "\n", &s_ptr);
 	while (NULL != s) {
 		(void)sscanf(s,"%s %*c %ld", ltag, &num);
 		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
@@ -251,7 +251,7 @@ static int get_sched_info(node_t * item)
 			item->mon.dl_rt = ltrt;
 			break; // we're done reading
 		}
-		s = strtok (NULL, "\n");	
+		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
 
   return 0;

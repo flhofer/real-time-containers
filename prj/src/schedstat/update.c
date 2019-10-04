@@ -346,11 +346,11 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	}
 
 	char pidline[BUFRD];
-	char *pid;
+	char *pid, *pid_ptr;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
 		printDbg("%s: Pid string return %s\n", __func__, pidline);
-		pid = strtok (pidline," ");					
+		pid = strtok_r (pidline," ", &pid_ptr);					
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
@@ -358,7 +358,7 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 		(*pidlst)->det_mode = mode;
 
 		// find command string and copy to new allocation
-        pid = strtok (NULL, "\n"); // end of line?
+        pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
         printDbg(" cmd: %s\n",pid);
 
 		// add command string to pidlist
