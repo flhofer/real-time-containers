@@ -700,16 +700,15 @@ void *thread_update (void *arg)
 			// TODO: adapt to cpu mask
 			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 
-		case 1: 
-			// startup-refresh: this should be executed only once every td
-			*pthread_state=2; // must be first thing! -> main writes -1 to stop
+			*pthread_state=1;
+		case 1: // normal thread loop
+			updateDocker();
+			if (cc)
+				break;
+			// update, once every td
 			scanNew(); 
 			if (!prgset->quiet)	
 				(void)printf("\rNode Stats update  ");		
-		case 2: // normal thread loop
-			if (!cc)
-				*pthread_state=1; // must be first thing
-			updateDocker();
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop

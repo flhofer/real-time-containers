@@ -392,7 +392,7 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "rx", &pid)))
+				if (!(inpipe = popen2 (pcmd, "r", &pid)))
 					err_exit_n(errno, "Pipe process open failed!");
 				pstate = 1;
 				printDbg(PFX "Reading JSON output from pipe...\n");
@@ -431,7 +431,7 @@ void *thread_watch_docker(void *arg) {
 		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
-		else if (1 == pstate) {
+/*		else if (1 == pstate) {
 	        // abs-time relative interval shift
 
 	        // calculate next execution intervall
@@ -448,7 +448,7 @@ void *thread_watch_docker(void *arg) {
 	                        warn("clock_nanosleep() failed. errno: %s",strerror (ret));
 	                }
 	        }
-        }		
+        }	*/	
 	}
 }
 
