@@ -124,7 +124,29 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 
+elif [[ "$cmd" == "update" ]]; then
+# UPDATE ALL CONTAINERS CONFIG
+	if [ "$2" != "" ]; then
+		eval "sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json"
+	fi
+	exit 0
+	for filename in rt-app-tst-*.json; do 
+		filen="${filename%%.*}";
+
+		#update links 
+		for i in rt-app-tst-*.json; do 
+			eval "docker cp $i $filen:/home/rtuser" 
+			echo $i; 
+		done
+
+		#update origs
+		for i in rt-app-[0-9]*-*.json; do 
+			eval "docker cp $i $filen:/home/rtuser"
+			echo $i; 
+		done 
+	done 
 else
 	echo "Unknown command"
 fi
+
 
