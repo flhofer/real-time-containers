@@ -107,6 +107,8 @@ function update_kernel () {
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
+	elif [ "$runno" -eq 9 ]; then
+
 		# remove start script
 		crontab -u root -r
 		rm $0
