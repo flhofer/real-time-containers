@@ -66,40 +66,48 @@ function update_kernel () {
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 2 ]; then
-		# backoff
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/nohz_full=1-$maxcpu/rcu_nocb=1-$maxcpu/' /etc/default/grub"
-
-	elif [ "$runno" -eq 3 ]; then
-		# isolation
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/isocpu=1-$maxcpu/' /etc/default/grub"
-
-	elif [ "$runno" -eq 4 ]; then
 		# Dyntick + backoff
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/isocpu=1-$maxcpu/nohz_full=1-$maxcpu rcu_nocb=1-$maxcpu/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
-	elif [ "$runno" -eq 5 ]; then
-		# isolation + backoff
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/nohz_full=1-$maxcpu/isocpu=1-$maxcpu/' /etc/default/grub"
-
-	elif [ "$runno" -eq 6 ]; then
+	elif [ "$runno" -eq 3 ]; then
 		# Dyntick + isolation
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/rcu_nocb=1-$maxcpu/nohz_full=1-$maxcpu/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpu=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 4 ]; then
+		# Dyntick + isolation + backoff
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpu=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 5 ]; then
+		# backoff
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 6 ]; then
+		# isolation
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpu=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 7 ]; then
+		# isolation + backoff
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpu=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 8 ]; then
 		# reset
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 9 ]; then
 
 		# remove start script
 		crontab -u root -r
@@ -108,6 +116,12 @@ function update_kernel () {
 
 	# update grub menu
 	eval /usr/sbin/update-grub
+	if [ $? -ne 0 ]; then
+
+		echo "error update grub" >> result.txt
+		exit 1
+
+	fi
 }
 
 function update_runno () {
@@ -122,6 +136,8 @@ if [[ "$cmd" == "start" ]]; then
 
 	runno=0 # reset 
 	cp $0 ./kernelrun.sh
+
+	eval "rm -r log/test?/"
 
 	# add to startup 
 	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh' | sudo crontab -u root -"

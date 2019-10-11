@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir /home/rtuser
 RUN mkdir /home/rtuser/log
 WORKDIR /home/rtuser 
+COPY rt-app-[0-9]*-*.json ./
 COPY rt-app-tst*.json ./
 COPY rt-app .
 RUN chmod +x rt-app
