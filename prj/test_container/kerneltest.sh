@@ -69,7 +69,7 @@ function update_kernel () {
 		# Dyntick + backoff
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu rcu_nocb=1-$maxcpu\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 3 ]; then
 		# Dyntick + isolation
@@ -81,13 +81,13 @@ function update_kernel () {
 		# Dyntick + isolation + backoff
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpu=1-$maxcpu rcu_nocb=1-$maxcpu\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpu=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 5 ]; then
 		# backoff
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash rcu_nocb=1-$maxcpu\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 6 ]; then
 		# isolation
@@ -99,7 +99,7 @@ function update_kernel () {
 		# isolation + backoff
 
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpu=1-$maxcpu rcu_nocb=1-$maxcpu\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpu=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 8 ]; then
 		# reset
@@ -116,6 +116,12 @@ function update_kernel () {
 
 	# update grub menu
 	eval /usr/sbin/update-grub
+	if [ $? -ne 0 ]; then
+
+		echo "error update grub" >> result.txt
+		exit 1
+
+	fi
 }
 
 function update_runno () {
