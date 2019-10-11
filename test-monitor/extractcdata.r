@@ -32,9 +32,10 @@ loadData <- function(fName) {
 #machines <- c("C5", "BM" , "T3", "T3U")
 #tests <- c("1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10", "2-1", "2-2", "3-1", "3-2", "3-3",
 # "4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9", "4-10")
-machines <- c("C5") # "T3U", "C5", "BM"
+machines <- c("BM") # "T3U", "C5", "BM"
 
-types <- c("test1", "test2", "test3", "test4", "test5", "test6", "test7", "test8")
+#types <- c("test1", "test2", "test3", "test4", "test5", "test6", "test7", "test8")
+types <- c("test1", "test2", "test3", "test4", "test5")
 tests <- c("1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10", "2-1", "2-2", "3-1", "3-2", "3-3",
  "4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9", "4-10")
 
@@ -86,7 +87,8 @@ for (i in 1:length(machines)) {
 				r[nrow(r)+1,] <-data.frame (minMin, avgMed, avgMea, avgDif, avgDev, maxMax, pminMin, pavgMdn, pavgMea, pavgDev, pmaxMax, pmaxMaxp, pcount)
 				plot <- rbind(plot, dat)
 			}
-			plot$types <- types[j]
+			plot$type <- types[j]
+			plot$oversh <- pcountAll
 			tplot<-rbind(tplot,plot)
 			print(r)
 			cat ("Peak - Peak count ", maxAll, pcountAll, "\n")
@@ -94,14 +96,35 @@ for (i in 1:length(machines)) {
   		}
 
   		head(tplot)
-  		pdf(file= paste0(machines[i],"_" , tests[k],".png"), width = 10, height = 10)
-  		hist <- ggplot(tplot, aes(x=RunT, fill = types), col = rainbow(7)) + 
-  			geom_density(alpha = 0.1) +
-  			xlim (c(tplot$cDur[1]*0.95,tplot$cDur[1]*1.05)) + 
-			ylab("Count") +
-			scale_fill_viridis_d()
+  		pdf(file= paste0(machines[i],"_" , tests[k],".pdf"), width = 10, height = 10)
+ 
+	    # geom_point(data = means, aes(x = mtype, y = value), shape=20, size=5, color="blue", fill="blue") +
+	    # geom_hline(yintercept = 100, colour="#990000", linetype="dashed") +
+	    # geom_hline(yintercept = 10000, colour="#990000", linetype="dashed") +
+		# theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+		tplot <- tplot[!((tplot$RunT > tplot$cDur*1.5)),] # drop exceeding points
+  		hist <- ggplot(tplot, aes(x=type, y=RunT), col = rainbow(7)) + 
+			scale_y_continuous(trans='log10') +
+  	# 		ylim (c(tplot$RunT[1]*0.995,tplot$RunT[1]*1.005)) + 
+		 	geom_boxplot(fill="slateblue", alpha=0.2) +
+  			# xlim (c(tplot$RunT[1]*0.995,tplot$RunT[1]*1.005)) + 
+		    geom_point(data = tplot, aes(x = type, y = tplot$cDur*1.5, size=oversh), shape=17, , color="red", fill="red") +
+		    labs(x="Test type", y= expression(paste("Run-time  (values are in ", mu, "s)")), size=">10 ms in\n% of set")+
+			scale_fill_viridis_d() 
   		print (hist)
   		dev.off()
+
+        # head(tplot)
+        # pdf(file= paste0(machines[i],"_" , tests[k],".pdf"), width = 10, height = 10)
+        # hist <- ggplot(tplot, aes(x=RunT, fill = types), col = rainbow(7)) + 
+        #         geom_density(alpha = 0.1) +
+        #         xlim (c(tplot$cDur[1]*0.95,tplot$cDur[1]*1.05)) + 
+        #         ylab("Count") +
+        #         scale_fill_viridis_d()
+        # print (hist)
+        # dev.off()
 
 		cat ("Test set overruns ", testPcount , "\n")
 		cat ("----------------------------------------\n")
