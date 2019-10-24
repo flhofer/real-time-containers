@@ -108,7 +108,36 @@ function update_kernel () {
 		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
+
 	elif [ "$runno" -eq 9 ]; then
+		# fixtick 
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 10 ]; then
+		# fixtick + backoff
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 11 ]; then
+		# fixtick + isolation
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 12 ]; then
+		# fixtick + isolation + backoff
+
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+
+	elif [ "$runno" -eq 13 ]; then
+
+		# TEMP
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
 		# remove start script
 		crontab -u root -r
