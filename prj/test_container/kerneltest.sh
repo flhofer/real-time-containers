@@ -167,7 +167,7 @@ if [[ "$cmd" == "start" ]]; then
 	runno=0 # reset 
 	cp $0 ./kernelrun.sh
 
-	eval "rm -r log/test?/"
+	eval "rm -r log/test*/"
 
 	# add to startup 
 	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh' | sudo crontab -u root -"
