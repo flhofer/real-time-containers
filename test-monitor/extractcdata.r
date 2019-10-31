@@ -1,45 +1,16 @@
 # Set the working directory
+source("funcs.R")
+
 setwd("./container/pretest/")
 options("width"=200)
 library(ggplot2)
 
-
-loadData <- function(fName) {
-	#Function, load data from text file into a data frame, only min, avg and max
-
-	# Read text into R
-	# cat (fName, "\n")
-
-	if (!file.exists(fName)) {
-		# break here if file does not exist
-		dat <- data.frame ("RunT"=numeric(),"Period"=numeric(),"rStart"=numeric(), "cDur"=numeric())
-		return(dat)
-	}
-
-	if (file.info(fName)$size > 0) {
-		# Transform into table, filter and add names
-		dat = read.table(file= fName)
-		#dat = read.table(text = tFile)
-		dat <- data.frame ("RunT"=dat$V3,"Period"=dat$V4,"rStart"=dat$V7, "cDur"=dat$V9)
-	}
-	else {
-		dat <- data.frame ("RunT"=numeric(),"Period"=numeric(),"rStart"=numeric(), "cDur"=numeric())
-	}
-	
-	return(dat)
-}
-
-tests <- list()
-group1 <- c("1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10")
-group2 <- c("2-1", "2-2")
-group3 <- c("3-1", "3-2", "3-3")
-group4 <- c("4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9", "4-10")
-tests  <- cbind( tests, list(group1, group2, group3, group4))
-
-
-machines <- c("C5", "BM" , "T3", "T3U")
+#types <- c("test1", "test2", "test3", "test4")
+#types <- c("test8", "test5", "test6", "test7")
+#types <- c("test9", "test10", "test11", "test12")
 types <- c("test2", "test8", "test9")
 
+sink("containerstats.txt")
 
 for (i in 1:length(machines)) {
 	for (l in 1:length(tests)) {
@@ -64,7 +35,6 @@ for (i in 1:length(machines)) {
 
 				r<- data.frame (matrix(ncol=13,nrow=0))
 				plot <- data.frame()
-				names(r) <- c("Min", "Mdn", "Avg", "AvgDif","AvgDev", "Max", "pMin", "pMdn", "pAvg", "pavgDev", "pMax", "pOVPeak", "pcount")
 				nr = 0
 				files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
 
@@ -91,7 +61,8 @@ for (i in 1:length(machines)) {
 					maxAll = max(maxMax, maxAll)
 					pcountAll = pcountAll + pcount
 
-					r[nrow(r)+1,] <-data.frame (minMin, avgMed, avgMea, avgDif, avgDev, maxMax, pminMin, pavgMdn, pavgMea, pavgDev, pmaxMax, pmaxMaxp, pcount)
+					r[nrow(r)+1,] <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, AvgDif=avgDif, AvgDev=avgDev, Max=maxMax,
+						pMin=pminMin, pMdn=pavgMdn, pAvg=pavgMea, pAvgDev=pavgDev, pMax=pmaxMax, pOVPeak=pmaxMaxp, pcount)
 					plot <- rbind(plot, dat)
 				}
 				# Process experiment totals 
