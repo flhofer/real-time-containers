@@ -129,7 +129,6 @@ elif [[ "$cmd" == "update" ]]; then
 	if [ "$2" != "" ]; then
 		eval "sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json"
 	fi
-	exit 0
 	for filename in rt-app-tst-*.json; do 
 		filen="${filename%%.*}";
 
