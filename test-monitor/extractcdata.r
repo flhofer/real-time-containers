@@ -34,6 +34,7 @@ for (i in 1:length(machines)) {
 				pcountAll = 0
 
 				r<- data.frame (matrix(ncol=13,nrow=0))
+				names(r) <- c("Min", "Mdn", "Avg", "runDif","runStD", "Max", "pMin", "pMdn", "pAvg", "pavgDev", "pMax", "pOVPeak", "pcount")
 				plot <- data.frame()
 				nr = 0
 				files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
@@ -48,8 +49,8 @@ for (i in 1:length(machines)) {
 					minMin = min(datp$RunT)
 					avgMea = mean(datp$RunT)
 					avgMed = median(datp$RunT)
-					avgDev = sqrt(var(datp$RunT))
-					avgDif = avgMed-avgMea;
+					runStD = sqrt(var(datp$RunT))
+					runDif = avgMed-avgMea;
 					maxMax = max(datp$RunT)
 					pminMin = min(datp$Period)
 					pavgMea = mean(datp$Period)
@@ -61,7 +62,7 @@ for (i in 1:length(machines)) {
 					maxAll = max(maxMax, maxAll)
 					pcountAll = pcountAll + pcount
 
-					r[nrow(r)+1,] <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, AvgDif=avgDif, AvgDev=avgDev, Max=maxMax,
+					r[nrow(r)+1,] <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, runDif=runDif, runStD=runStD, Max=maxMax,
 						pMin=pminMin, pMdn=pavgMdn, pAvg=pavgMea, pAvgDev=pavgDev, pMax=pmaxMax, pOVPeak=pmaxMaxp, pcount)
 					plot <- rbind(plot, dat)
 				}

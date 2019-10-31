@@ -5,11 +5,11 @@ setwd("./container/test/")
 options("width"=200)
 library(ggplot2)
 
-tests  <- cbind( tests, list(group4)) # overwrite for now
+tests  <- cbind(list(group4)) # overwrite for now
 
 
 #machines <- c("C5", "BM" , "T3", "T3U")
-machines <- c("BM")
+machines <- c("BM", "T3B")
 
 for (i in 1:length(machines)) {
 	for (l in 1:length(tests)) {					
@@ -29,9 +29,8 @@ for (i in 1:length(machines)) {
 			maxAll = 0
 			pcountAll = 0
 
-			r<- data.frame (matrix(ncol=13,nrow=0))
+			r<- data.frame ()
 			plot <- data.frame()
-			names(r) <- c("Min", "Mdn", "Avg", "AvgDif","AvgDev", "Max", "pMin", "pMdn", "pAvg", "pavgDev", "pMax", "pOVPeak", "pcount")
 			nr = 0
 			files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
 
@@ -41,49 +40,16 @@ for (i in 1:length(machines)) {
 				dat <- loadData(x) # load log file of experiment, container
 				#dat <- dat[-c(1:(10000000/dat$cDur)),] # delete first second
 
-				datp <- dat[!(dat$RunT > dat$cDur*1.5),] # Dump all values higher than 1.5*  programmed duration (filter of overshoots for datp)
-
-				minMin = min(datp$RunT)
-				avgMea = mean(datp$RunT)
-				avgMed = median(datp$RunT)
-				avgDev = sqrt(var(datp$RunT))
-				avgDif = avgMed-avgMea;
-				maxMax = max(datp$RunT)
-				pminMin = min(datp$Period)
-				pavgMea = mean(datp$Period)
-				pavgMdn = median(datp$Period)
-				pavgDev = sqrt(var(datp$Period))
-				pmaxMax = max(datp$Period)
-				pmaxMaxp = max(dat$Period)
-				pcount = sum ( dat$Period > pavgMea*1.5) # WARING! could loose some results!!
-				maxAll = max(maxMax, maxAll)
-				pcountAll = pcountAll + pcount
-
-				r[nrow(r)+1,] <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, AvgDif=avgDif, AvgDev=avgDev, Max=maxMax, pMin=pminMin, pMdn=pavgMdn, pAvg=pavgMea, pAvgDev=pavgDev, pMax=pmaxMax, pOVPeak=pmaxMaxp, pcount)
+				r <-rbind(r, getDataPars(dat))
 				plot <- rbind(plot, dat)
 			}
+			maxAll = max(r$runMax)
+			pcountAll = sum(r$pcount)
+
 			plot$test <- tests[[l]][[k]]
 			plot$oversh <- pcountAll
 
-			datp <- plot[!(plot$RunT > plot$cDur*1.5),] # Dump all values higher than 1.5*  programmed duration (filter of overshoots for datp)
-
-			minMin = min(datp$RunT)
-			avgMea = mean(datp$RunT)
-			avgMed = median(datp$RunT)
-			avgDev = sqrt(var(datp$RunT))
-			avgDif = avgMed-avgMea;
-			maxMax = max(datp$RunT)
-			pminMin = min(datp$Period)
-			pavgMea = mean(datp$Period)
-			pavgMdn = median(datp$Period)
-			pavgDev = sqrt(var(datp$Period))
-			pmaxMax = max(datp$Period)
-			pmaxMaxp = max(plot$Period)
-			pcount = sum (plot$Period > pavgMea*1.5) # WARING! could loose some results!!
-			maxAll = max(maxMax, maxAll)
-
-			rm <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, AvgDif=avgDif, AvgDev=avgDev, Max=maxMax, pMin=pminMin, pMdn=pavgMdn, pAvg=pavgMea, pAvgDev=pavgDev, pMax=pmaxMax, pOVPeak=pmaxMaxp, pcount)
-
+			rm <- getDataPars(plot)
 
 			# Bind to total result
 			tplot<-rbind(tplot,plot)
