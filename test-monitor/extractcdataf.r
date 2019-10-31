@@ -26,12 +26,8 @@ for (i in 1:length(machines)) {
 			# Find all directories with pattern.. 
 			dir = paste0(machines[i], "/", tests[[l]][[k]])
 
-			maxAll = 0
-			pcountAll = 0
-
-			r<- data.frame ()
+			r<- data.frame()
 			plot <- data.frame()
-			nr = 0
 			files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
 
 			# Load Container result file of this experiment, one file per container
@@ -43,22 +39,20 @@ for (i in 1:length(machines)) {
 				r <-rbind(r, getDataPars(dat))
 				plot <- rbind(plot, dat)
 			}
-			maxAll = max(r$runMax)
 			pcountAll = sum(r$pcount)
+			testPcount = testPcount + pcountAll
 
+			# get overall statistics on all containers			
 			plot$test <- tests[[l]][[k]]
 			plot$oversh <- pcountAll
-
 			rm <- getDataPars(plot)
 
-			# Bind to total result
-			tplot<-rbind(tplot,plot)
 			print(r)
 			cat ("totals:\n")
 			print(rm)
-			cat ("Peak - Peak count ", maxAll, pcountAll, "\n")
-			testPcount = testPcount + pcountAll
 
+			# Bind to total result
+			tplot<-rbind(tplot,plot)
 		}
 
   		# plot single test group

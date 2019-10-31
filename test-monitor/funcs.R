@@ -26,8 +26,7 @@ getDataPars <- function(records) {
 	prdMaxP = max(records$Period)
 	pcount = sum ( records$Period > prdAvg*1.5) # WARING! could loose some results!!
 
-	return (data.frame (runMin=runMin, runMdn=runMdn, Avg=runAvg, runDif=runDif, runStD=runStD, runMax=runMax,
-		prdMin=prdMin, prdMdn=prdMdn, prdAvg=prdAvg, prdStD=prdStD, prdMax=prdMax, prdMaxP=prdMaxP, pcount))
+	return (data.frame (runMin, runMdn, runAvg, runDif, runStD, runMax,	prdMin, prdMdn, prdAvg, prdStD, prdMax, prdMaxP, pcount))
 }
 
 loadData <- function(fName) {

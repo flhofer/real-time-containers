@@ -30,45 +30,23 @@ for (i in 1:length(machines)) {
 				# Find all directories with pattern.. 
 				dir = paste0(machines[i], "/", types[j], "/", tests[[l]][[k]])
 
-				maxAll = 0
-				pcountAll = 0
-
-				r<- data.frame (matrix(ncol=13,nrow=0))
-				names(r) <- c("Min", "Mdn", "Avg", "runDif","runStD", "Max", "pMin", "pMdn", "pAvg", "pavgDev", "pMax", "pOVPeak", "pcount")
+				r<- data.frame()
 				plot <- data.frame()
 				nr = 0
 				files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
 
 				# Load Container result file of this experiment, one file per container
 				for (x in files) {
-
 					dat <- loadData(x) # load log file of experiment, container
-
-					datp <- dat[!(dat$RunT > dat$cDur*1.5),] # Dump all values higher than 1.5*  programmed duration (filter of overshoots for datp)
-
-					minMin = min(datp$RunT)
-					avgMea = mean(datp$RunT)
-					avgMed = median(datp$RunT)
-					runStD = sqrt(var(datp$RunT))
-					runDif = avgMed-avgMea;
-					maxMax = max(datp$RunT)
-					pminMin = min(datp$Period)
-					pavgMea = mean(datp$Period)
-					pavgMdn = median(datp$Period)
-					pavgDev = sqrt(var(datp$Period))
-					pmaxMax = max(datp$Period)
-					pmaxMaxp = max(dat$Period)
-					pcount = sum ( dat$Period > pavgMea*1.5)
-					maxAll = max(maxMax, maxAll)
-					pcountAll = pcountAll + pcount
-
-					r[nrow(r)+1,] <-data.frame (Min=minMin, Mdn=avgMed, Avg=avgMea, runDif=runDif, runStD=runStD, Max=maxMax,
-						pMin=pminMin, pMdn=pavgMdn, pAvg=pavgMea, pAvgDev=pavgDev, pMax=pmaxMax, pOVPeak=pmaxMaxp, pcount)
+					r <-rbind(r, getDataPars(dat))
 					plot <- rbind(plot, dat)
 				}
 				# Process experiment totals 
+				maxAll = max(r$runMax)
+				pcountAll = sum(r$pcount)
 				plot$type <- types[j]
 				plot$oversh <- pcountAll
+
 				mplotMed = median(plot$RunT) # median  on all experiments of set
 				mplotAvg = mean(plot$RunT) # average on all experiments of set
 				mplot <- rbind(mplot, data.frame (Type=types[j], Test=tests[[l]][[k]], Mdn=mplotMed, Avg=mplotAvg))
