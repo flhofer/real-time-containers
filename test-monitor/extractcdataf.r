@@ -5,11 +5,10 @@ setwd("./container/test/")
 options("width"=200)
 library(ggplot2)
 
-tests  <- cbind(list(group4)) # overwrite for now
+#tests  <- cbind(list(group4)) # overwrite for now
+machines <- c("BMB", "T3B", "T3UB", "C5C") # overwrite for now
 
-
-#machines <- c("C5", "BM" , "T3", "T3U")
-machines <- c("BM", "T3B")
+sink("containerstats.txt")
 
 for (i in 1:length(machines)) {
 	for (l in 1:length(tests)) {					
@@ -34,7 +33,9 @@ for (i in 1:length(machines)) {
 			for (x in files) {
 
 				dat <- loadData(x) # load log file of experiment, container
-				#dat <- dat[-c(1:(10000000/dat$cDur)),] # delete first second
+				if (nrow(dat) >0){
+					dat <- dat[-c(1:(10000000/dat$cDur)),] # delete first second
+				}
 
 				r <-rbind(r, getDataPars(dat))
 				plot <- rbind(plot, dat)
@@ -58,11 +59,13 @@ for (i in 1:length(machines)) {
   		# plot single test group
   		pdf(file= paste0(machines[i],"_" , tests[[l]][[k]],".pdf"), width = 10, height = 10)
 
-		tplot <- tplot[!((tplot$RunT > tplot$cDur*1.5)),] # drop exceeding points
+		tplot <- tplot[!((tplot$RunT > tplot$cDur*1.2)),] # drop exceeding points
+	#	tplot <- tplot[!duplicated(tplot),] # drop duplicates
+		
   		hist <- ggplot(tplot, aes(x=test, y=RunT), col = rainbow(7)) + 
-#			scale_y_continuous(limits=quantile(tplot$RunT, c(0.1,0.9))) +
+			# scale_y_continuous(limits=quantile(tplot$RunT, c(0.1,0.9))) +
 		 	geom_boxplot(fill="slateblue", alpha=0.2) +
-		    geom_point(aes(x = test, y = tplot$cDur*1.5, size=oversh), shape=17, , color="red", fill="red") +
+		    geom_point(aes(x = test, y = tplot$cDur*1.2, size=oversh), shape=17, , color="red", fill="red") +
 		    labs(x="Test setup", y= expression(paste("Run-time  (values are in ", mu, "s)")), size=">10 ms in\n% of set")+
 			scale_fill_viridis_d() 
   		print (hist)
