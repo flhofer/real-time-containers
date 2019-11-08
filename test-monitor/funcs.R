@@ -1,10 +1,10 @@
 # Common functions and settings
 
 tests <- list()
-group1 <- c("1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10")
-group2 <- c("2-1", "2-2")
-group3 <- c("3-1", "3-2", "3-3")
-group4 <- c("4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9", "4-10")
+group1 <- paste0(c("1-"), 1:10)
+group2 <- paste0(c("2-"), 1:2)
+group3 <- paste0(c("3-"), 1:3)
+group4 <- paste0(c("4-"), 1:10)
 tests  <- cbind( tests, list(group1, group2, group3, group4))
 
 machines <- c("C5", "BM" , "T3", "T3U")

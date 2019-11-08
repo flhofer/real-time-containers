@@ -76,15 +76,15 @@ for (i in 1:length(machines)) {
   		#		xlim (c(tplot$RunT[1]*0.995,tplot$RunT[1]*1.005)) + 
 		#	    geom_point(data = tplot, aes(x = type, y = tplot$cDur*1.5, size=oversh), shape=17, , color="red", fill="red") +
 
-        # head(tplot)
-        # pdf(file= paste0(machines[i],"_" , tests[l,k],".pdf"), width = 10, height = 10)
-        # hist <- ggplot(tplot, aes(x=RunT, fill = types), col = rainbow(7)) + 
-        #         geom_density(alpha = 0.1) +
-        #         xlim (c(tplot$cDur[1]*0.95,tplot$cDur[1]*1.05)) + 
-        #         ylab("Count") +
-        #         scale_fill_viridis_d()
-        # print (hist)
-        # dev.off()
+        head(tplot)
+        pdf(file= paste0(machines[i],"_" , tests[[l]][[k]],"_h.pdf"), width = 10, height = 10)
+        hist <- ggplot(tplot, aes(x=RunT, fill = test), col = rainbow(7)) + 
+                geom_density(alpha = 0.1) +
+                xlim (c(tplot$cDur[1]*0.95,tplot$cDur[1]*1.05)) + 
+                ylab("Count") +
+                scale_fill_viridis_d()
+        print (hist)
+        dev.off()
 
 		cat ("Test set overruns ", testPcount , "\n")
 		cat ("----------------------------------------\n")
