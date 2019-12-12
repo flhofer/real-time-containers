@@ -1,9 +1,10 @@
 #!/bin/sh
 
 set -e
-linux_ver="4.9.51"
-balena_tag="17.06-rev1"
-balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
+linux_ver="4.9.90"
+xen_ver="3.0.7"
+#balena_tag="17.06-rev1"
+#balena_tag=$(echo "$balena_tag" | sed 's|+|.|g')
 
 machine=$(uname -m)
 
@@ -56,11 +57,12 @@ esac
 #################################
 echo
 echo "## Installing dependencies..."
-sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl
 # if xconfig...
 sudo apt-get install -y qt5-default
 # if create-pkg...
-sudo apt-get install -y checkinstall pkg-config
+sudo apt-get install -y checkinstall
+# last the main dependencies
+sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl libncurses5 bison flex pkg-config
 
 ################################
 # Xenomai
@@ -78,16 +80,26 @@ cd xenomai-3
 ./scripts/bootstrap
 cd ..
 
-echo
-echo "## Downloading Linux Kernel"
-wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-${linux_ver}.tar.gz
+if [ ! -e "./linux-${linux_ver}" ]; then
+	echo
+	echo "## Downloading Linux Kernel"
+	wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-${linux_ver}.tar.gz
+else
+	# cleanup
+	rm -r linux-${linux_ver}
+fi
 tar xf linux-${linux_ver}.tar.gz
-wget http://xenomai.org/downloads/ipipe/v4.x/x86/ipipe-core-${linux_ver}-x86-5.patch
+
+if [ ! -e "./linux-${linux_ver}" ]; then
+	echo
+	echo "## Downloading i-Pipe"
+	wget http://xenomai.org/downloads/ipipe/v4.x/x86/ipipe-core-${linux_ver}-x86-6.patch
+fi
 
 echo
 echo "## Patching Linux Kernel"
 cd linux-${linux_ver}
-./../xenomai-3/scripts/prepare-kernel.sh --arch=${arch} --ipipe=../ipipe-core-${linux_ver}-x86-5.patch
+./../xenomai-3/scripts/prepare-kernel.sh --arch=${arch} --ipipe=../ipipe-core-${linux_ver}-x86-6.patch
 echo "I-Pipe patched"
 
 
@@ -115,7 +127,7 @@ echo "## Configuring GRUB"
 #sudo sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
 sudo cp /etc/default/grub /etc/default/grub.backup
 echo '
-GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux 4.9.51-xenomai-3.0.6"
+GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_ver}'-xenomai-'${xen_ver}'"
 GRUB_HIDDEN_TIMEOUT_QUIET="true"
 GRUB_TIMEOUT="10"
 GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
@@ -149,9 +161,9 @@ export OROCOS_TARGET=xenomai
 
 echo 'source ~/.xenomai_rc' >> ~/.bashrc
 
-echo "## Installing Balena"
-url="https://github.com/resin-os/balena/releases/download/${balena_tag}/balena-${balena_tag}-${arch}.tar.gz"
-curl -sL "$url" | tar xzv -C /usr/local/bin --strip-components=1
+#echo "## Installing Balena"
+#url="https://github.com/resin-os/balena/releases/download/${balena_tag}/balena-${balena_tag}-${arch}.tar.gz"
+#curl -sL "$url" | tar xzv -C /usr/local/bin --strip-components=1
 
 cat <<EOF
 
