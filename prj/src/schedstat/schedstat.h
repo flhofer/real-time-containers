@@ -4,6 +4,9 @@
 	#define __SCHEDSTAT_H_
 
 	#define PRGNAME "DC static orchestrator"
+	#ifndef VERSION
+		#define VERSION "-- UNVERSIONED --"
+	#endif
 	
 /* --------------------------- Global variables for all the threads and programms ------------------ */
 
