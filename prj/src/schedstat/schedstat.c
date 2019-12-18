@@ -205,41 +205,73 @@ static void prepareEnvironment(prgset_t *set) {
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++) {
 
+			/* ---------------------------------------------------------*/
+			/* Configure online cpus - HT, SMT and performance settings */
+			/* ---------------------------------------------------------*/
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
-				char fstring[50]; // cpu string
-				char poss[50]; // cpu string
+				char fstring[50]; 	// cpu string
 
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-				if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
-					// value possible read ok
-					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-					if (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-						// value act read ok
-						if (strcmp(str, CPUGOVR)) {
-							// SMT - HT is on
-							cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
-							
-							if (set->dryrun)
-								cont("Skipping setting of governor on CPU%d.", i);
+				{ // start block governor
+					char poss[50]; 		// possible settings string for governors
+
+					// verify if CPU-freq is on performance -> set it
+					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
+					if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
+						// value possible read ok
+						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
+						if (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+							// value act read ok
+							if (strcmp(str, CPUGOVR)) {
+								// Governor is set to a different value
+								cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
+
+								if (set->dryrun)
+									cont("Skipping setting of governor on CPU%d.", i);
+								else
+									if (!set->force)
+										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
+									else
+										if (!setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
+											err_exit_n(errno, "CPU-freq change unsuccessful!");
+										else
+											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
+							}
 							else
-								if (!set->force)
-									err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (focre) flag to authorize change to \"" CPUGOVR "\"", str, i);
-							else
-								if (!setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
-									err_exit_n(errno, "CPU-freq change unsuccessful!");
-							else
-								cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
+								cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
 						}
 						else
-							cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
+							warn("CPU%d Scaling governor settings not found. Skipping.", i);
 					}
-					// TODO: else
-				}
-				// TODO: else
+					else
+						warn("CPU%d available CPU scaling governors not found. Skipping.", i);
 
-				// TODO: cpu-idle
+				} // end block
+
+				// CPU-IDLE settings, added with Kernel 4_16
+				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
+				if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str)))){
+					// value act read ok
+					if (strcmp(str, "n/a")) {
+						//
+						cont("Setting for power-QoS now \"%s\" on CPU%d.", str, i);
+
+						if (set->dryrun)
+							cont("Skipping setting of power QoS policy on CPU%d.", i);
+						else
+							if (!set->force)
+								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
+							else
+								if (!setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
+									err_exit_n(errno, "CPU-QoS change unsuccessful!");
+								else
+									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
+					}
+					else
+						cont("CPU-freq on CPU%d is set to \"" "n/a" "\" as required", i);
+				}
+				else
+					warn("CPU%d power saving configuration not found. Skipping.", i);
 
 				// if smi is set, read SMI counter
 				if(set->smi) {
@@ -259,10 +291,11 @@ static void prepareEnvironment(prgset_t *set) {
 			}
 
 			// if CPU not online
-			else if (numa_bitmask_isbitset(set->affinity_mask, i))
+			else if (numa_bitmask_isbitset(set->affinity_mask, i)){
 				// disabled processor set to affinity
+				info("Processor %d is set for affinity mask, but is disabled.", i);
 				err_exit("Unavailable CPU set for affinity.");
-
+			}
 		}
 	}
 	// TODO else
