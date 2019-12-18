@@ -1,77 +1,110 @@
 # Set the working directory
-setwd("./container/")
+source("funcs.R")
 
-loadData <- function(fName) {
-	#Function, load data from text file into a data frame, only min, avg and max
+setwd("./container/pretest/")
+options("width"=200)
+library(ggplot2)
 
-	# Read text into R
-	# cat (fName, "\n")
+#types <- c("test1", "test2", "test3", "test4")
+#types <- c("test8", "test5", "test6", "test7")
+#types <- c("test9", "test10", "test11", "test12")
+types <- c("test2", "test8", "test9")
 
-	if (!file.exists(fName)) {
-		# break here if file does not exist
-		dat <- data.frame("RunT"=numeric(),"Period"=numeric(),"rStart"=numeric())
-		return(dat)
-	}
-
-	# Transform into table, filter and add names
-	dat = read.table(file= fName)
-	#dat = read.table(text = tFile)
-	dat <- data.frame ("RunT"=dat$V3,"Period"=dat$V4,"rStart"=dat$V7)
-	
-	return(dat)
-}
-
-#machines <- c("C5", "BM" , "T3", "T3U")
-#types <- c("dyntick", "fixtick")
-#tests <- c("1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10", "2-1", "2-2", "3-1", "3-2", "3-3",
-# "4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9", "4-10")
-machines <- c("BM")
-types <- c("dyntick")
-tests <- c("1-9", "1-10", "3-1", "3-2", "3-3", "4-1")
-
+sink("containerstats.txt")
 
 for (i in 1:length(machines)) {
-	for (j in 1:length(types)) {
+	for (l in 1:length(tests)) {
 
-		testPcount = 0;
-		for (k in 1:length(tests)) {
+		mplot <- data.frame("Type"=character(),"Test"=character(),"Mdn"=numeric(),"Avg"=numeric())
+					
+		for (k in 1:length(tests[[l]])) {
+			testPcount = 0;
+			tplot <- data.frame()
 
-			# Label and directory pattern
-			cat(machines[i], "-", types[j], "-", tests[k], "\n")
-			
-			# Find all directories with pattern.. 
-			dir = paste0(machines[i], "/", types[j], "/", tests[k])
+			for (j in 1:length(types)) {
 
-			maxAll = 0
-			pcountAll = 0
 
-			r<- data.frame (matrix(ncol=10,nrow=0))
-			names(r) <- c("Container","Min", "Avg", "AvgDev", "Max", "pMin", "pAvg", "pavgDev", "pMax", "pcount")
-			nr = 0
-			files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
-			for (x in files) {
-				nr = nr +1
-				dat <- loadData(x)
-				minMin = min(dat$RunT)
-				avgMea = mean(dat$RunT)
-				avgDev = sqrt(var(dat$RunT))
-				maxMax = max(dat$RunT)
-				pminMin = min(dat$Period)
-				pavgMea = mean(dat$Period)
-				pavgDev = sqrt(var(dat$Period))
-				pmaxMax = max(dat$Period)
-				pcount = sum ( dat$Period > pavgMea*1.5)
-				maxAll = max(maxMax, maxAll)
-				pcountAll = pcountAll + pcount
+				# Label and directory pattern
+				cat(machines[i], "-", types[j], "-", tests[[l]][[k]], "\n")
+				
+				# Find all directories with pattern.. 
+				dir = paste0(machines[i], "/", types[j], "/", tests[[l]][[k]])
 
-				r[nrow(r)+1,] <-data.frame (nr, minMin, avgMea, avgDev, maxMax, pminMin, pavgMea, pavgDev, pmaxMax, pcount)
-			}
-			print(r)
-			
-			cat ("Peak - Peak count ", maxAll, pcountAll, "\n")
-			testPcount = testPcount + pcountAll
+				r<- data.frame()
+				plot <- data.frame()
+				nr = 0
+				files <- list.files(path=dir, pattern="*.log", full.names=TRUE, recursive=FALSE)
+
+				# Load Container result file of this experiment, one file per container
+				for (x in files) {
+					dat <- loadData(x) # load log file of experiment, container
+					r <-rbind(r, getDataPars(dat))
+					plot <- rbind(plot, dat)
+				}
+				# Process experiment totals 
+				maxAll = max(r$runMax)
+				pcountAll = sum(r$pcount)
+				plot$type <- types[j]
+				plot$oversh <- pcountAll
+
+				mplotMed = median(plot$RunT) # median  on all experiments of set
+				mplotAvg = mean(plot$RunT) # average on all experiments of set
+				mplot <- rbind(mplot, data.frame (Type=types[j], Test=tests[[l]][[k]], Mdn=mplotMed, Avg=mplotAvg))
+
+				# Bind to total result
+				tplot<-rbind(tplot,plot)
+				print(r)
+				cat ("Peak - Peak count ", maxAll, pcountAll, "\n")
+				testPcount = testPcount + pcountAll
+	  		}
+
+	  		# plot single test
+	  		head(tplot)
+	  		pdf(file= paste0(machines[i],"_" , tests[[l]][[k]],".pdf"), width = 10, height = 10)
+
+			tplot <- tplot[!((tplot$RunT > tplot$cDur*1.5)),] # drop exceeding points
+	  		hist <- ggplot(tplot, aes(x=type, y=RunT), col = rainbow(7)) + 
+				scale_y_continuous(limits=quantile(tplot$RunT, c(0.1,0.9))) +
+			 	geom_boxplot(fill="slateblue", alpha=0.2, outlier.shape=NA) +
+			    labs(x="Test type", y= expression(paste("Run-time  (values are in ", mu, "s)")), size=">10 ms in\n% of set")+
+				scale_fill_viridis_d() 
+	  		print (hist)
+	  		dev.off()
+
+			#		scale_y_continuous(trans='log10') +
+	  		# 		ylim (c(tplot$RunT[1]*0.995,tplot$RunT[1]*1.005)) + 
+	  		#		xlim (c(tplot$RunT[1]*0.995,tplot$RunT[1]*1.005)) + 
+			#	    geom_point(data = tplot, aes(x = type, y = tplot$cDur*1.5, size=oversh), shape=17, , color="red", fill="red") +
+
+	        # head(tplot)
+	        # pdf(file= paste0(machines[i],"_" , tests[l,k],".pdf"), width = 10, height = 10)
+	        # hist <- ggplot(tplot, aes(x=RunT, fill = types), col = rainbow(7)) + 
+	        #         geom_density(alpha = 0.1) +
+	        #         xlim (c(tplot$cDur[1]*0.95,tplot$cDur[1]*1.05)) + 
+	        #         ylab("Count") +
+	        #         scale_fill_viridis_d()
+	        # print (hist)
+	        # dev.off()
+
+			cat ("Test set overruns ", testPcount , "\n")
+			cat ("----------------------------------------\n")
 		}
-		cat ("Test set overruns ", testPcount , "\n")
+		pdf(file= paste0(machines[i], "_", l ,"_median.pdf"), width = 10, height = 10)
+		plot1 <- ggplot(mplot, aes(x=Test, y=Mdn, group=Type, color=Type), col = rainbow(7)) + 
+			geom_line(aes(linetype=Type))+
+	  		geom_point()+
+		    labs(x="Test type", y= expression(paste("Run-time  (values are in ", mu, "s)")))+
+			scale_fill_viridis_d() 
+		print (plot1)
+		dev.off()
+
+		pdf(file= paste0(machines[i], "_", l ,"_average.pdf"), width = 10, height = 10)
+		plot1 <- ggplot(mplot, aes(x=Test, y=Avg, group=Type, color=Type), col = rainbow(7)) + 
+			geom_line(aes(linetype=Type))+
+	  		geom_point()+
+		    labs(x="Test type", y= expression(paste("Run-time  (values are in ", mu, "s)")))+
+			scale_fill_viridis_d() 
+		print (plot1)
+		dev.off()
 	}
 }
-

@@ -1,5 +1,5 @@
 #!/bin/bash
-source ~user/.bashrc
+#source ~user/.bashrc
 launchDir="/opt/usecase/logs"
 local_resultsDir="$launchDir/UC1.`date +%Y%m%d`"
 
@@ -85,6 +85,7 @@ startContainer() {
 	    -d \
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling"   \
+        -e sch=""  \
 	    -v $fifoDir:"$fifoDir"  \
 	    -v "$local_resultsDir":"$container_resultsDir" \
 	    --privileged \

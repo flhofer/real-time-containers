@@ -271,3 +271,108 @@ void SimulatedMsg::setTestName(const std::string & nm)
 {
     testNames[testNum] = nm;
 }
+
+std::ostream& Overrun::print(std::ostream& os, ulong co)
+{
+    char buffer[50] = {0};
+    memset(buffer, 0, sizeof(buffer));
+    sprintf(buffer, "%d.%09ld", happenedOn.tv_sec, happenedOn.tv_nsec);
+    os << "Configured runtime(nsec): " << co 
+        << ", Actual runtime: " << overrun 
+        << ", Keeping Busy for (nsec): " << keepBusyNSec 
+        << ", Happened at (time): " << buffer
+        << std::endl;
+    return os;
+}
+
+std::ostream& ViolatedPeriod::print(std::ostream& os, ulong cr)
+{
+    char buffer[50] = {0};
+    os << "Configured runtime(nsec): " << cr;
+    os << ", Period violated by(nsec): " << violation;
+
+    memset(buffer, 0, sizeof(buffer));
+    sprintf(buffer, "%d.%09ld", expectedPeriodStart.tv_sec, expectedPeriodStart.tv_nsec);
+    os << ", Expected Period Start (time): " << buffer;
+
+    memset(buffer, 0, sizeof(buffer));
+    sprintf(buffer, "%d.%09ld", actualPeriodStart.tv_sec, actualPeriodStart.tv_nsec);
+    os << ", Actual Period Start (time): " << buffer << std::endl;
+
+    return os;
+}
+
+UC2Log::UC2Log(ulong rtime, ulong dline, ulong li): 
+        configuredDeadline(dline), 
+        configuredRuntime(rtime),
+        loopInterval(li),
+        overruns(0),
+        periods(0),
+        averageRuntimes(0)
+{
+
+}
+
+void UC2Log::addViolatedPeriod(ViolatedPeriod period)
+{
+    periods.push_back(period);
+}
+
+void UC2Log::addOverrun(Overrun overun)
+{
+    overruns.push_back(overun);
+}
+
+void UC2Log::addAverateRuntime(ulong ar)
+{
+    averageRuntimes.push_back(ar);
+}
+
+std::ostream& UC2Log::printSummary(std::ostream &os, ulong totalLoops)
+{
+    os << "\n\nSummary of Test\n\n";
+    os << "Total Number of Periods: " << totalLoops << std::endl;
+    os << "\tTotal Overruns: " << overruns.size() << std::endl;
+    os << "\tTotal Violated Periods: " << periods.size() << std::endl;
+
+    // Print average runtimes with specific duration
+    if(averageRuntimes.size() > 0)
+    {
+        os << "--------------- Average runtime per " << loopInterval << " loops -------------------" << std::endl;
+        
+        for (auto it = averageRuntimes.begin(); it != averageRuntimes.end(); it++) 
+        {
+            os << "Average runtime: " << *it << " nsecs" << std::endl;
+        }
+    }
+
+    // Print only if overruns are available
+    if(overruns.size() > 0)
+    {
+        os << "--------------- Details of overrun -------------------" << std::endl;
+
+        for (auto it = overruns.begin(); it != overruns.end(); it++) 
+        {
+            (*it).print(os, configuredRuntime);
+        }
+    }
+
+    // Print only if periods are available
+    if(periods.size() > 0)
+    {
+        os << "--------------- Details of period violations -------------------" << std::endl;
+
+        for (auto it = periods.begin(); it != periods.end(); it++) 
+        {
+            (*it).print(os, configuredRuntime);
+        }
+
+    }
+
+    return os;
+}
+
+UC2Log::~UC2Log()
+{
+
+}

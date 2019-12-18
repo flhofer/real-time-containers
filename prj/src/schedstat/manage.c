@@ -148,9 +148,10 @@ int manageSched(){
 
 	// TODO: this is for the dynamic and adaptive scheduler only
 
-    node_t * current = head;
-
+	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
+
+    node_t * current = head;
 
 	while (current != NULL) {
 
@@ -171,10 +172,10 @@ int manageSched(){
 ///
 static int get_sched_info(node_t * item)
 {
-	char szFileName [_POSIX_PATH_MAX],
-		szStatBuff [PIPE_BUFFER],
-		ltag [80], // just tag of beginning, max lenght expected ~30 
-    	*s;
+	char szFileName [_POSIX_PATH_MAX];
+	char szStatBuff [PIPE_BUFFER];
+	char ltag [80]; // just tag of beginning, max lenght expected ~30 
+    char *s, *s_ptr;
 
 	FILE *fp;
 
@@ -201,7 +202,7 @@ static int get_sched_info(node_t * item)
 	int64_t diff = 0;
 	int64_t ltrt = 0; // last seen runtime
 
-	s = strtok (szStatBuff, "\n");
+	s = strtok_r (szStatBuff, "\n", &s_ptr);
 	while (NULL != s) {
 		(void)sscanf(s,"%s %*c %ld", ltag, &num);
 		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
@@ -256,7 +257,7 @@ static int get_sched_info(node_t * item)
 			item->mon.dl_rt = ltrt;
 			break; // we're done reading
 		}
-		s = strtok (NULL, "\n");	
+		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
 
   return 0;
@@ -279,6 +280,9 @@ static int updateStats ()
 		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
 	// init head
 	node_t * item = head;
 
@@ -291,22 +295,31 @@ static int updateStats ()
 			continue;
 		}
 
-		// update only when defaulting -> new entry
-		if (SCHED_NODATA == item->attr.sched_policy) {
-			if (sched_getattr (item->pid, &(item->attr), sizeof(struct sched_attr), 0U) != 0) {
+		// update only when defaulting -> new entry, or every 100th scan
+		if (!(scount%prgset->loops) || (SCHED_NODATA == item->attr.sched_policy)) {
+			struct sched_attr attr_act;
+			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
 
 				warn("Unable to read params for PID %d: %s", item->pid, strerror(errno));		
 			}
 
+			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
+				
+				if (SCHED_NODATA != item->attr.sched_policy)
+					info("scheduling attributes changed for pid %d", item->pid);
+				item->attr = attr_act;
+			}
+
 			// set the flag for deadline notification if not enabled yet -- TEST
-			if ((prgset->setdflag) && (SCHED_DEADLINE == item->attr.sched_policy) 
+			if ((prgset->setdflag) 
+				&& (SCHED_DEADLINE == item->attr.sched_policy) 
 				&& (KV_416 <= prgset->kernelversion) 
-				&& !(SCHED_FLAG_DL_OVERRUN == (item->attr.sched_flags & SCHED_FLAG_DL_OVERRUN))){
+				&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
 
 				cont("Set dl_overrun flag for PID %d", item->pid);		
 
-				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
-				if (sched_setattr (item->pid, &item->attr, 0U))
+				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
+				if (sched_setattr (item->pid, &(item->attr), 0U))
 					err_msg_n(errno, "Can not set overrun flag");
 			} 
 		}
@@ -321,6 +334,8 @@ static int updateStats ()
 
 		item=item->next; 
 	}
+
+	(void)pthread_mutex_unlock(&dataMutex); 
 
 	return 0;
 }
@@ -394,7 +409,8 @@ void *thread_manage (void *arg)
 		pthread_exit(0); // exit the thread signalling normal return
 		break;
 	  }
-	  sleep(1);
+	  // TODO: change to timer and settings based loop
+	  usleep(10000);
 	}
 	// TODO: Start using return value
 }

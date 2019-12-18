@@ -33,17 +33,17 @@ static const char * dockerlink_events [6] = {
 	};
 
 static contevent_t cntexpected[6] = {
-	{ cnt_remove, "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572495142834428},
+	{ cnt_remove, "rt-app-tst-10", "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572495142834428},
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
 	{0, NULL},
-	{ cnt_add, "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572501557282644},
+	{ cnt_add, "rt-app-tst-10", "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572501557282644},
 	};
 
 static void checkContainer(contevent_t * cntevent) {
 
-	usleep(100000);
+	usleep(1000);
 	(void)pthread_mutex_lock(&containerMutex);
 			
 	while (!containerEvent) {
@@ -55,15 +55,17 @@ static void checkContainer(contevent_t * cntevent) {
 			return;
 		}
 
-		usleep(100000);
+		usleep(1000);
 		(void)pthread_mutex_lock(&containerMutex);
 	}
 
 	ck_assert(containerEvent);
+	ck_assert(containerEvent->name);
 	ck_assert(containerEvent->id);
 	ck_assert(containerEvent->image);
 
 	ck_assert_int_eq(cntevent->event, containerEvent->event);
+	ck_assert_str_eq(cntevent->name, containerEvent->name);
 	ck_assert_str_eq(cntevent->id, containerEvent->id);
 	ck_assert_str_eq(cntevent->image, containerEvent->image);
 	ck_assert_int_eq(cntevent->timenano, containerEvent->timenano);

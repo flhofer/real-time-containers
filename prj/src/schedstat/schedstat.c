@@ -116,13 +116,13 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	}
 
 	char pidline[BUFRD];
-	char *pid;
+	char *pid, *pid_ptr;
 	int mpid;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		pid = strtok (pidline," ");					
+		pid = strtok_r (pidline," ", &pid_ptr);					
 		mpid = atoi(pid);
-        pid = strtok (NULL, "\n"); // end of line?
+        pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
 
 		if (numa_sched_setaffinity(mpid, amask))
 			warn("could not set pid %d-'%s' affinity: %s", mpid, pid, strerror(errno));
@@ -308,7 +308,7 @@ static void prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
-	if (SCHED_RR == set->policy && 0 < set->rrtime) {
+	if (SCHED_RR == set->policy && 0 < set->rrtime) { //TODO: rrtime always?
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (!setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
@@ -632,29 +632,29 @@ static void prepareEnvironment(prgset_t *set) {
 				mtask = 0;
 
 				char pidline[BUFRD];
-				char *pid;
+				char *pid, *pid_ptr;
 				int nleft=0; // reading left counter
 				// prepare literal and open pipe request
-				pidline[BUFRD-1] = '\0'; // safety to avoid overrun	
 				int path = open(nfileprefix,O_RDONLY);
 
 				// Scan through string and put in array, leave one byte extra, needed for strtok to work
-				while(nleft += read(path, pidline+nleft,BUFRD-nleft-2)) { 	// TODO: read vs fread
-					pidline[BUFRD-2] = '\n'; // end of read check, set\n to be sure to end strtok, not on \0
-					printDbg("Pid string return %s", pidline);
-					pid = strtok (pidline,"\n");	
-					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
+				while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) { 	// TODO: read vs fread
+					printDbg("%s: Pid string return %s\n", __func__, pidline);
+					pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
+					pid = strtok_r (pidline,"\n", &pid_ptr);	
+					while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+						// DO STUFF
 
 						// fileprefix still pointing to CSET_SYS
 						if (!setkernvar(fileprefix, "tasks", pid, set->dryrun)){
-							printDbg( KMAG "Warn!" KNRM " Can not move task %s", pid);
+							printDbg( "Warn! Can not move task %s\n", pid);
 							mtask++;
 						}
 						nleft-=strlen(pid)+1;
-						pid = strtok (NULL,"\n");	
+						pid = strtok_r (NULL,"\n", &pid_ptr);	
 					}
 					if (pid) // copy leftover chars to beginning of string buffer
-						memcpy(pidline, pidline+BUFRD-nleft-2, nleft); 
+						memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
 				}
 
 				close(path);

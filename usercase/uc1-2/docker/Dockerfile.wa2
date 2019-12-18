@@ -8,6 +8,6 @@ RUN mkdir /home/tmp && \
 
 COPY workerapp  /home/workerapp2
 
-CMD chrt $scheduling /home/workerapp2 $cmdargs > /home/logs/workerapp2.log 2>&1
+CMD chrt $scheduling /home/workerapp2 $cmdargs > /home/logs/workerapp2$sch.log 2>&1
 
 # CMD /home/workerapp2 $cmdargs > /home/logs/workerapp2.log 2>&1

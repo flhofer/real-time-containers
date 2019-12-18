@@ -22,16 +22,52 @@ std::string basePipeName("/tmp/Worker");
 int sleepSecs = 1; //For use when debugging only
 int innerloops=25;
 int outerloops=150;
-int pollPeriod=0;
+unsigned long pollPeriod=0;
+unsigned long deadline = 0;
+unsigned long runtime = 0;
+unsigned long endInSeconds = 0;
+
 int timedloops=0;
 bool bDbg = false;
 int maxTests = 8;
 bool terminateProcess = false;
 
-void testFunc(int oloops, int iloops, timespec &durationSpec, bool bDbg)
+timespec calculateTimeDifference(const timespec& first, const timespec& second){
+
+    timespec diff = {};
+    diff.tv_sec = first.tv_sec - second.tv_sec;
+    diff.tv_nsec = first.tv_nsec - second.tv_nsec;
+    
+    if (diff.tv_nsec < 0)
+    {
+        --diff.tv_sec;
+        diff.tv_nsec += 1e9;
+    }
+
+    return diff;
+}
+
+timespec addTime(timespec& spec, unsigned long addtime){
+
+    spec.tv_nsec += addtime;
+
+    if (spec.tv_nsec >= 1e9)
+    {
+        ++spec.tv_sec;
+        spec.tv_nsec -= 1e9;
+    }
+    else if (spec.tv_nsec < 0)
+    {
+        --spec.tv_sec;
+        spec.tv_nsec += 1e9;
+    }
+
+    return spec;
+}
+
+timespec keepProcessorBusy(int oloops, int iloops, bool bDbg)
 {
-	char delim = ' ';
-    timespec startSpec;
+    struct timespec startSpec = {0};
 
 	clock_gettime(CLOCK_REALTIME, &startSpec);
 	static string s("a b c d e f g h i j k l m n o p q r s t u v w x y z");
@@ -44,31 +80,42 @@ void testFunc(int oloops, int iloops, timespec &durationSpec, bool bDbg)
 		}
 	}
 
+    struct timespec durationSpec = {0};
+
 	clock_gettime(CLOCK_REALTIME, &durationSpec);
-    durationSpec.tv_sec -= startSpec.tv_sec;
-    durationSpec.tv_nsec -= startSpec.tv_nsec;
-    if (durationSpec.tv_nsec < 0)
-    {
-        --durationSpec.tv_sec;
-        durationSpec.tv_nsec += 1e9;
-    }
+
+    durationSpec = calculateTimeDifference(durationSpec, startSpec);    
+
     if (bDbg)
     {
         fprintf(stderr, "%s: %ld.%09ld Duration for %d outerloops and %d innerloops\n", progName.c_str(), durationSpec.tv_sec, durationSpec.tv_nsec, oloops, iloops); 
     }
+
+    return durationSpec;
 }
 
-void updateExpectedEndSpec(timespec &endspec, long pollPeriod)
+void updateExpectedSpecs(timespec &periodSpec, unsigned long period, timespec &deadlineSpec, unsigned long deadline)
 {
-    endspec.tv_nsec += pollPeriod*1000;
-    if (endspec.tv_nsec >= 1e9)
+
+    // calculate first for deadline, then for period
+    deadlineSpec = periodSpec;
+
+    deadlineSpec.tv_nsec += deadline;
+    if (deadlineSpec.tv_nsec >= 1e9)
     {
-        ++endspec.tv_sec;
-        endspec.tv_nsec -= 1e9;
+        ++deadlineSpec.tv_sec;
+        deadlineSpec.tv_nsec -= 1e9;
+    }
+
+    periodSpec.tv_nsec += period;
+    if (periodSpec.tv_nsec >= 1e9)
+    {
+        ++periodSpec.tv_sec;
+        periodSpec.tv_nsec -= 1e9;
     }
 }
 
-void workerFunc(int tloops, int iloops, int oloops, int pollPeriod)
+void workerFunc(int tloops, int iloops, int oloops, unsigned long pollPeriod, ulong deadline, ulong runtime, ulong endInSeconds)
 {
     PipeStruct readPipe;
     int result;
@@ -84,27 +131,37 @@ void workerFunc(int tloops, int iloops, int oloops, int pollPeriod)
     
     SimulatedMsg simulatedMsg(maxTests, 0,  1000, 1000, std::string("usecs"), 0, 0);
 
-    struct timespec durationSpec;
+    UC2Log uc2Log(runtime, deadline, tloops);
+
     double inMsg;
     const int maxMsg = 200;
     double msg[maxMsg+1];
     int i = 0;
     int loopCt = 0;
-    double totalDuration = 0.0;
-    struct timespec startSpec, endSpec, delaySpec;
-    clock_gettime(CLOCK_REALTIME, &startSpec);
+    ulong totalLoops = 0;
+    long double totalDuration = 0.0, totalPerInterval = 0.0;
+    struct timespec startTime = {0}, executionActualStartSpec = {0}, executionActualEndSpec = {0}, periodExpectedSpec = {0}, periodDeadlineSpec = {0};
+    struct timespec keepBusyDuration = {0};
+
     if (pollPeriod != 0)
     {
         sched_yield();
-        clock_gettime(CLOCK_REALTIME, &endSpec);
+        clock_gettime(CLOCK_REALTIME, &periodExpectedSpec);
+
+        periodDeadlineSpec = periodExpectedSpec;
+        addTime(periodDeadlineSpec, deadline);
+
+        fprintf(stderr, "Starting value of periodExpectedSpec = %d.%09ld, endInSeconds %u\n", periodExpectedSpec.tv_sec, periodExpectedSpec.tv_nsec, endInSeconds);
     }
-    if (bDbg)
-    {
-        fprintf(stderr, "WorkerFunc initial time (CLOCK_REALTIME) = %lu\n", startSpec.tv_sec * 1e9 + startSpec.tv_nsec);
-    }
+
+    clock_gettime(CLOCK_REALTIME, &startTime);
 
     while (!terminateProcess)
     {
+        clock_gettime(CLOCK_REALTIME, &executionActualStartSpec);
+
+        totalLoops++;
+
         if (pollPeriod == 0)
         {
             //Use Case 1 - compute apparent FPS and collect Tw - Tg delay stats
@@ -121,61 +178,98 @@ void workerFunc(int tloops, int iloops, int oloops, int pollPeriod)
             {
                 terminateProcess = true;
                 fprintf(stderr, "Ending Test\n");
-                clock_gettime(CLOCK_REALTIME, &endSpec);
-                simulatedMsg.getTimingStats()->setEndTime(endSpec);
+                clock_gettime(CLOCK_REALTIME, &periodExpectedSpec);
                 break;
             }
         }
+
+        // see if time duration is set, exit after the time, 
+        if(endInSeconds > 0){
+
+            struct timespec currentTime = {0};
+            clock_gettime(CLOCK_REALTIME, &currentTime);
+
+            currentTime.tv_sec -= endInSeconds;
+
+            currentTime = calculateTimeDifference(currentTime, startTime);
+    
+            // when the current time is more than duration, 
+            if(currentTime.tv_sec > 0){
+                fprintf(stderr, "Exiting due to duration end.  Setting terminateProcess\n");
+                terminateProcess = true;
+                break;
+            }
+        }   
         
         if (oloops != 0 && iloops != 0)
         {
-            testFunc(oloops, iloops, durationSpec, bDbg);
-            totalDuration += (1e9*durationSpec.tv_sec + durationSpec.tv_nsec);
-        } 
-        else if (sleepSecs > 0)
-        {
-            sleep(sleepSecs);  //Debugging only
+            keepBusyDuration = keepProcessorBusy(oloops, iloops, bDbg);
+            totalDuration += (1e9 * keepBusyDuration.tv_sec + keepBusyDuration.tv_nsec);
         }
 
         if (  tloops && ++loopCt >= tloops ) 
         {
-            if (bDbg)
+            if (oloops != 0 && iloops != 0 && pollPeriod == 0)
             {
-    	        clock_gettime(CLOCK_REALTIME, &durationSpec);
-                durationSpec.tv_sec -= startSpec.tv_sec;
-                durationSpec.tv_nsec -= startSpec.tv_nsec;
-                if (durationSpec.tv_nsec < 0)
-                {
-                    --durationSpec.tv_sec;
-                    durationSpec.tv_nsec += 1e9;
-                }
-                fprintf(stderr, "%s: Duration for %d testFunc calls = %ld.%09ld seconds\n", progName.c_str(), loopCt, durationSpec.tv_sec, durationSpec.tv_nsec);
+                fprintf(stderr, "%s: Average runtime of testFunc over %d calls is %ld nsecs\n", 
+                    progName.c_str(), loopCt, (long)(totalDuration/(loopCt)) );
             }
-            if (oloops != 0 && iloops != 0)
-            {
-                fprintf(stderr, "%s: Average runtime of testFunc over %d calls is %ld usecs\n", 
-                    progName.c_str(), loopCt, (long)(totalDuration/(1000*loopCt)) );
-            }
-	        if (bDbg)
-                clock_gettime(CLOCK_REALTIME, &startSpec);
+            
+            uc2Log.addAverateRuntime((ulong)(totalPerInterval/(loopCt)));
+
             loopCt = 0;
             totalDuration = 0.0;
+            totalPerInterval = 0.0;
         }
 
         if (pollPeriod != 0)
         {
-            updateExpectedEndSpec(endSpec, pollPeriod);
+        	clock_gettime(CLOCK_REALTIME, &executionActualEndSpec);
+
+            struct timespec actualRuntime = calculateTimeDifference(executionActualEndSpec, executionActualStartSpec);
+            long double actualrunNsec = actualRuntime.tv_nsec + actualRuntime.tv_sec * 1e9;
+
+            totalPerInterval += actualrunNsec;
+
+            if(actualrunNsec > runtime)
+            {
+                long double keepBusyNSec = keepBusyDuration.tv_nsec + keepBusyDuration.tv_sec * 1e9;
+                // Overrun situation
+                uc2Log.addOverrun(Overrun((ulong) actualrunNsec, (ulong) keepBusyNSec, executionActualEndSpec));
+            }
+
+            // Execution must start before executionExpectedStartSpec or else its period violation
+            timespec executionExpectedStartSpec = periodExpectedSpec;
+            addTime(executionExpectedStartSpec, deadline - runtime);
+
+            long double periodNsec = (executionActualStartSpec.tv_nsec - executionExpectedStartSpec.tv_nsec) + (executionActualStartSpec.tv_sec - executionExpectedStartSpec.tv_sec) * 1e9;
+
+            if(periodNsec > 0) {
+                // Period violation situation
+                uc2Log.addViolatedPeriod(ViolatedPeriod(executionExpectedStartSpec, executionActualStartSpec, periodNsec));
+            }
+
+            addTime(periodExpectedSpec, pollPeriod);
+            periodDeadlineSpec = periodExpectedSpec;
+            addTime(periodDeadlineSpec, deadline);
+
             sched_yield();
-        	clock_gettime(CLOCK_REALTIME, &delaySpec);
-            long delayUsec = (delaySpec.tv_nsec - endSpec.tv_nsec) * 1000 + (delaySpec.tv_sec - endSpec.tv_sec) * 1e6;
-            simulatedMsg.getTimingStats()->update(delayUsec);
+
         }
     }
  
     fprintf(stderr, "WorkerApp exiting\n");
-    simulatedMsg.printStats(cerr);
-}
 
+    if(pollPeriod != 0)
+    {
+        uc2Log.printSummary(cerr, totalLoops);        
+    }
+    else
+    {
+        simulatedMsg.printStats(cerr);
+    }
+    
+}
 void printHelp(std::string msg)
 {
     if (msg.length() > 0)
@@ -188,9 +282,12 @@ void printHelp(std::string msg)
     printf("       --innerloops <n> : testFunc innerloops (default %d)\n", innerloops);
     printf("       --outerloops <n> : testFunc outerloops (default %d)\n", outerloops);
     printf("       --maxTests   <n> : number of tests (default %d)\n", maxTests);
-    printf("       --pollPeriod <n> : usec polling period (default %d)\n", pollPeriod);
-    printf("       --readpipe<name>     : base name of communication pipe (default %s)\n", basePipeName.c_str());
+    printf("       --pollPeriod <n> : nsec polling period (default %d)\n", pollPeriod);
+    printf("       --dline      <n> : nsec deadline for use case 2 (default %d)\n", deadline);
+    printf("       --rtime      <n> : nsec runtime for use case 2 (default %d)\n", runtime);
+    printf("       --readpipe<name> : base name of communication pipe (default %s)\n", basePipeName.c_str());
     printf("       --timedloops <n> : turn on logging of n-loop duration (default 0=disabled)\n");
+    printf("       --endInSeconds<n>: time in seconds which decides lifetime of execution (default %u)\n", endInSeconds);
     printf("       --help           : print Usage \n");
     printf("       --dbg            : produce extra output; sleep %d seconds rather than running inner & outer loops\n", sleepSecs);
 }
@@ -199,7 +296,7 @@ int main(int argc, char *argv[])
 {
 
     int optargs = 0;
-    const char * const short_opts = "b:dhi:m:n:o:p:t:";
+    const char * const short_opts = "b:dhi:m:n:o:p:l:r:t:e:";
     const option long_opts[] = {
         {"basePipeName",required_argument, nullptr, 'b'},
         {"dbg",        no_argument,        nullptr, 'd'},
@@ -209,6 +306,9 @@ int main(int argc, char *argv[])
         {"instnum",    required_argument,  nullptr, 'n'},
         {"outerloops", required_argument,  nullptr, 'o'},
         {"pollPeriod", required_argument,  nullptr, 'p'},
+        {"dline",      required_argument,  nullptr, 'l'},
+        {"rtime",      required_argument,  nullptr, 'r'},
+        {"endInSeconds",required_argument,  nullptr, 'e'},
         {"timedloops", required_argument,  nullptr, 't'}
     };
 
@@ -254,6 +354,12 @@ int main(int argc, char *argv[])
             case 'p':
                 pollPeriod = stoi(optarg);
                 break;
+            case 'l':
+                deadline = stoul(optarg);
+                break;
+            case 'r':
+                runtime = stoul(optarg);
+                break;                
             case 't':
                 timedloops = std::stoi(optarg);
                 if (timedloops < 0) 
@@ -261,6 +367,9 @@ int main(int argc, char *argv[])
                     printHelp(std::string("\nInvalid timedloops value: ") + optarg);
                     exit(-1);
                 }
+                break;
+            case 'e':
+                endInSeconds = stol(optarg);
                 break;
             case 'h':
                 printHelp("");
@@ -278,8 +387,10 @@ int main(int argc, char *argv[])
     }
     progName = progName + "_" + std::to_string(instance);
 
-    fprintf(stderr, "%s: Running with %d innerloops, %d outerloops, %d maxTests, %s_%d readPipe\n", 
-           progName.c_str(), innerloops, outerloops, maxTests, basePipeName.c_str(), instance);
-    workerFunc(timedloops, innerloops, outerloops, pollPeriod);
+    fprintf(stderr, "Printing...");
+
+    fprintf(stderr, "%s: Running with %d innerloops, %d outerloops, %d maxTests, %s_%d readPipe, pollPeriod %lu, deadline %lu, runtime %lu, endInSeconds %u\n", 
+           progName.c_str(), innerloops, outerloops, maxTests, basePipeName.c_str(), instance, pollPeriod, deadline, runtime, endInSeconds);
+    workerFunc(timedloops, innerloops, outerloops, pollPeriod, deadline, runtime, endInSeconds);
     fprintf(stderr, "%s: exiting\n", progName.c_str());
 }

@@ -128,7 +128,7 @@ int get_tracers(char ***list)
 	char buffer[CHUNKSZ];
 	char *prefix = get_debugfileprefix();
 	char *tmpbuf = NULL;
-	char *ptr;
+	char *ptr, *ptr_p;
 	int tmpsz = 0;
 
 	/* if we've already parse it, return what we have */
@@ -169,12 +169,12 @@ int get_tracers(char ***list)
 		fatal("error allocatinging tracer list buffer\n");
 
 	/* parse the buffer */
-	ptr = strtok(tmpbuf, " \t\n\r");
+	ptr = strtok_r(tmpbuf, " \t\n\r", &ptr_p);
 	do {
 		tracer_list[num_tracers++] = ptr;
 		tracer_list = realloc(tracer_list, sizeof(char*)*(num_tracers+1));
 		tracer_list[num_tracers] = NULL;
-	} while ((ptr = strtok(NULL, " \t\n\r")) != NULL);
+	} while ((ptr = strtok_r(NULL, " \t\n\r", &ptr_p)) != NULL);
 
 	/* return the list and number of tracers */
 	*list = tracer_list;
@@ -315,6 +315,8 @@ int string_to_policy(const char *policy_name, uint32_t *policy)
 		*policy =  SCHED_FIFO;
 	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
 		*policy =  SCHED_DEADLINE;
+	else if (strcmp(policy_name, "default") == 0) // No change to programm settings 
+		*policy =  SCHED_NODATA;
 	else
 		return -1;
 	return 0;

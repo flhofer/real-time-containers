@@ -197,6 +197,7 @@ int check_kernel(void)
 /// Return value: return num of written/read chars.
 ///					0= error and errno is set
 ///
+//TODO: check with return value as common thing 
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
 	// TODO: read vs fread
@@ -226,11 +227,14 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 			int got;
 			if ((got = read(path, value, sizeofvalue)) > 0) {
 				value[got-1] = '\0';
+				close(path);
 				return got;
 			}
 		} else if (O_WRONLY == mode) {
-			if (write(path, value, sizeofvalue) == sizeofvalue)
-				return sizeofvalue;
+			if (write(path, value, sizeofvalue) == sizeofvalue){
+				close(path);
+				return sizeofvalue;				
+			}
 			
 		}
 		close(path);

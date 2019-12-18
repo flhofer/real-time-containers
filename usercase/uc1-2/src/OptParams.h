@@ -21,6 +21,7 @@ struct OptParams {
     int  testSecs;
     int  firstFPS;
     int  lastFPS;
+    ulong endInSeconds;
     int  datagenerator;     //0=>data distributor
                             //1=>usecase1 data generator
                             //2=>usecase2 data generator

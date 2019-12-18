@@ -24,13 +24,18 @@ void monitorDesiredFPS(const char *fileName, int &desiredFPS, OptParams &params,
     spec.tv_sec = 0;
     spec.tv_nsec = 250*1e6;  //sleep for 250 ms between checks
     bool initialFPS = true;
+    int bytesRead = 0;
     while (!terminateProcess)
     {
         if (fgets(buf, maxChars, fpsIn) != buf )
         {
+            if(feof(fpsIn))
+                fseek(fpsIn, bytesRead, SEEK_SET);
+            
             clock_nanosleep(CLOCK_REALTIME, 0, &spec, NULL);
             continue;
         }
+        bytesRead+= strlen(buf);
         nxtFPS = std::stoi(buf);
 
         if (nxtFPS == (int)terminationMsg)
@@ -56,6 +61,94 @@ void monitorDesiredFPS(const char *fileName, int &desiredFPS, OptParams &params,
             desiredFPS = nxtFPS;
         }
     }
+    fclose(fpsIn);
+}
+
+timespec calculateTimeDifference(const timespec& first, const timespec& second){
+
+    timespec diff = {};
+    diff.tv_sec = first.tv_sec - second.tv_sec;
+    diff.tv_nsec = first.tv_nsec - second.tv_nsec;
+    
+    if (diff.tv_nsec < 0)
+    {
+        --diff.tv_sec;
+        diff.tv_nsec += 1e9;
+    }
+
+    return diff;
+}
+
+/**
+ * This thread proc controls lifetime of worker proces in case of poll driven use case 2
+*/
+void monitorFPSFileForTermination(const char *fileName, int &desiredFPS, OptParams &params)
+{
+//   PipeStruct fpsPipe;
+    std::string funcName(progName + " monitorFPSFileForTermination");
+
+    FILE * fpsIn = fopen(fileName, "r");
+    if (fpsIn == nullptr)
+    {
+        fprintf(stderr, "ERROR %s failed to open %s\n", funcName.c_str(), fileName);
+        terminateProcess = true;
+        return;
+    }
+
+    int maxChars = 10; //Leave space for the newline and null
+    char buf[maxChars];   
+    int nxtFPS = 0;
+
+    timespec spec, startTime = {0};
+    spec.tv_sec = 0;
+    spec.tv_nsec = 250*1e6;  //sleep for 250 ms between checks
+    int bytesRead = 0;
+
+    // start thread time
+    clock_gettime(CLOCK_REALTIME, &startTime);
+    while (!terminateProcess)
+    {
+
+        // see if time duration is set, exit after the time, 
+        if(params.endInSeconds > 0){
+
+            struct timespec currentTime = {0};
+            clock_gettime(CLOCK_REALTIME, &currentTime);
+
+            currentTime.tv_sec -= params.endInSeconds;
+
+            currentTime = calculateTimeDifference(currentTime, startTime);
+       
+            // when the current time is more than duration, 
+            if(currentTime.tv_sec > 0){
+                fprintf(stderr, "monitorDesiredFPS exiting due to duration end.  Setting terminateProcess true\n");
+                terminateProcess = true;
+                desiredFPS = -2;
+                break;
+            }
+        }
+
+        if (fgets(buf, maxChars, fpsIn) != buf )
+        {
+            if(feof(fpsIn))
+                fseek(fpsIn, bytesRead, SEEK_SET);
+            
+            clock_nanosleep(CLOCK_REALTIME, 0, &spec, NULL);
+            continue;
+        }
+        bytesRead+= strlen(buf);
+        nxtFPS = std::stoi(buf);
+
+        if (nxtFPS == (int)terminationMsg)
+        {
+            fprintf(stderr, "monitorDesiredFPS read nextFPS==-2.  Setting terminateProcess\n");
+            terminateProcess = true;
+            desiredFPS = (int)terminationMsg;    
+        }
+    }
+
+    fprintf(stderr, "Closing thread, terminateProcess=%d\n", terminateProcess);
+
     fclose(fpsIn);
 }
 
