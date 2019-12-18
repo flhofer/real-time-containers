@@ -364,10 +364,11 @@ FILE * popen2(char * command, char * type, pid_t * pid)
     pid_t child_pid;
     int fd[2];
 	FILE * pfl;
-    pipe(fd);
+	if (pipe(fd))
+        perror("Pipe creation");
 
 	if (!command || !type || !pid){ // input parameters must be written
-        perror("Invalid argumetns");
+        perror("Invalid arguments");
 		return NULL;
 	}
 
@@ -398,7 +399,7 @@ FILE * popen2(char * command, char * type, pid_t * pid)
 		    execl("/bin/sh", "/bin/sh", "-c", command, NULL);
 		}
 		else {
-			// parse string acccording to posix expansion
+			// parse string according to posix expansion
 			wordexp_t argvt;
 			if (wordexp(command, &argvt, 0))
 				err_exit("Error parsing POSIX 'sh' expansion!");

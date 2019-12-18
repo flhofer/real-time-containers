@@ -12,7 +12,7 @@
 
 	// configuration settings - program and pid/container`
 	extern containers_t * contparm; // container parameter settings
-	extern prgset_t * prgset; // programm setings structure
+	extern prgset_t * prgset; // program settings structure
 
 	// runtime value tracing
 	extern pthread_mutex_t dataMutex; // data access mutex

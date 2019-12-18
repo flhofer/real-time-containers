@@ -25,7 +25,8 @@
 	#define BUFRD 1024  // buffer read size
 	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" // test for now :)
-	#define CONT_DCKR "docker/" // default cgroup subdirectory
+	#define CONT_DCKR "docker/" // default cgroup subdirectory for containers
+	#define CSET_SYS  "system/" // default cgroup subdirectory for system
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
 	#define CPUGOVR	"performance" // configuration for cpu governor	

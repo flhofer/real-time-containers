@@ -4,8 +4,8 @@ GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 #uncomment the line below to create debug versions by default
-DEBUG=1
-COVERAGE=1
+#DEBUG=1
+#COVERAGE=1
 
 OBJDIR = build
 

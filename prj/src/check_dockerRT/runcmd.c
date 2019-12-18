@@ -316,7 +316,7 @@ np_fetch_output(int fd, output *op, int flags)
 
 	/* some plugins may want to keep output unbroken, and some commands
 	 * will yield no output, so return here for those */
-	if(flags & RUNCMD_NO_ARRAYS || !op->buf || !op->buflen)
+	if((flags & RUNCMD_NO_ARRAYS) || !op->buf || !op->buflen)
 		return op->buflen;
 
 	/* and some may want both */

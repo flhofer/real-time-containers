@@ -98,6 +98,8 @@ int updateSched(){
 
 
 	pthread_mutex_unlock(&dataMutex);
+
+	return 0;
 }
 
 /// getpids(): utility function to get PID list of interrest

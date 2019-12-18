@@ -83,16 +83,16 @@ void inthand ( int signum ) {
 
 // -------------- LOCAL variables for all the functions  ------------------
 
-// TODO:  implement fifo thread as in cycictest for readout
+// TODO:  implement fifo thread as in cyclic-test for readout
 //static pthread_t fifo_threadid;
 //static char fifopath[MAX_PATH];
 
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 
-/// setPidMask(): utlity function to set all pids of a certain mask's affinity
+/// setPidMask(): utility function to set all pids of a certain mask's affinity
 /// Arguments: - tag to search for
-///			   - bitmask to set
+///			   - bit mask to set
 ///
 /// Return value: --
 ///
@@ -133,9 +133,9 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	pclose(fp);
 }
 
-/// prepareEnvironment(): gets the list of active pids at startup, sets up
-/// a CPU-shield if not present, prepares kernel settings for DL operation
-/// and populates initial state of pid list
+/// prepareEnvironment(): prepares the runtime environment for real-time
+/// operation. Creates CPU shield and configures the affinity of system
+/// processes and interrupts to reduce off-load on RT resources
 ///
 /// Arguments: - structure with parameter set
 ///
@@ -146,7 +146,7 @@ static void prepareEnvironment(prgset_t *set) {
 	/// --------------------
 	/// verify 	cpu topology and distribution
 	int maxcpu = get_nprocs();	
-	int maxccpu = numa_num_configured_cpus(); //get_nprocs_conf();	
+	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
 
 	char cpus[10]; // cpu allocation string
 	char constr[10]; // cpu online string
@@ -589,20 +589,22 @@ static void prepareEnvironment(prgset_t *set) {
 
 	cont("creating cgroup for system on %s", cpus);
 
-	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("system/")+1))) {
+	// TODO: system directory is hard-coded -> at least use MACRO
+	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
 		char * nfileprefix = NULL;
 
 		fileprefix[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
-		fileprefix = strcat(strcat(fileprefix,set->cpusetfileprefix),"system/");
+		fileprefix = strcat(strcat(fileprefix,set->cpusetfileprefix), CSET_SYS);
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
-			// error otherwise
-			warn("Can not set cpu system group: %s", strerror(errno));
+			// IF: error - excluding not already existing
+			warn("Can not set CPUset system group: %s", strerror(errno));
+			cont("this may inflict unexpected delays. Skipping..");
 			goto sysend; // skip all system things 
-			// FIXME: might create unexpected behaviour
 		}
+		// ELSE: created, or directory already exists
 
 		if (!setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){ 
 			warn("Can not set cpu-affinity");
@@ -643,7 +645,7 @@ static void prepareEnvironment(prgset_t *set) {
 					pid = strtok (pidline,"\n");	
 					while (NULL != pid && nleft && ('\0' != pidline[BUFRD-2]))  { 
 
-						// fileprefix still pointing to system/
+						// fileprefix still pointing to CSET_SYS
 						if (!setkernvar(fileprefix, "tasks", pid, set->dryrun)){
 							printDbg( KMAG "Warn!" KNRM " Can not move task %s", pid);
 							mtask++;

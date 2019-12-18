@@ -146,7 +146,7 @@ static void setPidResources(node_t * node) {
 			if (0 <= (node->param->rscs->affinity)) {
 
 				char *contp = NULL;
-				char affinity[5];
+				char affinity[11];
 				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
 
 				cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
