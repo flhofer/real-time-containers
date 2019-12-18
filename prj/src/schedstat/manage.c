@@ -406,7 +406,7 @@ void *thread_manage (void *arg)
 	  case -1:
 		// tidy or whatever is necessary
 		dumpStats();
-		pthread_exit(0); // exit the thread signalling normal return
+		pthread_exit(0); // exit the thread signaling normal return
 		break;
 	  }
 	  // TODO: change to timer and settings based loop

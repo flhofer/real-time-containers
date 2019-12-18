@@ -173,7 +173,7 @@ static void setPidResources(node_t * node) {
 					// copy to new prefix
 					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		
 					
-					if (!setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+					if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
 						warn("Can not set cpu-affinity");
 					}
 				}
@@ -190,7 +190,7 @@ static void setPidResources(node_t * node) {
 			char pid[6]; // pid is 5 digits + \0
 			(void)sprintf(pid, "%d", node->pid);
 
-			if (!setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
+			if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
 				printDbg( "Warn! Can not move task %s\n", pid);
 			}
 
@@ -285,7 +285,7 @@ static void getContPids (node_t **pidlst)
 								// alloc memory for strings
 
 								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
-								if (!getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
+								if (0 > getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
 									// try to read cmdline of pid
 									warn("can not read pid %d's command line: %s", (*pidlst)->pid, strerror(errno));
 

@@ -23,8 +23,7 @@
 int open_msr_file(int cpu)
 {
 	int fd;
-	// TODO: check dynamic variable allocation
-	char pathname[32];
+	char pathname[24]; // path + 10 max for number + \0
 
 	/* SMI needs thread affinity */
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
@@ -195,9 +194,8 @@ int check_kernel(void)
 ///			   - variable buffer size
 ///
 /// Return value: return num of written/read chars.
-///					0= error and errno is set
+///					-1= error and errno is set
 ///
-//TODO: check with return value as common thing 
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
 	// TODO: read vs fread
@@ -225,6 +223,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	if (0 <= path) {
 		if (O_RDONLY == mode) {
 			int got;
+			// TODO fix if = 0
 			if ((got = read(path, value, sizeofvalue)) > 0) {
 				value[got-1] = '\0';
 				close(path);
@@ -240,7 +239,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 		close(path);
 	}
 //  errno = ... pass errno from open, read or write
-	return 0;  // return no read/written, 0 = not ok
+	return -1;  // return number read/written => -1 = error
 }
 
 /// setkernvar(): sets a kernel virtual fs parameter
@@ -251,13 +250,13 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 ///			   - dry run? 1 = do nothing
 ///
 /// Return value: return num of written chars.
-///					0= error and errno is set
+///					-1= error and errno is set
 ///
 int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
 	if (!value) {
 		errno = EINVAL;
-		return 0;
+		return -1;
 	}
 
 	if (dryrun) // suppress system changes
@@ -275,7 +274,7 @@ int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 ///			   - storage buffer size
 ///
 /// Return value: return num of read chars.
-///					0= error and errno is set
+///					-1= error and errno is set
 ///
 int getkernvar(const char *prefix, const char *name, char *value, int size)
 {

@@ -162,7 +162,7 @@ static void prepareEnvironment(prgset_t *set) {
 	info("Starting environment setup");
 
 	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
+	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
 		// value read ok
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
@@ -172,7 +172,7 @@ static void prepareEnvironment(prgset_t *set) {
 				if (!set->force) 
 					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
 			else
-				if (!setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+				if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
 					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
 			else
 				cont("SMT is now disabled, as required. Refresh configurations..");
@@ -200,7 +200,7 @@ static void prepareEnvironment(prgset_t *set) {
 		err_exit("could not allocate memory!");
 
 	// get online cpu's
-	if (getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
+	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
 		con = numa_parse_cpustring_all(constr);
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++) {
@@ -217,10 +217,10 @@ static void prepareEnvironment(prgset_t *set) {
 
 					// verify if CPU-freq is on performance -> set it
 					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-					if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
+					if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
 						// value possible read ok
 						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-						if (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 							// value act read ok
 							if (strcmp(str, CPUGOVR)) {
 								// Governor is set to a different value
@@ -232,7 +232,7 @@ static void prepareEnvironment(prgset_t *set) {
 									if (!set->force)
 										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
 									else
-										if (!setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
+										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
 											err_exit_n(errno, "CPU-freq change unsuccessful!");
 										else
 											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
@@ -250,7 +250,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 				// CPU-IDLE settings, added with Kernel 4_16
 				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
-				if (!(set->blindrun) && (getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str)))){
+				if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str)))){
 					// value act read ok
 					if (strcmp(str, "n/a")) {
 						//
@@ -262,7 +262,7 @@ static void prepareEnvironment(prgset_t *set) {
 							if (!set->force)
 								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
 							else
-								if (!setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
+								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
 									err_exit_n(errno, "CPU-QoS change unsuccessful!");
 								else
 									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
@@ -285,7 +285,7 @@ static void prepareEnvironment(prgset_t *set) {
 							0, errno);
 				}
 
-				// invert affinity for avaliable cpus only -> for system
+				// invert affinity for available cpus only -> for system
 				if (!numa_bitmask_isbitset(set->affinity_mask, i))
 					numa_bitmask_setbit(naffinity, i);
 			}
@@ -337,14 +337,14 @@ static void prepareEnvironment(prgset_t *set) {
 
 	cont( "Set realtime bandwith limit to (unconstrained)..");
 	// disable bandwidth control and realtime throttle
-	if (!setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
+	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
 	if (SCHED_RR == set->policy && 0 < set->rrtime) { //TODO: rrtime always?
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
-		if (!setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
+		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
 			warn("RR timeslice not changed!");
 		}
 	}
@@ -370,7 +370,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
-				if (!setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
 				else
 					cont("CPU%d offline", i);
@@ -383,7 +383,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
-				if (!setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
 				else
 					cont("CPU%d online", i);
@@ -510,7 +510,7 @@ static void prepareEnvironment(prgset_t *set) {
 							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
 							// remove exlusive!
-							if (!setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+							if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
 								warn("Can not remove cpu exclusive : %s", strerror(errno));
 							}
 						}
@@ -522,16 +522,16 @@ static void prepareEnvironment(prgset_t *set) {
 			}
 
 			// clear Docker CGroup settings and affinity first.. 
-			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
 				warn("Can not remove cpu exclusive : %s", strerror(errno));
 			}
-			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
 				// global reset failed, try affinity only
-				if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+				if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
 					warn("Can not reset cpu-affinity. Expect malfunction!"); // set online cpus as default
 				}
 			}
-			/* if (!setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+			/* if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
 				warn("Can not set numa memory nodes");// TODO: separte numa settings
 			}*/
 
@@ -548,10 +548,10 @@ static void prepareEnvironment(prgset_t *set) {
 							// copy to new prefix
 							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
-							if (!setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
+							if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
 								warn("Can not set cpu-affinity");
 							}
-							if (!setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
+							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
 								warn("Can not set numa memory nodes"); // TODO: separte numa settings
 							}
 						}
@@ -563,13 +563,13 @@ static void prepareEnvironment(prgset_t *set) {
 			}
 
 			// Docker CGroup settings and affinity
-			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
 				warn("Can not set cpu-affinity");
 			}
-			if (!setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
 				warn("Can not set numa memory nodes");// TODO: separte numa settings
 			}
-			if (!setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 				warn("Can not set cpu exclusive");
 			}
 
@@ -602,10 +602,10 @@ static void prepareEnvironment(prgset_t *set) {
 					continue;
 				}
 
-				if (!setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){ 
+				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){
 					warn("Can not set cpu-affinity");
 				}
-				if (!setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
+				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
 					warn("Can not set numa memory nodes"); // TODO: separte numa settings
 				}
 			}
@@ -639,13 +639,13 @@ static void prepareEnvironment(prgset_t *set) {
 		}
 		// ELSE: created, or directory already exists
 
-		if (!setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){ 
+		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
 			warn("Can not set cpu-affinity");
 		}
-		if (!setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set numa memory nodes");
 		}
-		if (!setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 			warn("Can not set cpu exclusive");
 		}
 
@@ -679,7 +679,7 @@ static void prepareEnvironment(prgset_t *set) {
 						// DO STUFF
 
 						// fileprefix still pointing to CSET_SYS
-						if (!setkernvar(fileprefix, "tasks", pid, set->dryrun)){
+						if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
 							printDbg( "Warn! Can not move task %s\n", pid);
 							mtask++;
 						}

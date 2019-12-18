@@ -28,12 +28,12 @@ struct kernvar_test {
 static const struct kernvar_test getkernvar_var[6] = {
 		{"/proc/", "version_signature", "Ubuntu", 0, 0},	// standard read - len = 0, changes by kernel version
 		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
-		{"/proc/","noexist", "", 0, ENOENT},				// entry does not exist
+		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
 		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
-			"devices1", "", 0, ENOMEM},						// too long filename+varname > 128
+			"devices1", "", -1, ENOMEM},						// too long filename+varname > 128
 		{"/sys/devices/system/cpu/isolated/",
-			"thread_siblings_list", "", 0, ENOTDIR}			// not a valid dir string
+			"thread_siblings_list", "", -1, ENOTDIR}			// not a valid dir string
 	}; 
 
 START_TEST(kernutil_getkernvar)
@@ -53,10 +53,10 @@ END_TEST
 
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/proc/","version_signature", "test", 0, EACCES},	// write protected
+		{"/proc/","version_signature", "test", -1, EACCES},	// write protected
 		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO
-		{"/dev/", "null", NULL, 0, EINVAL},					// write NULL
-		{"/dev/", NULL, "", 0, EINVAL},						// write to NULL
+		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
+		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
 	}; 
 
 START_TEST(kernutil_setkernvar)
