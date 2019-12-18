@@ -375,9 +375,13 @@ void *thread_manage (void *arg)
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
 		// set lolcal variable -- all cpus set.
+		//no break
+
 	  case 1: // normal thread loop, check and update data
 		if (!updateStats())
-			break;
+			break;	// stop here if no updates are found
+		//no break
+
 	  case 2: //
 		// update resources
 		*pthread_state=1;

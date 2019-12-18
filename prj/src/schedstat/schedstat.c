@@ -430,6 +430,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 			// otherwise switch to container PID detection
 			set->use_cgroup = DM_CNTPID;
+			//no break
 
 		case DM_CNTPID:
 			cont( "will use PIDs of '%s' to detect processes..", set->cont_ppidc);
