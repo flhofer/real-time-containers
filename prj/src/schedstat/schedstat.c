@@ -16,25 +16,25 @@
 #include <unistd.h> // used for POSIX XOPEN constants
 
 #include <sched.h>			// scheduler functions
-#include <linux/sched.h>	// linux specific scheduling
+#include <linux/sched.h>	// Linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <fcntl.h>			// file control, new open/close functions
-#include <dirent.h>			// dir enttry structure and expl
+#include <dirent.h>			// directory entry structure and functions
 #include <errno.h>			// error numbers and strings
 
-// Custmom includes
+// Custom includes
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
-#include "error.h"		// error and strerr print functions
+#include "error.h"		// error and std error print functions
 
 // Things that should be needed only here
 #include <pthread.h>// used for thread management
 
-#include <sys/mman.h>		// mlock
-#include <numa.h>			// numa node ident
+#include <sys/mman.h>		// memory lock
+#include <numa.h>			// Numa node identification
 #include <getopt.h>			// command line parsing
-#include <sys/stat.h>		// directory and fs stat
+#include <sys/stat.h>		// directory and file system statistics
 #include <sys/capability.h>	// cap exploration
 #include <sys/sysinfo.h>	// system general information
 
@@ -49,12 +49,12 @@
 	#define DEFFILEMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)/* 0666*/
 #endif
 
-static void display_help(int); // declaration for compat
+static void display_help(int); // declaration for compatibility
 
 /* --------------------------- Global variables for all the threads and programms ------------------ */
 
 containers_t * contparm; // container parameter settings
-prgset_t * prgset; // programm setings structure
+prgset_t * prgset; // program settings structure
 
 #ifdef DEBUG
 // debug output file

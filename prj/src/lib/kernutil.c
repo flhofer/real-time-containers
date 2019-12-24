@@ -204,14 +204,14 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 
 	if (!prefix || !name || !value) {
 		errno = EINVAL;
-		return 0;
+		return -1;
 	}
 
 	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
 	if (len_prefix + len_name + 1 > sizeof(filename)) {
 		errno = ENOMEM;
-		return 0;
+		return -1;
 	}
 
 	errno = 0; // reset global errno
