@@ -6,5 +6,5 @@
 ###############################
 
 sudo docker build -t ubuntusched .
-sudo docker run -v "$PWD":/home -v /sys/fs/cgroup/:/sys/fs/cgroup/ --cap-add=SYS_NICE --cap-add=SYS_RESOURCE --cap-add=SYS_PTRACE --cap-add=IPC_LOCK --name stat1 -it ubuntusched
+sudo docker run -v "$PWD/../":/home -v /sys/fs/cgroup/:/sys/fs/cgroup/ --cap-add=SYS_NICE --cap-add=SYS_RESOURCE --cap-add=SYS_PTRACE --cap-add=IPC_LOCK --name stat1 -it ubuntusched
 
