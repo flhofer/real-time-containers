@@ -11,9 +11,6 @@
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 
-
-static FILE * pp;
-
 static char * dockerlink_empty [6] = {
 	"",			// empty
 	"\n",		// CR

@@ -247,53 +247,67 @@ enum dockerEvents {
     dkrevnt_update
 	};
 
-/// docker_read_pipe(): read from pipe and parse json
+/// docker_read_pipe(): read from pipe and parse JSON
 ///
-/// Arguments: event structure to fill with data from json
+/// Arguments: event structure to fill with data from JSON
 ///
 /// Return value: (void)
-static void docker_read_pipe(struct eventData * evnt){
+static int docker_read_pipe(struct eventData * evnt){
 
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
 
 	buf[0] = '\0';
-	while (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)) && !(stop));
 
-//	if (!(fgets(buf, JSON_FILE_BUF_SIZE, inpipe)))
-//		return;
-	
-	root = json_tokener_parse(buf);
+	// repeat loop for reading until process ends or interrupt
+	// is called
+	while (!(stop) && !feof(inpipe)){
 
-	// root read successfully?
-	if (root == NULL) {
-		warn(PFX "Empty JSON buffer");
-		return;
-	}
+		// read buffer until timeout
+		(void)fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
 
-	evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
-	if (!strcmp(evnt->type, "container")) {
-		evnt->status = get_string_value_from(root, "status", FALSE, NULL);
-		evnt->id = get_string_value_from(root, "id", FALSE, NULL);
-		evnt->from = get_string_value_from(root, "from", FALSE, NULL);
-		struct json_object *actor, *attrib;
-
-		actor = get_in_object(root, "Actor", TRUE);
-		if (actor) {
-			// not status type, ID is here
-//			if (!evnt->id)
-//				evnt->id = get_string_value_from(actor, "ID", FALSE, NULL);
-			attrib = get_in_object(actor, "Attributes", TRUE);
-			if (attrib)
-				evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);		
-
-			json_object_put(attrib);
-			json_object_put(actor);
+		// buf read successfully?
+		if (NULL == buf) {
+			warn(PFX "Empty JSON buffer");
+			continue;
 		}
+
+		root = json_tokener_parse(buf);
+
+		// root read successfully?
+		if (NULL == root) {
+			warn(PFX "Empty JSON");
+			exit(EXIT_INV_CONFIG);
+		}
+
+		evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
+		if (!strcmp(evnt->type, "container")) {
+			evnt->status = get_string_value_from(root, "status", FALSE, NULL);
+			evnt->id = get_string_value_from(root, "id", FALSE, NULL);
+			evnt->from = get_string_value_from(root, "from", FALSE, NULL);
+			struct json_object *actor, *attrib;
+
+			actor = get_in_object(root, "Actor", TRUE);
+			if (actor) {
+				// not status type, ID is here
+	//			if (!evnt->id)
+	//				evnt->id = get_string_value_from(actor, "ID", FALSE, NULL);
+				attrib = get_in_object(actor, "Attributes", TRUE);
+				if (attrib)
+					evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);
+
+				json_object_put(attrib);
+				json_object_put(actor);
+			}
+		}
+		evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
+		evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
+		json_object_put(root); // free object
+		return 1;
 	}
-	evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
-	evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
-	json_object_put(root); // free object
+
+	// reading stopped. no new element
+	return 0;
 }
 
 /// docker_check_event(): call pipe read and parse response
@@ -304,8 +318,13 @@ static void docker_read_pipe(struct eventData * evnt){
 static contevent_t * docker_check_event() {
 
 	struct eventData evnt;
-	memset(&evnt, 0, sizeof(struct eventData));
-	docker_read_pipe(&evnt); // set all pointers to NULL -> init
+	memset(&evnt, 0, sizeof(struct eventData)); // set all pointers to NULL -> init
+
+	// read next element from pipe
+	if (!docker_read_pipe(&evnt))
+		return NULL; // return if empty
+
+	// parse element
 	contevent_t * cntevent = NULL; // return element, default - null
 
 	if (evnt.type && !strcmp(evnt.type, "container")){
