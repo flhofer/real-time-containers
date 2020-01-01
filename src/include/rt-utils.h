@@ -20,6 +20,7 @@ int event_disable(char *event);
 int event_enable_all(void);
 int event_disable_all(void);
 
+const int policy_is_realtime(int policy);
 const char *policy_to_string(int policy);
 int string_to_policy(const char *policy_name, uint32_t *policy);
 

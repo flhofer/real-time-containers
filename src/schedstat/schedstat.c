@@ -509,7 +509,7 @@ static void prepareEnvironment(prgset_t *set) {
 							// copy to new prefix
 							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
-							// remove exlusive!
+							// remove exclusive!
 							if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
 								warn("Can not remove cpu exclusive : %s", strerror(errno));
 							}
@@ -532,13 +532,13 @@ static void prepareEnvironment(prgset_t *set) {
 				}
 			}
 			/* if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set numa memory nodes");// TODO: separte numa settings
+				warn("Can not set NUMA memory nodes");// TODO: separte NUMA settings
 			}*/
 
 			rewinddir(d);
 			{
 				char *contp = NULL; // clear pointer
-				/// Reassigning preexisting containers?
+				/// Reassigning pre-existing containers?
 				while ((dir = readdir(d)) != NULL) {
 				// scan trough docker cgroups, find them?
 					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
@@ -1094,7 +1094,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 }
 
-/// main(): mein program.. setup threads and keep loop for user/system break
+/// main(): main program.. setup threads and keep loop for user/system break
 ///
 /// Arguments: - Argument values not defined yet
 ///

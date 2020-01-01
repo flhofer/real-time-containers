@@ -152,7 +152,7 @@ static inline void duplicateContainer(node_t* node, struct containers * conts, c
 }
 
 /// node_findParams(): assigns the PID parameters list of a running container
-//
+///
 /// Arguments: - node to chek for matching parameters
 /// 		   - pid configuration list head
 ///
@@ -162,7 +162,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 	struct img_parm * img = conts->img;
 	struct cont_parm * cont = NULL;
-	// check for image match fitst
+	// check for image match first
 	while (NULL != img) {
 		// 12 is standard docker short signature
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid, 12)) {
@@ -268,7 +268,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// TODO: if containerid is valid, create entry?
 
-		// start from scatch in the pid config list only. Maybe ID is new?
+		// start from scratch in the pid config list only. Maybe ID is new?
 		struct pidc_parm * curr = conts->pids;
 
 		while (NULL != curr) {
@@ -362,7 +362,7 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->imgid);
 #endif
-	// TODO: configuration of pid and container maybe as well?
+	// TODO: configuration of PID and container maybe as well?
 
 	pop((void**)head);
 }

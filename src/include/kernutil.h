@@ -2,12 +2,12 @@
 	#define __KERNUTIL_H_
 
 #include <stdio.h>
-	#include <numa.h>			// numa node ident
+	#include <numa.h>			// NUMA node identification
 
 	enum kernelversion {
 		KV_NOT_SUPPORTED,
-		KV_314,
-		KV_40,
+		KV_314,	// includes EDF basic
+		KV_40,	// no EDF without PRT_patch?
 		KV_413,	// includes full EDF for the first time
 		KV_416,	// includes full EDF with GRUB-PA for ARM
 		KV_50	// latest releases, now 5.1 (May 8th '19)

@@ -7,28 +7,28 @@
 #include <unistd.h> // used for POSIX XOPEN constants
 
 #include <sched.h>			// scheduler functions
-#include <linux/sched.h>	// linux specific scheduling
+#include <linux/sched.h>	// Linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <fcntl.h>			// file control, new open/close functions
-#include <dirent.h>			// dir enttry structure and expl
+#include <dirent.h>			// dir entry structure and expl
 #include <errno.h>			// error numbers and strings
 
-// Custmom includes
+// Custom includes
 #include "schedstat.h"
 
 #include "orchdata.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "dockerlink.h" // connection to docker runtime
-#include "error.h"		// error and strerr print functions
+#include "error.h"		// error and stderr print functions
 
 // Should be needed only here
 #include <limits.h>
 #include <sys/resource.h>
 #include <sys/vfs.h>
 
-// localy globals variables used here ->
+// locally globals variables used here ->
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 static int clocksources[] = {
 	CLOCK_MONOTONIC,
@@ -117,7 +117,7 @@ static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t typ
 
 static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
 
-// TODO: might need to move theese to manage
+// TODO: might need to move these to manage
 
 /// setPidResources(): set PID resources at first detection
 /// Arguments: - pointer to PID item (node_t)
@@ -128,25 +128,25 @@ static void setPidResources(node_t * node) {
 
 	cpu_set_t cset;
 
-	// params unassigned
+	// parameters unassigned
 	if (!prgset->quiet)
 		(void)printf("\n");
 	if (node->pid)
-		info("new pid in list %d", node->pid);
+		info("new PID in list %d", node->pid);
 	else if (node->contid)
 		info("new container in list '%s'", node->contid);
 	else
 		warn("SetPidResources: Container not specified");
 
 	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
-		// precompute affinity
+		// pre-compute affinity
 		if (0 <= node->param->rscs->affinity) {
-			// cpu affinity defined to one cpu?
+			// CPU affinity defined to one CPU?
 			CPU_ZERO(&cset);
 			CPU_SET(node->param->rscs->affinity & ~(SCHED_FAFMSK), &cset);
 		}
 		else {
-			// cpu affinity to all
+			// CPU affinity to all
 			cset = cset_full;
 		}
 
@@ -158,7 +158,7 @@ static void setPidResources(node_t * node) {
 
 		// TODO: track failed scheduling update?
 
-		// TODO: change to consider multiple pids with different affinity
+		// TODO: change to consider multiple PIDs with different affinity
 		// update CGroup setting of container if in CGROUP mode
 		if (DM_CGRP == prgset->use_cgroup) {
 			if (0 <= (node->param->rscs->affinity)) {
@@ -174,7 +174,7 @@ static void setPidResources(node_t * node) {
 					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		
 					
 					if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-						warn("Can not set cpu-affinity");
+						warn("Can not set CPU-affinity");
 					}
 				}
 				else 
@@ -186,8 +186,8 @@ static void setPidResources(node_t * node) {
 		// should it be else??
 		else {
 
-			// add pid to docker CGroup
-			char pid[6]; // pid is 5 digits + \0
+			// add PID to docker CGroup
+			char pid[6]; // PID is 5 digits + \0
 			(void)sprintf(pid, "%d", node->pid);
 
 			if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
@@ -203,10 +203,10 @@ static void setPidResources(node_t * node) {
 					node->param->rscs->affinity);
 		}
 
-		if (0 == node->pid) // pid 0 = detected containers
+		if (0 == node->pid) // PID 0 = detected containers
 			return;
 
-		// only do if different than -1, <- not set values
+		// only do if different than -1, <- not set values = keep default
 		if (SCHED_NODATA != node->param->attr->sched_policy) {
 			cont("Setting Scheduler of PID %d to '%s'", node->pid,
 				policy_to_string(node->param->attr->sched_policy));
@@ -407,7 +407,7 @@ static void getpPids (node_t **pidlst, char * tag)
 
 		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
 		(void)strcat(pids, pidline);
-		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with nullchar, overwrite \n
+		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
 
 		getPids(pidlst, pids, DM_CNTPID);
 	}
@@ -416,7 +416,7 @@ static void getpPids (node_t **pidlst, char * tag)
 
 static contevent_t * lstevent;
 pthread_t thread_dlink;
-int  iret_dlink; // Timeout is set to 4 secs by default
+int  iret_dlink; // Timeout is set to 4 seconds by default
 
 /// startDocker(): start docker verification thread
 ///
@@ -445,18 +445,18 @@ static void updateDocker() {
 	while (containerEvent) {	
 		lstevent = containerEvent;
 		containerEvent = NULL;
-		// process data, find pid entry
+		// process data, find PID entry
 
 		switch (lstevent->event) {
 			case cnt_add:
-				// do nothing, call for pids
+				// do nothing, call for PIDs
 				// update container break
-				//settings;
+				// settings;
 				;
 				node_t * linked = NULL;
 				node_push(&linked);
-				linked->pid = 0; // impossible id -> sets value for cnt only
-				linked->psig = lstevent->name; // used to store container name just fot find
+				linked->pid = 0; // impossible id -> sets value for count only
+				linked->psig = lstevent->name; // used to store container name just for find
 				linked->contid = lstevent->id;
 				linked->imgid = lstevent->image;
 
@@ -472,7 +472,7 @@ static void updateDocker() {
 				node_t dummy = {head};
 				node_t * curr = &dummy;
 
-				// drop matching pids of this container
+				// drop matching PIDs of this container
 				for (;((curr->next)); curr=curr->next) 
 					if (curr->next->contid == lstevent->id) 
 						node_pop(&curr->next);
@@ -492,7 +492,7 @@ static void updateDocker() {
 	scanNew(); 
 }
 
-/// scanNew(): main function for thread_update, scans for pids and inserts
+/// scanNew(): main function for thread_update, scans for PIDs and inserts
 /// or drops the PID list
 ///
 /// Arguments: 
@@ -505,7 +505,7 @@ static void scanNew () {
 
 	switch (prgset->use_cgroup) {
 
-		case DM_CGRP: // detect by cgroup
+		case DM_CGRP: // detect by CGroup
 			getContPids(&lnew);
 			break;
 
@@ -720,7 +720,7 @@ void *thread_update (void *arg)
 			// start docker link thread
 			startDocker();
 
-			// set lolcal variable -- all cpus set.
+			// set local variable -- all CPUs set.
 			// TODO: adapt to cpu mask
 			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 			*pthread_state=1;
@@ -756,7 +756,7 @@ void *thread_update (void *arg)
 			break;
 		case -2:
 			// exit
-			pthread_exit(0); // exit the thread signalling normal return
+			pthread_exit(0); // exit the thread signaling normal return
 			break;
 		}
 
@@ -770,9 +770,9 @@ void *thread_update (void *arg)
 
 		}
 		else {			
-			// abs-time relative interval shift
+			// absolute time relative interval shift
 
-			// calculate next execution intervall
+			// calculate next execution interval
 			intervaltv.tv_sec += prgset->interval / USEC_PER_SEC;
 			intervaltv.tv_nsec+= (prgset->interval % USEC_PER_SEC) * 1000;
 			tsnorm(&intervaltv);
@@ -790,7 +790,7 @@ void *thread_update (void *arg)
 
 		}
 
-		// we have a max runtime. Stop! -> after the clock_nanosleep time will be intervaltv
+		// we have a max runtime. Stop! -> after the clock_nanosleep time will be `intervaltv`
 		if (prgset->runtime) {
 			ret = clock_gettime(clocksources[prgset->clocksel], &now);
 			if (0 != ret) {
@@ -801,14 +801,14 @@ void *thread_update (void *arg)
 
 			if (old.tv_sec + prgset->runtime <= now.tv_sec
 				&& old.tv_nsec <= now.tv_nsec) 
-				// set stop sig
+				// set stop signal
 				raise (SIGTERM); // tell main to stop
 		}
 
 		cc++;
 		cc%=prgset->loops;
 	}
-	// set stop sig
+	// set stop signal
 
 	if (!iret_dlink) { // thread started successfully
 		pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop

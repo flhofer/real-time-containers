@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2019 Florian Hofer <info@florianhofer.it>
+ *
+ * based on functions from rt-test that has
  * Copyright (C) 2009 Carsten Emde <carsten.emde@osadl.org>
  * Copyright (C) 2010 Clark Williams <williams@redhat.com>
  * Copyright (C) 2015 John Kacur <jkacur@redhat.com>
@@ -256,7 +259,7 @@ int check_privs(void)
 	int policy = sched_getscheduler(0);
 	struct sched_param param, old_param;
 
-	/* if we're already running a realtime scheduler
+	/* if we're already running a real-time scheduler
 	 * then we *should* be able to change things later
 	 */
 	if (policy == SCHED_FIFO || policy == SCHED_RR)
@@ -300,7 +303,36 @@ const char *policy_to_string(int policy)
 
 	return "unknown";
 }
+\
+/// policy_is_realtime(): verify if given policy is a real-time policy
+///
+/// Arguments: - scheduling enumeration constant (int) identifying policy
+///
+/// Return value: returns 1 if real-time, 0 otherwise
+///
+const int policy_is_realtime(int policy)
+{
+	switch (policy) {
+	case SCHED_FIFO:
+	case SCHED_RR:
+	case SCHED_DEADLINE:
+		return 1;
+	case SCHED_OTHER:
+	case SCHED_BATCH:
+	case SCHED_IDLE:
+	default:
+		return 0;
+	}
 
+	return 0;
+}
+
+/// string_to_policy(): match string with a scheduling policy
+///
+/// Arguments: - string identifying policy
+///
+/// Return value: returns scheduling enumeration constant, -1 if failed
+///
 int string_to_policy(const char *policy_name, uint32_t *policy)
 {
 	if (strcmp(policy_name, "SCHED_OTHER") == 0)
@@ -315,13 +347,19 @@ int string_to_policy(const char *policy_name, uint32_t *policy)
 		*policy =  SCHED_FIFO;
 	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
 		*policy =  SCHED_DEADLINE;
-	else if (strcmp(policy_name, "default") == 0) // No change to programm settings 
+	else if (strcmp(policy_name, "default") == 0) // No change to program settings
 		*policy =  SCHED_NODATA;
 	else
 		return -1;
 	return 0;
 }
 
+/// string_to_affinity(): match string with a affinity policy
+///
+/// Arguments: - string identifying affinity
+///
+/// Return value: returns affinity enumeration constant, 0 (other) if failed
+///
 uint32_t string_to_affinity(const char *str)
 {
 	if (!strcmp(str, "unspecified"))
@@ -334,7 +372,12 @@ uint32_t string_to_affinity(const char *str)
 	return 0; // default to other
 }
 
-
+/// gettid(): gets the thread id from scheduler/kernel
+///
+/// Arguments: - none
+///
+/// Return value: pid_t thread identifier, always successful
+///
 pid_t gettid(void)
 {
 	return syscall(SYS_gettid);
