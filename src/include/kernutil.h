@@ -23,7 +23,7 @@
 	int setkernvar(const char *prefix, const char *name, char *value, int dryrun);
 	int getkernvar(const char *prefix, const char *name, char *value, int size);
 
-	// affinity and cpu bitmasks
+	// affinity and CPU bit-masks
 	int parse_bitmask(struct bitmask *mask, char * str);
 	struct bitmask *parse_cpumask(const char *option, const int max_cpus);
 

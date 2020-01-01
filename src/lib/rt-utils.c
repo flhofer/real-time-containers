@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/sched.h>	// Linux specific scheduling
 #include <sched.h>
 #include <stdarg.h>
 #include <errno.h>

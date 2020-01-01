@@ -6,11 +6,11 @@
 
 	// Custmom includes
 	#include "rt-sched.h" // temporary as libc does not include new sched yet
-	#include "error.h"		// error and strerr print functions
+	#include "error.h"		// error and stderr print functions
 
 	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker
-	#define MAXCMDLINE 1024		// maximum commandline signature buffer
-	// TODO: limited to 32k processors ;)
+	#define MAXCMDLINE 1024		// maximum command line signature buffer
+	// limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 	#define SCHED_FAFMSK 0xE000	// flexible affinity mask
 
@@ -24,18 +24,18 @@
 	#define TSCHS 1024  // scheduler minimum granularity
 	#define BUFRD 1024  // buffer read size
 	#define CONT_PPID "containerd-shim"
-	#define CONT_PID  "bash" // test for now :)
-	#define CONT_DCKR "docker/" // default cgroup subdirectory for containers
-	#define CSET_SYS  "system/" // default cgroup subdirectory for system
+	#define CONT_PID  "bash" 	// default program signature (test)
+	#define CONT_DCKR "docker/" // default CGroup sub-directory for containers
+	#define CSET_SYS  "system/" // default CGroup sub-directory for system
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
-	#define CPUGOVR	"performance" // configuration for cpu governor	
+	#define CPUGOVR	"performance" // desired configuration for CPU governor
 
 	// definition of container detection modes
 	enum det_mode {
 		DM_CMDLINE,	// use command line signature for detection
-		DM_CNTPID,	// use container skim instances to detect pids
-		DM_CGRP,	// USe cgroup to detect PIDs of processes
+		DM_CNTPID,	// use container skim instances to detect PIDs
+		DM_CGRP,	// Use CGroup to detect PIDs of processes
 		DM_DLEVNT	// docker link event
 	};
 
@@ -46,19 +46,19 @@
 	};
 
 	typedef struct sched_rscs { // resources 
-		int32_t affinity; // exclusive cpu-num
-		// TODO: verify data type -> rlim in gdb says unsigned long
+		int32_t affinity; // exclusive CPU-numbers
+		// TODO: verify data type -> rlim in GDB says unsigned long
 		int32_t rt_timew; // RT execution time soft limit
 		int32_t rt_time;  // RT execution time hard limit
 		int32_t mem_dataw; // Data memory soft limit
 		int32_t mem_data;  // Data memory time hard limit
-		// TODO: fill with other values, i.e. memory bounds ecc
+		// TODO: fill with other values, i.e. memory bounds ecc.
 	} rscs_t;
 
 	typedef struct pidc_parm {
 		struct pidc_parm *next; 
 		char *psig; 			// matching signatures -> container IDs
-		struct sched_attr *attr;// standard linux pid attributes
+		struct sched_attr *attr;// standard Linux PID attributes
 		struct sched_rscs *rscs;// additional resource settings 
 		struct cont_parm  *cont;// pointer to the container settings
 		struct img_parm   *img; // pointer to the image settings

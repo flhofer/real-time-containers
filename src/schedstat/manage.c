@@ -164,7 +164,7 @@ int manageSched(){
 	return 0;
 }
 
-/// get_sched_info(): get sched debug output info
+/// get_sched_info(): get scheduler debug output info
 ///
 /// Arguments: the node to get info for
 ///
@@ -174,7 +174,7 @@ static int get_sched_info(node_t * item)
 {
 	char szFileName [_POSIX_PATH_MAX];
 	char szStatBuff [PIPE_BUFFER];
-	char ltag [80]; // just tag of beginning, max lenght expected ~30 
+	char ltag [80]; // just tag of beginning, max length expected ~30
     char *s, *s_ptr;
 
 	FILE *fp;
@@ -183,7 +183,7 @@ static int get_sched_info(node_t * item)
 
 	if (-1 == access (szFileName, R_OK)) {
 		return -1;
-	} /** if **/
+	} /** if file doesn't exist **/
 
 	if ((fp = fopen (szFileName, "r")) == NULL) {
 		return -1;
@@ -205,6 +205,8 @@ static int get_sched_info(node_t * item)
 	s = strtok_r (szStatBuff, "\n", &s_ptr);
 	while (NULL != s) {
 		(void)sscanf(s,"%s %*c %ld", ltag, &num);
+		// TODO: implement statistics for RR/FF processes.
+
 		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
 			// store last seen runtime
 			ltrt = num;
@@ -268,7 +270,8 @@ static int get_sched_info(node_t * item)
 ///
 /// Arguments: - 
 ///
-/// Return value: number of PIDs found (total)
+/// Return value: number of PIDs found (total) that exceed peak PDF
+///				  defaults to 0 for static scheduler
 ///
 static int updateStats ()
 {
@@ -283,12 +286,10 @@ static int updateStats ()
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// init head
-	node_t * item = head;
-
 	scount++; // increase scan-count
+
 	// for now does only a simple update
-	while (item != NULL) {
+	for (node_t * item = head; ((item)); item=item->next ) {
 		// skip deactivated tracking items
 		if (item->pid<0){
 			item=item->next; 
@@ -300,7 +301,7 @@ static int updateStats ()
 			struct sched_attr attr_act;
 			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
 
-				warn("Unable to read params for PID %d: %s", item->pid, strerror(errno));		
+				warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
 			}
 
 			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
@@ -310,7 +311,7 @@ static int updateStats ()
 				item->attr = attr_act;
 			}
 
-			// set the flag for deadline notification if not enabled yet -- TEST
+			// set the flag for GRUB reclaim operation if not enabled yet
 			if ((prgset->setdflag) 
 				&& (SCHED_DEADLINE == item->attr.sched_policy) 
 				&& (KV_416 <= prgset->kernelversion) 
@@ -318,22 +319,23 @@ static int updateStats ()
 
 				cont("Set dl_overrun flag for PID %d", item->pid);		
 
-				item->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
+				// TODO: DL_overrun flag is set to inform running process of it's overrun
+				// could actually be a problem for the process itself -> depends on task.
+				// May need to set a parameter
+				item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
 				if (sched_setattr (item->pid, &(item->attr), 0U))
 					err_msg_n(errno, "Can not set overrun flag");
 			} 
 		}
 
-		// TODO: Implement RR/FF
 		// get runtime value
-		if (SCHED_DEADLINE == item->attr.sched_policy) {
+		if (policy_is_realtime(item->attr.sched_policy)) {
 			int ret;
 			if ((ret = get_sched_info(item)) ) {
 				err_msg ("reading thread debug details %d", ret);
 			} 
 		}
 
-		item=item->next; 
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex); 
@@ -356,23 +358,36 @@ static void dumpStats (){
 			        "----------------------------------------------------------------------------------\n",
 					scount );
 
-	// for now does only a simple update count
+	// no PIDs in list
 	if (!item) {
 		(void)printf("(no PIDs)\n");
 	}
-	while (item) {
-		// TODO: Implement RR/FF
-		if (SCHED_DEADLINE == item->attr.sched_policy) 
-		(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n", 
-			abs(item->pid), item->pid<0 ? '*' : ' ', 
-			item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
-			item->mon.dl_count, item->mon.dl_scanfail, 
-			item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-			item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 
-		item=item->next; 
-	}
+	for (;((item)); item=item->next)
+		if (policy_is_realtime(item->attr.sched_policy))
+			switch(item->attr.sched_policy){
 
+			case SCHED_FIFO:
+			case SCHED_RR:
+				// TODO: for now, test copy of DL to see results
+				// TODO: cleanup print-out
+				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+					abs(item->pid), item->pid<0 ? '*' : ' ',
+					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+					item->mon.dl_count, item->mon.dl_scanfail,
+					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+				break;
+
+			case SCHED_DEADLINE:
+				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+					abs(item->pid), item->pid<0 ? '*' : ' ',
+					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+					item->mon.dl_count, item->mon.dl_scanfail,
+					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+				break;
+			}
 }
 
 /// thread_manage(): thread function call to manage schedule list
@@ -391,7 +406,7 @@ void *thread_manage (void *arg)
 	  {
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
-		// set lolcal variable -- all cpus set.
+		// set local variable -- all CPUs set.
 		//no break
 
 	  case 1: // normal thread loop, check and update data

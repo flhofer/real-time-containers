@@ -1,5 +1,5 @@
 #include "orchdata.h" // memory structure to store information
-// TODO: FIXME: neeed return value to deal with memory allocation problems
+// TODO: FIXME: need return value to deal with memory allocation problems
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 
@@ -125,12 +125,13 @@ struct base *qsortll_recur(struct base *head, struct base *end,
     return newHead; 
 } 
   
-/// qsortll(): quicksort for generic linked lists, uses cmp function (recursive)
+/// qsortll(): quick-sort for generic linked lists, uses a recursive compare function
 ///
-/// Arguments: - adr of head of the linked list
-///			   - adr to the comparison function to call
+/// Arguments: - address of head of the linked list
+///			   - address to the comparison function to call
 ///
 /// Return value: -
+///
 void qsortll(void **head, int (*compar)(const void *, const void*) ) 
 { 
 	if ((head) && (*head) && (compar)) // check parameters are not null
@@ -140,7 +141,7 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 
 static inline void duplicateContainer(node_t* node, struct containers * conts, cont_t ** cont) {
 	push((void**)&conts->cont, sizeof(cont_t));
-	// copy contents but skip first pointer, pidlist can be referenced -> forking, add only
+	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
 	(void)memcpy((void*)conts->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
 		sizeof(cont_t) - sizeof(cont_t *));
 	// update pointer to newly updated, assign id
@@ -309,12 +310,12 @@ int node_findParams(node_t* node, struct containers * conts){
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, 0, NULL, NULL, NULL,			// pid, det_mode, *psig, *contid, *imgid
+						0, 0, NULL, NULL, NULL,			// PID, det_mode, *psig, *contid, *imgid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						0, 0, 0, 0, 0,
 						0, INT64_MAX, 0, INT64_MIN},
-						NULL};							// *param
+						NULL};							// *param structure pointer
 
 /* -------------------- RUNTIME structure ----------------------*/
 
