@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 20/07/2019
+# last change: 31/12/2019
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -74,7 +74,7 @@ static void checkContainer(contevent_t * cntevent) {
 
 }
 
-/// TEST CASE -> cycle through invalid json events
+/// TEST CASE -> cycle through invalid JSON events
 /// EXPECTED -> immediate response, error exit
 /// NOTES -> thread exits with invalid format
 START_TEST(dockerlink_err_json)
@@ -103,13 +103,13 @@ START_TEST(dockerlink_conf)
 	ck_assert_int_eq(iret1, 0);
 	checkContainer(&cntexpected[_i]);
 	if (!iret1) // thread started successfully
-		iret1 = pthread_join( thread1, NULL); // wait until end
+		iret1 = pthread_join( thread1, NULL ); // wait until end
 }
 END_TEST
 
-/// TEST CASE -> cycle through events, wait 1 sec with pipe open
+/// TEST CASE -> cycle through events, wait 1 second with pipe open
 /// EXPECTED -> immediate container response for 0 and 5 only
-///				thread closed after a sec
+///				thread closed after a second
 /// NOTES -> connection/test should end after delay
 /// 		thread exits when pipe dies
 START_TEST(dockerlink_conf_att)
@@ -127,7 +127,7 @@ START_TEST(dockerlink_conf_att)
 END_TEST
 
 /// TEST CASE -> DUMP all events at once
-/// EXPECTED -> same behaviour as if with delay
+/// EXPECTED -> same behavior as if with delay
 /// NOTES -> connection/test should end after delay
 /// 		thread exits when pipe dies
 START_TEST(dockerlink_conf_dmp)
@@ -164,7 +164,7 @@ START_TEST(dockerlink_conf_stop)
 	ck_assert_int_eq(iret1, 0);
 
 	sleep(2);
-	// set stop sig
+	// set stop signal
 	pthread_kill (thread1, SIGINT); // tell linking threads to stop
 
 	if (!iret1) // thread started successfully

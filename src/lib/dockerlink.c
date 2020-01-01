@@ -1,6 +1,6 @@
 #include "dockerlink.h"
 
-#include <stdbool.h>		// for bool defition and operation
+#include <stdbool.h>		// for bool definition and operation
 #include <json-c/json.h>	// libjson-c for parsing
 #include <errno.h>			// error numbers and strings
 #include <signal.h> 		// for SIGs, handling in main, raise in update
@@ -13,13 +13,13 @@
 #define TIMER_RELTIME		0
 #define INTERV_RFSH			1000
 
-// TODO: remove and or ext parsing code
-// TODO: impement rt signal interface
+// TODO: remove and or externalize parsing code
+// TODO: implement rt signal interface
 // TODO: /proc/sys/kernel/rtsig-max /proc/sys/kernel/rtsig-nr
 // RLIMIT_SIGPENDING in 2.6.8
 // implemented since 2.2
 // http://man7.org/linux/man-pages/man7/signal.7.html 
-// waring -> intrerrupt wirh EINTR
+// waring -> interrupt with EINTR
 
 //// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
 
@@ -267,7 +267,7 @@ static int docker_read_pipe(struct eventData * evnt){
 		(void)fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
 
 		// buf read successfully?
-		if (NULL == buf) {
+		if ('\0' == buf[0]) {
 			warn(PFX "Empty JSON buffer");
 			continue;
 		}
@@ -277,6 +277,7 @@ static int docker_read_pipe(struct eventData * evnt){
 		// root read successfully?
 		if (NULL == root) {
 			warn(PFX "Empty JSON");
+//			pthread_exit(0);
 			exit(EXIT_INV_CONFIG);
 		}
 
@@ -368,7 +369,7 @@ static contevent_t * docker_check_event() {
 ///
 /// Arguments: - 
 ///
-/// Return value: void (pid exits with error if needed)
+/// Return value: pointer to void (PID exits with error if needed)
 void *thread_watch_docker(void *arg) {
 
 	int pstate = 0;
@@ -389,7 +390,7 @@ void *thread_watch_docker(void *arg) {
 	 
 		if (sigaction(SIGINT, &act, NULL) < 0) { // INT signal, stop from main prg
 			perror ("Setup of sigaction failed");  
-			pthread_exit(0); // exit the thread signalling normal return
+			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	} // END interrupt handler block
 	
@@ -446,7 +447,7 @@ void *thread_watch_docker(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
-				pthread_exit(0); // exit the thread signalling normal return
+				pthread_exit(0); // exit the thread signaling normal return
 				break;
 		}
 
