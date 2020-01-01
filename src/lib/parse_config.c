@@ -6,7 +6,7 @@
 
 #include <stdio.h>			// STD IO print and file operations
 #include <string.h>			// string operations
-#include <stdbool.h>		// for bool defition and operation
+#include <stdbool.h>		// for BOOL definition and operation
 #include <fcntl.h>			// file control 
 #include <sched.h>			// scheduler functions
 #include <errno.h>			// error numbers and strings
@@ -17,14 +17,7 @@
 #include "kernutil.h"		// kernel util data types and functions
 #include "rt-utils.h"	// trace and other utils
 
-
-//// -------------------------------- FROM RT-APP, BEGIN ---------------------------------
-
 #define PFX "[json] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
 
@@ -33,136 +26,11 @@
 	#define FALSE false
 #endif
 
-/* this macro set a default if key not present, or give an error and exit
- * if key is present but does not have a default */
-#define set_default_if_needed(key, value, have_def, def_value) do {	\
-	if (!value) {							\
-		if (have_def) {						\
-			printDbg(PIN "key: %s <default> %d\n", key, def_value);\
-			return def_value;				\
-		} else {						\
-			err_msg(PFX "Key %s not found", key);	\
-			exit(EXIT_INV_CONFIG);	\
-		}							\
-	}								\
-} while(0)
-
-/* same as before, but for string, for which we need to strdup in the
- * default value so it can be a literal */
-#define set_default_if_needed_str(key, value, have_def, def_value) do {	\
-	if (!value) {							\
-		if (have_def) {						\
-			if (!def_value) {				\
-				printDbg(PIN "key: %s <default> NULL\n", key);\
-				return NULL;						\
-			}										\
-			printDbg(PIN "key: %s <default> %s\n",		\
-				  key, def_value);					\
-			return strdup(def_value);				\
-		} else {									\
-			err_msg(PFX "Key %s not found", key);	\
-			exit(EXIT_INV_CONFIG);					\
-		}											\
-	}												\
-}while (0)
-
-/* get an object obj and check if its type is <type>. If not, print a message
- * (this is what parent and key are used for) and exit
- */
-static inline void
-assure_type_is(struct json_object *obj,
-	       struct json_object *parent,
-	       const char *key,
-	       enum json_type type)
-{
-	if (!json_object_is_type(obj, type)) {
-		err_msg("Invalid type for key %s", key);
-		err_msg("%s", json_object_to_json_string(parent));
-		exit(EXIT_INV_CONFIG);
-	}
-}
-
-/* search a key (what) in object "where", and return a pointer to its
- * associated object. If nullable is false, exit if key is not found */
-static inline struct json_object*
-get_in_object(struct json_object *where,
-	      const char *what,
-	      int nullable)
-{
-	struct json_object *to;
-	json_bool ret;
-	ret = json_object_object_get_ex(where, what, &to);
-	if (!nullable && !ret){
-		err_msg(PFX "Error while parsing config\n" PFL);
-		exit(EXIT_INV_CONFIG);
-	}
-
-
-	if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) {
-		err_msg(PFX "Cannot find key %s", what);
-		exit(EXIT_INV_CONFIG);
-	}
-
-	return to;
-}
-
-static inline int
-get_int_value_from(struct json_object *where,
-		   const char *key,
-		   int have_def,
-		   int def_value)
-{
-	struct json_object *value;
-	int i_value;
-	value = get_in_object(where, key, have_def);
-	set_default_if_needed(key, value, have_def, def_value);
-	assure_type_is(value, where, key, json_type_int);
-	i_value = json_object_get_int(value);
-	printDbg(PIN "key: %s, value: %d, type <int>\n", key, i_value);
-	return i_value;
-}
-
-static inline int
-get_bool_value_from(struct json_object *where,
-		    const char *key,
-		    int have_def,
-		    int def_value)
-{
-	struct json_object *value;
-	int b_value;
-	value = get_in_object(where, key, have_def);
-	set_default_if_needed(key, value, have_def, def_value);
-	assure_type_is(value, where, key, json_type_boolean);
-	b_value = json_object_get_boolean(value);
-	printDbg(PIN "key: %s, value: %d, type <bool>\n", key, b_value);
-	return b_value;
-}
-
-static inline char*
-get_string_value_from(struct json_object *where,
-		      const char *key,
-		      int have_def,
-		      const char *def_value)
-{
-	struct json_object *value;
-	char *s_value;
-	value = get_in_object(where, key, have_def);
-	set_default_if_needed_str(key, value, have_def, def_value);
-	if (json_object_is_type(value, json_type_null)) {
-		printDbg(PIN "key: %s, value: NULL, type <string>\n", key);
-		return NULL;
-	}
-	assure_type_is(value, where, key, json_type_string);
-	s_value = strdup(json_object_get_string(value));
-	printDbg(PIN "key: %s, value: %s, type <string>\n", key, s_value);
-	return s_value;
-}
-
-//// -------------------------------- FROM RT-APP, END ---------------------------------
+#include "parse_func.h"
 
 /// parse_resource_data(): extract parameter values from JSON tokens for resource limits
 ///
-/// Arguments: - json object of tree containing resource information
+/// Arguments: - JSON object of tree containing resource information
 /// 		   - structure to store values in, resources of section (pid,container,global)
 ///
 /// Return value: no return value, exits on error
@@ -180,7 +48,7 @@ static void parse_resource_data(struct json_object *obj,
 
 /// parse_scheduling_data(): extract parameter values from JSON tokens for resource limits
 ///
-/// Arguments: - json object of tree containing scheduling information
+/// Arguments: - JSON object of tree containing scheduling information
 /// 		   - structure to store values in, scheduling of section (pid,container,global)
 ///
 /// Return value: no return value, exits on error
@@ -215,7 +83,7 @@ static void parse_scheduling_data(struct json_object *obj,
 
 /// parse_pid_data(): extract parameter values from JSON tokens for pid
 ///
-/// Arguments: - json object of tree containing pid information
+/// Arguments: - JSON object of tree containing pid information
 ///			   - index in array list
 /// 		   - structure to store values in, for this pid
 ///			   - structure containing container configuration, parent
@@ -272,7 +140,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 
 /// parse_container_data(): extract parameter values from JSON tokens for container
 ///
-/// Arguments: - json object of tree containing container data
+/// Arguments: - JSON object of tree containing container data
 ///			   - index in array list
 /// 		   - structure to store values in, for this container
 ///			   - structure containig containers (all) information, parent
@@ -317,7 +185,7 @@ static void parse_container_data(struct json_object *obj, int index,
 		}
 	}
 
-	{// now parse Pids before you exit :)
+	{// now parse PIDs before you exit :)
 		struct json_object *pidslist;
 		struct json_object *pidobj;
 		int idx = 0;
@@ -341,7 +209,7 @@ static void parse_container_data(struct json_object *obj, int index,
 
 /// parse_containers(): extract parameter values from JSON tokens for containers
 ///
-/// Arguments: - json object of tree containing container array
+/// Arguments: - JSON object of tree containing container array
 /// 		   - structure to store values in
 ///			   - structure containig containers (all) information, parent
 ///			   - image of container, NULL if unknown
@@ -402,7 +270,7 @@ static void parse_containers(struct json_object *containers, containers_t *conts
 
 /// parse_image_data(): extract parameter values from JSON tokens for image
 ///
-/// Arguments: - json object of tree containing image data
+/// Arguments: - JSON object of tree containing image data
 ///			   - index in array list
 /// 		   - structure to store values in, for this image
 ///			   - structure containig containers (all) information, parent
@@ -473,7 +341,7 @@ static void parse_image_data(struct json_object *obj, int index,
 
 /// parse_images(): extract parameter values from JSON tokens for container images
 ///
-/// Arguments: - json object of tree containing image array
+/// Arguments: - JSON object of tree containing image array
 /// 		   - structure to store values in
 ///			   - structure containig containers (all) information, parent
 ///
@@ -505,7 +373,7 @@ static void parse_images(struct json_object *images, containers_t *conts)
 			}
 			printDbg(PFX "Found %d thread configurations in %d images\n",
 				conts->nthreads, conts->num_cont);
-		} // END image and pid count block
+		} // END image and PID count block
 
 		{ // image parse block
 			/*
@@ -533,7 +401,7 @@ static void parse_images(struct json_object *images, containers_t *conts)
 
 /// parse_global(): extract parameter values from JSON tokens
 ///
-/// Arguments: - json object of tree containing global configuration
+/// Arguments: - JSON object of tree containing global configuration
 /// 		   - structure to store values in
 ///
 /// Return value: no return value, exits on error
@@ -765,7 +633,7 @@ void parse_config_set_default(prgset_t *set) {
 	set->use_cgroup = DM_CGRP;
 }
 
-/// parse_config(): parse the json configuration and push back results
+/// parse_config(): parse the JSON configuration and push back results
 ///
 /// Arguments: - filename of the configuration file
 /// 		   - struct to store the read parameters in
@@ -863,7 +731,7 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 
 	} // END container settings block
 
-	{ // pids settings block
+	{ // PIDs settings block
 		struct json_object *pidslist;
 		struct json_object *pidobj;
 		int idx = 0;
@@ -881,14 +749,14 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			if (!json_object_put(pidslist))
 				err_msg(PFX "Could not free object!");
 		}
-	} // END pids settings block
+	} // END PIDs settings block
 
 }
 
-/// parse_config_pipe(): parse the json configuration from a pipe until EOF
+/// parse_config_pipe(): parse the JSON configuration from a pipe until EOF
 ///
 /// Arguments: - pipe to the input
-/// 		   - struct to store the read parameters in
+/// 		   - structure to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
 void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
@@ -907,19 +775,19 @@ void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
 //		err_exit(PFX "Could not free objects!");
 }
 
-/// parse_config_stdin(): parse the json configuration from stin until EOF
+/// parse_config_stdin(): parse the JSON configuration from stdin until EOF
 ///
-/// Arguments: - struct to store the read parameters in
+/// Arguments: - structure to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
 void parse_config_stdin(prgset_t *set, containers_t *conts) {
 	parse_config_pipe(stdin, set, conts);
 }
 
-/// parse_config_file(): parse the json configuration from file and push back results
+/// parse_config_file(): parse the JSON configuration from file and push back results
 ///
 /// Arguments: - filename of the configuration file
-/// 		   - struct to store the read parameters in
+/// 		   - structure to store the read parameters in
 ///
 /// Return value: void (exits with error if needed)
 void parse_config_file (const char *filename, prgset_t *set, containers_t *conts) {
