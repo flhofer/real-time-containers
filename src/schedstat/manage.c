@@ -213,7 +213,7 @@ static int get_sched_info(node_t * item)
 
 			int64_t nanos = 0; // value after the dot
 			num *= 1000000; // push left for values after comma
-			(void)sscanf(s,"%ld", ltag, &nanos);
+			(void)sscanf(s,"%ld", &nanos);
 			num += nanos;
 
 			// compute difference

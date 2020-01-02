@@ -184,7 +184,7 @@ static void prepareEnvironment(prgset_t *set) {
 	}
 	// TODO: else
 
-	// prepare bitmask, no need to do it before
+	// prepare bit-mask, no need to do it before
 	set->affinity_mask = parse_cpumask(set->affinity, maxccpu);
 	if (!set->affinity_mask)
 		display_help(1);
@@ -440,18 +440,18 @@ static void prepareEnvironment(prgset_t *set) {
 
 	int err = stat(set->cpusetdfileprefix, &s);
 	if(-1 == err) {
-		// Docker Cgroup not found, set->force enabled = try creating
+		// Docker CGroup not found, set->force enabled = try creating
 		if(ENOENT == errno && set->force) {
 			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
 			// if it worked, stay in Container mode	
 		} else {
-		// Docker Cgroup not found, set->force not enabled = try switching to pid
+		// Docker CGroup not found, set->force not enabled = try switching to pid
 			if(ENOENT == errno) 
 				err_msg("No set->force. Can not create container group: %s", strerror(errno));
 			else 
-				err_exit_n(errno, "Stat encountered an error");
+				err_exit_n(errno, "stat encountered an error");
 		}
 	} else {
 		// CGroup found, but is it a dir?
@@ -486,8 +486,8 @@ static void prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/// --------------------
-	/// detect numa configuration TODO: adapt for full support
-	char * numastr = "0"; // default numa string
+	/// detect NUMA configuration TODO: adapt for full support
+	char * numastr = "0"; // default NUMA string
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
 		if (!(numastr = malloc (5)))
@@ -496,10 +496,10 @@ static void prepareEnvironment(prgset_t *set) {
 		sprintf(numastr, "0-%d", numanodes);
 	}
 	else
-		warn("Numa not enabled, defaulting to memory node '0'");
+		warn("NUMA not enabled, defaulting to memory node '0'");
 
 	/// --------------------
-	/// cgroup present, fix cpu-sets of running containers
+	/// CGroup present, fix cpu-sets of running containers
 	if (AFFINITY_USEALL != set->setaffinity){ // TODO: useall = ignore setting of exclusive
 
 		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
@@ -512,7 +512,7 @@ static void prepareEnvironment(prgset_t *set) {
 			{
 				char *contp = NULL; // clear pointer
 				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker cgroups, find container IDs
+				// scan trough docker CGroup, find container IDs
 					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
 						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 							+ strlen(dir->d_name)+1))) {
@@ -551,7 +551,7 @@ static void prepareEnvironment(prgset_t *set) {
 				char *contp = NULL; // clear pointer
 				/// Reassigning pre-existing containers?
 				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker cgroups, find them?
+				// scan trough docker CGroup, find them?
 					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
 						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 							+ strlen(dir->d_name)+1))) {
@@ -560,10 +560,10 @@ static void prepareEnvironment(prgset_t *set) {
 							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
 							if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-								warn("Can not set cpu-affinity");
+								warn("Can not set CPU-affinity");
 							}
 							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set numa memory nodes"); // TODO: separte numa settings
+								warn("Can not set NUMA memory nodes"); // TODO: separte numa settings
 							}
 						}
 						else // realloc error
@@ -575,10 +575,10 @@ static void prepareEnvironment(prgset_t *set) {
 
 			// Docker CGroup settings and affinity
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-				warn("Can not set cpu-affinity");
+				warn("Can not set CPU-affinity");
 			}
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set numa memory nodes");// TODO: separte numa settings
+				warn("Can not set NUMA memory nodes");// TODO: separte numa settings
 			}
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 				warn("Can not set cpu exclusive");
@@ -721,18 +721,12 @@ sysend: // jumped here if not possible to create system
 		free (nfileprefix);
 
 	}
-	else //realloc issues
+	else //re-alloc issues
 		err_exit("could not allocate memory!\n");
 
 	// composed static or generated NUMA string? if generated > 1
 	if (1 < strlen(numastr))
 		free(numastr);
-
-	/* lock all memory (prevent swapping) */
-	if (set->lock_pages)
-		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) 
-			err_exit_n(errno, "MLockall failed");
-
 }
 
 /// display_help(): Print usage information 
@@ -1095,7 +1089,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 	// check policy with priority match 
 	if ((SCHED_FIFO == set->policy || SCHED_RR == set->policy) && 0 == set->priority) {
-		warn("defaulting realtime priority to %d", 10);
+		warn("defaulting real-time priority to %d", 10);
 		set->priority = 10;
 	}
 
@@ -1122,7 +1116,7 @@ int main(int argc, char **argv)
 		err_exit("Unable to allocate memory");
 
 	process_options(tmpset, argc, argv, max_cpus);
-	
+
 	// gather actual information at startup, prepare environment
 	prepareEnvironment(tmpset);
 
@@ -1142,6 +1136,11 @@ int main(int argc, char **argv)
 		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
 	}
+
+	/* lock all memory (prevent swapping) -- do here */
+	if (prgset->lock_pages)
+		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) // future avoids page creation
+			err_exit_n(errno, "MLockall failed");
 
 	// set interrupt sig hand
 	// TODO: change to sigaction, mask unused signals
