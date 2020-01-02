@@ -727,6 +727,11 @@ sysend: // jumped here if not possible to create system
 	// composed static or generated NUMA string? if generated > 1
 	if (1 < strlen(numastr))
 		free(numastr);
+
+	/* lock all memory (prevent swapping) -- do here */
+	if (set->lock_pages)
+		if (-1 == mlockall(MCL_CURRENT)) // future avoids page creation
+			err_exit_n(errno, "MLockall failed"); //MCL_FUTURE
 }
 
 /// display_help(): Print usage information 
@@ -1137,10 +1142,10 @@ int main(int argc, char **argv)
 		t_stat2 = -1;
 	}
 
-	/* lock all memory (prevent swapping) -- do here */
+	/* lock all memory (prevent swapping) -- do here
 	if (prgset->lock_pages)
 		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) // future avoids page creation
-			err_exit_n(errno, "MLockall failed");
+			err_exit_n(errno, "MLockall failed"); */
 
 	// set interrupt sig hand
 	// TODO: change to sigaction, mask unused signals
