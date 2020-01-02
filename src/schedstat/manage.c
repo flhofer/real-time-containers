@@ -201,7 +201,6 @@ static int get_sched_info(node_t * item)
 	int64_t num;
 	int64_t diff = 0;
 	int64_t ltrt = 0; // last seen runtime
-	int64_t nrsw = 0; // last number of switches
 
 	s = strtok_r (szStatBuff, "\n", &s_ptr);
 	while (NULL != s) {
@@ -209,21 +208,21 @@ static int get_sched_info(node_t * item)
 
 		// ---------- SCHED_FIFO/RR --------------
 		if (strncasecmp(ltag, "se.exec_start", 4) == 0)	{
-			// execution time since start
-
+			// execution time since start, reread
 			int64_t nanos = 0; // value after the dot
+			(void)sscanf(s,"%s %*c %ld.%ld", ltag, &num, &nanos);
 			num *= 1000000; // push left for values after comma
-			(void)sscanf(s,"%ld", &nanos);
 			num += nanos;
 
 			// compute difference
-			diff = (int64_t)(num - ltrt);
-			ltrt = num; 	// store last seen runtime
+			diff = (int64_t)(num - item->mon.dl_rt);
+			item->mon.dl_rt = num; 	// store last seen runtime
 		}
 		if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
 			// computation loop end
 
-			if (nrsw != num) {
+			if ((item->mon.dl_count != num)
+					&& (0 != item->mon.dl_count)) {
 				// new switches detected
 				item->mon.rt_min = MIN (item->mon.rt_min, diff);
 				item->mon.rt_max = MAX (item->mon.rt_max, diff);
@@ -231,7 +230,7 @@ static int get_sched_info(node_t * item)
 			}
 
 			// store last seen switch number
-			nrsw = num;
+			item->mon.dl_count = num;
 		}
 
 		// ---------- SCHED_DEADLINE --------------
@@ -397,14 +396,13 @@ static void dumpStats (){
 
 			case SCHED_FIFO:
 			case SCHED_RR:
-				// TODO: for now, test copy of DL to see results
 				// TODO: cleanup print-out
-				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
 					abs(item->pid), item->pid<0 ? '*' : ' ',
 					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 					item->mon.dl_count, item->mon.dl_scanfail,
 					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+					policy_to_string(item->attr.sched_policy));
 				break;
 
 			case SCHED_DEADLINE:
