@@ -305,7 +305,7 @@ static void prepareEnvironment(prgset_t *set) {
 		err_exit ("can not determine inverse affinity mask!");
 
 	/// --------------------
-	/// verify executable permissions	
+	/// verify executable permissions - needed for dry run, not blind run
 	{
 	cont( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of process
@@ -316,15 +316,23 @@ static void prepareEnvironment(prgset_t *set) {
 	if (cap_get_flag(cap, CAP_SYS_NICE, CAP_EFFECTIVE, &v)) // check for effective NICE cap
 		err_exit_n(errno, "Capability test failed");
 
-	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v))
-		err_exit("CAP_SYS_NICE capability mandatory to operate properly!");
+	if (!CAP_IS_SUPPORTED(CAP_SYS_NICE) || (0==v)){
+		if (!(set->blindrun))
+			err_exit("CAP_SYS_NICE capability mandatory to operate properly!");
+		else
+			warn("CAP_SYS_NICE unavailable - Skipped anyway.");
+	}
 
 	v=0;
 	if (cap_get_flag(cap, CAP_SYS_RESOURCE, CAP_EFFECTIVE, &v)) // check for effective RESOURCE cap
 		err_exit_n(errno, "Capability test failed");
 
-	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v))
-		err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!");
+	if (!CAP_IS_SUPPORTED(CAP_SYS_RESOURCE) || (0==v)){
+		if (!(set->blindrun))
+			err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!");
+		else
+			warn("CAP_SYS_RESOURCE unavailable - Skipped anyway.");
+	}
 	}
 
 	/// --------------------
@@ -360,10 +368,10 @@ static void prepareEnvironment(prgset_t *set) {
 
 	// ksoftirqd -> offline, online again
 	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun)
+	if (!set->blindrun && !set->dryrun)
 	{
 		char fstring[50]; // cpu string
-		// bring all affiity except 0 offline
+		// bring all affinity except 0 off-line
 		for (int i=maxccpu-1;i>0;i--) {
 
 			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
@@ -373,7 +381,7 @@ static void prepareEnvironment(prgset_t *set) {
 				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
 				else
-					cont("CPU%d offline", i);
+					cont("CPU%d off-line", i);
 			}
 		}	
 		// bring all back online
@@ -381,7 +389,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
 
-				// verify if cpu-freq is on performance -> set it
+				// verify if CPU-frequency is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
 				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
@@ -390,6 +398,9 @@ static void prepareEnvironment(prgset_t *set) {
 			}
 		}	
 	}
+	else
+		if (set->dryrun)
+			cont("skipped.");
 	// lockup detector
 	// echo 0 >  /proc/sys/kernel/watchdog
 	// or echo 9999 >  /proc/sys/kernel/watchdog
@@ -404,14 +415,14 @@ static void prepareEnvironment(prgset_t *set) {
 	else {
 		cont( "orchestrator scheduled as '%s'", policy_to_string(attr.sched_policy));
 
-		// set new attributes here, avoid Realtime for this thread
+		// set new attributes here, avoid real-time for this thread
 		attr.sched_nice = 20;
 		// reset on fork.. and if DL is set, grub and overrun
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
 
 		cont( "promoting process and setting attributes..");
 		if (sched_setattr (mpid, &attr, 0U))
-			warn("could not set orchestrator schedulig attributes, %s", strerror(errno));
+			warn("could not set orchestrator scheduling attributes, %s", strerror(errno));
 	}
 
 	if (AFFINITY_USEALL != set->setaffinity){ // set affinity only if not useall
@@ -713,14 +724,14 @@ sysend: // jumped here if not possible to create system
 	else //realloc issues
 		err_exit("could not allocate memory!\n");
 
-	// composed static or generated numa string? if generated > 1
+	// composed static or generated NUMA string? if generated > 1
 	if (1 < strlen(numastr))
 		free(numastr);
 
 	/* lock all memory (prevent swapping) */
 	if (set->lock_pages)
 		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) 
-			err_exit_n(errno, "Mlockall failed");
+			err_exit_n(errno, "MLockall failed");
 
 }
 
