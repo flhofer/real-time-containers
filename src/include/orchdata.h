@@ -98,7 +98,7 @@
 		struct pidc_parm  *pids;// linked list of pidc_t
 		struct sched_attr *attr;// global sched attributes, default.
 		struct sched_rscs *rscs;// global resource settings, default & max
-		uint32_t nthreads;		// number of configured containers pids-threads
+		uint32_t nthreads;		// number of configured containers PIDs-threads
 		uint32_t num_cont;		// number of configured containers
 	} containers_t;
 
@@ -125,7 +125,7 @@
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
 	} nodemon_t;
 
-	typedef struct sched_pid { // pid mamagement and monitoring info
+	typedef struct sched_pid { // PID management and monitoring info
 		struct sched_pid * next;
 		pid_t pid;		// runtime pid number
 		int det_mode;	// detection mode used for the pid 
@@ -147,9 +147,9 @@
 		// signatures and folders
 		char * cont_ppidc;
 		char * cont_pidc;
-		char * cont_cgrp; // CGroup subdirectory configuration for container detection
+		char * cont_cgrp; // CGroup sub-directory configuration for container detection
 
-		// filepaths virtual file system
+		// file-paths virtual file system
 		char *procfileprefix;
 		char *cpusetfileprefix;
 		char *cpusystemfileprefix;

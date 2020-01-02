@@ -308,7 +308,7 @@ static void prepareEnvironment(prgset_t *set) {
 	/// verify executable permissions	
 	{
 	cont( "Verifying for process capabilities..");
-	cap_t cap = cap_get_proc(); // get capability map of proc
+	cap_t cap = cap_get_proc(); // get capability map of process
 	if (!cap) 
 		err_exit_n(errno, "Can not get capability map");
 
@@ -335,8 +335,8 @@ static void prepareEnvironment(prgset_t *set) {
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version...YMMVTrying generic configuration..");
 
-	cont( "Set realtime bandwith limit to (unconstrained)..");
-	// disable bandwidth control and realtime throttle
+	cont( "Set real-time bandwidth limit to (unconstrained)..");
+	// disable bandwidth control and real-time throttle
 	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
@@ -345,7 +345,7 @@ static void prepareEnvironment(prgset_t *set) {
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
-			warn("RR timeslice not changed!");
+			warn("RR time slice not changed!");
 		}
 	}
 
@@ -1033,7 +1033,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	    config = argv[argc-1];
 	}
 
-	// allways verify for config file -> segmentation fault??
+	// always verify for configuration file -> segmentation fault??
 	if ( access( config, F_OK )) {
 		err_msg("configuration file '%s' not found", config);
 		error = 1;
@@ -1104,7 +1104,7 @@ int main(int argc, char **argv)
 	int max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
-	(void)printf("This software comes with no waranty. Please be careful\n");
+	(void)printf("This software comes with no warranty. Please be careful\n");
 
 	prgset_t *tmpset;
 	if (!(tmpset = malloc (sizeof(prgset_t))))
