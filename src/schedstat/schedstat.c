@@ -306,6 +306,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify executable permissions - needed for dry run, not blind run
+	int capIpc = 1;
 	{
 	cont( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of process
@@ -320,7 +321,7 @@ static void prepareEnvironment(prgset_t *set) {
 		if (!(set->blindrun))
 			err_exit("CAP_SYS_NICE capability mandatory to operate properly!");
 		else
-			warn("CAP_SYS_NICE unavailable - Skipped anyway.");
+			warn("CAP_SYS_NICE unavailable");
 	}
 
 	v=0;
@@ -331,8 +332,18 @@ static void prepareEnvironment(prgset_t *set) {
 		if (!(set->blindrun))
 			err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!");
 		else
-			warn("CAP_SYS_RESOURCE unavailable - Skipped anyway.");
+			warn("CAP_SYS_RESOURCE unavailable");
 	}
+
+	v=0;
+	if (cap_get_flag(cap, CAP_IPC_LOCK, CAP_EFFECTIVE, &v)) // check for effective RESOURCE cap
+		err_exit_n(errno, "Capability test failed");
+
+	if (!CAP_IS_SUPPORTED(CAP_IPC_LOCK) || (0==v)){
+		warn("CAP_IPC_LOCK unavailable.");
+		capIpc = 0; // tell unavailable fort IPC lock
+	}
+
 	}
 
 	/// --------------------
@@ -357,7 +368,7 @@ static void prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-	// here.. offline messes up cset
+	// here.. off-line messes up cset
 	cont("moving kernel thread affinity");
 	// kernel interrupt threads affinity
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
@@ -401,6 +412,7 @@ static void prepareEnvironment(prgset_t *set) {
 	else
 		if (set->dryrun)
 			cont("skipped.");
+
 	// lockup detector
 	// echo 0 >  /proc/sys/kernel/watchdog
 	// or echo 9999 >  /proc/sys/kernel/watchdog
@@ -591,7 +603,7 @@ static void prepareEnvironment(prgset_t *set) {
 	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER ids ------------
 	// we know of, so set it up-front
 	// TODO: simplify code using single function for all -> internal CG library?
-	cont("creating cgroup entries for configured CIDs");
+	cont("creating CGroup entries for configured CIDs");
 	{
 		char * fileprefix = NULL;
 
@@ -631,7 +643,7 @@ static void prepareEnvironment(prgset_t *set) {
 
 	char *fileprefix = NULL;
 
-	cont("creating cgroup for system on %s", cpus);
+	cont("creating CGroup for system on %s", cpus);
 
 	// TODO: system directory is hard-coded -> at least use MACRO
 	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
@@ -689,7 +701,7 @@ static void prepareEnvironment(prgset_t *set) {
 					while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 						// DO STUFF
 
-						// fileprefix still pointing to CSET_SYS
+						// file prefix still pointing to CSET_SYS
 						if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
 							printDbg( "Warn! Can not move task %s\n", pid);
 							mtask++;
@@ -729,9 +741,14 @@ sysend: // jumped here if not possible to create system
 		free(numastr);
 
 	/* lock all memory (prevent swapping) -- do here */
-	if (set->lock_pages)
-		if (-1 == mlockall(MCL_CURRENT)) // future avoids page creation
-			err_exit_n(errno, "MLockall failed"); //MCL_FUTURE
+	if (set->lock_pages) {
+		// find lock configuration - depending on CAPS
+		int lockt = MCL_CURRENT;
+		if (capIpc)
+			lockt |= MCL_FUTURE;
+		if (-1 == mlockall(lockt))
+			err_exit_n(errno, "MLockall failed");\
+	}
 }
 
 /// display_help(): Print usage information 
