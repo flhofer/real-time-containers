@@ -170,7 +170,7 @@ int get_tracers(char ***list)
 
 	/* get a buffer for the pointers to tracers */
 	if (!(tracer_list = malloc(sizeof(char *))))
-		fatal("error allocatinging tracer list buffer\n");
+		fatal("error allocating tracer list buffer\n");
 
 	/* parse the buffer */
 	ptr = strtok_r(tmpbuf, " \t\n\r", &ptr_p);
@@ -253,36 +253,6 @@ int event_disable(char *event)
 
 	sprintf(path, "events/%s/enable", event);
 	return setevent(path, "0");
-}
-
-int check_privs(void)
-{
-	int policy = sched_getscheduler(0);
-	struct sched_param param, old_param;
-
-	/* if we're already running a real-time scheduler
-	 * then we *should* be able to change things later
-	 */
-	if (policy == SCHED_FIFO || policy == SCHED_RR)
-		return 0;
-
-	/* first get the current parameters */
-	if (sched_getparam(0, &old_param)) {
-		fprintf(stderr, "unable to get scheduler parameters\n");
-		return 1;
-	}
-	param = old_param;
-
-	/* try to change to SCHED_FIFO */
-	param.sched_priority = 1;
-	if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-		fprintf(stderr, "Unable to change scheduling policy!\n");
-		fprintf(stderr, "either run as root or join realtime group\n");
-		return 1;
-	}
-
-	/* we're good; change back and return success */
-	return sched_setscheduler(0, policy, &old_param);
 }
 
 const char *policy_to_string(int policy)

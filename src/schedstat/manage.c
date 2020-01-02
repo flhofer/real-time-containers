@@ -58,7 +58,7 @@ static uint64_t scount = 0; // total scan count
 /// Arguments: resource entry for this cpu, the attr structure of the task
 ///
 /// Return value: 0 = ok, -1 = no space, 1 = ok but recalc base
-int checkUvalue(struct resTracer * res, struct sched_attr * par) {
+static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	uint64_t	base = res->basePeriod,
 				used = res->usedPeriod;
 	int rv = 0;
@@ -91,7 +91,7 @@ int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	return rv;
 }
 
-void addUvalue(struct resTracer * res, struct sched_attr * par) {
+static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	if (res->basePeriod % par->sched_deadline != 0) {
 		// realign periods
 		uint64_t max_Value = MAX (res->basePeriod, par->sched_period);
@@ -126,7 +126,7 @@ void addUvalue(struct resTracer * res, struct sched_attr * par) {
 ///
 /// Return value: N/D - int
 ///
-int createResTracer(){
+static int createResTracer(){
 	// mask affinity and invert for system map / readout of smi of online CPUs
 	for (int i=0;i<(prgset->affinity_mask->size);i++) 
 
@@ -144,7 +144,7 @@ int createResTracer(){
 ///
 /// Return value: N/D - int
 ///
-int manageSched(){
+static int manageSched(){
 
 	// TODO: this is for the dynamic and adaptive scheduler only
 
@@ -163,6 +163,44 @@ int manageSched(){
 
 	return 0;
 }
+
+
+/// get_sched_info2(): get kernel tracer debug out
+///
+/// Arguments: the node to get info for
+///
+/// Return value: error code, 0 = success
+///
+
+static int configureTracers(){
+	char **tracer_list = NULL;
+
+	int notrace = get_tracers(&tracer_list);
+
+	int found = 0;
+	info("Available tracers:");
+
+	for (char** trace= tracer_list; ((*trace)); trace++){
+		cont("%s", *trace);
+		if (strncmp(*trace, "wakeup_rt", 9))
+			found++; // wakeup_rt tracer found
+
+		if (strncmp(*trace, "wakeup_dl", 9))
+			found++; // wakeup_dl tracer found
+	}
+
+	return found-2; // return number found vs needed
+}
+
+
+static int get_sched_info2(node_t * item)
+{
+
+
+
+
+}
+
 
 /// get_sched_info(): get scheduler debug output info
 ///
@@ -432,7 +470,9 @@ void *thread_manage (void *arg)
 	  {
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
-		// set local variable -- all CPUs set.
+		if (prgset->ftrace)
+			if (configureTracers())
+				warn("Kernel function tracers not available");
 		//no break
 
 	  case 1: // normal thread loop, check and update data
