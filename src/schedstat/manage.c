@@ -165,13 +165,12 @@ static int manageSched(){
 }
 
 
-/// get_sched_info2(): get kernel tracer debug out
+/// configureTracers(): setup kernel function trace system
 ///
-/// Arguments: the node to get info for
+/// Arguments: - none
 ///
-/// Return value: error code, 0 = success
+/// Return value: (-) no of missing traces, 0 = success
 ///
-
 static int configureTracers(){
 	char **tracer_list = NULL;
 
@@ -180,6 +179,7 @@ static int configureTracers(){
 	int found = 0;
 	info("Available tracers:");
 
+	// TODO: change to valid_tracer
 	for (char** trace= tracer_list; ((*trace)); trace++){
 		cont("%s", *trace);
 		if (strncmp(*trace, "wakeup_rt", 9))
@@ -189,14 +189,19 @@ static int configureTracers(){
 			found++; // wakeup_dl tracer found
 	}
 
-	return found-2; // return number found vs needed
+	return found-2; // return number found versus needed
 }
 
-
-static int get_sched_info2(node_t * item)
+/// get_sched_info2(): get kernel tracer debug out
+///
+/// Arguments: the node to get info for
+///
+/// Return value: error code, 0 = success
+///
+static int get_sched_info2()
 {
 
-
+	// TODO: change UpdateStats form item update to update item :)
 
 
 }
