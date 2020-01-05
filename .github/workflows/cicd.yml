@@ -1,0 +1,33 @@
+name: C/C++ CI
+
+on: 
+  push:
+    branches: # Run when pushed to develop and master
+      - master
+      - develop
+        
+  schedule:
+    - cron: "0 2 * * 0" # Run at 2am UTC on Sun
+
+jobs:
+  build:
+
+    runs-on: ubuntu-18.04
+          
+    steps:
+    - uses: actions/checkout@v2.0.0
+
+    - name: "Install dependencies"
+      run:  apt-get update \
+            && apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
+
+# Configure not present yet
+#    - name: configure
+#      run: ./configure
+    - name: make schedstat
+      run: make schedstat
+    - name: make check
+      run: make check
+# Deploy needs setup       
+#    - name: make distcheck
+#      run: make distcheck
