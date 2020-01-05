@@ -18,8 +18,9 @@ jobs:
     - uses: actions/checkout@v2.0.0
 
     - name: "Install dependencies"
-      run:  apt-get update \
-            && apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
+      run: |
+            sudo apt-get update \
+            && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
 
 # Configure not present yet
 #    - name: configure
