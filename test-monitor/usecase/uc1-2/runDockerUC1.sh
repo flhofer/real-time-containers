@@ -1,8 +1,11 @@
 #!/bin/bash
 #source ~user/.bashrc
-launchDir="/opt/usecase/logs"
-local_resultsDir="$launchDir/UC1.`date +%Y%m%d`"
 
+#log output dir
+launchDir="/opt/usecase/logs"
+mkdir -p $launchDir
+
+local_resultsDir="$launchDir/UC1.`date +%Y%m%d`"
 container_resultsDir="/home/logs"
 
 fifoDir=/tmp
@@ -14,8 +17,6 @@ datageneratorPolicy="--fifo"
 datageneratorPriority=98
 datadistributorPolicy="--fifo"
 datadistributorPriority=97
-
-mkdir $launchDir
 
 #REGULAR
 #For executing the regular test, sleep 30 minutes between FPS changes
@@ -31,6 +32,7 @@ let beforeNewWorkerSleepTime=30
 
 echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
 
+# Worker parameters
 if [ $# -gt 0 ] ; then
 	maxworkers=$1
 else

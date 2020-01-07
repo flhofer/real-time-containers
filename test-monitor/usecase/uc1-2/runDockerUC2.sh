@@ -1,18 +1,17 @@
 #!/bin/bash
 #source ~user/.bashrc
+
+#log output dir
 launchDir="/opt/usecase/logs"
-base_resultsDir="$launchDir/UC2.`date +%Y%m%d`"
+mkdir -p $launchDir
+
+local_resultsDir="$launchDir/UC2.`date +%Y%m%d`"
 container_resultsDir="/home/logs"
-local_resultsDir="$base_resultsDir"
+
 fifoDir=/tmp
 fpsFile=$fifoDir/fps
-if [ $# -gt 0 ] ; then
-    totalTests=$1
-else
-    totalTests=3
-fi
-
-echo "totalTests=$totalTests"
+ 
+base_resultsDir="$base_resultsDir"
 
 ###################
 #chrt parameters for polling workers
@@ -54,6 +53,15 @@ let testTime=30*60
 #let testTime=60
 
 echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
+
+# Test parameters
+if [ $# -gt 0 ] ; then
+    totalTests=$1
+else
+    totalTests=3
+fi
+
+echo "totalTests=$totalTests"
 
 ########################
 # Function declarations
