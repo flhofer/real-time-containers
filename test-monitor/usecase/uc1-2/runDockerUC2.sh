@@ -64,7 +64,7 @@ stopAllContainers() {
         echo "stopAllContainers(): Stop all existing containers with grace period $gracePeriod seconds"
         docker stop $(docker ps -a | egrep -e 'datagenerator|datadistributor|workerapp' | awk '{print $1}') -t $gracePeriod
         let sleepSecs=${gracePeriod}+5
-        echo for $sleepSecs seconds
+        echo "for $sleepSecs seconds"
         sleep $sleepSecs
         killRemnantsFunc
     else

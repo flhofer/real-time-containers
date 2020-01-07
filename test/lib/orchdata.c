@@ -8,8 +8,8 @@
 
 //TODO: all tests!!!
 
-#include "../../src/schedstat/schedstat.h"
-#include "../../src/schedstat/update.h"
+#include "../../src/orchestrator/orchestrator.h"
+#include "../../src/orchestrator/update.h"
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"

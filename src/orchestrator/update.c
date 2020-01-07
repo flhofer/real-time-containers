@@ -15,7 +15,7 @@
 #include <errno.h>			// error numbers and strings
 
 // Custom includes
-#include "schedstat.h"
+#include "orchestrator.h"
 
 #include "orchdata.h"	// memory structure to store information
 #include "rt-utils.h"	// trace and other utils

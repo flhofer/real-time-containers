@@ -10,7 +10,7 @@ CPP?=$(CROSS_COMPILE)g++
 
 OBJDIR = build
 
-sources = schedstat.c
+sources = orchestrator.c
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c
@@ -72,7 +72,7 @@ ifeq ($(NUMA),1)
 endif
 
 # define search paths
-VPATH	= src/schedstat:
+VPATH	= src/orchestrator:
 VPATH	+= src/lib:
 VPATH	+= test-monitor/usecase/uc1-2/src:
 
@@ -95,14 +95,14 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
+orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
+check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	./check_test
 
@@ -129,7 +129,7 @@ rebuild:
 #	mkdir -p "$(DESTDIR)$(bindir)" "$(DESTDIR)$(mandir)/man4"
 #	mkdir -p "$(DESTDIR)$(srcdir)" "$(DESTDIR)$(mandir)/man8"
 #	cp $(TARGETS) "$(DESTDIR)$(bindir)"
-#	gzip -c src/schedstat/schedstat.8 >"$(DESTDIR)$(mandir)/man8/schedstat.8.gz"
+#	gzip -c src/orchestrator/orchestrator.8 >"$(DESTDIR)$(mandir)/man8/orchestrator.8.gz"
 
 .PHONY: tarball
 tarball:
