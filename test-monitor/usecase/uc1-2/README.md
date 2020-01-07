@@ -35,7 +35,7 @@ Generated data is then passed through a named pipe to a **Data Distributor**. Th
 A **Worker**, lastly, reads the incoming data from the pipe, takes a timestamp and executes some workload that keeps the CPU busy for a specified amount of time.
 
 
-### Hot to Run
+### How to Run
 To run UseCase-1 execute the script 
 ```
 sudo ./runDockerUC1.sh
@@ -61,7 +61,7 @@ Use-Case-2 simulates a scenario in which worker containers periodically pull sen
 
 A **Data Generator** continuously  generates data (simulated sensor data) and push it on a pipe. **Worker** apps read from the pipe and simulate a busy loop. Workers are scheduled using a DEADLINE policy mechanism. Meaning that differently from Use-Case-1, where an event driven scheduling occurs, here we expect perfect periodicity.
 
-### Hot to Run
+### How to Run
 To run UseCase-2 execute the script 
 ```
 sudo ./runDockerUC2.sh

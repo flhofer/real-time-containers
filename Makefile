@@ -11,7 +11,7 @@ OBJDIR = build
 
 sources = schedstat.c
 
-TARGETS = $(sources:.c=) check
+TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c
 # for tests
 TLIBS	= -lcheck -lm -lsubunit $(LIBS)
@@ -23,9 +23,9 @@ bindir  ?= $(prefix)/bin
 mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
-CFLAGS ?= -Wall -Wno-nonnull 
+CFLAGS ?= -Wall -Wno-nonnull -pthread 
 CPPFLAGS += -D _GNU_SOURCE -I src/include
-LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
+LDFLAGS ?= -lrttest -L $(OBJDIR) 
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
