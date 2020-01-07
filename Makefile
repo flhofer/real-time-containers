@@ -3,6 +3,7 @@ VERSUFF = "-beta"
 GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
+CPP?=$(CROSS_COMPILE)g++
 #uncomment the line below to create debug versions by default
 #DEBUG=1
 #COVERAGE=1
@@ -23,24 +24,22 @@ bindir  ?= $(prefix)/bin
 mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
-CFLAGS ?= -Wall -Wno-nonnull -pthread 
-CPPFLAGS += -D _GNU_SOURCE -I src/include
-LDFLAGS ?= -lrttest -L $(OBJDIR) 
+CFLAGS ?= -Wall -Wno-nonnull -D _GNU_SOURCE
+LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
-	CFLAGS	+= -O2
-	CPPFLAGS += -D VERSION=\"$(VERSION)\"
+	CFLAGS	+= -O2 -D VERSION=\"$(VERSION)\"
 else
-	CFLAGS	+= -O0 -g
-	CPPFLAGS += -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
-
+	CFLAGS	+= -O0 -g -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
 	ifdef COVERAGE
 		CFLAGS += -coverage
 	endif
 endif
+CPPFLAGS ?= $(CFLAGS)
+CFLAGS += -I src/include
 
-# We make some gueses on how to compile rt-tests based on the machine type
+# We make some gueses on how to compile based on the machine type
 # and the ostype. These can often be overridden.
 dumpmachine := $(shell $(CC) -dumpmachine)
 
@@ -56,7 +55,7 @@ machinetype := $(shell echo $(dumpmachine)| \
 # compile with
 # make NUMA=0
 ifneq ($(filter x86_64 i386 ia64 mips powerpc,$(machinetype)),)
-NUMA := 1
+	NUMA := 1
 endif
 
 # The default is to assume that you have numa_parse_cpustring_all
@@ -72,21 +71,23 @@ ifeq ($(NUMA),1)
 	endif
 endif
 
-#include src/arch/android/Makefile
-
+# define search paths
 VPATH	= src/schedstat:
 VPATH	+= src/lib:
+VPATH	+= test-monitor/usecase/uc1-2/src:
+
+.PHONY: all
+all: $(TARGETS) usecases | $(OBJDIR)
+
+# include use case builds
+include test-monitor/usecase/uc1-2/src/Makefile
 
 $(OBJDIR)/%.o: %.c | $(OBJDIR)
-	$(CC) -c $< $(CFLAGS) $(CPPFLAGS) $(EXTRA_LIBS) -o $@
+	$(CC) -c $< $(CFLAGS) -o $@
 
 # Pattern rule to generate dependency files from .c files
 $(OBJDIR)/%.d: %.c | $(OBJDIR)
-	@$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< | sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' > $@ || rm -f $@
-
-.PHONY: all
-all: $(TARGETS) 
-#hwlatdetect | $(OBJDIR)
+	@$(CC) -MM $(CFLAGS) $< | sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' > $@ || rm -f $@
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
@@ -102,7 +103,7 @@ schedstat: $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 check: test/test.c $(addprefix $(OBJDIR)/,schedstat.o manage.o update.o librttest.a)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	./check_test
 
 # lib containing include lib in one binary file
@@ -110,7 +111,7 @@ LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernu
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 
-CLEANUP  = $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a *.gcno *.gcda *.gcov
+CLEANUP += $(TARGETS) check_test *.o .depend *.*~ *.orig *.rej *.d *.a *.gcno *.gcda *.gcov
 CLEANUP += $(if $(wildcard .git), ChangeLog)
 
 .PHONY: clean
