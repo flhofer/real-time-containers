@@ -204,7 +204,7 @@ bool SimulatedMsg::nextMsg(double &mMsg, PipeStruct *pReadPipe )
 
 void SimulatedMsg::startNextTest(timespec &t)
 {
-    fprintf(stderr, "At %ld.09%d SimulatedMsg Ending test %d\n", t.tv_sec, t.tv_nsec, testNum);
+    fprintf(stderr, "At %ld%.09ld SimulatedMsg Ending test %d\n", t.tv_sec, t.tv_nsec, testNum);
     if (fpsStatsInitialized)
         pfpsStats->setEndTime(t);
     if (timingStatsInitialized)
@@ -276,7 +276,7 @@ std::ostream& Overrun::print(std::ostream& os, ulong co)
 {
     char buffer[50] = {0};
     memset(buffer, 0, sizeof(buffer));
-    sprintf(buffer, "%d.%09ld", happenedOn.tv_sec, happenedOn.tv_nsec);
+    sprintf(buffer, "%ld.%09ld", happenedOn.tv_sec, happenedOn.tv_nsec);
     os << "Configured runtime(nsec): " << co 
         << ", Actual runtime: " << overrun 
         << ", Keeping Busy for (nsec): " << keepBusyNSec 
@@ -292,11 +292,11 @@ std::ostream& ViolatedPeriod::print(std::ostream& os, ulong cr)
     os << ", Period violated by(nsec): " << violation;
 
     memset(buffer, 0, sizeof(buffer));
-    sprintf(buffer, "%d.%09ld", expectedPeriodStart.tv_sec, expectedPeriodStart.tv_nsec);
+    sprintf(buffer, "%ld.%09ld", expectedPeriodStart.tv_sec, expectedPeriodStart.tv_nsec);
     os << ", Expected Period Start (time): " << buffer;
 
     memset(buffer, 0, sizeof(buffer));
-    sprintf(buffer, "%d.%09ld", actualPeriodStart.tv_sec, actualPeriodStart.tv_nsec);
+    sprintf(buffer, "%ld.%09ld", actualPeriodStart.tv_sec, actualPeriodStart.tv_nsec);
     os << ", Actual Period Start (time): " << buffer << std::endl;
 
     return os;

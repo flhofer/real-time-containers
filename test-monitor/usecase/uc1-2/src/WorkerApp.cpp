@@ -151,7 +151,7 @@ void workerFunc(int tloops, int iloops, int oloops, unsigned long pollPeriod, ul
         periodDeadlineSpec = periodExpectedSpec;
         addTime(periodDeadlineSpec, deadline);
 
-        fprintf(stderr, "Starting value of periodExpectedSpec = %d.%09ld, endInSeconds %u\n", periodExpectedSpec.tv_sec, periodExpectedSpec.tv_nsec, endInSeconds);
+        fprintf(stderr, "Starting value of periodExpectedSpec = %ld.%09ld, endInSeconds %lu\n", periodExpectedSpec.tv_sec, periodExpectedSpec.tv_nsec, endInSeconds);
     }
 
     clock_gettime(CLOCK_REALTIME, &startTime);
@@ -282,12 +282,12 @@ void printHelp(std::string msg)
     printf("       --innerloops <n> : testFunc innerloops (default %d)\n", innerloops);
     printf("       --outerloops <n> : testFunc outerloops (default %d)\n", outerloops);
     printf("       --maxTests   <n> : number of tests (default %d)\n", maxTests);
-    printf("       --pollPeriod <n> : nsec polling period (default %d)\n", pollPeriod);
-    printf("       --dline      <n> : nsec deadline for use case 2 (default %d)\n", deadline);
-    printf("       --rtime      <n> : nsec runtime for use case 2 (default %d)\n", runtime);
+    printf("       --pollPeriod <n> : nsec polling period (default %ld)\n", pollPeriod);
+    printf("       --dline      <n> : nsec deadline for use case 2 (default %lu)\n", deadline);
+    printf("       --rtime      <n> : nsec runtime for use case 2 (default %lu)\n", runtime);
     printf("       --readpipe<name> : base name of communication pipe (default %s)\n", basePipeName.c_str());
     printf("       --timedloops <n> : turn on logging of n-loop duration (default 0=disabled)\n");
-    printf("       --endInSeconds<n>: time in seconds which decides lifetime of execution (default %u)\n", endInSeconds);
+    printf("       --endInSeconds<n>: time in seconds which decides lifetime of execution (default %lu)\n", endInSeconds);
     printf("       --help           : print Usage \n");
     printf("       --dbg            : produce extra output; sleep %d seconds rather than running inner & outer loops\n", sleepSecs);
 }
@@ -389,7 +389,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Printing...");
 
-    fprintf(stderr, "%s: Running with %d innerloops, %d outerloops, %d maxTests, %s_%d readPipe, pollPeriod %lu, deadline %lu, runtime %lu, endInSeconds %u\n", 
+    fprintf(stderr, "%s: Running with %d innerloops, %d outerloops, %d maxTests, %s_%d readPipe, pollPeriod %lu, deadline %lu, runtime %lu, endInSeconds %lu\n",
            progName.c_str(), innerloops, outerloops, maxTests, basePipeName.c_str(), instance, pollPeriod, deadline, runtime, endInSeconds);
     workerFunc(timedloops, innerloops, outerloops, pollPeriod, deadline, runtime, endInSeconds);
     fprintf(stderr, "%s: exiting\n", progName.c_str());
