@@ -20,7 +20,7 @@ real-time containers research repository, general tree structure:
     * check_dockerRT source code for the Icinga2 plugin
     * include internal library header files
     * lib internal library source files
-	* schedstat static orchestrator source code
+	* orchestrator orchestrator source code
     * testPosix test program to test OS features, see docs
 
 * tools development tools such as containers for build or run

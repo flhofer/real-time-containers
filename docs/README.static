@@ -34,7 +34,7 @@ No additional make and build targets defined yet.
 
 If defined, the DEBUG flag enables higly verbose terminal output.
 
-To compile enter the schedstat folder and type
+To compile, type
 
 $ make
 
@@ -44,9 +44,9 @@ $ make DEBUG=1
 (set default on development branch)
 No installation procedure is defined at the moment
 
-Without parameters make builds schedstat, builds the check tests, and executes the tests. If you want to build only or test only, use `make schedstat` or `make check` respectively.
+Without parameters make builds orchestrator and use cases. If you want to build check tests and execute the tests, use `make check`.
 
-For a refenence on how to use specific tests only (environment vairables CK_RUN_SUITE, CK_RUN_CASE and CK_NO_FORK) refer to the check user manual. https://libcheck.github.io/check/doc/check_html/check_4.html
+For a reference on how to use specific tests only (environment vairables CK_RUN_SUITE, CK_RUN_CASE and CK_NO_FORK) refer to the check user manual. https://libcheck.github.io/check/doc/check_html/check_4.html
 
 =======
  USAGE
@@ -236,7 +236,7 @@ Affinity might be a limiting factor as long as it is a single CPU setting. ** th
 
 The following command presents a possible running scenario:
 
-	$ ./schedstat.o -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
+	$ ./orchestrator -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
 
 In this case, the orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with command 'rt-app' and verify also all their threads. All threads running in a container will be bound to the same affinity range, set up as 1-3. The scan will be performed with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles the orchestrator will look for new containers to realign.
 All other parameters are left default.
