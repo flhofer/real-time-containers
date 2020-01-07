@@ -1,5 +1,5 @@
 // main settings and header file
-#include "schedstat.h" 
+#include "orchestrator.h"
 
 // header files of launched threads
 #include "update.h"
@@ -760,7 +760,7 @@ static void display_help(int error)
 {
 	(void)
 	printf("Usage:\n"
-	       "schedstat <options> [config.json]\n\n"
+	       "orchestrator <options> [config.json]\n\n"
 	       "-a [NUM] --affinity        run container threads on specified cpu range,\n"
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"

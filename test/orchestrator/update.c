@@ -6,11 +6,12 @@
 ###############################
 */
 
-#include "../../src/schedstat/schedstat.h"
-#include "../../src/schedstat/update.h"
+#include "../../src/orchestrator/orchestrator.h"
+#include "../../src/orchestrator/update.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
+#include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
@@ -23,7 +24,7 @@
 	#define RLIMIT_RTTIME 15
 #endif
 
-static void schedstat_update_setup() {
+static void orchestrator_update_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
@@ -53,7 +54,7 @@ static void schedstat_update_setup() {
 	contparm->num_cont = 0;
 }
 
-static void schedstat_update_teardown() {
+static void orchestrator_update_teardown() {
 	free(prgset->logdir);
 	free(prgset->logbasename);
 
@@ -76,7 +77,7 @@ static void schedstat_update_teardown() {
 
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
-START_TEST(schedstat_update_stop)
+START_TEST(orchestrator_update_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
@@ -95,7 +96,7 @@ END_TEST
 
 /// TEST CASE -> test detected pid list
 /// EXPECTED -> 3 elements at first, then two with one deleted, desc order
-START_TEST(schedstat_update_findprocs)
+START_TEST(orchestrator_update_findprocs)
 {	
 	pthread_t thread1;
 	int  iret1;
@@ -149,7 +150,7 @@ END_TEST
 
 /// TEST CASE -> test will all pids on machine
 /// EXPECTED -> adding and removing of pidof sequences
-START_TEST(schedstat_update_findprocsall)
+START_TEST(orchestrator_update_findprocsall)
 {	
 	pthread_t thread1;
 	int  iret1;
@@ -175,7 +176,7 @@ END_TEST
 
 /// TEST CASE -> test assign resources
 /// EXPECTED -> resources should match settings
-START_TEST(schedstat_update_rscs)
+START_TEST(orchestrator_update_rscs)
 {	
 	pthread_t thread1;
 	int  iret1;
@@ -300,21 +301,21 @@ START_TEST(schedstat_update_rscs)
 }
 END_TEST
 
-void schedstat_update (Suite * s) {
+void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
  
 	// TODO: reduce verbosity on failed pids... -> update.c
-	tcase_add_checked_fixture(tc1, schedstat_update_setup, schedstat_update_teardown);
-	tcase_add_exit_test(tc1, schedstat_update_stop, EXIT_SUCCESS);
-	tcase_add_test(tc1, schedstat_update_findprocs);
-	tcase_add_test(tc1, schedstat_update_findprocsall);
+	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
+	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
+	tcase_add_test(tc1, orchestrator_update_findprocs);
+	tcase_add_test(tc1, orchestrator_update_findprocsall);
 
     suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("update_thread_resources");
  
-	tcase_add_checked_fixture(tc2, schedstat_update_setup, schedstat_update_teardown);
-	tcase_add_test(tc2, schedstat_update_rscs);
+	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
+	tcase_add_test(tc2, orchestrator_update_rscs);
 
     suite_add_tcase(s, tc2);
 

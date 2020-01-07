@@ -8,9 +8,9 @@
 
 #include "update.c"
 
-Suite * schedstat_suite(void) {
+Suite * orchestrator_suite(void) {
 
-	Suite *s = suite_create("Schedstat");
+	Suite *s = suite_create("Orchestrator");
 
 	// call tests and append test cases	
 
@@ -18,7 +18,7 @@ Suite * schedstat_suite(void) {
 	if (!dbg_out) {
 		dbg_out = (FILE *)stderr;
 	}
-	schedstat_update(s);
+	orchestrator_update(s);
 
 	return s;
 }

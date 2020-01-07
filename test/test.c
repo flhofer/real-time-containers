@@ -15,7 +15,7 @@
 FILE  * dbg_out;
 
 #include "lib/library_suite.c"
-#include "schedstat/schedstat_suite.c"
+#include "orchestrator/orchestrator_suite.c"
 
 // generic..
 #include "../src/include/error.h"
@@ -36,7 +36,7 @@ int main(void)
     nf += srunner_ntests_failed(sr);
     srunner_free(sr);
 
-	Suite * s2 = schedstat_suite();
+	Suite * s2 = orchestrator_suite();
     sr = srunner_create(s2);
 	// uncomment below for debugging
 //	srunner_set_fork_status (sr, CK_NOFORK);

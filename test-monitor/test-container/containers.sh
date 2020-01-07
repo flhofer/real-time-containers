@@ -95,9 +95,9 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./schedstat -df --policy=fifo > log/orchestrator.txt &
+	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt &
 	sleep 10
-	SPID=$(ps h -o pid -C schedstat)
+	SPID=$(ps h -o pid -C orchestrator)
 
 	# start containers -> test group
 	while [ "$2" != "" ]; do

@@ -121,56 +121,72 @@ static char *tracer_buffer;
 static int num_tracers;
 #define CHUNKSZ   1024
 
-/*
- * return a list of the tracers configured into the running kernel
- */
-
+/// get_tracers(): get available function tracers in kernel
+///
+/// Arguments: - pointer to the resulting string array
+///
+/// Return value: no of found traces, 0 = none
+///					-1= error and errno is set
 int get_tracers(char ***list)
 {
-	int ret;
-	FILE *fp;
-	char buffer[CHUNKSZ];
-	char *prefix = get_debugfileprefix();
-	char *tmpbuf = NULL;
-	char *ptr, *ptr_p;
-	int tmpsz = 0;
-
 	/* if we've already parse it, return what we have */
 	if (tracer_list) {
 		*list = tracer_list;
 		return num_tracers;
 	}
 
+	int ret;
+	FILE *fp;
+	char buffer[CHUNKSZ];
+	char *prefix = get_debugfileprefix(); //  find debug path TODO: integrate to system for file path detection
+
+	errno = 0; // reset global errno
+
 	/* open the tracing file available_tracers */
 	sprintf(buffer, "%savailable_tracers", prefix);
-	if ((fp = fopen(buffer, "r")) == NULL)
-		fatal("Can't open %s for reading\n", buffer);
+	if ((fp = fopen(buffer, "r")) == NULL){
+		err_msg_n(errno, "Can't open %s for reading", buffer);
+		return -1; //  errno = ... pass errno from open, read or write
+	}
+
+	char *tmpbuf = NULL;
+	char *ptr, *ptr_p;
 
 	/* allocate initial buffer */
-	ptr = tmpbuf = malloc(CHUNKSZ);
-	if (ptr == NULL)
-		fatal("error allocating initial space for tracer list\n");
+	if (!(ptr = tmpbuf = malloc(CHUNKSZ))){
+		err_msg_n(errno, "error allocating initial space for tracer list");
+		return -1; //  errno = ... pass errno from open, read or write
+	}
+
+	int tmpsz = 0;
 
 	/* read in the list of available tracers */
 	while ((ret = fread(buffer, sizeof(char), CHUNKSZ, fp))) {
 		if ((ptr+ret+1) > (tmpbuf+tmpsz)) {
-			tmpbuf = realloc(tmpbuf, tmpsz + CHUNKSZ);
-			if (tmpbuf == NULL)
-				fatal("error allocating space for list of valid tracers\n");
+			if (!(tmpbuf = realloc(tmpbuf, tmpsz + CHUNKSZ))){
+				err_msg("error allocating space for list of valid tracers");
+
+			}
 			tmpsz += CHUNKSZ;
 		}
 		strncpy(ptr, buffer, ret);
 		ptr += ret;
 	}
 	fclose(fp);
-	if (tmpsz == 0)
-		fatal("error reading available tracers\n");
+	if (0 == tmpsz){
+		err_msg("error reading available tracers. Empty buffer.");
+		errno = EIO;
+		return -1; //  errno = ... pass errno from open, read or write
+	}
 
+	// copy temporary buffer to local static - keeps string array
 	tracer_buffer = tmpbuf;
 
 	/* get a buffer for the pointers to tracers */
-	if (!(tracer_list = malloc(sizeof(char *))))
-		fatal("error allocatinging tracer list buffer\n");
+	if (!(tracer_list = malloc(sizeof(char *)))){
+		err_msg("error allocating tracer list buffer");
+		return -1; //  errno = ... pass errno from open, read or write
+	}
 
 	/* parse the buffer */
 	ptr = strtok_r(tmpbuf, " \t\n\r", &ptr_p);
@@ -253,36 +269,6 @@ int event_disable(char *event)
 
 	sprintf(path, "events/%s/enable", event);
 	return setevent(path, "0");
-}
-
-int check_privs(void)
-{
-	int policy = sched_getscheduler(0);
-	struct sched_param param, old_param;
-
-	/* if we're already running a real-time scheduler
-	 * then we *should* be able to change things later
-	 */
-	if (policy == SCHED_FIFO || policy == SCHED_RR)
-		return 0;
-
-	/* first get the current parameters */
-	if (sched_getparam(0, &old_param)) {
-		fprintf(stderr, "unable to get scheduler parameters\n");
-		return 1;
-	}
-	param = old_param;
-
-	/* try to change to SCHED_FIFO */
-	param.sched_priority = 1;
-	if (sched_setscheduler(0, SCHED_FIFO, &param)) {
-		fprintf(stderr, "Unable to change scheduling policy!\n");
-		fprintf(stderr, "either run as root or join realtime group\n");
-		return 1;
-	}
-
-	/* we're good; change back and return success */
-	return sched_setscheduler(0, policy, &old_param);
 }
 
 const char *policy_to_string(int policy)
