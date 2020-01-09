@@ -678,7 +678,7 @@ void *thread_update (void *arg)
 												prgset->update_wcet*1000, prgset->interval*1000, prgset->interval*1000
 												};
 
-					// enable bandwith reclaim if supported, allow to reduce impact.. 
+					// enable bandwidth reclaim if supported, allow to reduce impact..
 					if (KV_413 <= prgset->kernelversion) 
 						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 

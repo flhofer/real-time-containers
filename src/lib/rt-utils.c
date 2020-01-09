@@ -28,6 +28,14 @@
 #include "rt-sched.h"
 #include "error.h"
 #include "orchdata.h"
+#include "kernutil.h"
+
+// TODO: standardize printing
+#define PFX "[rt-utils] "
+#define PFL "         "PFX
+#define PIN PFX"    "
+#define PIN2 PIN"    "
+#define PIN3 PIN2"    "
 
 static char debugfileprefix[MAX_PATH];
 
@@ -140,13 +148,13 @@ int get_tracers(char ***list)
 	char buffer[CHUNKSZ];
 	char *prefix = get_debugfileprefix(); //  find debug path TODO: integrate to system for file path detection
 
-	errno = 0; // reset global errno
+	errno = 0; // reset global error number
 
 	/* open the tracing file available_tracers */
 	sprintf(buffer, "%savailable_tracers", prefix);
 	if ((fp = fopen(buffer, "r")) == NULL){
 		err_msg_n(errno, "Can't open %s for reading", buffer);
-		return -1; //  errno = ... pass errno from open, read or write
+		return -1; // pass error number from open, read or write
 	}
 
 	char *tmpbuf = NULL;
@@ -155,7 +163,7 @@ int get_tracers(char ***list)
 	/* allocate initial buffer */
 	if (!(ptr = tmpbuf = malloc(CHUNKSZ))){
 		err_msg_n(errno, "error allocating initial space for tracer list");
-		return -1; //  errno = ... pass errno from open, read or write
+		return -1; // pass error number from open, read or write
 	}
 
 	int tmpsz = 0;
@@ -176,7 +184,7 @@ int get_tracers(char ***list)
 	if (0 == tmpsz){
 		err_msg("error reading available tracers. Empty buffer.");
 		errno = EIO;
-		return -1; //  errno = ... pass errno from open, read or write
+		return -1;	// pass error number from open, read or write
 	}
 
 	// copy temporary buffer to local static - keeps string array
@@ -185,7 +193,7 @@ int get_tracers(char ***list)
 	/* get a buffer for the pointers to tracers */
 	if (!(tracer_list = malloc(sizeof(char *)))){
 		err_msg("error allocating tracer list buffer");
-		return -1; //  errno = ... pass errno from open, read or write
+		return -1;  // pass error number from open, read or write
 	}
 
 	/* parse the buffer */
@@ -202,10 +210,12 @@ int get_tracers(char ***list)
 }
 
 
-/*
- * return zero if tracername is not a valid tracer, non-zero if it is
- */
-
+/// valid_tracer(): test if kernel tracer is available
+///
+/// Arguments: - string with tracer name
+///
+/// Return value: zero if invalid name, one if present
+///
 int valid_tracer(char *tracername)
 {
 	char **list;
@@ -227,22 +237,13 @@ int valid_tracer(char *tracername)
 int setevent(char *event, char *val)
 {
 	char *prefix = get_debugfileprefix();
-	char buffer[MAX_PATH];
-	int fd;
-	int ret;
 
-	sprintf(buffer, "%s%s", prefix, event);
-	if ((fd = open(buffer, O_WRONLY)) < 0) {
-		warn("unable to open %s\n", buffer);
+	if (!event || !val) // null pointers
 		return -1;
-	}
-	if ((ret = write(fd, val, strlen(val))) < 0) {
-		warn("unable to write %s to %s\n", val, buffer);
-		close(fd);
-		return -1;
-	}
-	close(fd);
-	return 0;
+
+	printDbg(PFX "Setting event for tracer '%s' to '%s'", event, val);
+
+	return setkernvar(prefix, event, val, 0);
 }
 
 int event_enable_all(void)
@@ -271,6 +272,12 @@ int event_disable(char *event)
 	return setevent(path, "0");
 }
 
+/// policy_to_string(): change policy code to string value
+///
+/// Arguments: - scheduling enumeration constant (int) identifying policy
+///
+/// Return value: returns a string identifying the scheduler
+///
 const char *policy_to_string(int policy)
 {
 	switch (policy) {
@@ -290,7 +297,7 @@ const char *policy_to_string(int policy)
 
 	return "unknown";
 }
-\
+
 /// policy_is_realtime(): verify if given policy is a real-time policy
 ///
 /// Arguments: - scheduling enumeration constant (int) identifying policy

@@ -39,7 +39,8 @@ volatile sig_atomic_t stop;
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-void stphand (int sig, siginfo_t *siginfo, void *context){
+//TODO: check function with static
+static void stphand (int sig, siginfo_t *siginfo, void *context){
 	stop = 1;
 }
 

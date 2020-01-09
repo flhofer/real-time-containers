@@ -17,6 +17,7 @@
 		#define PFX "[default] "
 	#endif
 
+	// TODO: standardize this
 	#ifndef PFL
 		#define PFL "         "PFX
 		#define PIN PFX"    "

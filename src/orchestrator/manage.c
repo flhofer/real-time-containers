@@ -7,25 +7,24 @@
 #include <unistd.h> // used for POSIX XOPEN constants
 
 #include <sched.h>			// scheduler functions
-#include <linux/sched.h>	// linux specific scheduling
+#include <linux/sched.h>	// Linux specific scheduling
 #include <linux/types.h>	// data structure types, short names and linked list
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <fcntl.h>			// file control, new open/close functions
-#include <dirent.h>			// dir enttry structure and expl
+#include <dirent.h>			// directory entry structure and exploration
 #include <errno.h>			// error numbers and strings
 
-// Custmom includes
+// Custom includes
 #include "orchestrator.h"
 
 #include "orchdata.h"	// memory structure to store information
-#include "rt-utils.h"	// trace and other utils
+#include "rt-utils.h"	// trace and other utilities
 #include "kernutil.h"	// generic kernel utilities
-#include "error.h"		// error and strerr print functions
+#include "error.h"		// error and stderr print functions
 
 #include <sys/wait.h>
 #include <sys/types.h>
-#include <numa.h>			// numa node ident
-
+#include <numa.h>			// NUMA node identification
 
 // parameter tree linked list head, resource linked list head
 static struct resTracer * rhead;
@@ -40,11 +39,17 @@ static uint64_t scount = 0; // total scan count
 #ifndef SCHED_FLAG_RECLAIM
 	#define SCHED_FLAG_RECLAIM		0x02
 #endif
-
 // Included in kernel 4.16
 #ifndef SCHED_FLAG_DL_OVERRUN
 	#define SCHED_FLAG_DL_OVERRUN		0x04
 #endif
+
+// TODO: standardize printing
+#define PFX "[manage] "
+#define PFL "         "PFX
+#define PIN PFX"    "
+#define PIN2 PIN"    "
+#define PIN3 PIN2"    "
 
 #define PIPE_BUFFER			4096
 
@@ -100,7 +105,7 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 			fatal("Nanosecond resolution periods not supported!");
 			// temporary solution to avoid very long loops
 
-		while(1) //Alway True
+		while(1) //Always True
 		{
 			if(max_Value % res->basePeriod == 0 && max_Value % par->sched_period == 0) 
 			{
@@ -172,24 +177,13 @@ static int manageSched(){
 /// Return value: (-) no of missing traces, 0 = success
 ///
 static int configureTracers(){
-	char **tracer_list = NULL;
+	int notrace = valid_tracer("wakeup_rt") +
+			valid_tracer("wakeup_dl");
 
-	int notrace = get_tracers(&tracer_list);
+	// tracing_cpumask - hex string of tracing cpus!
+	event_enable("");
 
-	int found = 0;
-	info("Available tracers:");
-
-	// TODO: change to valid_tracer
-	for (char** trace= tracer_list; ((*trace)); trace++){
-		cont("%s", *trace);
-		if (strncmp(*trace, "wakeup_rt", 9))
-			found++; // wakeup_rt tracer found
-
-		if (strncmp(*trace, "wakeup_dl", 9))
-			found++; // wakeup_dl tracer found
-	}
-
-	return found-2; // return number found versus needed
+	return notrace-2; // return number found versus needed
 }
 
 /// get_sched_info2(): get kernel tracer debug out
@@ -206,6 +200,120 @@ static int get_sched_info2()
 
 }
 
+// signal to keep status of triggers ext SIG
+volatile sig_atomic_t stop;
+
+/// stphand(): interrupt handler for infinite while loop, help
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: -
+//TODO: check function with static
+static void stphand (int sig, siginfo_t *siginfo, void *context){
+	stop = 1;
+}
+
+struct tr_runtime {
+	uint16_t common_type;
+	uint8_t common_flags;
+	uint8_t common_preempt_count;
+	int32_t common_pid;
+
+	char comm[16];
+	pid_t pid;
+	uint64_t runtime;
+	uint64_t vruntime;
+};
+
+/// thread_ftrace(): parse kernel tracer output
+///
+/// Arguments: status trace
+///
+/// Return value: error code, 0 = success
+///
+static void *thread_ftrace(void *arg){
+
+	int pstate = 0;
+	int got = 0;
+	FILE *fp;
+	int32_t* cpuno = (int32_t *)arg;
+
+	// TODO: block not used signals
+	{ // setup interrupt handler block
+		struct sigaction act;
+		memset (&act, '\0', sizeof(act));
+
+		/* Use the sa_sigaction field because the handles has two additional parameters */
+		act.sa_sigaction = &stphand;
+
+		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_flags = SA_SIGINFO;
+
+		if (sigaction(SIGINT, &act, NULL) < 0) { // INT signal, stop from main prg
+			perror ("Setup of sigaction failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	} // END interrupt handler block
+
+	char buffer[PIPE_BUFFER];
+
+	while(1) {
+
+		switch( pstate )
+		{
+		case 0:
+			(void)sprintf(buffer, "%s/cpu%d/tracer_pipe_raw", get_debugfileprefix(), *cpuno);
+
+			if (-1 == access (buffer, R_OK)) {
+				pstate = -1;
+				err_msg ("File access failed");
+				break;
+			} /** if file doesn't exist **/
+
+			if ((fp = fopen (buffer, "r")) == NULL) {
+				pstate = -1;
+				err_msg ("File open failed");
+				break;
+			} /** IF_NULL **/
+			//no break
+
+		case 1:
+			pstate = 1;
+
+			printDbg(PFX "Reading trace output from pipe...\n");
+			// read output into buffer!
+			if (0 >= (got = fread (buffer, sizeof(char), PIPE_BUFFER-1, fp))) {
+				if (got < -1) {
+					pstate = 2;
+					err_msg ("File read failed");
+				} // else stay here
+
+				break;
+			}
+
+			struct tr_runtime *pFrame = (struct tr_runtime *)buffer;
+			printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]",
+					pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
+
+			// TODO parse buffer
+
+			break;
+
+		case 2:
+			fclose (fp);
+			pstate = -1;
+			//no break
+		case -1:
+			break;
+		}
+		if (stop && fp) // if open, close first
+			pstate = 2;
+		else // just exit
+			break;
+	}
+
+	return NULL;
+}
 
 /// get_sched_info(): get scheduler debug output info
 ///
