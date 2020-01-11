@@ -197,11 +197,16 @@ static int get_sched_info2()
 
 	// TODO: change UpdateStats form item update to update item :)
 
+	return 0;
 
 }
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t stop;
+
+pthread_t thread_traceRead;
+int  iret_traceRead; // Timeout is set to 4 seconds by default
+int  ino_traceRead; // run parameters
 
 /// stphand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -236,7 +241,7 @@ static void *thread_ftrace(void *arg){
 	int pstate = 0;
 	int got = 0;
 	FILE *fp;
-	int32_t* cpuno = (int32_t *)arg;
+	int* cpuno = (int *)arg;
 
 	// TODO: block not used signals
 	{ // setup interrupt handler block
@@ -262,7 +267,7 @@ static void *thread_ftrace(void *arg){
 		switch( pstate )
 		{
 		case 0:
-			(void)sprintf(buffer, "%s/cpu%d/tracer_pipe_raw", get_debugfileprefix(), *cpuno);
+			(void)sprintf(buffer, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
 
 			if (-1 == access (buffer, R_OK)) {
 				pstate = -1;
@@ -306,13 +311,25 @@ static void *thread_ftrace(void *arg){
 		case -1:
 			break;
 		}
-		if (stop && fp) // if open, close first
-			pstate = 2;
-		else // just exit
-			break;
+		if (stop) {
+			if (fp) // if open, close first
+				pstate = 2;
+			else // just exit
+				break;
+		}
 	}
 
 	return NULL;
+}
+
+/// startDocker(): start docker verification thread
+///
+/// Arguments:
+///
+/// Return value:
+///
+static int startTraceRead(int *cpuno, pthread_t thread) {
+	return pthread_create( &thread, NULL, thread_ftrace, cpuno);
 }
 
 /// get_sched_info(): get scheduler debug output info
@@ -586,6 +603,9 @@ void *thread_manage (void *arg)
 		if (prgset->ftrace)
 			if (configureTracers())
 				warn("Kernel function tracers not available");
+
+		int ino_traceRead = 0;
+		iret_traceRead = startTraceRead(&ino_traceRead, thread_traceRead);
 		//no break
 
 	  case 1: // normal thread loop, check and update data
@@ -609,5 +629,13 @@ void *thread_manage (void *arg)
 	  usleep(10000);
 	}
 	// TODO: Start using return value
+
+	// set stop signal
+	if (!iret_traceRead) { // thread started successfully
+		pthread_kill (thread_traceRead, SIGINT); // tell linking threads to stop
+		iret_traceRead = pthread_join( thread_traceRead, NULL); // wait until end
+	}
+	// TODO: Start using return value
+	return EXIT_SUCCESS;
 }
 

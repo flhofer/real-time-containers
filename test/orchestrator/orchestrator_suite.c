@@ -1,12 +1,13 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 25/07/2019
+# last change: 11/01/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
 
 #include "update.c"
+#include "manage.c"
 
 Suite * orchestrator_suite(void) {
 
@@ -19,6 +20,7 @@ Suite * orchestrator_suite(void) {
 		dbg_out = (FILE *)stderr;
 	}
 	orchestrator_update(s);
+	orchestrator_manage(s);
 
 	return s;
 }

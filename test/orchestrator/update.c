@@ -18,6 +18,7 @@
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
+#include <check.h>
 
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME

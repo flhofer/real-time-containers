@@ -756,7 +756,7 @@ void *thread_update (void *arg)
 			break;
 		case -2:
 			// exit
-			pthread_exit(0); // exit the thread signaling normal return
+//			pthread_exit(0); // exit the thread signaling normal return
 			break;
 		}
 
