@@ -219,15 +219,17 @@ static void stphand (int sig, siginfo_t *siginfo, void *context){
 }
 
 struct tr_runtime {
-	uint16_t common_type;
-	uint8_t common_flags;
-	uint8_t common_preempt_count;
-	int32_t common_pid;
+	uint16_t common_type; // 2
+	uint8_t common_flags; // 3
+	uint8_t common_preempt_count; //4
+	int32_t common_pid; // 8
 
-	char comm[16];
-	pid_t pid;
-	uint64_t runtime;
-	uint64_t vruntime;
+	char comm[16]; //24 - 16
+	pid_t pid; // 28 - 20
+	uint32_t dummy  ; // 32 - 24 - alignment filler
+	uint64_t runtime; // 20 - 32
+	uint64_t vruntime; // 48 - 40
+	// filled with 0's to 52
 };
 
 /// thread_ftrace(): parse kernel tracer output
@@ -260,22 +262,24 @@ static void *thread_ftrace(void *arg){
 		}
 	} // END interrupt handler block
 
-	char buffer[PIPE_BUFFER];
+	unsigned char buffer[PIPE_BUFFER];
 
 	while(1) {
 
 		switch( pstate )
 		{
 		case 0:
-			(void)sprintf(buffer, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
+			;
+			char fn[100];
+			(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
 
-			if (-1 == access (buffer, R_OK)) {
+			if (-1 == access (fn, R_OK)) {
 				pstate = -1;
 				err_msg ("File access failed");
 				break;
 			} /** if file doesn't exist **/
 
-			if ((fp = fopen (buffer, "r")) == NULL) {
+			if ((fp = fopen (fn, "r")) == NULL) {
 				pstate = -1;
 				err_msg ("File open failed");
 				break;
@@ -287,7 +291,7 @@ static void *thread_ftrace(void *arg){
 
 			printDbg(PFX "Reading trace output from pipe...\n");
 			// read output into buffer!
-			if (0 >= (got = fread (buffer, sizeof(char), PIPE_BUFFER-1, fp))) {
+			if (0 >= (got = fread (buffer, sizeof(unsigned char), PIPE_BUFFER-1, fp))) {
 				if (got < -1) {
 					pstate = 2;
 					err_msg ("File read failed");
@@ -296,8 +300,9 @@ static void *thread_ftrace(void *arg){
 				break;
 			}
 
-			struct tr_runtime *pFrame = (struct tr_runtime *)buffer;
-			printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]",
+			// TODO: what are these first 20 bytes?
+			struct tr_runtime *pFrame = (struct tr_runtime *)(buffer+20);
+			printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 					pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 
 			// TODO parse buffer
