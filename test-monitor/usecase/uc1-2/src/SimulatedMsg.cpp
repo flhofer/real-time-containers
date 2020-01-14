@@ -204,7 +204,7 @@ bool SimulatedMsg::nextMsg(double &mMsg, PipeStruct *pReadPipe )
 
 void SimulatedMsg::startNextTest(timespec &t)
 {
-    fprintf(stderr, "At %ld%.09ld SimulatedMsg Ending test %d\n", t.tv_sec, t.tv_nsec, testNum);
+    fprintf(stderr, "At %ld.%09ld SimulatedMsg Ending test %d\n", t.tv_sec, t.tv_nsec, testNum);
     if (fpsStatsInitialized)
         pfpsStats->setEndTime(t);
     if (timingStatsInitialized)

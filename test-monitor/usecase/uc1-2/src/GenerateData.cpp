@@ -178,8 +178,8 @@ void GenerateData::useCase2Sleep()
     {
         //Event Driven - Calculate random sleep
         long sleepUsec = rand() % sleepIntervalRange + params.mininterval;
-        sleepSpec.tv_sec - time_t(sleepUsec/1e6);
-        sleepSpec.tv_nsec - 1000*(sleepUsec - (sleepSpec.tv_sec*1e6));
+        sleepSpec.tv_sec = time_t(sleepUsec/1e6);
+        sleepSpec.tv_nsec = 1000*(sleepUsec - (sleepSpec.tv_sec*1e6));
         sleeper.doSleep(params, sleepSpec, prevTimeSpec, pSimulatedMsg->getTimingStats());
     }
 }
