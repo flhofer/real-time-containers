@@ -74,7 +74,8 @@
 			</target>
 			<target name="test DB libary" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
 				<buildCommand>make</buildCommand>
-				<buildTarget>-B check CK_RUN_SUITE=Library CK_FORK=yes</buildTarget>
+				<buildArguments/>
+				<buildTarget>-B check DEBUG=1 CK_RUN_SUITE=Library CK_FORK=yes</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>true</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
@@ -83,6 +84,14 @@
 				<buildCommand>make</buildCommand>
 				<buildArguments/>
 				<buildTarget>clean all DEBUG=1 COVERAGE=1</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>true</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
+			<target name="test DB ftrace" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>make</buildCommand>
+				<buildArguments/>
+				<buildTarget>-B check DEBUG=1 CK_RUN_SUITE=Orchestrator CK_RUN_CASE=manage_thread CK_FORK=yes</buildTarget>
 				<stopOnError>true</stopOnError>
 				<useDefaultCommand>true</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>

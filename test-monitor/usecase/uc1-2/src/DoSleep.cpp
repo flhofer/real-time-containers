@@ -24,7 +24,8 @@ bool DoSleep::doSleep(OptParams &params, timespec & sleepSpec, timespec &prevTim
         wakeupTimeSpec.tv_nsec -= 1e9;
     }
 
-    clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeupTimeSpec, NULL);
+    // TODO: check return values?
+    int ret = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeupTimeSpec, NULL);
 
     if (params.bTimeSleep )
     {
@@ -59,6 +60,8 @@ bool DoSleep::doSleep(OptParams &params, timespec & sleepSpec, timespec &prevTim
         maxLatency = std::max(maxLatency, wakeupLatencyUsec);
     }
     prevTimeSpec = wakeupTimeSpec;    //Caller will preserve to insure regular intervals
+
+    return (ret == 0);
 }
 
 void DoSleep::printSleepLatency(std::ostream & os)
