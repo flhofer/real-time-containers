@@ -11,7 +11,7 @@ container_resultsDir="/home/logs"
 fifoDir=/tmp
 fpsFile=$fifoDir/fps
  
-base_resultsDir="$base_resultsDir"
+base_resultsDir="$local_resultsDir"
 
 ###################
 #chrt parameters for polling workers
@@ -47,7 +47,7 @@ datadistributorPriority=97
 #let testTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between tests
-let testTime=30*60
+let testTime=120
 #TEMPORARY
 #For debugging, sleep 1 minute between tests
 #let testTime=60
@@ -262,7 +262,7 @@ runTest() {
 # Start of main script commands
 ##############################
 
-    #Initialization
+#Initialization
 mkdir $base_resultsDir 2>/dev/null
 rm -rf $base_resultsDir/* 2>/dev/null
 

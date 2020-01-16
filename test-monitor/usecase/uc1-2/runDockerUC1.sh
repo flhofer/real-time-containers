@@ -23,7 +23,7 @@ datadistributorPriority=97
 #let sleepTime=30*60
 #INITIAL
 #For initial testing, sleep 2 minutes between FPS changes
-let sleepTime=30*60
+let sleepTime=120
 #TEMPORARY
 #For debugging, sleep 1 minute between FPS changes
 #let sleepTime=60
