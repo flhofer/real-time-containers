@@ -23,7 +23,7 @@ Histogram::Histogram(unsigned long minValue, unsigned long maxValue, unsigned lo
         expMaxValue = entries.rbegin()->first; 
     }
 
-    bDbg && fprintf(stderr, "\nHistogram %s created with minExpected %lu, maxExpected %lu,  %ld entries at interval of %d %s\n",
+    bDbg && fprintf(stderr, "\nHistogram %s created with minExpected %lu, maxExpected %lu, %ld entries at interval of %d %s\n",
                 statName.c_str(), expMinValue, expMaxValue, entries.size(), interval, hUnits.c_str());
     (bDbg>1) && bDbg && fprintf(stderr, "First key = %lu, last key = %lu %s\n", entries.begin()->first, expMaxValue, hUnits.c_str());
 } 
@@ -124,29 +124,29 @@ std::ostream & Stats::statsPrint(std::ostream &os)
 
     if (scaling == 1)
     {
-        sprintf(buf, "Min=%lu %s\n", minValue, units.c_str());
+        sprintf(buf, "Min= %lu %s\n", minValue, units.c_str());
         os << buf;
     
-        sprintf(buf, "Max=%lu %s\n", maxValue, units.c_str());
+        sprintf(buf, "Max= %lu %s\n", maxValue, units.c_str());
         os << buf;
     
         if (ctr > 0)
         {
-            sprintf(buf, "Avg = %lu %s\n", avgValue, units.c_str());
+            sprintf(buf, "Avg= %lu %s\n", avgValue, units.c_str());
             os << buf;
         }
     }
     else
     {
-        sprintf(buf, "Min=%lf %s\n", scaling*minValue, scaledUnits.c_str());
+        sprintf(buf, "Min= %lf %s\n", scaling*minValue, scaledUnits.c_str());
         os << buf;
     
-        sprintf(buf, "Max=%lf %s\n",scaling*maxValue, scaledUnits.c_str());
+        sprintf(buf, "Max= %lf %s\n",scaling*maxValue, scaledUnits.c_str());
         os << buf;
     
         if (ctr != 0)
         {
-            sprintf(buf, "Avg=%lf %s\n", scaling*avgValue, scaledUnits.c_str());
+            sprintf(buf, "Avg= %lf %s\n", scaling*avgValue, scaledUnits.c_str());
             os << buf;
         }
     }
