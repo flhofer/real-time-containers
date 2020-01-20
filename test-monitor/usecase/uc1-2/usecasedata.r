@@ -17,55 +17,48 @@ loadData <- function(fName) {
 
 	# read string buffer
 	linn <- readLines(fName)
-	print(head(linn))
-
-	#rep_date_entries = grep("^ ", linn)
-	#print(head(rep_date_entries))
-	#linn <- linn[-rep_date_entries]
 	#print(head(linn))
-
-	# Read text file remove everything except numbers
-
-	#linn <- (gsub("[a-zA-Z:()>=<]", "", linn))
-
 
 	# init values
 	start=1
-	tstart=1
-	tend=length(linn)
 
 	while (start < length(linn)){
-		for (i in start:length(linn)){
-			while(length(linn) >0 && !startsWith(linn[1], 'Test'))
-				linn<-linn[-1]
+			while(length(linn) > start && !startsWith(linn[start], 'Test'))
+				start=start+1
+			print(head(linn[start]))
 
-			line <- strsplit(linn[1], " ")
+			if (length(linn) <= start) 
+				break
+
+			# parse header data
+			line <- strsplit(r<-gsub('[():=]' ,'', linn[1]), " ")
 			print(line)
 
-			endline=2
-
-			while(length(linn) >0 && !startsWith(linn[1], 'Histogram'))
-				linn<-linn[-1]
+			# find beginning of table
+			while(length(linn) > act && !startsWith(linn[act], 'Histogram'))
+				act=act+1
 			# TODO: parse hstrogram values
 
-			while(length(linn) >0 && !startsWith(linn[endline], 'EndTime'))
-				endline=endline+1
+			# find end of this table of values
+			while(length(linn) > act && !startsWith(linn[act], 'EndTime'))
+				act=act+1
+
+			#counters
+			tstart=start+1
+			tend=act-2
+
+			print(head(linn[tstart]))
 
 			# Transform into table, filter and add names
-			records = read.table(text=linn[2:(endline-2)])
+			records = read.table(text= (gsub('[^0-9. ]' ,'', linn[tstart:tend])), header=FALSE)
+			print(head(records))
+			records <- data.frame ("Count"=records$V1,"bStart"=records$V2,"bEnd"=records$V3)
 			print(head(records))
 					   
-		}
 		# once for is finished, increase start
-		start=i+1
+		start=tend+1
 	}
 	
-
-	# Transform into table, filter and add names
-	records = read.table(file= fName, skip=31)
-	head(records)
-	records <- data.frame ("RunT"=records$V3,"Period"=records$V4,"rStart"=records$V7, "cDur"=records$V9)
-
 	return(records)
 }
 
