@@ -21,6 +21,7 @@ loadData <- function(fName) {
 
 	# init values
 	start=1
+	plots <- array()
 
 	while (start < length(linn)){
 			while(length(linn) > start && !startsWith(linn[start], 'Test'))
@@ -31,12 +32,24 @@ loadData <- function(fName) {
 				break
 
 			# parse header data
-			line <- strsplit(r<-gsub('[():=]' ,'', linn[1]), " ")
-			print(line)
+			line <- strsplit(r<-gsub('[():=]' ,'', linn[start]), " ")
+			testNo=line[1]
+			testFPS=line[2]
+			#print(line)
+
+
+			# TODO: parse min max avg
+
+
+			act=start
 
 			# find beginning of table
 			while(length(linn) > act && !startsWith(linn[act], 'Histogram'))
 				act=act+1
+			print(head(linn[act]))
+
+			tstart=act+1
+
 			# TODO: parse hstrogram values
 
 			# find end of this table of values
@@ -44,22 +57,20 @@ loadData <- function(fName) {
 				act=act+1
 
 			#counters
-			tstart=start+1
 			tend=act-2
 
-			print(head(linn[tstart]))
+			#print(head(linn[tstart]))
 
 			# Transform into table, filter and add names
 			records = read.table(text= (gsub('[^0-9. ]' ,'', linn[tstart:tend])), header=FALSE)
-			print(head(records))
-			records <- data.frame ("Count"=records$V1,"bStart"=records$V2,"bEnd"=records$V3)
+			plots <- data.frame ("Count"=records$V1,"bStart"=records$V2,"bEnd"=records$V3)
 			print(head(records))
 					   
 		# once for is finished, increase start
 		start=tend+1
 	}
 	
-	return(records)
+	return(plots)
 }
 
 data<-loadData('workerapp0.log')
