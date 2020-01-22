@@ -1,5 +1,6 @@
 # Set the working directory
 setwd("./log/UC1.20200116/") # temp
+library(ggplot2)
 
 stringValue <-function(line) {
 			return(unlist(strsplit(r<-gsub('[():=,]' ,'', line), " ")))
@@ -123,8 +124,27 @@ loadData <- function(fName) {
 
 }
 
-histLoad<-loadData('workerapp0.log')
+# init
+gplot <- ggplot(mapping= aes(x=bStart, y=Count))
+xmin <- 250
+xmax <- 0
 
-cat("Size of dataset:", length(histLoad))
+for (i in 0:7) {
+	histLoad<-loadData(paste0 ('workerapp', i,'.log'))
 
+	xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
+	xmax <- max(xmax, histLoad[[1]]$dataT$rows$bStart)
 
+	cat("Size of dataset:", length(histLoad))
+
+	if (length(histLoad) > 0) {
+		gplot <- gplot + geom_line(data = histLoad[[1]]$dataT$rows,stat="identity", width=histLoad[[1]]$dataT$res)
+	}
+
+}	  
+
+gplot <- gplot + labs(x='occurrence of exeution value') +
+	     scale_x_continuous(trans='log10') 
+#		 xlim(c(xmin,xmax)) 
+
+print (gplot)
