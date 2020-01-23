@@ -30,20 +30,13 @@ fi
 #logdirs based on local dir, safety
 #log output dir
 launchDir="logs"
-mkdir -p $launchDir
+mkdir -p ./$launchDir
 
 local_resultdir="logs" # Default for basic functions
 container_resultdir="/home/logs"
 
 fifoDir=/tmp
 fpsFile=$fifoDir/fps
-
-workerPolicy="--fifo"
-workerPriority=99
-datageneratorPolicy="--fifo"
-datageneratorPriority=98
-datadistributorPolicy="--fifo"
-datadistributorPriority=97
 
 #TODO: FROM USECASE 1!!
 #REGULAR
@@ -130,26 +123,22 @@ startContainer() {
     #Argument 1 is image name
     #Argument 2 is arguments
     #Argument 3 is progname within the image
-    #Argument 4 is policy
-    #Argument 5 is priority
+    #Argument 4 is scheduling parameters
+    #Argument 5 is -dash for log file
     imageName=$1
     cmdargs="$2"
     progName=$3
-    policy="$4"
-    priority=$5
-#UC2    sch="$5"
+    scheduling="$4"
+    sch=${5:-''}
 
-    echo "Launching $imageName with argument [$cmdargs] "
     echo "Launching $imageName (executable $progName) with argument [$cmdargs] and scheduling [$scheduling]. local_resultsDir=$local_resultsDir "
 
-    scheduling="$policy $priority"
     # this should work for all users in the docker group! TODO: verify
     docker run \
 	    -d \
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling"   \
-        -e sch=""  \
-#UC2        -e sch="$sch"  \
+        -e sch="$sch"  \
 	    -v $fifoDir:"$fifoDir"  \
 	    -v "./$local_resultsDir":"$container_resultsDir" \
 	    --cap-add=sys_nice \
@@ -183,11 +172,13 @@ startWorkerContainer() {
     i=$1
     oul=${2:-'10'}
     tdl=${2:-'500'}
+
+    scheduling="$policy $priority"
     if [ $i -lt $maxworkers ] ; then
         baseworkerImage=rt-workerapp
         imageName=${baseworkerImage}$i
         cmdargs="--instnum $i --innerloops 25 --outerloops $oul --maxTests 6 --timedloops $tdl --basePipeName $fifoDir/worker ${@:4}"
-        startContainer $imageName "$cmdargs" workerapp$i "$workerPolicy" $workerPriority
+        startContainer $imageName "$cmdargs" workerapp$i "$scheduling"
     else
     	echo "ERROR: max number of workers reached"
     fi
@@ -455,7 +446,7 @@ elif [[ $cmd == "test" ]]; then
 	fi
 
 	#Initialization
-	mkdir ./$local_resultsDir 2>/dev/null
+	mkdir -p ./$local_resultsDir 2>/dev/null
 	rm -f ./$local_resultsDir/* 2>/dev/null
 
 	rm -f $fifoDir/{worker,data}* 2>/dev/null
@@ -464,6 +455,14 @@ elif [[ $cmd == "test" ]]; then
 	killRemnantsFunc
 
 	if [[ $tno == 1 ]]; then
+
+		# parameters for test 1
+		workerPolicy="--fifo"
+		workerPriority=99
+		datageneratorPolicy="--fifo"
+		datageneratorPriority=98
+		datadistributorPolicy="--fifo"
+		datadistributorPriority=97
 
 		#Cleanup
 		rm -f $fpsFile 2>/dev/null
@@ -519,6 +518,36 @@ elif [[ $cmd == "test" ]]; then
 	elif [[ $tno == 2 ]]; then
 		# store base dir to allow subdirectories test change
 		base_resultsDir="$local_resultsDir"
+
+		###################
+		#chrt parameters for polling workers
+		#All chrt paramters are specified in nanoseconds
+		###################
+		# parameters for test 2
+		workerPolicyPolling="--deadline"
+		# Allow 100 msecs for runtime
+		workerRuntimePolling=175000000
+
+		# Each polling task should resume within 1 msec of the start of its next period
+		workerDeadlinePolling=300000000
+
+		#MIT: This is a guess as to the polling periods desired: 1 second, 750 msecs, 500 msecs, 250 msecs, 150 msecs 
+		worker0PeriodPolling=800000000
+		worker1PeriodPolling=700000000
+		worker2PeriodPolling=600000000
+		worker3PeriodPolling=550000000
+		worker4PeriodPolling=500000000
+
+		######################
+		#chrt parameters for event-driven workers
+		######################
+		workerPolicyEvent="--fifo"
+		workerPriorityEvent=98
+
+		datageneratorPolicy="--fifo"
+		datageneratorPriority=99
+		datadistributorPolicy="--fifo"
+		datadistributorPriority=97
 
 		# Test parameters
 		if [ $# -gt 0 ] ; then
