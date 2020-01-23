@@ -27,11 +27,12 @@ fi
 
 #Initialization
 
+#logdirs based on local dir, safety
 #log output dir
-launchDir="./logs"
+launchDir="logs"
 mkdir -p $launchDir
 
-local_resultdir="./logs" # TODO: change for UCs
+local_resultdir="logs" # Default for basic functions
 container_resultdir="/home/logs"
 
 fifoDir=/tmp
@@ -46,7 +47,7 @@ datadistributorPriority=97
 
 # Worker parameters
 if [ $# -gt 1 ] ; then
-	maxworkers=$#
+	maxworkers=$2
 else
 	maxworkers=8
 fi
@@ -66,6 +67,7 @@ let sleepTime=120
 let beforeNewWorkerSleepTime=30
 
 echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
+echo
 
 ############################### Functions, generic ####################################
 
@@ -146,14 +148,15 @@ startContainer() {
     echo "Launching $imageName with argument [$cmdargs] "
 
     scheduling="$policy $priority"
+    # this should work for all users in the docker group! TODO: verify
     docker run \
 	    -d \
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling"   \
         -e sch=""  \
 	    -v $fifoDir:"$fifoDir"  \
-	    -v "$local_resultsDir":"$container_resultsDir" \
-	    --privileged \
+	    -v "./$local_resultsDir":"$container_resultsDir" \
+	    --cap-add=sys_nice \
         --name $imageName \
 	    $imageName
 
@@ -192,11 +195,42 @@ startWorkerContainer() {
     fi
 }
 
+############################### cmd specific func ####################################
+
+#UC1
+startNewTest() {
+    #Argument 1 is new FPS
+    #Argument 2 is new worker instance
+    newfps=$1
+    newInstance=$2
+    if [ $newInstance -lt $maxworkers ] ; then
+        echo "Setting FPS = $newfps"
+        echo $newfps >> $fpsFile
+        echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
+        sleep $beforeNewWorkerSleepTime
+        startWorkerContainer $newInstance
+    else
+    	echo "Exiting rather than starting worker $newInstance: maxworkers=$maxworkers"
+        let newfps=-2
+        echo "Setting FPS = $newfps"
+        echo "$newfps" >> $fpsFile
+
+        echo "Sleeping for 2 minutes "
+        sleep 120
+
+        echo "Calling killRemnantsFunc"
+        killRemnantsFunc
+        echo
+        echo Exiting
+	    exit 0
+    fi
+}
+
 ############################### cmd specific exec ####################################
 
 cmd=${1:-'test'}
 
-if [ $# -ne 1 ]; then
+if [ $# -lt 1 ]; then
 	echo "Not enough arguments supplied!"
 	printUsage
 fi
@@ -265,8 +299,7 @@ elif [[ $cmd == "timing" ]]; then
 	#Run workerapps
 	numContainers=3
 
-	echo "Killing all existing containers:"
-	rm -f $local_resultdir/workerapp*.log # do not use -r!!!
+	rm -f ./$local_resultdir/workerapp*.log # do not use -r!!!
 	killRemnantsFunc
 
 	echo ">>> Starting workerapps."
@@ -298,6 +331,86 @@ elif [[ $cmd == "monitor" ]]; then
 		let n=n+1
 		sleep 10
 	done
+
+elif [[ $cmd == "test" ]]; then
+	tno=${2:-'1'}
+
+	# update parameters for tests
+	if [ $# -gt 2 ] ; then
+		maxworkers=$3
+	else
+		maxworkers=8
+	fi
+	echo "UPDATE: maxworkers=$maxworkers"
+	local_resultsDir="$launchDir/UC$tno.`date +%Y%m%d`"
+	echo "UPDATE: local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
+
+	#stop if probability is too high that the folder might refer to root
+	if [[ ${#local_resultsDir} -le 3 ]]; then
+		echo "Error, log dir name too short. dangerous!"
+		exit
+	fi
+	if [[ $tno == 1 ]]; then
+
+
+		#Initialization
+		mkdir ./$local_resultsDir 2>/dev/null
+		rm -f ./$local_resultsDir/* 2>/dev/null
+
+		#Cleanup
+		rm -f $fpsFile 2>/dev/null
+		touch $fpsFile
+
+		rm -f $fifoDir/{worker,data}* 2>/dev/null
+
+		cd ./$launchDir
+
+		killRemnantsFunc
+		exit 0
+		#Launch first 3 workers
+		for (( i=0; i<3; i++ )); do
+		    startWorkerContainer $i
+		done
+
+		#Launch datadistributor
+		cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 "
+		startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy" $datadistributorPriority
+
+		#Launch datagenerator
+		cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
+		startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
+
+		echo "Sleeping for 30 seconds"
+		sleep 30
+
+		#Set initial FPS=24
+		let fps=24
+		echo "Set initial FPS = $fps"
+		echo $fps >>$fpsFile
+
+		i=3 # start with worker 4
+		while [[ $i -lt 8 ]]
+		    echo "Sleeping for $sleepTime seconds"
+		    sleep $sleepTime
+		do
+		    let fps=${fps}+8
+		    startNewTest $fps $i
+		    i++;
+		done
+
+		# closing up
+		let fps=-2
+		echo "Setting FPS = $fps"
+		echo "$fps" >>$fpsFile
+
+		echo "Sleeping for 2 minutes "
+		sleep 120
+
+		echo "Calling killRemnantsFunc"
+		killRemnantsFunc
+
+		echo "Exiting.."
+	fi
 else
 	echo "Unknown command!!"
 	printUsage
