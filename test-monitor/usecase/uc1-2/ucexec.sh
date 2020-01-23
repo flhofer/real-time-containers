@@ -45,14 +45,6 @@ datageneratorPriority=98
 datadistributorPolicy="--fifo"
 datadistributorPriority=97
 
-# Worker parameters
-if [ $# -gt 1 ] ; then
-	maxworkers=$2
-else
-	maxworkers=8
-fi
-echo "maxworkers=$maxworkers"
-
 #TODO: FROM USECASE 1!!
 #REGULAR
 #For executing the regular test, sleep 30 minutes between FPS changes
@@ -75,7 +67,7 @@ function printUsage() {
 
 	cat <<EOF
 
-Usage: $0 test [number] [noworkers]
+Usage: $0 test [number] [noworkers/notests]
  or    $0 [prepcmd] [noworkers]
 
 where:
@@ -85,7 +77,8 @@ prepcmd		prep command to execute: [build, stopall, killall, timing, monitor]
 
 Defaults are:
 number = 1		execute use case 1 only
-noworkers = 8   use max 8 workers
+noworkers = 8   use case 1 max 8 workers
+nooftests = 3	use case 2 number of tests 3
 
 EOF
 	exit 1	
@@ -144,8 +137,10 @@ startContainer() {
     progName=$3
     policy="$4"
     priority=$5
+#UC2    sch="$5"
 
     echo "Launching $imageName with argument [$cmdargs] "
+    echo "Launching $imageName (executable $progName) with argument [$cmdargs] and scheduling [$scheduling]. local_resultsDir=$local_resultsDir "
 
     scheduling="$policy $priority"
     # this should work for all users in the docker group! TODO: verify
@@ -154,11 +149,14 @@ startContainer() {
 	    -e cmdargs="$cmdargs" \
         -e scheduling="$scheduling"   \
         -e sch=""  \
+#UC2        -e sch="$sch"  \
 	    -v $fifoDir:"$fifoDir"  \
 	    -v "./$local_resultsDir":"$container_resultsDir" \
 	    --cap-add=sys_nice \
         --name $imageName \
 	    $imageName
+
+    sleep 1
 
     while (true) ; do
       if ps -elf |grep $progName |grep -v grep; then
@@ -226,9 +224,121 @@ startNewTest() {
     fi
 }
 
+#UC2
+
+startFIFOorRRContainer() {
+    #Argument 1 is image name
+    #Argument 2 is arguments
+    #Argument 3 is progname within the image
+    #Argument 4 is policy
+    #Argument 5 is priority
+    imageName=$1
+    cmdargs="$2"
+    progName=$3
+    policy="$4"
+    priority=$5
+    sch="$6"
+
+    scheduling="$policy $priority"
+    echo "startFIFOorRRContainer: scheduling=[$scheduling]"
+    startContainer $imageName "$cmdargs" $progName "$scheduling" "$sch"
+}
+    
+startDeadlineContainer() {
+    #Argument 1 is image name
+    #Argument 2 is arguments
+    #Argument 3 is progname within the image
+    #Argument 4 is period in nanoseconds
+    imageName=$1
+    cmdargs="$2"
+    progName=$3
+    runtime="$4"
+    period=$5
+    deadline=$6
+    sch="$7"
+    
+    echo "startDeadlineContainer: imageName=[$1], progName=[$progName] runtime=$runtime, period=$period, deadline=$deadline"
+
+    # for deadline policy, must specify priority 0 (the last paramter in scheduling)
+    #  MIT specifying the sched-deadline causes chrt to fail! 
+    #scheduling="--deadline --sched-runtime $runtime --sched-period $period --sched-deadline $deadline 0 "   
+    scheduling="--deadline --sched-runtime $runtime --sched-period $period --sched-deadline $deadline 0 "   
+    echo "                        scheduling=[ $scheduling ]"
+
+    startContainer $imageName "$cmdargs" $progName "$scheduling" "$7"
+}
+
+startWorkerEventDriven() {
+    #Argument 1 is instance number
+    i=$1
+    echo "startWorkerEventDriven: i=$i"
+    baseworkerImage=rt-workerapp
+    imageName=${baseworkerImage}$i
+    progName=workerapp${i}
+    cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 500 --basePipeName $fifoDir/worker --endInSeconds $testTime"
+    startFIFOorRRContainer $imageName "$cmdargs" workerapp$i "$workerPolicyEvent" $workerPriorityEvent "-fifo"
+}
+    
+startWorkerPolling() {
+    #Argument 1 is instance number
+    #Argument 2 is polling period
+    i=$1
+    pollingPeriod=$2
+
+    baseworkerImage=rt-workerapp
+    imageName=${baseworkerImage}$i
+    progName=workerapp${i}
+    cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
+
+    startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling "-deadline"
+}
+
+runTest() {
+    #argument 1 = test number
+    #argument 2 = max workers
+    
+    testNum=$1
+    maxWorkers=$2
+    local_resultsDir=$base_resultsDir/Test${testNum}
+    mkdir $local_resultsDir
+
+    echo 
+    echo "****************************************************************************************************"
+    echo "*** Starting test $testNum with $maxWorkers event-driven workers and $maxWorkers polling workers ****"
+    #Launch polling workers
+    for (( ip=0 ; ip<maxWorkers; ip++ )); do
+        workerPeriodPollingParamName="worker${ip}PeriodPolling"
+        workerPeriodPolling="${!workerPeriodPollingParamName}"
+        echo "Calling startWorkerPolling $ip $workerPeriodPolling "
+        startWorkerPolling $ip $workerPeriodPolling
+    done
+
+    # #Launch event-driven workers
+    # for (( iw=0 ; iw<maxWorkers; iw++ )); do
+    #     let instance=5+$iw
+    #     echo "Calling startWorkerEventDriven $instance"
+    #     startWorkerEventDriven $instance 
+    # done
+
+
+    # #Launch Event-driver datagenerator
+    # cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    # startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
+    
+    #Launch Polling-driver datagenerator
+    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
+    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-deadline"
+
+    echo "Sleeping for $testTime seconds"
+    sleep $testTime
+
+    stopAllContainers
+    echo
+}
 ############################### cmd specific exec ####################################
 
 cmd=${1:-'test'}
+shift	# restore original parameters
 
 if [ $# -lt 1 ]; then
 	echo "Not enough arguments supplied!"
@@ -237,7 +347,6 @@ fi
 
 
 if [[ $cmd == "build" ]] ; then
-	shift	# restore original parameters
 
 	srcDir=./src
 	dockerDir=./docker
@@ -333,15 +442,9 @@ elif [[ $cmd == "monitor" ]]; then
 	done
 
 elif [[ $cmd == "test" ]]; then
-	tno=${2:-'1'}
+	tno=${1:-'1'}
+	shift
 
-	# update parameters for tests
-	if [ $# -gt 2 ] ; then
-		maxworkers=$3
-	else
-		maxworkers=8
-	fi
-	echo "UPDATE: maxworkers=$maxworkers"
 	local_resultsDir="$launchDir/UC$tno.`date +%Y%m%d`"
 	echo "UPDATE: local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
 
@@ -350,23 +453,30 @@ elif [[ $cmd == "test" ]]; then
 		echo "Error, log dir name too short. dangerous!"
 		exit
 	fi
+
+	#Initialization
+	mkdir ./$local_resultsDir 2>/dev/null
+	rm -f ./$local_resultsDir/* 2>/dev/null
+
+	rm -f $fifoDir/{worker,data}* 2>/dev/null
+
+	cd ./$launchDir
+	killRemnantsFunc
+
 	if [[ $tno == 1 ]]; then
-
-
-		#Initialization
-		mkdir ./$local_resultsDir 2>/dev/null
-		rm -f ./$local_resultsDir/* 2>/dev/null
 
 		#Cleanup
 		rm -f $fpsFile 2>/dev/null
 		touch $fpsFile
 
-		rm -f $fifoDir/{worker,data}* 2>/dev/null
+		# update parameters for tests
+		if [ $# -gt 0 ] ; then
+			maxworkers=$1
+		else
+			maxworkers=8
+		fi
+		echo "maxworkers=$maxworkers"
 
-		cd ./$launchDir
-
-		killRemnantsFunc
-		exit 0
 		#Launch first 3 workers
 		for (( i=0; i<3; i++ )); do
 		    startWorkerContainer $i
@@ -389,10 +499,10 @@ elif [[ $cmd == "test" ]]; then
 		echo $fps >>$fpsFile
 
 		i=3 # start with worker 4
-		while [[ $i -lt 8 ]]
+		while [ $i -lt 8 ];
+		do
 		    echo "Sleeping for $sleepTime seconds"
 		    sleep $sleepTime
-		do
 		    let fps=${fps}+8
 		    startNewTest $fps $i
 		    i++;
@@ -406,11 +516,30 @@ elif [[ $cmd == "test" ]]; then
 		echo "Sleeping for 2 minutes "
 		sleep 120
 
-		echo "Calling killRemnantsFunc"
-		killRemnantsFunc
+	elif [[ $tno == 2 ]]; then
+		# store base dir to allow subdirectories test change
+		base_resultsDir="$local_resultsDir"
 
-		echo "Exiting.."
+		# Test parameters
+		if [ $# -gt 0 ] ; then
+		    totalTests=$1
+		else
+		    totalTests=3
+		fi
+		echo "totalTests=$totalTests"
+
+		for ((tNum=0; tNum<totalTests; tNum++)); do
+		    let mxWorkers=${tNum}+3
+		    runTest $tNum $mxWorkers
+		    echo "Completed test $tNum"
+		done
 	fi
+
+	echo "Calling killRemnantsFunc"
+	killRemnantsFunc
+
+	echo "Exiting.."
+
 else
 	echo "Unknown command!!"
 	printUsage
