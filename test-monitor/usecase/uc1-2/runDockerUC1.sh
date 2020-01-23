@@ -1,5 +1,4 @@
 #!/bin/bash
-#source ~user/.bashrc
 
 #log output dir
 launchDir="/opt/usecase/logs"
@@ -158,11 +157,11 @@ startNewTest() {
 # Start of main script commands
 ##############################
 
-    #Initialization
+#Initialization
 mkdir $local_resultsDir 2>/dev/null
 rm -f $local_resultsDir/* 2>/dev/null
 
-    #Cleanup
+#Cleanup
 rm -f $fpsFile 2>/dev/null
 touch $fpsFile
 
@@ -172,66 +171,38 @@ cd $launchDir
 
 killRemnantsFunc
 
-    #Launch first 3 workers
+#Launch first 3 workers
 for (( i=0; i<3; i++ )); do
     startWorkerContainer $i
 done
 
-    #Launch datadistributor
+#Launch datadistributor
 cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 "
 startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy" $datadistributorPriority
 
-    #Launch datagenerator
+#Launch datagenerator
 cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
 startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
 
 echo "Sleeping for 30 seconds"
 sleep 30
 
-    #Set initial FPS=24
+#Set initial FPS=24
 let fps=24
 echo "Set initial FPS = $fps"
 echo $fps >>$fpsFile
 
+i=3 # start with worker 4
+while [ $i -lt 8 ];
+do
+    echo "Sleeping for $sleepTime seconds"
+    sleep $sleepTime
+    let fps=${fps}+8
+    startNewTest $fps $i
+    i++;
+done
 
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
-i=3
-let fps=${fps}+8
-startNewTest $fps $i
-
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
-i=4
-let fps=${fps}+8
-startNewTest $fps $i
-
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
-i=5
-let fps=${fps}+8
-startNewTest $fps $i
-
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
-i=6
-let fps=${fps}+8
-startNewTest $fps $i
-
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
-i=7
-let fps=${fps}+8
-startNewTest $fps $i
-
-echo "Sleeping for $sleepTime seconds"
-sleep $sleepTime
-
+# closing up
 let fps=-2
 echo "Setting FPS = $fps"
 echo "$fps" >>$fpsFile
@@ -242,4 +213,4 @@ sleep 120
 echo "Calling killRemnantsFunc"
 killRemnantsFunc
 
-echo Exiting
+echo "Exiting.."
