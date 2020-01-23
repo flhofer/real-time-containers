@@ -44,14 +44,37 @@ datageneratorPriority=98
 datadistributorPolicy="--fifo"
 datadistributorPriority=97
 
+# Worker parameters
+if [ $# -gt 1 ] ; then
+	maxworkers=$#
+else
+	maxworkers=8
+fi
+echo "maxworkers=$maxworkers"
+
+#TODO: FROM USECASE 1!!
+#REGULAR
+#For executing the regular test, sleep 30 minutes between FPS changes
+#let sleepTime=30*60
+#INITIAL
+#For initial testing, sleep 2 minutes between FPS changes
+let sleepTime=120
+#TEMPORARY
+#For debugging, sleep 1 minute between FPS changes
+#let sleepTime=60
+#Sleep 30 seconds between start of new FPS and launch of new worker
+let beforeNewWorkerSleepTime=30
+
+echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
+
 ############################### Functions, generic ####################################
 
 function printUsage() {
 
 	cat <<EOF
 
-Usage: $0 test [number]
- or    $0 [prepcmd]
+Usage: $0 test [number] [noworkers]
+ or    $0 [prepcmd] [noworkers]
 
 where:
 
@@ -60,7 +83,7 @@ prepcmd		prep command to execute: [build, stopall, killall, timing, monitor]
 
 Defaults are:
 number = 1		execute use case 1 only
-
+noworkers = 8   use max 8 workers
 
 EOF
 	exit 1	
@@ -96,6 +119,16 @@ stopAllContainers() {
     else
         echo "stopAllContainers(): No running containers"
     fi
+}
+
+exitFunc() {
+    echo
+    echo "Executing exitFunc.  exitCode=$1"
+    exitCode=$1
+    killRemnantsFunc
+    echo "Exiting with exit code $exitCode"
+    echo
+    exit $exitCode
 }
 
 startContainer() {
@@ -152,9 +185,10 @@ startWorkerContainer() {
     if [ $i -lt $maxworkers ] ; then
         baseworkerImage=rt-workerapp
         imageName=${baseworkerImage}$i
-        progName=workerapp${i}
         cmdargs="--instnum $i --innerloops 25 --outerloops $oul --maxTests 6 --timedloops $tdl --basePipeName $fifoDir/worker ${@:4}"
         startContainer $imageName "$cmdargs" workerapp$i "$workerPolicy" $workerPriority
+    else
+    	echo "ERROR: max number of workers reached"
     fi
 }
 
@@ -242,34 +276,16 @@ elif [[ $cmd == "timing" ]]; then
 	done
 
 	#Launch datadistributor
-	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 "
+	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg"
+	echo ">>> Running command: datadistributor $cmdargs"
+#	cmdargs="--readpipe /tmp/source_1 --num 3 --dbg"
 	startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy" $datadistributorPriority
 
 	#Launch datagenerator
-	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
-	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
-
-	echo "Sleeping for 30 seconds"
-	sleep 30
-
-	container_name="rt_datadistributor"
-	cmdargs="--readpipe /tmp/source_1 --num 3 --dbg"
-	echo ">>> Running command: workerapp  $cmdargs "
-	docker run \
-	    -d
-	    -e cmdargs="$cmdargs" \
-	    -v $local_resultdir:$container_resultdir \
-	    $container_name
-
-	container_name="rt_datagenerator"
-	cmdargs="--mininterval 40000 --maxinterval 40000 --sleeptimer --writepipe /tmp/source --dbg --num 1"
+	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg"
 	echo ">>> Running command: datagenerator $cmdargs"
-	echo "docker run \
-	    -d \
--e scheduling="$scheduling"   \
-        -e cmdargs="$cmdargs" \
-	    -v $local_resultdir:$container_resultdir \
-	    $container_name"
+#	cmdargs="--mininterval 40000 --maxinterval 40000 --sleeptimer --writepipe /tmp/source --dbg --num 1"
+	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
 
 elif [[ $cmd == "monitor" ]]; then
 	let n=0
