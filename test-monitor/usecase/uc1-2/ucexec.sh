@@ -32,8 +32,8 @@ fi
 launchDir="logs"
 mkdir -p ./$launchDir
 
-local_resultdir="logs" # Default for basic functions
-container_resultdir="/home/logs"
+local_resultsDir="logs" # Default for basic functions
+container_resultsDir="/home/logs"
 
 fifoDir=/tmp
 fpsFile=$fifoDir/fps
@@ -152,7 +152,7 @@ startContainer() {
         -e scheduling="$scheduling"   \
         -e sch="$sch"  \
 	    -v $fifoDir:"$fifoDir"  \
-	    -v "./$local_resultsDir":"$container_resultsDir" \
+	    -v "$PWD/$local_resultsDir":"$container_resultsDir" \
 	    --cap-add=sys_nice \
         --name $imageName \
 	    $imageName
@@ -414,7 +414,7 @@ elif [[ $cmd == "timing" ]]; then
 	#Run workerapps
 	numContainers=3
 
-	rm -f ./$local_resultdir/workerapp*.log # do not use -r!!!
+	rm -f ./$local_resultsDir/workerapp*.log # do not use -r!!!
 	killRemnantsFunc
 
 	echo ">>> Starting workerapps."
@@ -466,7 +466,7 @@ elif [[ $cmd == "test" ]]; then
 
 	rm -f $fifoDir/{worker,data}* 2>/dev/null
 
-	cd ./$launchDir
+#	cd ./$launchDir
 	killRemnantsFunc
 
 	if [[ $tno == 1 ]]; then
