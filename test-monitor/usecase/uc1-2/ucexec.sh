@@ -38,6 +38,18 @@ container_resultdir="/home/logs"
 fifoDir=/tmp
 fpsFile=$fifoDir/fps
 
+
+######################
+#chrt parameters for event-driven workers
+######################
+workerPolicyEvent="--fifo"
+workerPriorityEvent=98
+
+datageneratorPolicy="--fifo"
+datageneratorPriority=99
+datadistributorPolicy="--fifo"
+datadistributorPriority=97
+
 #TODO: FROM USECASE 1!!
 #REGULAR
 #For executing the regular test, sleep 30 minutes between FPS changes
@@ -163,7 +175,10 @@ startContainer() {
      fi
    done
 }
+############################### cmd specific func ####################################
 
+#UC1-Timing
+# same as Workerpolling +- for uc1 and timing test
 startWorkerContainer() {
     #Argument 1 is instance number
     #Argument 2 is outer loops, defaults to 10
@@ -171,20 +186,19 @@ startWorkerContainer() {
     #Argument 4- eventual additional parameters
     i=$1
     oul=${2:-'10'}
-    tdl=${2:-'500'}
+    tdl=${3:-'500'}
 
-    scheduling="$policy $priority"
+    scheduling="$workerPolicyEvent $workerPriorityEvent"
     if [ $i -lt $maxworkers ] ; then
         baseworkerImage=rt-workerapp
         imageName=${baseworkerImage}$i
+        #maxtests not defined for timing tests
         cmdargs="--instnum $i --innerloops 25 --outerloops $oul --maxTests 6 --timedloops $tdl --basePipeName $fifoDir/worker ${@:4}"
         startContainer $imageName "$cmdargs" workerapp$i "$scheduling"
     else
     	echo "ERROR: max number of workers reached"
     fi
 }
-
-############################### cmd specific func ####################################
 
 #UC1
 startNewTest() {
@@ -326,6 +340,7 @@ runTest() {
     stopAllContainers
     echo
 }
+
 ############################### cmd specific exec ####################################
 
 cmd=${1:-'test'}
@@ -456,14 +471,6 @@ elif [[ $cmd == "test" ]]; then
 
 	if [[ $tno == 1 ]]; then
 
-		# parameters for test 1
-		workerPolicy="--fifo"
-		workerPriority=99
-		datageneratorPolicy="--fifo"
-		datageneratorPriority=98
-		datadistributorPolicy="--fifo"
-		datadistributorPriority=97
-
 		#Cleanup
 		rm -f $fpsFile 2>/dev/null
 		touch $fpsFile
@@ -537,17 +544,6 @@ elif [[ $cmd == "test" ]]; then
 		worker2PeriodPolling=600000000
 		worker3PeriodPolling=550000000
 		worker4PeriodPolling=500000000
-
-		######################
-		#chrt parameters for event-driven workers
-		######################
-		workerPolicyEvent="--fifo"
-		workerPriorityEvent=98
-
-		datageneratorPolicy="--fifo"
-		datageneratorPriority=99
-		datadistributorPolicy="--fifo"
-		datadistributorPriority=97
 
 		# Test parameters
 		if [ $# -gt 0 ] ; then
