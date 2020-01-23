@@ -3,6 +3,7 @@ srcDir=./src
 dockerDir=./docker
 cd $srcDir
 
+# Build binaries and copy them to the docker build directory
 make
 cp -f WorkerApp "../$dockerDir/workerapp"
 cp -f DataGenerator "../$dockerDir/datagenerator"
@@ -13,10 +14,11 @@ echo "executables:"
 ls -l datagenerator workerapp
 echo
 
+# Stop containers and cleanup
 echo "Stop all running workerapp containers"
 docker rm $(docker stop $(docker ps -a | egrep -e 'datagenerator|datadistributor|workerapp' | awk '{print $1}'))
 
-for i in 0 1 2 3 4 5 6 7 8 9
+for i in {0..9}
 do
     docker image rm -f rt-workerapp$i
 done
@@ -29,7 +31,8 @@ echo "Docker images before build:"
 docker images
 echo
 
-for i in 0 1 2 3 4 5 6 7 8 9
+# Rebuild all docker images for the use case
+for i in {0..9}
 do
     docker build -f ./Dockerfile.wa$i -t rt-workerapp$i .
 done
