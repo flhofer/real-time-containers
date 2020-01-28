@@ -1,4 +1,4 @@
-#/bin/bash
+#! /bin/bash
 
 if [[ ! "$1" == "quiet" ]]; then
 
@@ -343,14 +343,13 @@ runTest() {
 
 ############################### cmd specific exec ####################################
 
-cmd=${1:-'test'}
-shift	# restore original parameters
-
 if [ $# -lt 1 ]; then
 	echo "Not enough arguments supplied!"
 	printUsage
 fi
 
+cmd=${1:-'test'}
+shift	# restore original parameters
 
 if [[ $cmd == "build" ]] ; then
 
@@ -490,11 +489,11 @@ elif [[ $cmd == "test" ]]; then
 
 		#Launch datadistributor
 		cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 "
-		startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy" $datadistributorPriority
+		startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy $datadistributorPriority"
 
 		#Launch datagenerator
 		cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
-		startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
+		startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy $datageneratorPriority"
 
 		echo "Sleeping for 30 seconds"
 		sleep 30
@@ -511,7 +510,7 @@ elif [[ $cmd == "test" ]]; then
 		    sleep $sleepTime
 		    let fps=${fps}+8
 		    startNewTest $fps $i
-		    i++;
+		    let i++;
 		done
 
 		# closing up
@@ -525,6 +524,8 @@ elif [[ $cmd == "test" ]]; then
 	elif [[ $tno == 2 ]]; then
 		# store base dir to allow subdirectories test change
 		base_resultsDir="$local_resultsDir"
+		# same config as for UC1, but test instead of sleep time. TODO To expand	
+		testTime=${sleepTime}
 
 		###################
 		#chrt parameters for polling workers
