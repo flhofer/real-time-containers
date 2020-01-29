@@ -189,7 +189,7 @@ startWorkerContainer() {
     tdl=${3:-'500'}
 
     scheduling="$workerPolicyEvent $workerPriorityEvent"
-    if [ $i -lt $maxworkers ] ; then
+    if [[ $i -lt $maxWorkers ]] ; then
         baseworkerImage=rt-workerapp
         imageName=${baseworkerImage}$i
         #maxtests not defined for timing tests
@@ -206,14 +206,14 @@ startNewTest() {
     #Argument 2 is new worker instance
     newfps=$1
     newInstance=$2
-    if [ $newInstance -lt $maxworkers ] ; then
+    if [ $newInstance -lt $maxWorkers ] ; then
         echo "Setting FPS = $newfps"
         echo $newfps >> $fpsFile
         echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
         sleep $beforeNewWorkerSleepTime
         startWorkerContainer $newInstance
     else
-    	echo "Exiting rather than starting worker $newInstance: maxworkers=$maxworkers"
+    	echo "Exiting rather than starting worker $newInstance: maxWorkers=$maxWorkers"
         let newfps=-2
         echo "Setting FPS = $newfps"
         echo "$newfps" >> $fpsFile
@@ -412,27 +412,27 @@ elif [[ $cmd == "timing" ]]; then
 
 	#Run workerapps
 	numContainers=3
+    maxWorkers=3
 
 	rm -f ./$local_resultsDir/workerapp*.log # do not use -r!!!
 	killRemnantsFunc
 
 	echo ">>> Starting workerapps."
-
-	for (( i=0; i<num_containers; i++ ));do
-	    startWorkerContainer $i 150 10 --dbg
+	for (( i=0; i< numContainers; i++ )); do
+	    startWorkerContainer ${i} 150 10 "--dbg 1"
 	done
 
 	#Launch datadistributor
-	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg"
+	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg 1"
 	echo ">>> Running command: datadistributor $cmdargs"
 #	cmdargs="--readpipe /tmp/source_1 --num 3 --dbg"
-	startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy" $datadistributorPriority
+	startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy $datadistributorPriority"
 
 	#Launch datagenerator
-	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg"
+	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg 1"
 	echo ">>> Running command: datagenerator $cmdargs"
 #	cmdargs="--mininterval 40000 --maxinterval 40000 --sleeptimer --writepipe /tmp/source --dbg --num 1"
-	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority
+	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy $datageneratorPriority"
 
 elif [[ $cmd == "monitor" ]]; then
 	let n=0
@@ -476,11 +476,11 @@ elif [[ $cmd == "test" ]]; then
 
 		# update parameters for tests
 		if [ $# -gt 0 ] ; then
-			maxworkers=$1
+			maxWorkers=$1
 		else
-			maxworkers=8
+			maxWorkers=8
 		fi
-		echo "maxworkers=$maxworkers"
+		echo "maxWorkers=$maxWorkers"
 
 		#Launch first 3 workers
 		for (( i=0; i<3; i++ )); do
