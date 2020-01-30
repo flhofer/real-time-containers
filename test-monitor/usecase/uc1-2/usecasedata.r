@@ -135,7 +135,7 @@ loadData <- function(fName) {
 }
 
 plotData<-function(directory) {
-	print(paste0("Proceeding with directory " ,directory))
+	write(paste0("Proceeding with directory " ,directory), stderr())
 
 	# init
 	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) 
@@ -146,7 +146,7 @@ plotData<-function(directory) {
 		fName<- paste0(directory, '/workerapp', i,'.log')
 		histLoad<-loadData(fName)
 
-		print(paste0("Size of dataset for ", fName, " iter ", i, " :", length(histLoad)))
+		write(paste0("Size of dataset for ", fName, " iter ", i, " :", length(histLoad)), stderr())
 
 		if (length(histLoad) > 0) {
 			xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
