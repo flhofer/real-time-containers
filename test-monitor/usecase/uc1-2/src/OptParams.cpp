@@ -54,7 +54,7 @@ void OptParams::printHelp(std::string msg)
     printf("       --sleeptimer  (-s)        : log the actual duration of sleep interval between simulated inputs (default %s)\n", (bTimeSleep?"true":"false") );
     printf("       --threaded    (-t)        : multi-threaded (one thread per write pipe) (default false)\n");
     printf("       --testSecs    (-n) <n>    : (testing only) seconds between FPS changes by timeBasedDesiredFPS (default %d)\n", testSecs);
-    printf("       --endInSeconds(-n) <n>    : controls lifetime of Process, value must be in seconds (default %d)\n", endInSeconds);
+    printf("       --endInSeconds(-n) <n>    : controls lifetime of Process, value must be in seconds (default %lu)\n", endInSeconds);
     printf("\n");
     printf("NOTE: short form of all options is also accepted, eg -h for --help\n");
     printf("NOTE: if mininterval == maxinterval, time between simulated inputs is constant\n");
@@ -163,6 +163,6 @@ int OptParams::processOptions(int argc, char **argv)
     {
         mininterval = maxinterval = 0;
     }
-    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%ul/%ul/%ul\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
+    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%lu/%lu/%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
     return 0;
 }

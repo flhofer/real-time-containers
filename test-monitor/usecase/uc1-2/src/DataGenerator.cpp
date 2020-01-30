@@ -72,7 +72,7 @@ void openPipeAndGenerateData(PipeStruct *pWritePipe, PipeStruct * pReadPipe, Opt
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:393: Error Opening pipe for %s\n", progName);
+        fprintf(stderr, "DataGenerator.cpp:393: Error Opening pipe for %s\n", progName.c_str());
     }
     
 }
@@ -86,7 +86,7 @@ void updateOpenWritePipes(PipeStruct *p, std::atomic<int> &numPipes)
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:407: Error Opening pipe for %s\n", progName);
+        fprintf(stderr, "DataGenerator.cpp:407: Error Opening pipe for %s\n", progName.c_str());
     }
         
 }
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            optParams.dbg && fprintf(stderr, "%d: Thread #%d for fifo %s is NOT joinable\n",progName.c_str(), p->instance,  p->fifoName.c_str());
+            optParams.dbg && fprintf(stderr, "%s: Thread #%d for fifo %s is NOT joinable\n",progName.c_str(), p->instance,  p->fifoName.c_str());
         }
     }
     if (optParams.datagenerator == 0 && pReadPipe != nullptr)

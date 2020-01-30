@@ -1,13 +1,16 @@
 FROM debian
 
+# Log output directory
 RUN mkdir /home/logs && \
     chmod 777 /home/logs
 
+# Temp dir for pipes
 RUN mkdir /home/tmp && \
     chmod 777 /home/tmp
 
+# copy binary
 COPY workerapp  /home/workerapp0
-
+# Run version with scheduling parameters
 CMD chrt $scheduling /home/workerapp0 $cmdargs > /home/logs/workerapp0$sch.log 2>&1
-
+# Run without scheduling parameters
 # CMD /home/workerapp0 $cmdargs > /home/logs/workerapp0.log 2>&1
