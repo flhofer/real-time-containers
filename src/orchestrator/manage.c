@@ -124,6 +124,11 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
 //////  END TEMP ---------------------------------------------
 
+struct ftrace_elist {
+	struct ftrace_elist * next;
+	char* event;
+	int eventid;
+};
 
 /// createResTracer(): create resource tracing memory elements
 //
@@ -180,8 +185,13 @@ static int configureTracers(){
 	int notrace = valid_tracer("wakeup_rt") +
 			valid_tracer("wakeup_dl");
 
+	printDbg("Trace status %d", notrace);
 	// tracing_cpumask - hex string of tracing cpus!
-	event_enable("");
+
+	// TODO: add return value check
+	(void)event_disable_all();
+	(void)event_enable("sched/sched_stat_runtime");
+	// TODO: use event_getid to filter events
 
 	return notrace-2; // return number found versus needed
 }
@@ -229,6 +239,7 @@ struct tr_runtime {
 	uint32_t dummy  ; // 32 - 24 - alignment filler
 	uint64_t runtime; // 20 - 32
 	uint64_t vruntime; // 48 - 40
+	uint32_t dummy2  ; // 52 - 44 - alignment filler
 	// filled with 0's to 52
 };
 
@@ -242,7 +253,7 @@ static void *thread_ftrace(void *arg){
 
 	int pstate = 0;
 	int got = 0;
-	FILE *fp;
+	FILE *fp = NULL;
 	int* cpuno = (int *)arg;
 
 	// TODO: block not used signals
@@ -263,6 +274,7 @@ static void *thread_ftrace(void *arg){
 	} // END interrupt handler block
 
 	unsigned char buffer[PIPE_BUFFER];
+	struct tr_runtime *pFrame;
 
 	while(1) {
 
@@ -284,14 +296,15 @@ static void *thread_ftrace(void *arg){
 				err_msg ("File open failed");
 				break;
 			} /** IF_NULL **/
+
+			printDbg(PFX "Reading trace output from pipe...\n");
 			//no break
 
 		case 1:
 			pstate = 1;
 
-			printDbg(PFX "Reading trace output from pipe...\n");
 			// read output into buffer!
-			if (0 >= (got = fread (buffer, sizeof(unsigned char), PIPE_BUFFER-1, fp))) {
+			if (0 >= (got = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
 				if (got < -1) {
 					pstate = 2;
 					err_msg ("File read failed");
@@ -299,12 +312,28 @@ static void *thread_ftrace(void *arg){
 
 				break;
 			}
+			else if (buffer[0]==0 ) // empty buffer, it always starts with an ID
+				break;
 
 			// TODO: what are these first 20 bytes?
-			struct tr_runtime *pFrame = (struct tr_runtime *)(buffer+20);
-			printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
-					pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 
+			pFrame = (struct tr_runtime *)(buffer+20);
+			got -=20;
+
+			while ((NULL != (void*)pFrame) && (0 != pFrame->common_type)) {
+				printf( "type=%u flags=%u preempt=%u pid=%d : ",
+						pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+				printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
+						pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
+				pFrame = (struct tr_runtime *)(((void *)pFrame) + 52);
+				got -=52;
+
+				// end of pipe, end of buffer?
+				if (52 > got || 0x14 == pFrame->common_type){
+					break;
+				}
+			}
 			// TODO parse buffer
 
 			break;

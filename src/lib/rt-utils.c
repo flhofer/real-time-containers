@@ -246,6 +246,20 @@ int setevent(char *event, char *val)
 	return setkernvar(prefix, event, val, 0);
 }
 
+static int getevent(char *event)
+{
+	char *prefix = get_debugfileprefix();
+	char val[5];
+
+	if (!event) // null pointers
+		return -1;
+
+	if (getkernvar(prefix, event, val, 5) > 0)
+		return atoi(val);
+
+	return -1;
+}
+
 int event_enable_all(void)
 {
 	return setevent("events/enable", "1");
@@ -254,6 +268,14 @@ int event_enable_all(void)
 int event_disable_all(void)
 {
 	return setevent("events/enable", "0");
+}
+
+int event_getid(char *event)
+{
+	char path[MAX_PATH];
+
+	sprintf(path, "events/%s/id", event);
+	return getevent(path);
 }
 
 int event_enable(char *event)
