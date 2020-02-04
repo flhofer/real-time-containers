@@ -238,7 +238,7 @@ static int configureTracers(){
 ///
 static int startTraceRead() {
 
-	int ino_traceRead = 0;
+	int ino_traceRead = 0; // TODO: STATIC?
 	iret_traceRead = pthread_create( &thread_traceRead, NULL, thread_ftrace, &ino_traceRead);
 
 	return 0;
@@ -288,6 +288,7 @@ static int update_sched_info(struct tr_runtime * pFrame)
 	// for now does only a simple update
 	for (node_t * item = head; ((item)); item=item->next )
 		// skip deactivated tracking items
+
 		if (abs(item->pid)==pFrame->pid){
 				// item deactivated -> TODO actually an error!
 				if (item->pid<0)
@@ -638,7 +639,6 @@ static int updateStats ()
 					err_msg ("reading thread debug details %d", ret);
 				}
 			}
-
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex); 
@@ -667,9 +667,10 @@ static void dumpStats (){
 	}
 
 	for (;((item)); item=item->next)
-		if (policy_is_realtime(item->attr.sched_policy))
+//		TODO: commented out, for tests only
+//		if (policy_is_realtime(item->attr.sched_policy))
 			switch(item->attr.sched_policy){
-
+			default:
 			case SCHED_FIFO:
 			case SCHED_RR:
 				// TODO: cleanup print-out

@@ -362,6 +362,7 @@ int parse_bitmask(struct bitmask *mask, char * str){
 #define READ   0 // pipe position
 #define WRITE  1 
 
+// TODO: adapt constant to input
 FILE * popen2(char * command, char * type, pid_t * pid)
 {
     pid_t child_pid;

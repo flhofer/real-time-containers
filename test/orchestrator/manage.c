@@ -26,15 +26,54 @@ START_TEST(orchestrator_ftrace_stop)
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
+
+
+	const char * pidsig[] = {	"sleep 4",
+								"sleep 2",
+								"sleep 5",
+								NULL };
+
+	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
+	FILE * fd[sz_test];
+	pid_t pid[sz_test];
+
+	// set detect mode to pid
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	prgset->use_cgroup = DM_CMDLINE;
+
+	{
+		int i =0;
+		while (pidsig[i]) {
+			// new pid
+
+			fd[i] = popen2(pidsig[i], "r", &pid[i]);
+
+			node_push(&head);
+			head->pid = pid[i];
+			head->psig = strdup(pidsig[i]);
+
+			i++;
+		}
+	}
+
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
-	sleep(4);
+	sleep(2);
 //	// set stop sig
 	stat1 = -1;
 
+	for (int i=0; i< sz_test; i++)
+		pclose2(fd[i], pid[i], 0);
+
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+
+	// free memory
+	while (head)
+		node_pop(&head);
+
 }
 END_TEST
 
