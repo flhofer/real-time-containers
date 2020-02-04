@@ -172,8 +172,10 @@ static int manageSched(){
 
 struct ftrace_elist {
 	struct ftrace_elist * next;
-	char* event;
-	int eventid;
+	char* event;	// string identifier
+	int eventid;	// event kernel ID
+	int eventsz;	// event telegram size
+	int (*eventcall)(node_t **, void *); // event elaboration func
 };
 
 struct ftrace_elist * elist_head;
@@ -185,6 +187,35 @@ pthread_t thread_traceRead;
 int  iret_traceRead; // Timeout is set to 4 seconds by default
 int  ino_traceRead; // run parameters
 
+struct tr_wakeup {
+	uint16_t common_type; // 2
+	uint8_t common_flags; // 3
+	uint8_t common_preempt_count; //4
+	int32_t common_pid; // 8
+
+	char comm[16]; //24 - 16
+	pid_t pid; // 28 - 20
+	int32_t prio; // 32 - 24
+	int32_t success; // 36 - 28
+	int32_t target_cpu; // 40 - 32
+};
+
+struct tr_switch {
+	uint16_t common_type; // 2
+	uint8_t common_flags; // 3
+	uint8_t common_preempt_count; //4
+	int32_t common_pid; // 8
+
+	char comm[16]; //24 - 16
+	pid_t prev_pid; // 28 - 20
+	int32_t prev_prio; // 32 - 24
+	int64_t prev_state; // 40 - 32
+
+	char next_comm[16]; // 56 - 48
+	pid_t next_pid; // 60 - 52
+	int32_t next_prio; // 64 - 56
+};
+
 struct tr_runtime {
 	uint16_t common_type; // 2
 	uint8_t common_flags; // 3
@@ -194,13 +225,16 @@ struct tr_runtime {
 	char comm[16]; //24 - 16
 	pid_t pid; // 28 - 20
 	uint32_t dummy  ; // 32 - 24 - alignment filler
-	uint64_t runtime; // 20 - 32
+	uint64_t runtime; // 40 - 32
 	uint64_t vruntime; // 48 - 40
-	uint32_t dummy2  ; // 52 - 44 - alignment filler
 	// filled with 0's to 52
 };
 
 static void *thread_ftrace(void *arg);
+// functions to elaborate data for tracer frames
+static int pickPidInfoW(node_t ** item, void * addr);
+static int pickPidInfo(node_t ** item, void * addr);
+static int update_sched_info(node_t ** item, void * addr);
 
 /// configureTracers(): setup kernel function trace system
 ///
@@ -213,19 +247,37 @@ static int configureTracers(){
 	int notrace = valid_tracer("wakeup_rt") +
 			valid_tracer("wakeup_dl");
 
-	printDbg(PFX "Trace status %d\n", notrace);
+	printDbg(PFX "Present tracers, status %d\n", notrace);
 	// tracing_cpumask - hex string of tracing cpus!
 
 	if (2 == notrace) {
 		// TODO: add return value check
 		(void)event_disable_all();
-		(void)event_enable("sched/sched_stat_runtime");
-		// TODO: use event_getid to filter events
-		{
+
+		if (0 < event_enable("sched/sched_stat_runtime")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
 			elist_head->event = "sched_stat_runtime";
-		}
+			elist_head->eventsz = 52;
+			elist_head->eventcall = update_sched_info;
+		}// TODO: else
+
+		if (0 < event_enable("sched/sched_wakeup")) {
+			push((void**)&elist_head, sizeof(struct ftrace_elist));
+			elist_head->eventid = event_getid("sched/sched_wakeup");
+			elist_head->event = "sched_wakeup";
+			elist_head->eventsz = 44;
+			elist_head->eventcall = pickPidInfoW;
+		}// TODO: else
+
+		if (0 < event_enable("sched/sched_switch")) {
+			push((void**)&elist_head, sizeof(struct ftrace_elist));
+			elist_head->eventid = event_getid("sched/sched_switch");
+			elist_head->event = "sched_switch";
+			elist_head->eventsz = 68;
+			elist_head->eventcall = pickPidInfo;
+		}// TODO: else
+
 	}
 	return notrace-2; // return number found versus needed
 }
@@ -274,16 +326,41 @@ static void stphandTrace (int sig, siginfo_t *siginfo, void *context){
 
 // #################################### THREAD specific ############################################
 
+
+static int pickPidInfoW(node_t ** item, void * addr) {
+	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+
+
+	return 0;
+}
+
+
+static int pickPidInfo(node_t ** item, void * addr) {
+	struct tr_switch *pFrame = (struct tr_switch*)addr;
+
+
+	return 0;
+}
+
 /// update_sched_info(): update data with kernel tracer debug out
 ///
-/// Arguments:
+/// Arguments: - item to update with statistics
+///			   - frame containing the runtime info
 ///
 /// Return value: error code, 0 = success
 ///
-static int update_sched_info(struct tr_runtime * pFrame)
+static int update_sched_info(node_t ** item, void * addr)
 {
 
 	// TODO: change UpdateStats form item update to update item :) ??
+
+	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
+//	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
+//			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+//	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
+//			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
+
 
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
@@ -353,7 +430,8 @@ static void *thread_ftrace(void *arg){
 	} // END interrupt handler block
 
 	unsigned char buffer[PIPE_BUFFER];
-	struct tr_runtime *pFrame;
+	uint16_t *pType;
+	node_t * item;
 
 	while(1) {
 
@@ -397,23 +475,23 @@ static void *thread_ftrace(void *arg){
 
 			// TODO: what are these first 20 bytes?
 
-			pFrame = (struct tr_runtime *)(buffer+20);
+			pType = (uint16_t *)(buffer+20);
 			got -=20;
 
-			while ((NULL != (void*)pFrame) && (0 != pFrame->common_type)) {
-//				printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
-//						pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+			while ((NULL != (void*)pType) && (0 != *pType)) {
 
-//				printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
-//						pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
-
-				update_sched_info(pFrame);
-
-				pFrame = (struct tr_runtime *)(((void *)pFrame) + 52); // TODO: adapt to frame size
-				got -=52; // TODO: adapt to frame size
+				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
+					if (event->eventid == *pType) {
+						// pick event
+						event->eventcall(&item, (void*)pType);
+						pType += (event->eventsz/2); // TODO: hack, check 2byte steps
+						got -= event->eventsz;
+						break;
+					}
+					// TODO: no event? something went wrong, unconfigured event
 
 				// end of pipe, end of buffer?
-				if (52 > got || 0x14 == pFrame->common_type){
+				if (52 > got || 0x14 == *pType){
 					break;
 				}
 			}

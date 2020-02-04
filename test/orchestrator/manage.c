@@ -19,7 +19,7 @@
 #include <linux/sched.h>	// linux specific scheduling
 #include <check.h>
 
-/// TEST CASE -> Stop manage thread when setting status to -1
+/// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
 START_TEST(orchestrator_ftrace_stop)
 {	
@@ -28,7 +28,9 @@ START_TEST(orchestrator_ftrace_stop)
 	int stat1 = 0;
 
 
-	const char * pidsig[] = {	"test-monitor/test-container/rtapp test-monitor/test-container/rtapp.json",
+	const char * pidsig[] = {	"sleep 5",
+								"sleep 5",
+								"sleep 5",
 								NULL };
 
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
@@ -37,7 +39,7 @@ START_TEST(orchestrator_ftrace_stop)
 
 	// set detect mode to pid
 	free (prgset->cont_pidc);
-	prgset->cont_pidc = strdup("rtapp");
+	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
 
 	{
