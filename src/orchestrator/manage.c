@@ -327,17 +327,60 @@ static void stphandTrace (int sig, siginfo_t *siginfo, void *context){
 // #################################### THREAD specific ############################################
 
 
+static int pickPidCons(node_t *item){
+	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
+	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
+	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
+
+
+	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
+	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
+	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+
+	item->mon.dl_rt = 0;
+
+	return 0; // TODO:
+}
+
+
 static int pickPidInfoW(node_t ** item, void * addr) {
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
 
+	// TODO: change to RW locks
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	(void)pickPidCons(*item);
+
+	// for now does only a simple update
+	for (node_t * citem = head; ((citem)); citem=citem->next )
+		// skip deactivated tracking items
+		if (abs(citem->pid)==pFrame->pid){
+			*item = citem;
+			break;
+		}
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
 }
 
-
 static int pickPidInfo(node_t ** item, void * addr) {
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
 
+	// TODO: change to RW locks
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	(void)pickPidCons(*item);
+
+	// for now does only a simple update
+	for (node_t * citem = head; ((citem)); citem=citem->next )
+		// skip deactivated tracking items
+		if (abs(citem->pid)==pFrame->next_pid){
+			*item = citem;
+			break;
+		}
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
 }
@@ -351,9 +394,7 @@ static int pickPidInfo(node_t ** item, void * addr) {
 ///
 static int update_sched_info(node_t ** item, void * addr)
 {
-
 	// TODO: change UpdateStats form item update to update item :) ??
-
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
 //	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
 //			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
@@ -361,37 +402,16 @@ static int update_sched_info(node_t ** item, void * addr)
 //	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 //			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 
-
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// for now does only a simple update
-	for (node_t * item = head; ((item)); item=item->next )
-		// skip deactivated tracking items
+	// item deactivated -> TODO actually an error!
+	if ((*item)->pid<0)
+		return -1;
 
-		if (abs(item->pid)==pFrame->pid){
-				// item deactivated -> TODO actually an error!
-			if (item->pid<0)
-				break;
-
-			item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
-			item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
-			item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
-
-			if (pFrame->common_preempt_count) { // TODO: find out if before or after end
-				item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
-				item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
-				item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
-
-				item->mon.dl_rt = pFrame->runtime;
-
-			}
-			else
-				item->mon.dl_rt += pFrame->runtime;
-
-			item->mon.dl_count++;
-		}
+	(*item)->mon.dl_rt += pFrame->runtime;
+	(*item)->mon.dl_count++;
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
@@ -491,7 +511,7 @@ static void *thread_ftrace(void *arg){
 					// TODO: no event? something went wrong, unconfigured event
 
 				// end of pipe, end of buffer?
-				if (52 > got || 0x14 == *pType){
+				if (44 > got || 0x14 == *pType){ // TODO: test if got size necessary
 					break;
 				}
 			}
