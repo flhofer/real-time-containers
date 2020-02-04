@@ -124,12 +124,6 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
 //////  END TEMP ---------------------------------------------
 
-struct ftrace_elist {
-	struct ftrace_elist * next;
-	char* event;
-	int eventid;
-};
-
 /// createResTracer(): create resource tracing memory elements
 //
 /// Arguments: 
@@ -174,59 +168,22 @@ static int manageSched(){
 	return 0;
 }
 
+// #################################### THREAD configuration specific ############################################
 
-/// configureTracers(): setup kernel function trace system
-///
-/// Arguments: - none
-///
-/// Return value: (-) no of missing traces, 0 = success
-///
-static int configureTracers(){
-	int notrace = valid_tracer("wakeup_rt") +
-			valid_tracer("wakeup_dl");
+struct ftrace_elist {
+	struct ftrace_elist * next;
+	char* event;
+	int eventid;
+};
 
-	printDbg(PFX "Trace status %d\n", notrace);
-	// tracing_cpumask - hex string of tracing cpus!
-
-	// TODO: add return value check
-	(void)event_disable_all();
-	(void)event_enable("sched/sched_stat_runtime");
-	// TODO: use event_getid to filter events
-
-	return notrace-2; // return number found versus needed
-}
-
-/// get_sched_info2(): get kernel tracer debug out
-///
-/// Arguments: the node to get info for
-///
-/// Return value: error code, 0 = success
-///
-static int get_sched_info2()
-{
-
-	// TODO: change UpdateStats form item update to update item :)
-
-	return 0;
-
-}
+struct ftrace_elist * elist_head;
 
 // signal to keep status of triggers ext SIG
-volatile sig_atomic_t stop;
+volatile sig_atomic_t ftrace_stop;
 
 pthread_t thread_traceRead;
 int  iret_traceRead; // Timeout is set to 4 seconds by default
 int  ino_traceRead; // run parameters
-
-/// stphand(): interrupt handler for infinite while loop, help
-/// this function is called from outside, interrupt handling routine
-/// Arguments: - signal number of interrupt calling
-///
-/// Return value: -
-//TODO: check function with static
-static void stphand (int sig, siginfo_t *siginfo, void *context){
-	stop = 1;
-}
 
 struct tr_runtime {
 	uint16_t common_type; // 2
@@ -242,6 +199,123 @@ struct tr_runtime {
 	uint32_t dummy2  ; // 52 - 44 - alignment filler
 	// filled with 0's to 52
 };
+
+static void *thread_ftrace(void *arg);
+
+/// configureTracers(): setup kernel function trace system
+///
+/// Arguments: - none
+///
+/// Return value: (-) no of missing traces, 0 = success
+///
+static int configureTracers(){
+	// TODO: fix tracers poll
+	int notrace = valid_tracer("wakeup_rt") +
+			valid_tracer("wakeup_dl");
+
+	printDbg(PFX "Trace status %d\n", notrace);
+	// tracing_cpumask - hex string of tracing cpus!
+
+	if (2 == notrace) {
+		// TODO: add return value check
+		(void)event_disable_all();
+		(void)event_enable("sched/sched_stat_runtime");
+		// TODO: use event_getid to filter events
+		{
+			push((void**)elist_head, sizeof(struct ftrace_elist));
+			elist_head->eventid = event_getid("sched/sched_stat_runtime");
+			elist_head->event = "sched_stat_runtime";
+		}
+	}
+	return notrace-2; // return number found versus needed
+}
+
+/// startTraceRead(): start CPU tracing threads
+///
+/// Arguments:
+///
+/// Return value:
+///
+static int startTraceRead() {
+
+	int ino_traceRead = 0;
+	iret_traceRead = pthread_create( &thread_traceRead, NULL, thread_ftrace, &ino_traceRead);
+
+	return 0;
+}
+
+/// stopTraceRead(): stop CPU tracing threads
+///
+/// Arguments:
+///
+/// Return value:
+///
+static int stopTraceRead() {
+	if (!iret_traceRead) { // thread started successfully
+		pthread_kill (thread_traceRead, SIGINT); // tell linking threads to stop
+		iret_traceRead = pthread_join( thread_traceRead, NULL); // wait until end
+	}
+}
+
+
+// #################################### THREAD specific ############################################
+
+/// stphand(): interrupt handler for infinite while loop, help
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: -
+//TODO: check function with static
+static void stphand (int sig, siginfo_t *siginfo, void *context){
+	ftrace_stop = 1;
+}
+
+/// update_sched_info(): update data with kernel tracer debug out
+///
+/// Arguments:
+///
+/// Return value: error code, 0 = success
+///
+static int update_sched_info(struct tr_runtime * pFrame)
+{
+
+	// TODO: change UpdateStats form item update to update item :) ??
+
+	// TODO: change to RW locks
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// for now does only a simple update
+	for (node_t * item = head; ((item)); item=item->next )
+		// skip deactivated tracking items
+		if (abs(item->pid)==pFrame->pid){
+				// item deactivated -> TODO actually an error!
+				if (item->pid<0)
+					break;
+
+			item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
+			item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
+			item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
+
+			if (pFrame->common_preempt_count) { // TODO: find out if before or after end
+				item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
+				item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
+				item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+
+				item->mon.dl_rt = pFrame->runtime;
+
+			}
+			else
+				item->mon.dl_rt += pFrame->runtime;
+
+			item->mon.dl_count++;
+		}
+
+	(void)pthread_mutex_unlock(&dataMutex);
+
+	return 0;
+
+}
 
 /// thread_ftrace(): parse kernel tracer output
 ///
@@ -287,7 +361,8 @@ static void *thread_ftrace(void *arg){
 
 			if (-1 == access (fn, R_OK)) {
 				pstate = -1;
-				err_msg ("File access failed");
+				err_msg (PFX "Could not open trace pipe for CPU%d", *cpuno);
+				err_msg (PIN "Tracing for CPU%d disabled", *cpuno);
 				break;
 			} /** if file doesn't exist **/
 
@@ -321,20 +396,22 @@ static void *thread_ftrace(void *arg){
 			got -=20;
 
 			while ((NULL != (void*)pFrame) && (0 != pFrame->common_type)) {
-				printf( "type=%u flags=%u preempt=%u pid=%d : ",
-						pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+//				printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
+//						pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-				printf( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
-						pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
-				pFrame = (struct tr_runtime *)(((void *)pFrame) + 52);
-				got -=52;
+//				printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
+//						pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
+
+				update_sched_info(pFrame);
+
+				pFrame = (struct tr_runtime *)(((void *)pFrame) + 52); // TODO: adapt to frame size
+				got -=52; // TODO: adapt to frame size
 
 				// end of pipe, end of buffer?
 				if (52 > got || 0x14 == pFrame->common_type){
 					break;
 				}
 			}
-			// TODO parse buffer
 
 			break;
 
@@ -345,7 +422,7 @@ static void *thread_ftrace(void *arg){
 		case -1:
 			break;
 		}
-		if (stop) {
+		if (ftrace_stop) {
 			if (fp) // if open, close first
 				pstate = 2;
 			else // just exit
@@ -353,18 +430,13 @@ static void *thread_ftrace(void *arg){
 		}
 	}
 
+	printf(PFX "\nExit thread\n");
+	fflush(stderr);
+
 	return NULL;
 }
 
-/// startDocker(): start docker verification thread
-///
-/// Arguments:
-///
-/// Return value:
-///
-static int startTraceRead(int *cpuno, pthread_t thread) {
-	return pthread_create( &thread, NULL, thread_ftrace, cpuno);
-}
+// #################################### THREAD specific END ############################################
 
 /// get_sched_info(): get scheduler debug output info
 ///
@@ -525,6 +597,7 @@ static int updateStats ()
 			continue;
 		}
 
+		//TODO : move this to the container discovery
 		// update only when defaulting -> new entry, or every 100th scan
 		if (!(scount%prgset->loops) || (SCHED_NODATA == item->attr.sched_policy)) {
 			struct sched_attr attr_act;
@@ -558,12 +631,13 @@ static int updateStats ()
 		}
 
 		// get runtime value
-		if (policy_is_realtime(item->attr.sched_policy)) {
-			int ret;
-			if ((ret = get_sched_info(item)) ) {
-				err_msg ("reading thread debug details %d", ret);
-			} 
-		}
+		if (!prgset->ftrace) // use standard debug output for scheduler
+			if (policy_is_realtime(item->attr.sched_policy)) {
+				int ret;
+				if ((ret = get_sched_info(item)) ) {
+					err_msg ("reading thread debug details %d", ret);
+				}
+			}
 
 	}
 
@@ -638,8 +712,8 @@ void *thread_manage (void *arg)
 			if (configureTracers())
 				warn("Kernel function tracers not available");
 
-		int ino_traceRead = 0;
-		iret_traceRead = startTraceRead(&ino_traceRead, thread_traceRead);
+		// TODO use return function
+		(void)startTraceRead();
 		//no break
 
 	  case 1: // normal thread loop, check and update data
@@ -662,13 +736,9 @@ void *thread_manage (void *arg)
 	  // TODO: change to timer and settings based loop
 	  usleep(10000);
 	}
-	// TODO: Start using return value
-
 	// set stop signal
-	if (!iret_traceRead) { // thread started successfully
-		pthread_kill (thread_traceRead, SIGINT); // tell linking threads to stop
-		iret_traceRead = pthread_join( thread_traceRead, NULL); // wait until end
-	}
+	stopTraceRead();
+
 	// TODO: Start using return value
 	return EXIT_SUCCESS;
 }
