@@ -222,7 +222,7 @@ static int configureTracers(){
 		(void)event_enable("sched/sched_stat_runtime");
 		// TODO: use event_getid to filter events
 		{
-			push((void**)elist_head, sizeof(struct ftrace_elist));
+			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
 			elist_head->event = "sched_stat_runtime";
 		}
@@ -241,6 +241,7 @@ static int startTraceRead() {
 	int ino_traceRead = 0; // TODO: STATIC?
 	iret_traceRead = pthread_create( &thread_traceRead, NULL, thread_ftrace, &ino_traceRead);
 
+	// TODO: add return value
 	return 0;
 }
 
@@ -255,10 +256,10 @@ static int stopTraceRead() {
 		pthread_kill (thread_traceRead, SIGINT); // tell linking threads to stop
 		iret_traceRead = pthread_join( thread_traceRead, NULL); // wait until end
 	}
+
+	// TODO: add return value
+	return 0;
 }
-
-
-// #################################### THREAD specific ############################################
 
 /// stphand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -266,9 +267,12 @@ static int stopTraceRead() {
 ///
 /// Return value: -
 //TODO: check function with static
-static void stphand (int sig, siginfo_t *siginfo, void *context){
+static void stphandTrace (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
+
+
+// #################################### THREAD specific ############################################
 
 /// update_sched_info(): update data with kernel tracer debug out
 ///
@@ -291,8 +295,8 @@ static int update_sched_info(struct tr_runtime * pFrame)
 
 		if (abs(item->pid)==pFrame->pid){
 				// item deactivated -> TODO actually an error!
-				if (item->pid<0)
-					break;
+			if (item->pid<0)
+				break;
 
 			item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 			item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
@@ -337,7 +341,7 @@ static void *thread_ftrace(void *arg){
 		memset (&act, '\0', sizeof(act));
 
 		/* Use the sa_sigaction field because the handles has two additional parameters */
-		act.sa_sigaction = &stphand;
+		act.sa_sigaction = &stphandTrace;
 
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
 		act.sa_flags = SA_SIGINFO;
