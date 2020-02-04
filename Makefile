@@ -77,7 +77,7 @@ VPATH	+= src/lib:
 VPATH	+= test-monitor/usecase/uc1-2/src:
 
 .PHONY: all
-all: $(TARGETS) usecases | $(OBJDIR)
+all: $(TARGETS) usecases check | $(OBJDIR)
 
 # include use case builds
 include test-monitor/usecase/uc1-2/src/Makefile
@@ -104,6 +104,8 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.
 
 check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+	
+test:
 	./check_test
 
 # lib containing include lib in one binary file
@@ -141,7 +143,8 @@ help:
 	@echo ""
 	@echo "    all       :  build all tests (default)"
 	@echo "    install   :  install tests to local filesystem"
-	@echo "    check     :  build and run unit tests
+	@echo "    check     :  build unit tests
+	@echo "    test      :  run unit tests
 	@echo "    clean     :  remove object files"
 	@echo "    tarball   :  make a tarball suitable for release"
 	@echo "    help      :  print this message"

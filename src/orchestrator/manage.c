@@ -185,7 +185,7 @@ static int configureTracers(){
 	int notrace = valid_tracer("wakeup_rt") +
 			valid_tracer("wakeup_dl");
 
-	printDbg("Trace status %d", notrace);
+	printDbg(PFX "Trace status %d\n", notrace);
 	// tracing_cpumask - hex string of tracing cpus!
 
 	// TODO: add return value check

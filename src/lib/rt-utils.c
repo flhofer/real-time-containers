@@ -241,7 +241,7 @@ int setevent(char *event, char *val)
 	if (!event || !val) // null pointers
 		return -1;
 
-	printDbg(PFX "Setting event for tracer '%s' to '%s'", event, val);
+	printDbg(PFX "Setting event for tracer '%s' to '%s'\n", event, val);
 
 	return setkernvar(prefix, event, val, 0);
 }
