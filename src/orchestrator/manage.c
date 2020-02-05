@@ -25,6 +25,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <numa.h>			// NUMA node identification
+#include <sys/sysinfo.h>	// system general information
 
 // parameter tree linked list head, resource linked list head
 static struct resTracer * rhead;
@@ -170,6 +171,7 @@ static int manageSched(){
 
 // #################################### THREAD configuration specific ############################################
 
+// Linked list of event configurations and handlers
 struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
@@ -177,15 +179,19 @@ struct ftrace_elist {
 	int eventsz;	// event telegram size
 	int (*eventcall)(node_t **, void *); // event elaboration func
 };
-
 struct ftrace_elist * elist_head;
+
+// Linked list of CPU threads
+struct ftrace_thread {
+	struct ftrace_thread * next;
+	pthread_t thread;	// thread information
+	int iret;			// return value of thread launch
+	int cpuno;			// CPU number monitored
+};
+struct ftrace_thread * elist_thead;
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t ftrace_stop;
-
-pthread_t thread_traceRead;
-int  iret_traceRead; // Timeout is set to 4 seconds by default
-int  ino_traceRead; // run parameters
 
 struct tr_wakeup {
 	uint16_t common_type; // 2
@@ -290,8 +296,15 @@ static int configureTracers(){
 ///
 static int startTraceRead() {
 
-	static int ino_traceRead = 0; // TODO: STATIC?
-	iret_traceRead = pthread_create( &thread_traceRead, NULL, thread_ftrace, &ino_traceRead);
+	int maxcpu = get_nprocs();
+	// loop through, bit set = start a thread and store in ll
+	for (int i=0;i<maxcpu  ;i++)
+		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
+			push((void**)&elist_thead, sizeof(elist_thead));
+			elist_thead->cpuno = i;
+			//TODO: return value
+			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
+		}
 
 	// TODO: add return value
 	return 0;
@@ -304,16 +317,22 @@ static int startTraceRead() {
 /// Return value:
 ///
 static int stopTraceRead() {
-	if (!iret_traceRead) { // thread started successfully
-		pthread_kill (thread_traceRead, SIGINT); // tell linking threads to stop
-		iret_traceRead = pthread_join( thread_traceRead, NULL); // wait until end
-	}
+
+	// loop through, existing list elements, send kill and join
+	while ((elist_thead))
+		if (!elist_thead->iret) { // thread started successfully
+			//TODO: return value
+			(void)pthread_kill (elist_thead->thread, SIGINT); // tell linking threads to stop
+			//TODO: return value
+			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
+			pop((void**)&elist_thead);
+		}
 
 	// TODO: add return value
 	return 0;
 }
 
-/// stphand(): interrupt handler for infinite while loop, help
+/// stphandTrace(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///

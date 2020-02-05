@@ -811,7 +811,9 @@ void *thread_update (void *arg)
 	// set stop signal
 
 	if (!iret_dlink) { // thread started successfully
-		pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+		//TODO: return value
+		(void)pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+		//TODO: return value
 		iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
 	}
 	// TODO: Start using return value
