@@ -27,8 +27,7 @@
 #include <numa.h>			// NUMA node identification
 #include <sys/sysinfo.h>	// system general information
 
-// parameter tree linked list head, resource linked list head
-static struct resTracer * rhead;
+// total scan counter for updatestats
 static uint64_t scount = 0; // total scan count
 
 // for musl systems
@@ -55,9 +54,10 @@ static uint64_t scount = 0; // total scan count
 #define PIPE_BUFFER			4096
 
 
-////// TEMP ---------------------------------------------
+// ################################### dynamic schedule simple #####################################
 
 #define MAX_UL 0.90
+static struct resTracer * rhead;
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
@@ -65,8 +65,8 @@ static uint64_t scount = 0; // total scan count
 ///
 /// Return value: 0 = ok, -1 = no space, 1 = ok but recalc base
 static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
-	uint64_t	base = res->basePeriod,
-				used = res->usedPeriod;
+	uint64_t base = res->basePeriod;
+	uint64_t used = res->usedPeriod;
 	int rv = 0;
 	
 	if (base % par->sched_deadline != 0) {
@@ -77,7 +77,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 			fatal("Nanosecond resolution periods not supported!");
 			// temporary solution to avoid very long loops
 
-		while(1) //Alway True
+		while(1) //Always True
 		{
 			if(max_Value % base == 0 && max_Value % par->sched_period == 0) 
 			{
@@ -123,8 +123,6 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 }
 
-//////  END TEMP ---------------------------------------------
-
 /// createResTracer(): create resource tracing memory elements
 //
 /// Arguments: 
@@ -132,7 +130,7 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 /// Return value: N/D - int
 ///
 static int createResTracer(){
-	// mask affinity and invert for system map / readout of smi of online CPUs
+
 	for (int i=0;i<(prgset->affinity_mask->size);i++) 
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
@@ -142,6 +140,9 @@ static int createResTracer(){
 	}		
 	return 0;
 }
+
+// ################################### end dynamic schedule simple #####################################
+
 
 /// manageSched(): main function called to reassign resources
 ///

@@ -104,8 +104,8 @@
 
 	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
-		int32_t affinity; 		// exclusive cpu-num
-		uint64_t usedPeriod;	// amount of cputime left..
+		int32_t affinity; 		// exclusive CPU-num
+		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 		// TODO: fill with other values, i.e. memory amounts ecc
 	} resTracer_t;
