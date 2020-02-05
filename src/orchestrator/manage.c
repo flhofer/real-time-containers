@@ -206,7 +206,7 @@ struct tr_switch {
 	uint8_t common_preempt_count; //4
 	int32_t common_pid; // 8
 
-	char comm[16]; //24 - 16
+	char prev_comm[16]; //24 - 16
 	pid_t prev_pid; // 28 - 20
 	int32_t prev_prio; // 32 - 24
 	int64_t prev_state; // 40 - 32
@@ -290,7 +290,7 @@ static int configureTracers(){
 ///
 static int startTraceRead() {
 
-	int ino_traceRead = 0; // TODO: STATIC?
+	static int ino_traceRead = 0; // TODO: STATIC?
 	iret_traceRead = pthread_create( &thread_traceRead, NULL, thread_ftrace, &ino_traceRead);
 
 	// TODO: add return value
@@ -346,12 +346,21 @@ static int pickPidCons(node_t *item){
 static int pickPidInfoW(node_t ** item, void * addr) {
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
 
+	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	printDbg("comm=%s pid=%d prio=%d target_cpu=%03d\n",
+			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
+
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	(void)pickPidCons(*item);
+	if ((*item))
+		(void)pickPidCons(*item);
 
+	// reset item, remains null if not found
+	*item=NULL;
 	// for now does only a simple update
 	for (node_t * citem = head; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
@@ -359,6 +368,7 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 			*item = citem;
 			break;
 		}
+
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
@@ -366,13 +376,25 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 
 static int pickPidInfo(node_t ** item, void * addr) {
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
+	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	printDbg("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
+				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
+//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
+//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
+//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
 
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	(void)pickPidCons(*item);
+	if ((*item))
+		(void)pickPidCons(*item);
 
+	// reset item, remains null if not found
+	*item=NULL;
 	// for now does only a simple update
 	for (node_t * citem = head; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
@@ -396,26 +418,25 @@ static int update_sched_info(node_t ** item, void * addr)
 {
 	// TODO: change UpdateStats form item update to update item :) ??
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
-//	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
-//			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-//	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
-//			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
+	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
+			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
 	// item deactivated -> TODO actually an error!
-	if ((*item)->pid<0)
-		return -1;
-
-	(*item)->mon.dl_rt += pFrame->runtime;
-	(*item)->mon.dl_count++;
+	if ((*item) && (*item)->pid > 0) {
+		(*item)->mon.dl_rt += pFrame->runtime;
+		(*item)->mon.dl_count++;
+	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return 0;
+	return 0; // implement return values
 
 }
 
