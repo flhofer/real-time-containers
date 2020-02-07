@@ -745,6 +745,7 @@ void *thread_update (void *arg)
 			break;
 		case -1:
 			*pthread_state=-2; // must be first thing! -> main writes -1 to stop
+			(void)printf(PFX "Stopping\n");
 			if (!prgset->quiet)	
 				(void)printf("\n");
 			// tidy or whatever is necessary
@@ -765,10 +766,11 @@ void *thread_update (void *arg)
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
 			// set stop signal
 			if (!iret_dlink) { // thread started successfully
+				(void)printf(PFX "Stopping threads\n");
 				pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
 				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
 			}
-			(void)printf(PFX "Threads stopped");
+			(void)printf(PFX "Threads stopped\n");
 			//no break
 
 		case -99:
@@ -829,7 +831,8 @@ void *thread_update (void *arg)
 		cc%=prgset->loops;
 	}
 
-	(void)printf(PFX "Stopped");
+	(void)printf(PFX "Stopped\n");
+	pthread_exit(0); // exit the thread signaling normal return
 	// TODO: Start using return value
 	return NULL;
 }

@@ -339,7 +339,7 @@ static int stopTraceRead() {
 ///
 /// Return value: -
 //TODO: check function with static
-static void stphandTrace (int sig, siginfo_t *siginfo, void *context){
+void stphandTrace (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
@@ -539,7 +539,7 @@ static void *thread_ftrace(void *arg){
 			pType = (uint16_t *)(buffer+20);
 			got -=20;
 
-			while ((NULL != (void*)pType) && (0 != *pType)) {
+			while ((NULL != (void*)pType) && (0 != *pType) && (!ftrace_stop)) {
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					if (event->eventid == *pType) {
@@ -807,6 +807,7 @@ static void dumpStats (){
 	// no PIDs in list
 	if (!item) {
 		(void)printf("(no PIDs)\n");
+		return;
 	}
 
 	for (;((item)); item=item->next)
@@ -875,12 +876,13 @@ void *thread_manage (void *arg)
 		*pthread_state=-2;
 		// tidy or whatever is necessary
 		dumpStats();
-	    // no break
+		// no break
 
 	  case -2:
 		*pthread_state=-99;
 		// set stop signal to dependent threads
 		if (prgset->ftrace) {
+			(void)printf(PFX "Stopping threads");
 			(void)stopTraceRead();
 			(void)printf(PFX "Threads stopped");
 		}
@@ -899,6 +901,7 @@ void *thread_manage (void *arg)
 	}
 
 	(void)printf(PFX "Stopped");
+	pthread_exit(0); // exit the thread signaling normal return
 	// TODO: Start using return value
 	return NULL;
 }
