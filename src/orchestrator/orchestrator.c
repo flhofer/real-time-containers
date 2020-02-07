@@ -1170,7 +1170,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, inthand); // KILL termination or end of test
 	signal(SIGUSR1, inthand); // USR1 signal, not handled yet TODO
 
-	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
+	while (!stop && (t_stat1 > -99 || t_stat2 > -99)) {
 		sleep (1);
 	}
 

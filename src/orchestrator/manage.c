@@ -872,18 +872,32 @@ void *thread_manage (void *arg)
 		break;
 
 	  case -1:
+		*pthread_state=-2;
 		// tidy or whatever is necessary
 		dumpStats();
-		pthread_exit(0); // exit the thread signaling normal return
+	    // no break
+
+	  case -2:
+		*pthread_state=-99;
+		// set stop signal to dependent threads
+//		if (prgset->ftrace)
+		(void)stopTraceRead();
+		// no break
+		(void)printf(PFX "Manage threads stopped" );
+	  case -99:
+		//		pthread_exit(0); // exit the thread signaling normal return
 		break;
 	  }
+
+	  // STOP Loop?
+	  if (-99 == *pthread_state)
+		break;
+
 	  // TODO: change to timer and settings based loop
 	  usleep(10000);
 	}
-	// set stop signal
-	stopTraceRead();
 
 	// TODO: Start using return value
-	return EXIT_SUCCESS;
+	return NULL;
 }
 

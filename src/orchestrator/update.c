@@ -753,13 +753,27 @@ void *thread_update (void *arg)
 			// Done -> print total runtime, now updated every cycle
 			info("Total test runtime is %ld seconds", now.tv_sec - old.tv_sec);
 
-			break;
+			//no break
 		case -2:
+			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
+			// set stop signal
+			if (!iret_dlink) { // thread started successfully
+				pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
+			}
+			//no break
+
+		case -99:
 			// exit
-//			pthread_exit(0); // exit the thread signaling normal return
+			//		pthread_exit(0); // exit the thread signaling normal return
 			break;
 		}
 
+		// STOP Loop?
+		if (-99 == *pthread_state)
+			break;
+
+		// If not, which timer?
 		if (SCHED_DEADLINE == prgset->policy){
 			// perfect sync with period here, allow replenish 
 			if (pthread_yield()){
@@ -786,8 +800,6 @@ void *thread_update (void *arg)
 					warn("clock_nanosleep() failed. errno: %s",strerror (ret));
 				}
 			}
-
-
 		}
 
 		// we have a max runtime. Stop! -> after the clock_nanosleep time will be `intervaltv`
@@ -808,15 +820,8 @@ void *thread_update (void *arg)
 		cc++;
 		cc%=prgset->loops;
 	}
-	// set stop signal
 
-	if (!iret_dlink) { // thread started successfully
-		//TODO: return value
-		(void)pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
-		//TODO: return value
-		iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
-	}
 	// TODO: Start using return value
-	return EXIT_SUCCESS;
+	return NULL;
 }
 
