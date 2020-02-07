@@ -1174,7 +1174,7 @@ int main(int argc, char **argv)
 		sleep (1);
 	}
 
-	// signal shutdown to threads
+	// signal shutdown to threads if not set
 	if (-1 < t_stat1) // only if not already done internally
 		t_stat1 = -1;
 	if (-1 < t_stat2) // only if not already done internally 

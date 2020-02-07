@@ -59,6 +59,13 @@ static int clocksources[] = {
 	#define pthread_yield sched_yield
 #endif
 
+// TODO: standardize printing
+#define PFX "[update] "
+#define PFL "         "PFX
+#define PIN PFX"    "
+#define PIN2 PIN"    "
+#define PIN3 PIN2"    "
+
 // declarations 
 static void scanNew();
 
@@ -761,6 +768,7 @@ void *thread_update (void *arg)
 				pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
 				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
 			}
+			(void)printf(PFX "Threads stopped");
 			//no break
 
 		case -99:
@@ -821,6 +829,7 @@ void *thread_update (void *arg)
 		cc%=prgset->loops;
 	}
 
+	(void)printf(PFX "Stopped");
 	// TODO: Start using return value
 	return NULL;
 }

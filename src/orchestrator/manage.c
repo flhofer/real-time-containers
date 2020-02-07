@@ -852,12 +852,12 @@ void *thread_manage (void *arg)
 	  {
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
-		if (prgset->ftrace)
+		if (prgset->ftrace) {
 			if (configureTracers())
 				warn("Kernel function tracers not available");
-
-		// TODO use return function
-		(void)startTraceRead();
+			// TODO use return function
+			(void)startTraceRead();
+		}
 		//no break
 
 	  case 1: // normal thread loop, check and update data
@@ -880,10 +880,11 @@ void *thread_manage (void *arg)
 	  case -2:
 		*pthread_state=-99;
 		// set stop signal to dependent threads
-//		if (prgset->ftrace)
-		(void)stopTraceRead();
+		if (prgset->ftrace) {
+			(void)stopTraceRead();
+			(void)printf(PFX "Threads stopped");
+		}
 		// no break
-		(void)printf(PFX "Manage threads stopped" );
 	  case -99:
 		//		pthread_exit(0); // exit the thread signaling normal return
 		break;
@@ -897,6 +898,7 @@ void *thread_manage (void *arg)
 	  usleep(10000);
 	}
 
+	(void)printf(PFX "Stopped");
 	// TODO: Start using return value
 	return NULL;
 }
