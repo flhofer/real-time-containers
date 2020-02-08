@@ -464,6 +464,7 @@ static int update_sched_info(node_t ** item, void * addr)
 	// item deactivated -> TODO actually an error!
 	if ((*item) && (*item)->pid > 0) {
 		(*item)->mon.dl_rt += pFrame->runtime;
+		(*item)->mon.dl_scanfail += pFrame->common_preempt_count;
 		(*item)->mon.dl_count++;
 	}
 

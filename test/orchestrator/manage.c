@@ -28,8 +28,8 @@ START_TEST(orchestrator_ftrace_stop)
 	int stat1 = 0;
 
 
-	const char * pidsig[] = {	"sleep 5",
-								"sleep 5",
+	const char * pidsig[] = {	"sleep 5.2",
+								"sleep 4.8",
 								"sleep 5",
 								NULL };
 
