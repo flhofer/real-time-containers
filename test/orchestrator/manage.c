@@ -60,7 +60,7 @@ START_TEST(orchestrator_ftrace_stop)
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
-	sleep(2);
+	sleep(4);
 //	// set stop sig
 	stat1 = -1;
 

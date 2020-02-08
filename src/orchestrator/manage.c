@@ -194,6 +194,13 @@ struct ftrace_thread * elist_thead = NULL;
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t ftrace_stop;
 
+struct tr_common {
+	uint16_t common_type;
+	uint8_t common_flags;
+	uint8_t common_preempt_count;
+	int32_t common_pid;
+};
+
 struct tr_wakeup {
 	uint16_t common_type; // 2
 	uint8_t common_flags; // 3
@@ -334,6 +341,12 @@ static int stopTraceRead() {
 
 // #################################### THREAD specific ############################################
 
+static int pickPidCommon(node_t ** item, void * addr) {
+	struct tr_common *pFrame = (struct tr_common*)addr;
+
+	printDbg( "type=%u flags=%u preempt=%u pid=%d\n",
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+}
 
 static int pickPidCons(node_t *item){
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
@@ -353,13 +366,13 @@ static int pickPidCons(node_t *item){
 
 static int pickPidInfoW(node_t ** item, void * addr) {
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
-
+/*
 	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
 	printDbg("comm=%s pid=%d prio=%d target_cpu=%03d\n",
 			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
-
+*/
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -384,16 +397,16 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 
 static int pickPidInfo(node_t ** item, void * addr) {
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
+/*
 	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
-
 	printDbg("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
 //				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
 //				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
 //						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
 						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
-
+*/
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -426,16 +439,28 @@ static int update_sched_info(node_t ** item, void * addr)
 {
 	// TODO: change UpdateStats form item update to update item :) ??
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
+/*
 	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
 	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
-
+*/
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
+	// reset item, remains null if not found
+	if (!(*item) || ((*item) && (*item)->pid != pFrame->pid)) {
+		*item=NULL;
+		// for now does only a simple update
+		for (node_t * citem = head; ((citem)); citem=citem->next )
+			// skip deactivated tracking items
+			if (abs(citem->pid)==pFrame->pid){
+				*item = citem;
+				break;
+			}
+	}
 	// item deactivated -> TODO actually an error!
 	if ((*item) && (*item)->pid > 0) {
 		(*item)->mon.dl_rt += pFrame->runtime;
@@ -511,16 +536,24 @@ static void *thread_ftrace(void *arg){
 			got -=20;
 
 			while ((NULL != (void*)pType) && (0 != *pType) && (!ftrace_stop)) {
-
-				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
+				struct ftrace_elist * event = elist_head;
+				for (; ((event)); event=event->next)
 					if (event->eventid == *pType) {
 						// pick event
-						event->eventcall(&item, (void*)pType);
+						// todo return value
+						(void)event->eventcall(&item, (void*)pType);
 						pType += (event->eventsz/2); // TODO: hack, check 2byte steps
 						got -= event->eventsz;
 						break;
 					}
-					// TODO: no event? something went wrong, unconfigured event
+
+				if (!event){ // special chars.. TODO: find out
+					// todo return value
+//					(void)pickPidCommon(&item, (void*)pType);
+					pType += sizeof(struct tr_common)/2; // TODO: hack, check 2byte steps
+					got -= sizeof(struct tr_common);
+				}
+				// TODO: no event? something went wrong, unconfigured event
 
 				// end of pipe, end of buffer?
 				if (44 > got || 0x14 == *pType){ // TODO: test if got size necessary

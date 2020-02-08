@@ -29,6 +29,10 @@ static void orchestrator_update_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
+	prgset->affinity= "0"; // todo, detect
+	prgset->affinity_mask = parse_cpumask(prgset->affinity, 4); // TODO: hardcoded
+
+
 	prgset->logdir = strdup("./");
 	prgset->logbasename = strdup("orchestrator.txt");
 	prgset->logsize = 0;
