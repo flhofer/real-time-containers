@@ -240,7 +240,7 @@ void *thread_watch_docker(void *arg) {
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
 		act.sa_flags = SA_SIGINFO;
 	 
-		if (sigaction(SIGINT, &act, NULL) < 0) { // INT signal, stop from main prg
+		if (sigaction(SIGHUP, &act, NULL) < 0) { // INT signal, stop from main prg
 			perror ("Setup of sigaction failed");  
 			exit(EXIT_FAILURE); // exit the software, not working
 		}

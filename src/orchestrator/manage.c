@@ -189,7 +189,7 @@ struct ftrace_thread {
 	int iret;			// return value of thread launch
 	int cpuno;			// CPU number monitored
 };
-struct ftrace_thread * elist_thead;
+struct ftrace_thread * elist_thead = NULL;
 
 // signal to keep status of triggers ext SIG
 volatile sig_atomic_t ftrace_stop;
@@ -319,11 +319,10 @@ static int startTraceRead() {
 ///
 static int stopTraceRead() {
 
-	// loop through, existing list elements, send kill and join
+	// loop through, existing list elements, and join
+	ftrace_stop = 1;
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
-			//TODO: return value
-			(void)pthread_kill (elist_thead->thread, SIGINT); // tell linking threads to stop
 			//TODO: return value
 			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
 			pop((void**)&elist_thead);
@@ -332,17 +331,6 @@ static int stopTraceRead() {
 	// TODO: add return value
 	return 0;
 }
-
-/// stphandTrace(): interrupt handler for infinite while loop, help
-/// this function is called from outside, interrupt handling routine
-/// Arguments: - signal number of interrupt calling
-///
-/// Return value: -
-//TODO: check function with static
-void stphandTrace (int sig, siginfo_t *siginfo, void *context){
-	ftrace_stop = 1;
-}
-
 
 // #################################### THREAD specific ############################################
 
@@ -473,23 +461,6 @@ static void *thread_ftrace(void *arg){
 	FILE *fp = NULL;
 	int* cpuno = (int *)arg;
 
-	// TODO: block not used signals
-	{ // setup interrupt handler block
-		struct sigaction act;
-		memset (&act, '\0', sizeof(act));
-
-		/* Use the sa_sigaction field because the handles has two additional parameters */
-		act.sa_sigaction = &stphandTrace;
-
-		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
-		act.sa_flags = SA_SIGINFO;
-
-		if (sigaction(SIGINT, &act, NULL) < 0) { // INT signal, stop from main prg
-			perror ("Setup of sigaction failed");
-			exit(EXIT_FAILURE); // exit the software, not working
-		}
-	} // END interrupt handler block
-
 	unsigned char buffer[PIPE_BUFFER];
 	uint16_t *pType;
 	node_t * item;
@@ -556,25 +527,24 @@ static void *thread_ftrace(void *arg){
 					break;
 				}
 			}
-
-			break;
+			if (!ftrace_stop)
+				break;
+			// no break
 
 		case 2:
 			fclose (fp);
 			pstate = -1;
 			//no break
+
 		case -1:
 			break;
 		}
 		if (ftrace_stop) {
-			if (fp) // if open, close first
-				pstate = 2;
-			else // just exit
-				break;
+			break;
 		}
 	}
 
-	printf(PFX "\nExit thread\n");
+	printf(PFX "Exit fTrace CPU%d thread\n", *cpuno);
 	fflush(stderr);
 
 	return NULL;
@@ -882,9 +852,9 @@ void *thread_manage (void *arg)
 		*pthread_state=-99;
 		// set stop signal to dependent threads
 		if (prgset->ftrace) {
-			(void)printf(PFX "Stopping threads");
+			(void)printf(PFX "Stopping threads\n");
 			(void)stopTraceRead();
-			(void)printf(PFX "Threads stopped");
+			(void)printf(PFX "Threads stopped\n");
 		}
 		// no break
 	  case -99:
@@ -900,8 +870,7 @@ void *thread_manage (void *arg)
 	  usleep(10000);
 	}
 
-	(void)printf(PFX "Stopped");
-	pthread_exit(0); // exit the thread signaling normal return
+	(void)printf(PFX "Stopped\n");
 	// TODO: Start using return value
 	return NULL;
 }

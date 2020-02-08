@@ -77,7 +77,7 @@ char * config = "config.json";
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-void inthand ( int signum ) {
+void inthand (int sig, siginfo_t *siginfo, void *context){
 	stop = 1;
 }
 
@@ -1164,11 +1164,46 @@ int main(int argc, char **argv)
 		if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) // future avoids page creation
 			err_exit_n(errno, "MLockall failed"); */
 
-	// set interrupt sig hand
-	// TODO: change to sigaction, mask unused signals
-	signal(SIGINT, inthand); // CTRL+C
-	signal(SIGTERM, inthand); // KILL termination or end of test
-	signal(SIGUSR1, inthand); // USR1 signal, not handled yet TODO
+	{ // setup interrupt handler block
+		struct sigaction act;
+
+		/* Use the sa_sigaction field because the handles has two additional parameters */
+		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_handler = NULL;
+		act.sa_sigaction = &inthand;
+		act.sa_flags = SA_SIGINFO;
+
+		/* blocking signal set */
+		sigemptyset(&act.sa_mask);
+		sigaddset(&act.sa_mask, SIGINT);
+		sigaddset(&act.sa_mask, SIGTERM);
+		sigaddset(&act.sa_mask, SIGQUIT);
+		sigaddset(&act.sa_mask, SIGUSR1);
+
+		act.sa_restorer = NULL;
+
+		if ((sigaction(SIGINT, &act, NULL) < 0)		 // CTRL+C
+			|| (sigaction(SIGTERM, &act, NULL) < 0)  // KILL termination or end of test
+			|| (sigaction(SIGUSR1, &act, NULL) < 0)) // USR1 signal, not handled yet TODO
+		{ // INT signal, stop from main prg
+			perror ("Setup of sigaction failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	} // END interrupt handler block
+	{
+		 sigset_t set;
+	   /* Block SIGQUIT and SIGUSR1; other threads created by main()
+		  will inherit a copy of the signal mask. */
+
+	   sigemptyset(&set);
+	   sigaddset(&set, SIGQUIT);
+	   sigaddset(&set, SIGUSR2);
+	   if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
+		{ // INT signal, stop from main prg
+			perror ("Setup of sigmask failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	}
 
 	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);

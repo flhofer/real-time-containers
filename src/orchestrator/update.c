@@ -636,7 +636,7 @@ static void scanNew () {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc = 0, ret;
+	int cc = 0, ret, stop = 0;
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
@@ -766,11 +766,11 @@ void *thread_update (void *arg)
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
 			// set stop signal
 			if (!iret_dlink) { // thread started successfully
-				(void)printf(PFX "Stopping threads\n");
-				pthread_kill (thread_dlink, SIGINT); // tell linking threads to stop
+				// todo: return values
+				(void)pthread_kill (thread_dlink, SIGHUP); // tell linking threads to stop
 				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
+				(void)printf(PFX "Threads stopped\n");
 			}
-			(void)printf(PFX "Threads stopped\n");
 			//no break
 
 		case -99:
@@ -821,10 +821,12 @@ void *thread_update (void *arg)
 				*pthread_state=-1;
 			}
 
-			if (old.tv_sec + prgset->runtime <= now.tv_sec
-				&& old.tv_nsec <= now.tv_nsec) 
+			if (!stop && old.tv_sec + prgset->runtime <= now.tv_sec
+				&& old.tv_nsec <= now.tv_nsec) {
 				// set stop signal
 				raise (SIGTERM); // tell main to stop
+				stop = 1;
+			}
 		}
 
 		cc++;
@@ -832,7 +834,6 @@ void *thread_update (void *arg)
 	}
 
 	(void)printf(PFX "Stopped\n");
-	pthread_exit(0); // exit the thread signaling normal return
 	// TODO: Start using return value
 	return NULL;
 }
