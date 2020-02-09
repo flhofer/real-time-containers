@@ -1,7 +1,7 @@
 # Set the working directory
 source("funcs.R")
 
-setwd("./container/pretest/")
+setwd("./pretest/")
 options("width"=200)
 library(ggplot2)
 

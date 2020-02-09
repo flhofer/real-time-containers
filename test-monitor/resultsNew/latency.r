@@ -1,6 +1,6 @@
 
 # Set the working directory
-setwd("./resultsNew/")
+setwd(".")
 datacnt = 13
 
 
