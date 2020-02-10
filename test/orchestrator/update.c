@@ -135,7 +135,7 @@ START_TEST(orchestrator_update_findprocs)
 	ck_assert_int_eq(head->next->pid, pid2);
 	ck_assert_int_eq(head->pid, pid3);
 
-	pclose2(fd2, pid2, 0);
+	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
 	sleep(1);
 
 	// verify pids
@@ -143,8 +143,8 @@ START_TEST(orchestrator_update_findprocs)
 	ck_assert_int_eq(head->pid, pid3);
 
 	// TODO: verify if threads remain defunct
-	pclose(fd1);
-	pclose(fd3);
+	pclose(fd1); // close pipe of sleep instance = HUP
+	pclose(fd3); // close pipe of sleep instance = HUP
 
 	// set stop sig
 	stat1 = -1;

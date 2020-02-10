@@ -275,7 +275,7 @@ static int configureTracers(){
 			elist_head->eventsz = 52;
 			elist_head->eventcall = update_sched_info;
 		}// TODO: else
-
+/*
 		if (0 < event_enable("sched/sched_wakeup")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_wakeup");
@@ -291,7 +291,7 @@ static int configureTracers(){
 			elist_head->eventsz = 68;
 			elist_head->eventcall = pickPidInfo;
 		}// TODO: else
-
+*/
 	}
 	return notrace-2; // return number found versus needed
 }
@@ -331,7 +331,7 @@ static int stopTraceRead() {
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 			//TODO: return value
-			(void)pthread_kill (elist_thead->thread, SIGINT); // tell threads to stop
+//			(void)pthread_kill (elist_thead->thread, SIGINT); // tell threads to stop
 			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
 			pop((void**)&elist_thead);
 		}
@@ -453,6 +453,9 @@ static int update_sched_info(node_t ** item, void * addr)
 
 	// reset item, remains null if not found
 	if (!(*item) || ((*item) && (*item)->pid != pFrame->pid)) {
+		if ((*item))
+			(void)pickPidCons(*item);
+
 		*item=NULL;
 		// for now does only a simple update
 		for (node_t * citem = head; ((citem)); citem=citem->next )
@@ -462,6 +465,7 @@ static int update_sched_info(node_t ** item, void * addr)
 				break;
 			}
 	}
+
 	// item deactivated -> TODO actually an error!
 	if ((*item) && (*item)->pid > 0) {
 		(*item)->mon.dl_rt += pFrame->runtime;
@@ -545,10 +549,6 @@ static void *thread_ftrace(void *arg){
 						// todo return value
 						(void)event->eventcall(&item, (void*)pType);
 
-	//					printDbg("Tail %u %h %h",
-	//							(uint16_t)*(pType + event->eventsz-4),
-	//							(uint8_t)*(pType + event->eventsz-4),
-	//							(uint8_t)*(pType + event->eventsz-2) );
 						pType += (event->eventsz/2); // TODO: hack, check 2byte steps
 						got -= event->eventsz;
 						break;

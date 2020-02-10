@@ -27,20 +27,19 @@ START_TEST(orchestrator_ftrace_stop)
 	int  iret1;
 	int stat1 = 0;
 
-
-	const char * pidsig[] = {	"sleep 5.2",
-								"sleep 4.8",
-								"sleep 5",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 watch 'sleep 1'",
+								"chrt -r 2 taskset -c 0 sleep 5",
+								"chrt -r 3 taskset -c 0 sleep 5",
 								NULL };
-
+/*
+	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 watch -n 1 'echo \"test 1\" > /dev/null'",
+								"chrt -r 2 taskset -c 0 watch -n 1 'echo \"test 2\" > /dev/null'",
+								"chrt -r 3 taskset -c 0 watch -n 1 'echo \"test 3\" > /dev/null'",
+								NULL };
+*/
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
 	FILE * fd[sz_test];
 	pid_t pid[sz_test];
-
-	// set detect mode to pid
-	free (prgset->cont_pidc);
-	prgset->cont_pidc = strdup("sleep");
-	prgset->use_cgroup = DM_CMDLINE;
 
 	{
 		int i =0;
@@ -65,10 +64,10 @@ START_TEST(orchestrator_ftrace_stop)
 	stat1 = -1;
 
 	for (int i=0; i< sz_test; i++)
-		pclose2(fd[i], pid[i], 0);
+		pclose2(fd[i], pid[i], SIGINT); // send SIGINT = CTRL+C to watch instances
 
 	if (!iret1) // thread started successfully
-		iret1 = pthread_join( thread1, NULL); // wait until end
+		iret1 = pthread_join(thread1, NULL); // wait until end
 
 	// free memory
 	while (head)
