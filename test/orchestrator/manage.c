@@ -27,9 +27,9 @@ START_TEST(orchestrator_ftrace_stop)
 	int  iret1;
 	int stat1 = 0;
 
-	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 watch 'sleep 1'",
-								"chrt -r 2 taskset -c 0 sleep 5",
-								"chrt -r 3 taskset -c 0 sleep 5",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test1'; done\"",
+								"chrt -r 2 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test2'; done\"",
+								"chrt -r 3 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test3'; done\"",
 								NULL };
 /*
 	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 watch -n 1 'echo \"test 1\" > /dev/null'",

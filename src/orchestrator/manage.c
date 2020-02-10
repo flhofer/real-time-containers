@@ -275,7 +275,7 @@ static int configureTracers(){
 			elist_head->eventsz = 52;
 			elist_head->eventcall = update_sched_info;
 		}// TODO: else
-/*
+
 		if (0 < event_enable("sched/sched_wakeup")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_wakeup");
@@ -291,7 +291,8 @@ static int configureTracers(){
 			elist_head->eventsz = 68;
 			elist_head->eventcall = pickPidInfo;
 		}// TODO: else
-*/
+
+		printDbg("\n");
 	}
 	return notrace-2; // return number found versus needed
 }
