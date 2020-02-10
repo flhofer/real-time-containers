@@ -363,7 +363,7 @@ int parse_bitmask(struct bitmask *mask, char * str){
 #define WRITE  1 
 
 // TODO: adapt constant to input
-FILE * popen2(char * command, char * type, pid_t * pid)
+FILE * popen2(const char * command, const char * type, pid_t * pid)
 {
     pid_t child_pid;
     int fd[2];
