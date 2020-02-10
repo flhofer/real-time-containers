@@ -45,10 +45,15 @@ while IFS= read -r artifact_dl; do
     tfile=art$i
   else
     tfile=artifacts
-  let i++
+  fi;
+
+  # Download
   echo "storing to $tfile.zip the contents of $artifact_dl"
   eval curl -v -L -u octocat:$TOKEN -o $tfile.zip $artifact_dl
+  
   # Extract
   echo "Extract archive $tfile.zip.."
   eval unzip $tfile.zip -d $tfile
+
+  let i++
 done <<< "$artifact_dl"
