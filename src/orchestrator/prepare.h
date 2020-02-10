@@ -9,5 +9,6 @@
 	#define __PREPARE_H_
 
 	void prepareEnvironment(prgset_t *set);
+	void cleanupEnvironment(prgset_t *set);
 
 #endif /* __PREPARE_H_ */

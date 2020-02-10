@@ -462,7 +462,7 @@ int main(int argc, char **argv)
 	process_options(tmpset, argc, argv, max_cpus);
 
 	// gather actual information at startup, prepare environment
-	int capIpc = prepareEnvironment(tmpset) & 0x01;
+	prepareEnvironment(tmpset);
 
 	prgset = tmpset; // move to make write protected
 
@@ -479,16 +479,6 @@ int main(int argc, char **argv)
 	if ((iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2))) {
 		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
-	}
-
-	/* lock all memory (prevent swapping) -- do here */
-	if (prgset->lock_pages) {
-		// find lock configuration - depending on CAPS
-		int lockt = MCL_CURRENT;
-		if (capIpc)
-			lockt |= MCL_FUTURE;
-		if (-1 == mlockall(lockt))
-			err_exit_n(errno, "MLockall failed");\
 	}
 
 	{ // setup interrupt handler block
@@ -548,27 +538,9 @@ int main(int argc, char **argv)
 	if (!iret2)	// thread started successfully
 		iret2 = pthread_join( thread2, NULL); 
 
+    // close and cleanup
     info("exiting safely");
+    cleanupEnvironment(prgset);
 
-	if(prgset->smi) {
-
-		unsigned long smi_old;
-		int maxccpu = numa_num_configured_cpus();
-		info("SMI counters for the CPUs");
-		// mask affinity and invert for system map / readout of smi of online CPUs
-		for (int i=0;i<maxccpu;i++) 
-			// if smi is set, read SMI counter
-			if (*(smi_msr_fd+i)) {
-				/* get current smi count to use as base value */
-				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
-					err_exit_n( errno, "Could not read SMI counter");
-				cont("CPU%d: %ld", i, smi_old-*(smi_counter+i));
-			}
-	}
-
-	/* unlock everything */
-	if (prgset->lock_pages)
-		munlockall();
-
-    return 0;
+    return EXIT_SUCCESS; // TODO: verify correct return code
 }

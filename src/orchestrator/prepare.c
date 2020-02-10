@@ -5,6 +5,8 @@
  *      Author: Florian Hofer
  */
 
+#include "orchestrator.h"
+
 // Default stuff, needed form main operation
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,11 +106,9 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 ///
 /// Arguments: - structure with parameter set
 ///
-/// Return value: capability mask of the actual suystem
-///					0x01 : IPC
-///					0x02 : NICE
+/// Return value: -
 ///
-int prepareEnvironment(prgset_t *set) {
+void prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify 	cpu topology and distribution
@@ -707,5 +707,45 @@ sysend: // jumped here if not possible to create system
 	if (1 < strlen(numastr))
 		free(numastr);
 
+	// TODO: check if it makes sense to do this before or after starting threads
+	/* lock all memory (prevent swapping) -- do here */
+	if (prgset->lock_pages) {
+		// find lock configuration - depending on CAPS
+		int lockt = MCL_CURRENT;
+		if (capIpc)
+			lockt |= MCL_FUTURE;
+		if (-1 == mlockall(lockt))
+			err_exit_n(errno, "MLockall failed");\
+	}
+}
 
+/// cleanupEnvironment(): Cleanup of some system settings before exiting
+///
+/// Arguments: - structure with parameter set
+///
+/// Return value: -
+///
+void cleanupEnvironment(prgset_t *set){
+
+	// reset and read counters
+	if(set->smi) {
+
+		unsigned long smi_old;
+		int maxccpu = numa_num_configured_cpus();
+		info("SMI counters for the CPUs");
+		// mask affinity and invert for system map / readout of smi of online CPUs
+		for (int i=0;i<maxccpu;i++)
+			// if smi is set, read SMI counter
+			if (*(smi_msr_fd+i)) {
+				/* get current smi count to use as base value */
+				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
+					err_exit_n( errno, "Could not read SMI counter");
+				cont("CPU%d: %ld", i, smi_old-*(smi_counter+i));
+			}
+		// todo: close counters??
+	}
+
+	// unlock memory pages
+	if (set->lock_pages)
+		munlockall();
 }
