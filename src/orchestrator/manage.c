@@ -348,6 +348,8 @@ static int pickPidCommon(node_t ** item, void * addr) {
 
 	printDbg( "type=%u flags=%u preempt=%u pid=%d\n",
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	return 0;
 }
 
 static int pickPidCons(node_t *item){

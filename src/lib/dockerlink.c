@@ -115,7 +115,7 @@ static int docker_read_pipe(struct eventData * evnt){
 	// is called
 	while (!(stop) && !feof(inpipe)){
 
-		// read buffer until timeout
+		// read buffer until timeout // TODO: fix return value check
 		(void)fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
 
 		// buf read successfully?

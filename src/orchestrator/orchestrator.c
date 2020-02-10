@@ -462,7 +462,8 @@ int main(int argc, char **argv)
 	process_options(tmpset, argc, argv, max_cpus);
 
 	// gather actual information at startup, prepare environment
-	prepareEnvironment(tmpset);
+	if (prepareEnvironment(tmpset))
+		display_help(1); // if it returns with error code, display help
 
 	prgset = tmpset; // move to make write protected
 

@@ -106,9 +106,10 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 ///
 /// Arguments: - structure with parameter set
 ///
-/// Return value: -
+/// Return value: Error code
+/// 				Only valid if the function returns
 ///
-void prepareEnvironment(prgset_t *set) {
+int prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify 	cpu topology and distribution
@@ -154,7 +155,7 @@ void prepareEnvironment(prgset_t *set) {
 	// prepare bit-mask, no need to do it before
 	set->affinity_mask = parse_cpumask(set->affinity, maxccpu);
 	if (!set->affinity_mask)
-		display_help(1);
+		return -1; // return to display help
 
 	smi_counter = calloc (maxccpu, sizeof(long));
 	smi_msr_fd = calloc (maxccpu, sizeof(int));
@@ -717,6 +718,8 @@ sysend: // jumped here if not possible to create system
 		if (-1 == mlockall(lockt))
 			err_exit_n(errno, "MLockall failed");\
 	}
+
+	return 0;
 }
 
 /// cleanupEnvironment(): Cleanup of some system settings before exiting
