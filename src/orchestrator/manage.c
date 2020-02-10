@@ -331,6 +331,7 @@ static int stopTraceRead() {
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 			//TODO: return value
+			(void)pthread_kill (elist_thead->thread, SIGINT); // tell threads to stop
 			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
 			pop((void**)&elist_thead);
 		}
@@ -543,6 +544,11 @@ static void *thread_ftrace(void *arg){
 						// pick event
 						// todo return value
 						(void)event->eventcall(&item, (void*)pType);
+
+	//					printDbg("Tail %u %h %h",
+	//							(uint16_t)*(pType + event->eventsz-4),
+	//							(uint8_t)*(pType + event->eventsz-4),
+	//							(uint8_t)*(pType + event->eventsz-2) );
 						pType += (event->eventsz/2); // TODO: hack, check 2byte steps
 						got -= event->eventsz;
 						break;
