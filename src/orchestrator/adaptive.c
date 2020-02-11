@@ -9,7 +9,23 @@
 
 // Custom includes
 #include "orchestrator.h"
+#include "error.h"		// error and std error print functions
 
+// Things that should be needed only here
+#include <numa.h>			// Numa node identification
+
+static uint64_t gcd(uint64_t a, uint64_t b)
+{
+	uint64_t temp;
+    while (b != 0)
+    {
+        temp = a % b;
+
+        a = b;
+        b = temp;
+    }
+    return a;
+}
 
 // ################### duplicates of manager.c simple template ################
 #define MAX_UL 0.90
@@ -25,12 +41,13 @@ static struct resTracer * rhead;
 ///
 static int createResTracer(){
 
-	for (int i=0;i<(prgset->affinity_mask->size);i++)
+	// backwards, cpu0 on top
+	for (int i=(prgset->affinity_mask->size);i<0;i--)
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rhead, sizeof(struct resTracer));
 			rhead->affinity = i;
-			rhead->basePeriod = 1;
+			rhead->basePeriod = 0; // best for modulo, rest = 0 when new
 	}
 	return 0;
 }
@@ -116,6 +133,7 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 static int checkPeriod(struct sched_attr * par) {
 
 
+	return 0;
 }
 
 
