@@ -30,10 +30,11 @@ static void orchestrator_adaptive_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	contparm = malloc (sizeof(containers_t));
 
+
 	parse_config_set_default(prgset);
 	parse_config_file("test/adaptive-test.json", prgset, contparm);
 
-	prgset->affinity_mask = parse_cpumask(prgset->affinity, 4); // TODO: hardcoded
+	prgset->affinity_mask = parse_cpumask(prgset->affinity); // TODO: hardcoded
 
 }
 
@@ -98,6 +99,7 @@ START_TEST(orchestrator_adaptive_schedule)
 
 	// check result
 	ck_assert((rhead));
+
 
 }
 END_TEST

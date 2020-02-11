@@ -30,7 +30,7 @@ static void orchestrator_update_setup() {
 	parse_config_set_default(prgset);
 
 	prgset->affinity= "0"; // todo, detect
-	prgset->affinity_mask = parse_cpumask(prgset->affinity, 4); // TODO: hardcoded
+	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
 
 	prgset->logdir = strdup("./");

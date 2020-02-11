@@ -172,6 +172,7 @@ START_TEST(dockerlink_conf_stop)
 }
 END_TEST
 
+/*
 static char * dockerlink_cevents [6] = {
 	"2019-07-22 14:59:10.335889938 +0000 UTC moby /containers/create {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"runtime\":{\"name\":\"io.containerd.runtime.v1.linux\",\"options\":{\"type_url\":\"containerd.linux.runc.RuncOptions\",\"value\":\"CgRydW5jEhwvdmFyL3J1bi9kb2NrZXIvcnVudGltZS1ydW5j\"}}}",
 	"2019-07-22 14:59:11.117134632 +0000 UTC moby /tasks/create {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"bundle\":\"/run/containerd/io.containerd.runtime.v1.linux/moby/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"io\":{\"stdout\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stdout\",\"stderr\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stderr\"},\"pid\":10019}",
@@ -180,7 +181,7 @@ static char * dockerlink_cevents [6] = {
 	"2019-07-22 15:00:57.461623225 +0000 UTC moby /tasks/delete {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"pid\":10019,\"exited_at\":\"2019-07-22T15:00:57.332138232Z\"}",
 	"2019-07-22 15:00:57.890534722 +0000 UTC moby /containers/delete {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\"}"
 	};
-
+*/
 
 void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");

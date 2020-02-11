@@ -55,6 +55,10 @@
 		// TODO: fill with other values, i.e. memory bounds ecc.
 	} rscs_t;
 
+	// ############################  WARN -- DO NOT CHANGE ##########################3
+	// ##### from here on, same structure to keep format! ### unify?
+	// use this? ----- depth 0 = image, 1 = container, 2 - pid
+
 	typedef struct pidc_parm {
 		struct pidc_parm *next; 
 		char *psig; 			// matching signatures -> container IDs
@@ -91,6 +95,9 @@
 		struct pids_parm  *pids;// linked list pointing to the pids for this img	
 		struct conts_parm *conts;// linked list pointing to the containers	
 	} img_t;
+
+	// ################################## Until here! ##########################
+	// ################################## Until here! ##########################
 
 	typedef struct containers {
 		struct img_parm   *img;	// linked list of images_t

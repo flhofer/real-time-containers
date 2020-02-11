@@ -111,8 +111,14 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 ///
 int prepareEnvironment(prgset_t *set) {
 
+	// TODO: CPU number vs CPU enabling mask
+	// TODO: check maxcpu vs last cpu!
+	// Important when many are disabled from the beginning
+	// TODO: numa_allocate_cpumask vs malloc!! -> Allocates the size!!
+
 	/// --------------------
-	/// verify 	cpu topology and distribution
+	/// verify CPU topology and distribution
+	// TODO: global update maxCPU?
 	int maxcpu = get_nprocs();
 	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
 
@@ -153,7 +159,7 @@ int prepareEnvironment(prgset_t *set) {
 	// TODO: else
 
 	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity, maxccpu);
+	set->affinity_mask = parse_cpumask(set->affinity);
 	if (!set->affinity_mask)
 		return -1; // return to display help
 
