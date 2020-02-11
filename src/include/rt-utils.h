@@ -8,7 +8,6 @@
 #define STR(x) _STR(x)
 #define MAX_PATH 256
 
-int check_privs(void);
 char *get_debugfileprefix(void);
 int mount_debugfs(char *);
 int get_tracers(char ***);

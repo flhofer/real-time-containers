@@ -54,7 +54,7 @@
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 
-static int capMask =0;	// static capability mask
+static int capMask =0;	// static capability mask // TODO: set in prepare environment
 
 
 /// setPidMask(): utility function to set all pids of a certain mask's affinity
