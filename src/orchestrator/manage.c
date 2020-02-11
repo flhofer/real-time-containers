@@ -59,6 +59,8 @@ static uint64_t scount = 0; // total scan count
 #define MAX_UL 0.90
 static struct resTracer * rhead;
 
+// TODO: integrated partially in adaptive, update!
+
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
 /// Arguments: resource entry for this cpu, the attr structure of the task

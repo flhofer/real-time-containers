@@ -90,8 +90,15 @@ static void orchestrator_adaptive_teardown() {
 /// EXPECTED -> exit with no error and a created schedule in memory
 START_TEST(orchestrator_adaptive_schedule)
 {
-	// something loaded?
-	ck_assert((contparm->cont));
+	// prepare and compute schedule
+	adaptPrepareSchedule();
+
+	// get result
+	struct resTracer * rhead = adaptGetAllocations();
+
+	// check result
+	ck_assert((rhead));
+
 }
 END_TEST
 
