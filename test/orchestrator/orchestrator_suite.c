@@ -8,6 +8,7 @@
 
 #include "update.c"
 #include "manage.c"
+#include "adaptive.c"
 
 Suite * orchestrator_suite(void) {
 
@@ -21,6 +22,7 @@ Suite * orchestrator_suite(void) {
 	}
 	orchestrator_update(s);
 	orchestrator_manage(s);
+	orchestrator_adaptive(s);
 
 	return s;
 }

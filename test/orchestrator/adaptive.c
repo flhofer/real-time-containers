@@ -31,7 +31,7 @@ static void orchestrator_adaptive_setup() {
 	contparm = malloc (sizeof(containers_t));
 
 	parse_config_set_default(prgset);
-	parse_config_file("adaptive-test.json", prgset, contparm);
+	parse_config_file("test/adaptive-test.json", prgset, contparm);
 
 	prgset->affinity_mask = parse_cpumask(prgset->affinity, 4); // TODO: hardcoded
 
@@ -90,12 +90,13 @@ static void orchestrator_adaptive_teardown() {
 /// EXPECTED -> exit with no error and a created schedule in memory
 START_TEST(orchestrator_adaptive_schedule)
 {
-
+	// something loaded?
+	ck_assert((contparm->cont));
 }
 END_TEST
 
 
-void orchestrator_update (Suite * s) {
+void orchestrator_adaptive (Suite * s) {
 	TCase *tc1 = tcase_create("adaptive_schedule");
 
 	tcase_add_checked_fixture(tc1, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);

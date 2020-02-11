@@ -1,0 +1,93 @@
+{
+ "global" : {
+	"lock_pages" : true,
+	"setdflag" : true,
+	"interval" : 6000,
+	"ftrace" : true
+	},
+ "containers" : [
+		{
+			"contid" : "cd5834d2b980",
+			"pids" : [
+				{
+					"cmd" : "bash -- ll",
+					"params" : {
+						"policy" : "SCHED_DEADLINE",
+						"flags"  : 0,
+						"nice"   : 0,
+						"prio"   : 0,
+						"runtime": 1000000,
+						"deadline": 4000000,
+						"period" : 4000000
+					},
+					"res" : {
+						"affinity" : 2,
+					}
+				},
+				{
+					"cmd" : "bash -- ls",
+					"params" : {
+						"policy" : "SCHED_DEADLINE",
+						"flags"  : 0,
+						"nice"   : 0,
+						"prio"   : 0,
+						"runtime": 900000,
+						"deadline": 5000000,
+						"period" : 5000000
+					},
+					"res" : {
+						"affinity" : 2,
+					}
+				}
+			],
+			"res" : {
+				"affinity" : 2,
+			},
+		},
+		{
+			"contid" : "a2aa8c37ce4c",
+			"res" : {
+				"affinity" : 2,
+			},
+		},
+		{
+			"contid" : "4efcb6c965de",
+			"params" : {
+				"policy" : "SCHED_DEADLINE",
+				"flags"  : 0,
+				"nice"   : 0,
+				"prio"   : 0,
+				"runtime": 1000000,
+				"deadline": 4000000,
+				"period" : 4000000
+			},
+			"res" : {
+				"affinity" : -1,
+			},
+		},
+		{
+			"cmd" : "rt-app",
+			"res" : {
+				"affinity" : -1,
+			},
+		}
+	],
+"images": [
+		{
+			"imgid" : "951dec8fa8a1",
+			"params" : {
+				"policy" : "SCHED_DEADLINE",
+				"flags"  : 0,
+				"nice"   : 0,
+				"prio"   : 0,
+				"runtime": 1000000,
+				"deadline": 4000000,
+				"period" : 4000000
+			},
+			"res" : {
+				"affinity" : -1,
+			},
+		},
+
+]
+}
