@@ -562,7 +562,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		}
 		else
 			// read from file
-			set->cpusystemfileprefix = get_string_value_from(global, "affinity", TRUE, defafin);
+			set->affinity = get_string_value_from(global, "affinity", TRUE, defafin);
 
 		free(defafin);
 	} // END default affinity block 
