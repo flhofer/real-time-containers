@@ -25,6 +25,22 @@ typedef struct resReserve { 		// resource Reservation
 
 static resReserve_t * rrHead = NULL;
 
+// Combining and or bitmasks
+// TODO: make universal!
+#define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
+									  if ((numa_bitmask_isbitset(a, i)) \
+										c (numa_bitmask_isbitset(b, i))) \
+										  numa_bitmask_setbit(b, i);
+
+#define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
+#define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
+
+/// gcd(): greatest common divisor, iterative
+//
+/// Arguments: - candidate values in uint64_t
+///
+/// Return value: - greatest value that fits both
+///
 static uint64_t gcd(uint64_t a, uint64_t b)
 {
 	uint64_t temp;
@@ -52,8 +68,8 @@ static struct resTracer * rhead;
 ///
 static int createResTracer(){
 
-	// backwards, cpu0 on top
-	for (int i=(prgset->affinity_mask->size);i<0;i--)
+	// backwards, cpu0 on top, we assume affinity_mask ok
+	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rhead, sizeof(struct resTracer));
@@ -203,6 +219,7 @@ void adaptPrepareSchedule(){
 			struct bitmask *bmPids = numa_allocate_cpumask();
 
 			bmTmp = pushResource(conts->cont, bmPids, 1);
+			numa_or_cpumask(bmTmp,bmPids);
 		}
 
 		bmTmp = pushResource((cont_t *)img, bmConts, 0);

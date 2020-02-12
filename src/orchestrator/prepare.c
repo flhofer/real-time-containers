@@ -169,7 +169,7 @@ int prepareEnvironment(prgset_t *set) {
 		err_exit("could not allocate memory!");
 
 	struct bitmask * con;
-	struct bitmask * naffinity = numa_bitmask_alloc((maxccpu/sizeof(long)+1)*sizeof(long));
+	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
 		err_exit("could not allocate memory!");
 
