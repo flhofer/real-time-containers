@@ -13,6 +13,8 @@
 
 // Things that should be needed only here
 #include <numa.h>			// Numa node identification
+#include <linux/sched.h>
+#include <sched.h>
 
 // TODO: standardize printing
 #define PFX "[adapt] "
@@ -41,6 +43,8 @@ static resReserve_t * rrHead = NULL;
 
 #define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
 #define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
+
+#define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 
 /// gcd(): greatest common divisor, iterative
 //
@@ -81,7 +85,8 @@ static int createResTracer(){
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rhead, sizeof(struct resTracer));
 			rhead->affinity = i;
-			rhead->basePeriod = 0; // best for modulo, rest = 0 when new
+			rhead->U = 0.0;
+			rhead->basePeriod = 0;
 	}
 	return 0;
 }
@@ -92,17 +97,20 @@ static int createResTracer(){
 ///
 /// Return value: the matching level property. negative are problems
 ///				  higher is better
-///				  2 = OK, perfect period match; 0 = OK, but recalculated base;
+///				  3 = OK, perfect period match; 0 = OK, but recalculated base;
+///				  2 = OK, but empty cpu
 ///				  1 = same but new period is an exact multiplier;
 ///				  -1 = no space; -2 error
 static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	int rv = 2;
+	int rv = 3; // perfect match
 
 	// if unused, set to this period
-	if (0==base)
+	if (0==base){
 		base = par->sched_period;
+		rv = 1 + CHKNUISBETTER;
+	}
 
 	if (base != par->sched_period) {
 		// recompute base
@@ -120,9 +128,9 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 		// are the periods a perfect fit?
 		if ((0 == res->basePeriod % par->sched_period)
 			|| (0 == par->sched_period % res->basePeriod))
-				rv =2;
+				rv = 2-CHKNUISBETTER;
 		else
-			rv =1;
+			rv =0;
 	}
 
 	used += par->sched_runtime * base/par->sched_period;
@@ -157,7 +165,7 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	}
 
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
-
+	res->U = ((double)res->usedPeriod/(double)res->basePeriod);
 }
 
 // ################################################################################
@@ -178,6 +186,26 @@ static resTracer_t * checkPeriod(struct sched_attr * par) {
 		res = checkUvalue(trc, par);
 		if (res > match) {
 			match = res;
+			ftrc = trc;
+		}
+	}
+	return ftrc;
+}
+
+/// grepTracer(): find an empty or low UL CPU
+///
+/// Arguments: -
+///
+/// Return value: a pointer to the resource tracer
+///					returns null if nothing is found
+static resTracer_t * grepTracer() {
+	resTracer_t * ftrc = NULL;
+	float Umax = -2;
+
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
+		if (trc->U > Umax) {
+			Umax = trc->U;
 			ftrc = trc;
 		}
 	}
@@ -208,6 +236,7 @@ static int addTracer(resReserve_t * res, int cpu){
 	}
 	return -1; // error! not found
 }
+
 
 /// pushResource(): append resource to resource task list with mask
 ///
@@ -342,18 +371,56 @@ void adaptPrepareSchedule(){
 		if (numa_bitmask_weight(res->affinity) == 1)
 			addTracer(res, -1);
 
-	// compute flexible resources
-	for (resReserve_t * res = rrHead; ((res)); res=res->next){
-		resTracer_t * trc;
-		if ((trc=checkPeriod(res->item->attr))){
-			addUvalue(trc, res->item->attr);
-			res->assigned = trc;
+	{ // compute flexible resources
+		resTracer_t * DLtrc = NULL;
+		resTracer_t * FFtrc = NULL;
+		resTracer_t * RRtrc = NULL;
+		resTracer_t * BTtrc = NULL;
+		resTracer_t * NRtrc = NULL;
+		for (resReserve_t * res = rrHead; ((res)); res=res->next){
+			switch (res->item->attr->sched_policy) {
+				case SCHED_DEADLINE:
+						// allocate resources for flexible tasks
+						DLtrc= checkPeriod(res->item->attr);
+						if (DLtrc){
+							addUvalue(DLtrc, res->item->attr);
+							res->assigned = DLtrc;
+						}
+						else
+							warn("Could not assign an resource!");
+						break;
+				case SCHED_FIFO: // TODO: allocation?
+					// allocate FIFO tasks to
+					if (!FFtrc)
+						FFtrc = grepTracer();
+					res->assigned = FFtrc;
 
+					break;
+				case SCHED_RR:
+					// allocate RR tasks to dedicated CPU
+					if (!RRtrc)
+						RRtrc = grepTracer();
+					res->assigned = RRtrc;
+
+					break;
+
+				case SCHED_BATCH:
+					// allocate BATCH tasks to dedicated CPU
+					if (!BTtrc)
+						BTtrc = grepTracer();
+					res->assigned = BTtrc;
+
+					break;
+
+				case SCHED_NORMAL:
+//				case SCHED_OTHER:
+				case SCHED_IDLE:
+				default:
+					// NORMAL/IDLE/OTHER tasks can be floating
+					break;
+			}
 		}
-		else
-			warn("Could not assign an resource!");
-	}
-
+	} // END dedicated resources
 }
 
 /// adaptScramble(): Re-scramble resource distribution when some issues
