@@ -17,7 +17,6 @@
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
-#include <check.h>
 
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error

@@ -376,50 +376,51 @@ void adaptPrepareSchedule(){
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;
 		resTracer_t * BTtrc = NULL;
-		resTracer_t * NRtrc = NULL;
+//		resTracer_t * NRtrc = NULL;
 		for (resReserve_t * res = rrHead; ((res)); res=res->next){
-			switch (res->item->attr->sched_policy) {
-				case SCHED_DEADLINE:
-						// allocate resources for flexible tasks
-						DLtrc= checkPeriod(res->item->attr);
-						if (DLtrc){
-							addUvalue(DLtrc, res->item->attr);
-							res->assigned = DLtrc;
-						}
-						else
-							warn("Could not assign an resource!");
+			if (!res->assigned)
+				switch (res->item->attr->sched_policy) {
+					case SCHED_DEADLINE:
+							// allocate resources for flexible tasks
+							DLtrc= checkPeriod(res->item->attr);
+							if (DLtrc){
+								addUvalue(DLtrc, res->item->attr);
+								res->assigned = DLtrc;
+							}
+							else
+								warn("Could not assign an resource!");
+							break;
+					case SCHED_FIFO: // TODO: allocation?
+						// allocate FIFO tasks to
+						if (!FFtrc)
+							FFtrc = grepTracer();
+						res->assigned = FFtrc;
+
 						break;
-				case SCHED_FIFO: // TODO: allocation?
-					// allocate FIFO tasks to
-					if (!FFtrc)
-						FFtrc = grepTracer();
-					res->assigned = FFtrc;
+					case SCHED_RR:
+						// allocate RR tasks to dedicated CPU
+						if (!RRtrc)
+							RRtrc = grepTracer();
+						res->assigned = RRtrc;
 
-					break;
-				case SCHED_RR:
-					// allocate RR tasks to dedicated CPU
-					if (!RRtrc)
-						RRtrc = grepTracer();
-					res->assigned = RRtrc;
+						break;
 
-					break;
+					case SCHED_BATCH:
+						// allocate BATCH tasks to dedicated CPU
+						if (!BTtrc)
+							BTtrc = grepTracer();
+						res->assigned = BTtrc;
 
-				case SCHED_BATCH:
-					// allocate BATCH tasks to dedicated CPU
-					if (!BTtrc)
-						BTtrc = grepTracer();
-					res->assigned = BTtrc;
+						break;
 
-					break;
-
-				case SCHED_NORMAL:
-//				case SCHED_OTHER:
-				case SCHED_IDLE:
-				default:
-					// NORMAL/IDLE/OTHER tasks can be floating
-					break;
+					case SCHED_NORMAL:
+	//				case SCHED_OTHER:
+					case SCHED_IDLE:
+					default:
+						// NORMAL/IDLE/OTHER tasks can be floating
+						break;
+				}
 			}
-		}
 	} // END dedicated resources
 }
 
@@ -443,6 +444,9 @@ void adaptScramble(){
 ///
 void adaptExecute() {
 	// TODO: implement!
+	for (resReserve_t * res = rrHead; ((res)); res=res->next)
+		if (!(res->readOnly) && (res->assigned))
+			res->item->rscs->affinity = res->assigned->affinity;
 }
 
 struct resTracer * adaptGetAllocations(){
