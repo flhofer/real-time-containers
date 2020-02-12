@@ -88,37 +88,45 @@ static int createResTracer(){
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
-/// Arguments: resource entry for this cpu, the attr structure of the task
+/// Arguments: resource entry for this CPU, the attr structure of the task
 ///
-/// Return value: 0 = ok, -1 = no space, 1 = ok but recalc base
+/// Return value: the matching level property. negative are problems
+///				  higher is better
+///				  2 = OK, perfect period match; 0 = OK, but recalculated base;
+///				  1 = same but new period is an exact multiplier;
+///				  -1 = no space; -2 error
 static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	int rv = 0;
+	int rv = 2;
 
-	if (base % par->sched_period != 0) {
-		// realign periods
-		uint64_t max_Value = MAX (base, par->sched_period);
+	// if unused, set to this period
+	if (0==base)
+		base = par->sched_period;
 
-		if (base % 1000 != 0 || par->sched_period % 1000 != 0)
-			fatal("Nanosecond resolution periods not supported!");
-			// temporary solution to avoid very long loops
+	if (base != par->sched_period) {
+		// recompute base
+		uint64_t new_base = gcd(base, par->sched_period);
 
-		while(1) //Always True
-		{
-			if(max_Value % base == 0 && max_Value % par->sched_period == 0)
-			{
-				break;
-			}
-			max_Value+= 1000; // add a microsecond..
+		if (new_base % 1000 != 0){
+			warn("Check -> Nanosecond resolution periods not supported!");
+			// todo temporary solution to avoid very long loops
+			return -2;
 		}
+		// recompute new values of resource tracer
+		used *= new_base/res->basePeriod;
+		base = new_base;
 
-		used *= max_Value/base;
-		base = max_Value;
-		rv=1;
+		// are the periods a perfect fit?
+		if ((0 == res->basePeriod % par->sched_period)
+			|| (0 == par->sched_period % res->basePeriod))
+				rv =2;
+		else
+			rv =1;
 	}
 
-	if ((0!=base) && MAX_UL < (double)(used + par->sched_runtime * base/par->sched_period)/(double)(base) )
+	used += par->sched_runtime * base/par->sched_period;
+	if (MAX_UL < ((double)used/(double)base))
 		rv = -1;
 
 	return rv;
@@ -131,31 +139,22 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 /// Return value: -
 static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
-	if (res->basePeriod % par->sched_period != 0) {
-		// realign periods
-		uint64_t max_Value = MAX (res->basePeriod, par->sched_period);
-
-		if (res->basePeriod % 1000 != 0 || par->sched_period % 1000 != 0)
-			fatal("Nanosecond resolution periods not supported!");
-			// temporary solution to avoid very long loops
-
-		while(1) //Always True
-		{
-			if(max_Value % res->basePeriod == 0 && max_Value % par->sched_period == 0)
-			{
-				break;
-			}
-			max_Value+= 1000; // add a microsecond..
-		}
-
-		res->usedPeriod *= max_Value/res->basePeriod;
-		res->basePeriod = max_Value;
-
-	}
-
 	// if unused, set to this period
 	if (0==res->basePeriod)
 		res->basePeriod = par->sched_period;
+
+	if (res->basePeriod != par->sched_period) {
+		// recompute base
+		uint64_t new_base = gcd(res->basePeriod, par->sched_period);
+
+		if (new_base % 1000 != 0)
+			fatal("Nanosecond resolution periods not supported!");
+			// todo temporary solution to avoid very long loops
+
+		// recompute new values of tracer
+		res->usedPeriod *= new_base/res->basePeriod;
+		res->basePeriod = new_base;
+	}
 
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 
@@ -170,9 +169,19 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 /// Return value: a pointer to the resource tracer
 ///					returns null if nothing is found
 static resTracer_t * checkPeriod(struct sched_attr * par) {
+	resTracer_t * ftrc = NULL;
+	int match = -2; // error by default
+	int res;
 
-
-	return NULL;
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
+		res = checkUvalue(trc, par);
+		if (res > match) {
+			match = res;
+			ftrc = trc;
+		}
+	}
+	return ftrc;
 }
 
 /// addTracer(): append resource with mask
@@ -190,7 +199,7 @@ static int addTracer(resReserve_t * res, int cpu){
 
 			// check first. add and return check value
 			int ret = checkUvalue(trc, res->item->attr);
-			if (0 > ret)
+			if (-1 == ret)
 				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
 			addUvalue(trc, res->item->attr);
 			res->assigned = trc;
@@ -327,14 +336,22 @@ void adaptPrepareSchedule(){
 		(void)pushResource((cont_t*)pid, NULL, 2);
 	}
 
+	// ################## from here use resource masks ##############
 	// add all fixed resources // TODO: push up to mask for efficiency
 	for (resReserve_t * res = rrHead; ((res)); res=res->next)
 		if (numa_bitmask_weight(res->affinity) == 1)
 			addTracer(res, -1);
 
 	// compute flexible resources
-	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
+	for (resReserve_t * res = rrHead; ((res)); res=res->next){
+		resTracer_t * trc;
+		if ((trc=checkPeriod(res->item->attr))){
+			addUvalue(trc, res->item->attr);
+			res->assigned = trc;
 
+		}
+		else
+			warn("Could not assign an resource!");
 	}
 
 }
