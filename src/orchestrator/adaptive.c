@@ -169,20 +169,24 @@ static int checkPeriod(struct sched_attr * par) {
 ///				(they're equal for attr and rscs // TODO: impl
 ///			   - depth 0 = image, 1 = container, 2 - pid
 ///
-/// Return value: returns the created bit mask for hierarchical
+/// Return value: returns the created resource info for hierarchical
 ///					matching and combining
 ///
-struct bitmask* pushResource(cont_t *item, struct bitmask* bDep, int depth){
+static resReserve_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 
 	// add item
 	push((void**)&rrHead, sizeof (resReserve_t));
 	if (item->rscs->affinity > 0) {
-		char * affstr = NULL;
+		char  affstr[6];
 		(void)sprintf(affstr, "%d", item->rscs->affinity);
 		rrHead->affinity = numa_parse_cpustring_all(affstr);
 	}
-	else
+	else{
+		rrHead->affinity = numa_allocate_cpumask();
 		copy_bitmask_to_bitmask(prgset->affinity_mask, rrHead->affinity);
+		if (bDep)
+			numa_and_cpumask(bDep, rrHead->affinity);
+	}
 
 	rrHead->item = item;
 
@@ -195,7 +199,7 @@ struct bitmask* pushResource(cont_t *item, struct bitmask* bDep, int depth){
 
 	rrHead->assigned = NULL;
 
-	return rrHead->affinity;
+	return rrHead;
 }
 
 /// adaptPrepareSchedule(): Prepare adaptive schedule computation
@@ -212,24 +216,86 @@ void adaptPrepareSchedule(){
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
 		struct bitmask * bmConts = numa_allocate_cpumask();
-		struct bitmask * bmTmp;
+		resReserve_t * rTmp, * rImg;
+
+		// add reserve image, keep reference
+		rImg = pushResource((cont_t *)img, NULL, 0);
 
 		// depending containers
 		for (conts_t * conts = img->conts; ((conts)); conts=conts->next){
 			struct bitmask *bmPids = numa_allocate_cpumask();
+			resReserve_t * rCont;
 
-			bmTmp = pushResource(conts->cont, bmPids, 1);
-			numa_or_cpumask(bmTmp,bmPids);
+			// add reserve container, keep
+			rCont = pushResource(conts->cont, rImg->affinity, 1);
+
+			// container's PIDs
+			for (pids_t * pids = conts->cont->pids; ((pids)); pids=pids->next){
+
+				rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
+				numa_or_cpumask(rTmp->affinity,bmPids);
+			}
+
+			// update affinity values of container, keep only necessary
+			numa_and_cpumask(bmPids,rCont->affinity);
+
+			// merge mask to image shared, free unused
+			numa_or_cpumask(rCont->affinity,bmConts);
+			numa_free_cpumask(bmPids);
 		}
 
-		bmTmp = pushResource((cont_t *)img, bmConts, 0);
+		// depending PIDs
+		for (pids_t * pids = img->pids; ((pids)); pids=pids->next){
+
+			rTmp = pushResource((cont_t*)pids->pid, rImg->affinity, 1);
+			numa_or_cpumask(rTmp->affinity,bmConts);
+		}
+
+		// update affinity values of image, keep only necessary
+		numa_and_cpumask(bmConts,rImg->affinity);
+		// free unused
+		numa_free_cpumask(bmConts);
 	}
+
+	// transform all masks, starting from images
+	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
+		if (cont->img) // part of tree, skip
+			continue;
+
+		struct bitmask *bmPids = numa_allocate_cpumask();
+		resReserve_t * rTmp, * rCont;
+
+		// add reserve container, keep
+		rCont = pushResource(cont, NULL, 1);
+
+		// container's PIDs
+		for (pids_t * pids = cont->pids; ((pids)); pids=pids->next){
+
+			rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
+			numa_or_cpumask(rTmp->affinity,bmPids);
+		}
+
+		// update affinity values, keep only necessary
+		numa_and_cpumask(bmPids,rCont->affinity);
+
+		//push container mask, and merge to image shared
+		numa_free_cpumask(bmPids);
+	}
+
+	// transform all masks, starting from images
+	for (pidc_t * pid = contparm->pids; ((pid)); pid=pid->next ){
+		if (pid->img || pid->cont) // part of tree, skip
+			continue;
+
+		(void)pushResource((cont_t*)pid, NULL, 2);
+	}
+
 	// add all fixed resources
 
 	// compute flexible resources
 	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
 
-		checkPeriod(cont->attr);
+//		checkPeriod(cont->attr);
 
 	}
 
@@ -259,5 +325,13 @@ void adaptExecute() {
 
 struct resTracer * adaptGetAllocations(){
 	return rhead;
+}
+
+void adaptFreeTracer(){
+	while (rrHead)
+		pop((void**)&rrHead);
+
+	while (rhead)
+		pop((void**)&rhead);
 }
 

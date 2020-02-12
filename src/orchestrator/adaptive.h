@@ -13,5 +13,6 @@
 	void adaptScramble();
 	void adaptExecute();
 	struct resTracer * adaptGetAllocations();
+	void adaptFreeTracer();
 
 #endif /* _ADAPTIVE_H_ */

@@ -28,7 +28,7 @@
 static void orchestrator_adaptive_setup() {
 	// load test configuration from file
 	prgset = malloc (sizeof(prgset_t));
-	contparm = malloc (sizeof(containers_t));
+	contparm = calloc (sizeof(containers_t),1);
 
 
 	parse_config_set_default(prgset);
@@ -127,6 +127,7 @@ START_TEST(orchestrator_adaptive_resources)
 	numa_bitmask_free(prgset->affinity_mask);
 	free(prgset);
 	free(contparm);
+	adaptFreeTracer();
 }
 END_TEST
 
@@ -136,12 +137,42 @@ START_TEST(orchestrator_adaptive_schedule)
 {
 	// prepare and compute schedule
 	adaptPrepareSchedule();
+	// apply to resources
+	adaptExecute();
+
+	// verify memory result in parameters
+
+	cont_t * cont = contparm->cont;
+	// image 1, -2 -> 2
+	ck_assert_int_eq(1, contparm->img->rscs->affinity);
+
+	cont=cont->next;
+	// container set to other -1
+	ck_assert_int_eq(1, cont->rscs->affinity);
+
+	cont=cont->next;
+	// unknown container set to other -1
+	ck_assert_int_eq(1, cont->rscs->affinity);
+
+	cont=cont->next;
+	// container -2, but one of it's pids 2 -> 2
+	ck_assert_int_eq(2, cont->rscs->affinity);
+	// pid in container on 2 -> stays
+	ck_assert_int_eq(2, cont->pids->pid->rscs->affinity);
+	// pid in container on -2 -> gets 1 for period match
+	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
 
 	// get result
 	struct resTracer * rhead = adaptGetAllocations();
 
 	// check result
+	ck_assert_int_eq(4000000, rhead->basePeriod);
+	ck_assert_int_eq(3000000, rhead->usedPeriod);
 
+	ck_assert_int_eq(5000000, rhead->next->basePeriod);
+	ck_assert_int_eq(900000, rhead->next->usedPeriod);
+
+	adaptFreeTracer();
 }
 END_TEST
 
