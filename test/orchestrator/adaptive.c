@@ -57,6 +57,7 @@ static void orchestrator_adaptive_teardown() {
 	free(prgset);
 
 	/*
+	 * TODO: implement free code!
 	// can not know if I can free it..
 	while (contparm->img){
 		while (contparm->img->conts)
@@ -107,7 +108,7 @@ START_TEST(orchestrator_adaptive_resources)
 	adaptPrepareSchedule();
 
 	// get result
-	struct resTracer * rhead = adaptGetAllocations();
+	struct resTracer * rhead = adaptGetTracers();
 
 	// check result
 
@@ -162,7 +163,7 @@ START_TEST(orchestrator_adaptive_schedule)
 	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
 
 	// get result
-	struct resTracer * rhead = adaptGetAllocations();
+	struct resTracer * rhead = adaptGetTracers();
 
 	// check result of CPU assignments
 	ck_assert_int_eq(5000000, rhead->basePeriod);

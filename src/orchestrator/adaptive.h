@@ -12,7 +12,7 @@
 	void adaptPrepareSchedule();
 	void adaptScramble();
 	void adaptExecute();
-	struct resTracer * adaptGetAllocations();
+	struct resTracer * adaptGetTracers();
 	void adaptFreeTracer();
 
 #endif /* _ADAPTIVE_H_ */

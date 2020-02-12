@@ -23,16 +23,16 @@
 #define PIN2 PIN"    "
 #define PIN3 PIN2"    "
 
-typedef struct resReserve { 		// resource Reservation
-	struct resReserve *	next;		//
+typedef struct resAlloc { 		// resource allocations mapping
+	struct resAlloc *	next;		//
 	struct bitmask * 	affinity;	// computed affinity candidates
 	struct cont_parm *	item; 		// default // TODO: all have rscs on the same edge!
 	// TODO: maybe pointer to struct as well??
 	struct resTracer *	assigned;	// null = no, pointer is restracer assigned to
 	int					readOnly;	// do not update resources = shared values
-} resReserve_t;
+} resAlloc_t;
 
-static resReserve_t * rrHead = NULL;
+static resAlloc_t * aHead = NULL;
 
 // Combining and or bitmasks
 // TODO: make universal!
@@ -67,7 +67,7 @@ static uint64_t gcd(uint64_t a, uint64_t b)
 
 // ################### duplicates of manager.c simple template ################
 #define MAX_UL 0.90
-static struct resTracer * rhead;
+static struct resTracer * rHead;
 
 // TODO: somehow does only checks.. :/
 
@@ -83,10 +83,10 @@ static int createResTracer(){
 	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
-			push((void**)&rhead, sizeof(struct resTracer));
-			rhead->affinity = i;
-			rhead->U = 0.0;
-			rhead->basePeriod = 0;
+			push((void**)&rHead, sizeof(struct resTracer));
+			rHead->affinity = i;
+			rHead->U = 0.0;
+			rHead->basePeriod = 0;
 	}
 	return 0;
 }
@@ -176,15 +176,16 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 ///
 /// Return value: a pointer to the resource tracer
 ///					returns null if nothing is found
-static resTracer_t * checkPeriod(struct sched_attr * par) {
+static resTracer_t * checkPeriod(cont_t * item) {
 	resTracer_t * ftrc = NULL;
 	int match = -2; // error by default
 	int res;
 
 	// loop through all and return the best fit
-	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
-		res = checkUvalue(trc, par);
-		if (res > match) {
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		res = checkUvalue(trc, item->attr);
+		if ((res > match) // better match, or matching favorite
+			|| ((res == match) && (trc->affinity == abs(item->rscs->affinity))) )	{
 			match = res;
 			ftrc = trc;
 		}
@@ -203,7 +204,7 @@ static resTracer_t * grepTracer() {
 	float Umax = -2;
 
 	// loop through all and return the best fit
-	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (trc->U > Umax) {
 			Umax = trc->U;
 			ftrc = trc;
@@ -219,8 +220,8 @@ static resTracer_t * grepTracer() {
 ///
 /// Return value: error, or 0 if successful
 ///
-static int addTracer(resReserve_t * res, int cpu){
-	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
+static int addTracer(resAlloc_t * res, int cpu){
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (((-1 == cpu)
 			&& (numa_bitmask_isbitset(res->affinity, trc->affinity)))
 			|| (cpu == trc->affinity)){
@@ -247,34 +248,34 @@ static int addTracer(resReserve_t * res, int cpu){
 /// Return value: returns the created resource info for hierarchical
 ///					matching and combining
 ///
-static resReserve_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
+static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 
 	// add item
-	push((void**)&rrHead, sizeof (resReserve_t));
+	push((void**)&aHead, sizeof (resAlloc_t));
 	if (item->rscs->affinity > 0) {
 		char  affstr[6];
 		(void)sprintf(affstr, "%d", item->rscs->affinity);
-		rrHead->affinity = numa_parse_cpustring_all(affstr);
+		aHead->affinity = numa_parse_cpustring_all(affstr);
 	}
 	else{
-		rrHead->affinity = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(prgset->affinity_mask, rrHead->affinity);
+		aHead->affinity = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(prgset->affinity_mask, aHead->affinity);
 		if (bDep)
-			numa_and_cpumask(bDep, rrHead->affinity);
+			numa_and_cpumask(bDep, aHead->affinity);
 	}
 
-	rrHead->item = item;
+	aHead->item = item;
 
 	// Set to read only if resources are copies of a parent
-	rrHead->readOnly = (item->rscs == contparm->rscs) // Check global
+	aHead->readOnly = (item->rscs == contparm->rscs) // Check global
 		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
 				&& (item->rscs == item->img->rscs))
 		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
 				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
 
-	rrHead->assigned = NULL;
+	aHead->assigned = NULL;
 
-	return rrHead;
+	return aHead;
 }
 
 /// adaptPrepareSchedule(): Prepare adaptive schedule computation
@@ -291,7 +292,7 @@ void adaptPrepareSchedule(){
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
 		struct bitmask * bmConts = numa_allocate_cpumask();
-		resReserve_t * rTmp, * rImg;
+		resAlloc_t * rTmp, * rImg;
 
 		// add reserve image, keep reference
 		rImg = pushResource((cont_t *)img, NULL, 0);
@@ -299,7 +300,7 @@ void adaptPrepareSchedule(){
 		// depending containers
 		for (conts_t * conts = img->conts; ((conts)); conts=conts->next){
 			struct bitmask *bmPids = numa_allocate_cpumask();
-			resReserve_t * rCont;
+			resAlloc_t * rCont;
 
 			// add reserve container, keep
 			rCont = pushResource(conts->cont, rImg->affinity, 1);
@@ -338,7 +339,7 @@ void adaptPrepareSchedule(){
 			continue;
 
 		struct bitmask *bmPids = numa_allocate_cpumask();
-		resReserve_t * rTmp, * rCont;
+		resAlloc_t * rTmp, * rCont;
 
 		// add reserve container, keep
 		rCont = pushResource(cont, NULL, 1);
@@ -367,7 +368,7 @@ void adaptPrepareSchedule(){
 
 	// ################## from here use resource masks ##############
 	// add all fixed resources // TODO: push up to mask for efficiency
-	for (resReserve_t * res = rrHead; ((res)); res=res->next)
+	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (numa_bitmask_weight(res->affinity) == 1)
 			addTracer(res, -1);
 
@@ -377,12 +378,12 @@ void adaptPrepareSchedule(){
 		resTracer_t * RRtrc = NULL;
 		resTracer_t * BTtrc = NULL;
 //		resTracer_t * NRtrc = NULL;
-		for (resReserve_t * res = rrHead; ((res)); res=res->next){
+		for (resAlloc_t * res = aHead; ((res)); res=res->next){
 			if (!res->assigned)
 				switch (res->item->attr->sched_policy) {
 					case SCHED_DEADLINE:
 							// allocate resources for flexible tasks
-							DLtrc= checkPeriod(res->item->attr);
+							DLtrc= checkPeriod(res->item);
 							if (DLtrc){
 								addUvalue(DLtrc, res->item->attr);
 								res->assigned = DLtrc;
@@ -443,21 +444,26 @@ void adaptScramble(){
 /// Return value: -
 ///
 void adaptExecute() {
-	// TODO: implement!
-	for (resReserve_t * res = rrHead; ((res)); res=res->next)
+	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (!(res->readOnly) && (res->assigned))
 			res->item->rscs->affinity = res->assigned->affinity;
 }
 
-struct resTracer * adaptGetAllocations(){
-	return rhead;
+/// adaptGetAllocations(): returns resource tracing info
+///
+/// Arguments: -
+///
+/// Return value: head of resource allocations
+///
+struct resTracer * adaptGetTracers(){
+	return rHead;
 }
 
 void adaptFreeTracer(){
-	while (rrHead)
-		pop((void**)&rrHead);
+	while (aHead)
+		pop((void**)&aHead);
 
-	while (rhead)
-		pop((void**)&rhead);
+	while (rHead)
+		pop((void**)&rHead);
 }
 
