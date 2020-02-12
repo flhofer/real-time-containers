@@ -14,6 +14,13 @@
 // Things that should be needed only here
 #include <numa.h>			// Numa node identification
 
+// TODO: standardize printing
+#define PFX "[adapt] "
+#define PFL "         "PFX
+#define PIN PFX"    "
+#define PIN2 PIN"    "
+#define PIN3 PIN2"    "
+
 typedef struct resReserve { 		// resource Reservation
 	struct resReserve *	next;		//
 	struct bitmask * 	affinity;	// computed affinity candidates
@@ -89,7 +96,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	uint64_t used = res->usedPeriod;
 	int rv = 0;
 
-	if (base % par->sched_deadline != 0) {
+	if (base % par->sched_period != 0) {
 		// realign periods
 		uint64_t max_Value = MAX (base, par->sched_period);
 
@@ -111,7 +118,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 		rv=1;
 	}
 
-	if (MAX_UL < (double)(used + par->sched_runtime * base/par->sched_period)/(double)(base) )
+	if ((0!=base) && MAX_UL < (double)(used + par->sched_runtime * base/par->sched_period)/(double)(base) )
 		rv = -1;
 
 	return rv;
@@ -124,7 +131,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 /// Return value: -
 static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
-	if (res->basePeriod % par->sched_deadline != 0) {
+	if (res->basePeriod % par->sched_period != 0) {
 		// realign periods
 		uint64_t max_Value = MAX (res->basePeriod, par->sched_period);
 
@@ -146,6 +153,10 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
 	}
 
+	// if unused, set to this period
+	if (0==res->basePeriod)
+		res->basePeriod = par->sched_period;
+
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 
 }
@@ -156,14 +167,40 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 ///
 /// Arguments: the attr structure of the task
 ///
-/// Return value: -
-static int checkPeriod(struct sched_attr * par) {
+/// Return value: a pointer to the resource tracer
+///					returns null if nothing is found
+static resTracer_t * checkPeriod(struct sched_attr * par) {
 
 
-	return 0;
+	return NULL;
 }
 
-/// pushResource(): append resource with mask
+/// addTracer(): append resource with mask
+///
+/// Arguments: - item is container, image or pid
+///			   - CPU, number to allocate, -1 for default (if weight 1)
+///
+/// Return value: error, or 0 if successful
+///
+static int addTracer(resReserve_t * res, int cpu){
+	for (resTracer_t * trc = rhead; ((trc)); trc=trc->next){
+		if (((-1 == cpu)
+			&& (numa_bitmask_isbitset(res->affinity, trc->affinity)))
+			|| (cpu == trc->affinity)){
+
+			// check first. add and return check value
+			int ret = checkUvalue(trc, res->item->attr);
+			if (0 > ret)
+				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
+			addUvalue(trc, res->item->attr);
+			res->assigned = trc;
+			return ret;
+		}
+	}
+	return -1; // error! not found
+}
+
+/// pushResource(): append resource to resource task list with mask
 ///
 /// Arguments: - item is container, image or pid
 ///				(they're equal for attr and rscs // TODO: impl
@@ -290,12 +327,13 @@ void adaptPrepareSchedule(){
 		(void)pushResource((cont_t*)pid, NULL, 2);
 	}
 
-	// add all fixed resources
+	// add all fixed resources // TODO: push up to mask for efficiency
+	for (resReserve_t * res = rrHead; ((res)); res=res->next)
+		if (numa_bitmask_weight(res->affinity) == 1)
+			addTracer(res, -1);
 
 	// compute flexible resources
 	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
-
-//		checkPeriod(cont->attr);
 
 	}
 

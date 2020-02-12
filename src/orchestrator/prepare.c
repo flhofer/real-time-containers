@@ -722,7 +722,7 @@ sysend: // jumped here if not possible to create system
 		if (capIpc)
 			lockt |= MCL_FUTURE;
 		if (-1 == mlockall(lockt))
-			err_exit_n(errno, "MLockall failed");\
+			err_exit_n(errno, "MLockall failed");
 	}
 
 	return 0;
