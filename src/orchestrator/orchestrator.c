@@ -5,7 +5,7 @@
 #include "prepare.h" // environment and configuration
 #include "update.h"
 #include "manage.h"
-
+#include "adaptive.h"
 
 // Default stuff, needed form main operation
 #include <stdio.h>
@@ -41,8 +41,9 @@ pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
 node_t * head = NULL;
 
-// configuration read file -- TEMP public, -> then change to static
+// TODO configuration read file -- TEMP public, -> then change to static
 char * config = "config.json";
+int adaptive = 0;
 
 /* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
 
@@ -75,6 +76,7 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
+	       "-A                         activate Adaptive Static Schedule (ASS)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
@@ -190,7 +192,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:bBc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
+		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -216,6 +218,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				set->setaffinity = AFFINITY_USEALL;
 			}
 			break;
+		case 'A':
+			adaptive = 1;
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
@@ -453,7 +457,13 @@ int main(int argc, char **argv)
 	if (prepareEnvironment(tmpset))
 		display_help(1); // if it returns with error code, display help
 
-	prgset = tmpset; // move to make write protected
+	// NOW all is public!
+	prgset = tmpset; // move to make write protected // TODO: test!
+
+	if (adaptive){
+		adaptPrepareSchedule();
+		adaptExecute();
+	}
 
 	pthread_t thread1, thread2;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
