@@ -325,9 +325,9 @@ runTest() {
         startWorkerEventDriven $instance 
     done
 
-    #Launch Event-driver datagenerator
-    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
-    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
+    #Launch Event-driver datagenerator -- do not use for this test, doesn't work -> TODO ckeck
+    #cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    #startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
@@ -503,10 +503,10 @@ elif [[ $cmd == "test" ]]; then
 		echo $fps >>$fpsFile
 
 		i=3 # start with worker 4
-		while [ $i -lt 8 ];
-		do
+		while [ $i -lt 8 ]
 		    echo "Sleeping for $sleepTime seconds"
-		    sleep $sleepTime
+		    sleep $sleepTime;
+		do
 		    let fps=${fps}+8
 		    startNewTest $fps $i
 		    let i++;
