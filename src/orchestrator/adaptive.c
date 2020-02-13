@@ -369,7 +369,7 @@ void adaptPrepareSchedule(){
 	// add all fixed resources // TODO: push up to mask for efficiency
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (numa_bitmask_weight(res->affinity) == 1)
-			if (addTracer(res, -1))
+			if (0 > addTracer(res, -1))
 				err_exit("The resource plan does not fit your system!");
 
 	{ // compute flexible resources

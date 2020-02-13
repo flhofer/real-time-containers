@@ -607,7 +607,7 @@ int prepareEnvironment(prgset_t *set) {
 				}
 			}
 			else //realloc issues
-				err_exit("could not allocate memory!\n");
+				err_exit("could not allocate memory!");
 		}
 	}
 
@@ -708,7 +708,7 @@ sysend: // jumped here if not possible to create system
 
 	}
 	else //re-alloc issues
-		err_exit("could not allocate memory!\n");
+		err_exit("could not allocate memory!");
 
 	// composed static or generated NUMA string? if generated > 1
 	if (1 < strlen(numastr))

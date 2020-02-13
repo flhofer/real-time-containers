@@ -29,16 +29,13 @@ static void orchestrator_adaptive_setup() {
 	// load test configuration from file
 	prgset = malloc (sizeof(prgset_t));
 	contparm = calloc (sizeof(containers_t),1);
-
-
 	parse_config_set_default(prgset);
-	parse_config_file("test/adaptive-test.json", prgset, contparm);
-
-	prgset->affinity_mask = parse_cpumask(prgset->affinity);
-
 }
 
 static void orchestrator_adaptive_teardown() {
+
+	adaptFreeTracer();
+
 	free(prgset->logdir);
 	free(prgset->logbasename);
 
@@ -133,6 +130,10 @@ END_TEST
 /// EXPECTED -> exit with no error and a created schedule in memory
 START_TEST(orchestrator_adaptive_schedule)
 {
+	// read config from file
+	parse_config_file("test/adaptive-test.json", prgset, contparm);
+	prgset->affinity_mask = parse_cpumask(prgset->affinity);
+
 	// prepare and compute schedule
 	adaptPrepareSchedule();
 	// apply to resources
@@ -172,7 +173,20 @@ START_TEST(orchestrator_adaptive_schedule)
 	ck_assert_int_eq(3000000, rhead->next->usedPeriod);
 	ck_assert((float)((double)3000000/(double)4000000) == rhead->next->U);
 
-	adaptFreeTracer();
+}
+END_TEST
+
+/// TEST CASE -> create an adaptive allocation schedule for the loaded configuration
+/// EXPECTED -> exit with no error and a created schedule in memory
+START_TEST(orchestrator_adaptive_error_schedule)
+{
+	// read config from file
+	parse_config_file("test/adaptive-terr.json", prgset, contparm);
+	prgset->affinity_mask = parse_cpumask(prgset->affinity);
+
+	// prepare and compute schedule
+	adaptPrepareSchedule();
+
 }
 END_TEST
 
@@ -191,6 +205,7 @@ void orchestrator_adaptive (Suite * s) {
 
 	TCase *tc2 = tcase_create("adaptive_schedule");
 	tcase_add_checked_fixture(tc2, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
+    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
     tcase_add_test(tc2, orchestrator_adaptive_schedule);
 
     suite_add_tcase(s, tc2);
