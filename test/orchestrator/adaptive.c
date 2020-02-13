@@ -56,42 +56,39 @@ static void orchestrator_adaptive_teardown() {
 
 	free(prgset);
 
-	/*
-	 * TODO: implement free code!
-	// can not know if I can free it..
+
+	// free resources!!
 	while (contparm->img){
-		while (contparm->img->conts)
-			pop (&contparm->img->conts);
-		while (contparm->img->pids)
-			pop (&contparm->img->pids);
-		free (contparm->img->rscs);
-		contparm->img->rscs = NULL;
-		free (contparm->img->attr);
-		contparm->img->attr = NULL;
-		pop(&contparm->img);
+		while (contparm->img->conts) {
+			while (contparm->img->conts->cont->pids){
+				// free and pop
+				freeParm ((cont_t**)&contparm->img->conts->cont->pids->pid, contparm->attr, contparm->rscs, 2);
+				pop((void**)&contparm->img->conts->cont->pids);
+			}
+			// free and pop
+			freeParm (&contparm->img->conts->cont, contparm->attr, contparm->rscs, 1);
+			pop((void**)&contparm->img->conts);
+		}
+		while (contparm->img->pids){
+			freeParm ((cont_t**)&contparm->img->pids->pid, contparm->attr, contparm->rscs, 1);
+			pop ((void**)&contparm->img->pids);
+		}
+		freeParm ((cont_t**)&contparm->img, contparm->attr, contparm->rscs, 0);
 	}
 
-	// can not know if I can free it..
 	while (contparm->cont){
-		while (contparm->cont->pids)
-			pop (&contparm->cont->pids);
-		free (contparm->cont->rscs);
-		contparm->cont->rscs = NULL;
-		free (contparm->cont->attr);
-		contparm->cont->attr = NULL;
-		pop(&contparm->cont);
+		while (contparm->cont->pids){
+			freeParm ((cont_t**)&contparm->cont->pids->pid, contparm->attr, contparm->rscs, 1);
+			pop ((void**)&contparm->cont->pids);
+		}
+		freeParm (&contparm->cont, contparm->attr, contparm->rscs, 0);
 	}
 
-	// can not know if I can free it..
-	while (contparm->pids){
-		free (contparm->pids->rscs);
-		contparm->pids->attr = NULL;
-		free (contparm->pids->attr);
-		contparm->pids->attr = NULL;
-		pop(&contparm->cont);
-	}
-	*/
+	while (contparm->pids)
+		freeParm ((cont_t**)&contparm->pids, contparm->attr, contparm->rscs, 0);
 
+	free(contparm->attr);
+	free(contparm->rscs);
 	free(contparm);
 }
 

@@ -312,28 +312,32 @@ int node_findParams(node_t* node, struct containers * conts){
 void freeParm(cont_t ** item, struct sched_attr * attr,
 		struct sched_rscs * rscs, int depth){
 	{ // attributes check
-	int dofree = ((*item)->attr == attr) // Check global
+	int copy = ((*item)->attr == attr) // Check global
 		|| ((depth > 0) && ((*item)->img) // Check with image (Container & PID)
 				&& ((*item)->attr == (*item)->img->attr))
 		|| ((depth > 1) && (((pidc_t*)(*item))->cont) // Check with container (PID)
 				&& ((*item)->attr == ((pidc_t*)(*item))->cont->attr));
 
-	if (dofree)
+	if (!copy){
 		free((*item)->attr);
+		(*item)->attr = NULL;
+	}
 	}
 	{ // resources check
-	// Set to read only if resources are copies of a parent
-	int dofree = ((*item)->rscs == rscs) // Check global
+	int copy = ((*item)->rscs == rscs) // Check global
 		|| ((depth > 0) && ((*item)->img) // Check with image (Container & PID)
 				&& ((*item)->rscs == (*item)->img->rscs))
 		|| ((depth > 1) && (((pidc_t*)(*item))->cont) // Check with container (PID)
 				&& ((*item)->rscs == ((pidc_t*)(*item))->cont->rscs));
 
-	if (dofree)
+	if (!copy){
 		free((*item)->rscs);
+		(*item)->rscs = NULL;
+	}
 	}
 
-	pop((void **)item);
+	if (0==depth)
+		pop((void **)item);
 }
 
 /* -------------------- default PID values structure ----------------------*/
