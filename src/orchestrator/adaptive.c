@@ -273,8 +273,6 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
 				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
 
-	aHead->assigned = NULL;
-
 	return aHead;
 }
 
@@ -287,6 +285,7 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 ///
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
+	// TODO: return value!
 	(void)createResTracer();
 
 	// transform all masks, starting from images
@@ -333,7 +332,7 @@ void adaptPrepareSchedule(){
 		numa_free_cpumask(bmConts);
 	}
 
-	// transform all masks, starting from images
+	// transform all masks, solo containers
 	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
 		if (cont->img) // part of tree, skip
 			continue;
@@ -358,7 +357,7 @@ void adaptPrepareSchedule(){
 		numa_free_cpumask(bmPids);
 	}
 
-	// transform all masks, starting from images
+	// transform all masks, PIDs
 	for (pidc_t * pid = contparm->pids; ((pid)); pid=pid->next ){
 		if (pid->img || pid->cont) // part of tree, skip
 			continue;
@@ -370,7 +369,8 @@ void adaptPrepareSchedule(){
 	// add all fixed resources // TODO: push up to mask for efficiency
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (numa_bitmask_weight(res->affinity) == 1)
-			addTracer(res, -1);
+			if (addTracer(res, -1))
+				err_exit("The resource plan does not fit your system!");
 
 	{ // compute flexible resources
 		resTracer_t * DLtrc = NULL;
