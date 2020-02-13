@@ -537,7 +537,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		char *setaffinity;
 
 		setaffinity = get_string_value_from(global, "setaffinity",
-					       TRUE, "AFFINITY_UNSPECIFIED");
+					       TRUE, "unspecified");
 
 		// function to evaluate string value!
 		set->setaffinity = string_to_affinity(setaffinity);
