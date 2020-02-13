@@ -1,5 +1,5 @@
 # Set the working directory
-setwd("./log/") # temp
+setwd("./logs/") # temp
 library(ggplot2)
 library(viridis)
 
@@ -29,6 +29,9 @@ loadData <- function(fName) {
 	start <- 1
 	plots <- list()
 	plot  <- list("Test" = -1, "FPS"= -1, "dataFPS"=NULL, "dataT"=NULL)
+	min=9999999
+	max = -1
+	avg = -1
 	k <- 1
 	while (start < length(linn)){
 			# find next starting test entry
@@ -84,7 +87,7 @@ loadData <- function(fName) {
 			dataD$min <- as.integer(stringValue(linn[act+3])[2])
 			dataD$max <- as.integer(stringValue(linn[act+4])[2])
 			dataD$avg <- as.integer(stringValue(linn[act+5])[2])
-			act <- act +6
+			act <- act +6		
 
 			# find beginning of table
 			while(length(linn) > act && !startsWith(linn[act], 'Histogram'))
@@ -118,6 +121,10 @@ loadData <- function(fName) {
 			}
 			else {
 				plot$dataT <- dataD
+				# compare min max avg
+				min = min(min,dataD$min)
+				max = max(max,dataD$max)
+				avg = max(avg,dataD$avg)	
 			}
 
 		# once for is finished, increase start
@@ -130,6 +137,7 @@ loadData <- function(fName) {
 		plots[[k]] <- plot
 	}
 
+	cat(paste0(fName, ";", min, ";", max, ";", avg, "\n"))
 	return(plots)
 
 }
@@ -165,6 +173,13 @@ plotData<-function(directory) {
 	dev.off()
 }
 
+######### Start script main ()
+
+## sink to write worst performing thread to a csv
+sink("stats-maxmin.csv")
+
+cat("FileName;worst min; - max; - avg\n")
+
 col<- viridis(8)
 
 # Find all directories with pattern.. UC1
@@ -188,4 +203,7 @@ for (d in seq(along=dirs)){
 		plotData(dirs2[e])
 	}
 }
+
+## back to the console
+sink(type="output")
 
