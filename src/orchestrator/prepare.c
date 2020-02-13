@@ -719,9 +719,7 @@ sysend: // jumped here if not possible to create system
 	else //re-alloc issues
 		err_exit("could not allocate memory!");
 
-	// composed static or generated NUMA string? if generated > 1
-	if (1 < strlen(numastr))
-		free(numastr);
+	free(numastr);
 
 	// TODO: check if it makes sense to do this before or after starting threads
 	/* lock all memory (prevent swapping) -- do here */
