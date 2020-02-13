@@ -206,6 +206,10 @@
 	void pop(void ** head);
 	void qsortll(void **head, int (*compar)(const void *, const void*) );
 
+	// special - free structure
+	void freeParm(cont_t ** head,struct sched_attr * attr,
+			struct sched_rscs * rscs, int depth);
+
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs
 	void node_push(node_t ** head);

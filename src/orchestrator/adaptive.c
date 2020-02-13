@@ -460,8 +460,10 @@ struct resTracer * adaptGetTracers(){
 }
 
 void adaptFreeTracer(){
-	while (aHead)
+	while (aHead){
+		numa_free_cpumask(aHead->affinity);
 		pop((void**)&aHead);
+	}
 
 	while (rHead)
 		pop((void**)&rHead);
