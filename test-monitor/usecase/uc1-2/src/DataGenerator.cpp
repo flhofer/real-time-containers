@@ -47,7 +47,8 @@ bool createPipes(PipeStruct * pWritePipes, PipeStruct **ppReadPipe, OptParams &o
 
         std::string fifoName = optParams.baseWritePipeName + "_" + std::to_string(n);
 
-        if(optParams.datagenerator == 2){
+        // keep base name only for poll driven generator, UC2 non threaded
+        if(optParams.datagenerator == 2 && optParams.bThreaded){
             fifoName = optParams.baseWritePipeName;
         }
 
@@ -60,7 +61,7 @@ bool createPipes(PipeStruct * pWritePipes, PipeStruct **ppReadPipe, OptParams &o
 /*********************************
  * openPipeAndGenerateData: a thread which writes simulated data to a single pipe.  
  * This is for UseCase 2, the threaded mode of operation,
- *     where we allocate one thread/pipe to execute this function, open its pipe and then write sumulated data to it
+ *     where we allocate one thread/pipe to execute this function, open its pipe and then write simulated data to it
  *********************************/
 void openPipeAndGenerateData(PipeStruct *pWritePipe, PipeStruct * pReadPipe, OptParams &params, std::atomic<int> &numPipes)
 {

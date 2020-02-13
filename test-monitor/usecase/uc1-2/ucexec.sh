@@ -325,9 +325,10 @@ runTest() {
         startWorkerEventDriven $instance 
     done
 
-    #Launch Event-driver datagenerator -- do not use for this test, doesn't work -> TODO ckeck
-    #cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
-    #startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
+    #Launch Event-driver datagenerator/datadistributor (all-in-one)
+    # NOTE: datadistributor is a binary copy of datagenerator, function depends on settings
+    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    startFIFOorRRContainer rt-datadistributor "$cmdargs" datadistributor "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
