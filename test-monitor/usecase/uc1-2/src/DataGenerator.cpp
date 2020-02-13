@@ -48,7 +48,7 @@ bool createPipes(PipeStruct * pWritePipes, PipeStruct **ppReadPipe, OptParams &o
         std::string fifoName = optParams.baseWritePipeName + "_" + std::to_string(n);
 
         // keep base name only for poll driven generator, UC2 non threaded
-        if(optParams.datagenerator == 2 && optParams.bThreaded){
+        if(optParams.datagenerator == 2 && !optParams.bThreaded){
             fifoName = optParams.baseWritePipeName;
         }
 
