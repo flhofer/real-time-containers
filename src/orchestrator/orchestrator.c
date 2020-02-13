@@ -461,8 +461,10 @@ int main(int argc, char **argv)
 	prgset = tmpset; // move to make write protected // TODO: test!
 
 	if (adaptive){
+		// adaptive scheduling active? Clean prepare, execute, free
 		adaptPrepareSchedule();
 		adaptExecute();
+		adaptFreeTracer(); // free as we don't need it for the rest of the process
 	}
 
 	pthread_t thread1, thread2;
@@ -480,6 +482,7 @@ int main(int argc, char **argv)
 		t_stat2 = -1;
 	}
 
+	// TODO: consider moving these two before the thread creation -> inheritance
 	{ // setup interrupt handler block
 		struct sigaction act;
 
@@ -521,6 +524,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	// infinite loop until stop
 	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);
 	}

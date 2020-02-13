@@ -54,8 +54,12 @@
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 
-static int capMask =0;	// static capability mask // TODO: set in prepare environment
-
+// static capability mask
+#define CAPMASK_ALL		0x7
+#define CAPMASK_NICE	0x1
+#define CAPMASK_RES		0x2
+#define CAPMASK_IPC		0x4
+static int capMask = CAPMASK_ALL;
 
 /// setPidMask(): utility function to set all pids of a certain mask's affinity
 /// Arguments: - tag to search for
@@ -280,7 +284,6 @@ int prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify executable permissions - needed for dry run, not blind run
-	int capIpc = 1;
 	{
 	cont( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of process
@@ -296,6 +299,7 @@ int prepareEnvironment(prgset_t *set) {
 			err_exit("CAP_SYS_NICE capability mandatory to operate properly!");
 		else
 			warn("CAP_SYS_NICE unavailable");
+		capMask &= CAPMASK_NICE;
 	}
 
 	v=0;
@@ -307,6 +311,7 @@ int prepareEnvironment(prgset_t *set) {
 			err_exit("CAP_SYS_RESOURCE capability mandatory to operate properly!");
 		else
 			warn("CAP_SYS_RESOURCE unavailable");
+		capMask &= CAPMASK_RES;
 	}
 
 	v=0;
@@ -315,7 +320,7 @@ int prepareEnvironment(prgset_t *set) {
 
 	if (!CAP_IS_SUPPORTED(CAP_IPC_LOCK) || (0==v)){
 		warn("CAP_IPC_LOCK unavailable.");
-		capIpc = 0; // tell unavailable fort IPC lock
+		capMask &= CAPMASK_IPC;
 	}
 
 	}
@@ -352,6 +357,7 @@ int prepareEnvironment(prgset_t *set) {
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 
 	// ksoftirqd -> offline, online again
+	// TODO: dryrun?? print and show ?
 	cont("Trying to push CPU's interrupts");
 	if (!set->blindrun && !set->dryrun)
 	{
@@ -393,7 +399,7 @@ int prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// running settings for scheduler
-	// TODO: detect possible cpu alignment cat /proc/$$/cpuset, maybe change it once all is done
+	// TODO: detect possible CPU alignment cat /proc/$$/cpuset, maybe change it once all is done
 	struct sched_attr attr;
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
@@ -719,7 +725,7 @@ sysend: // jumped here if not possible to create system
 	if (prgset->lock_pages) {
 		// find lock configuration - depending on CAPS
 		int lockt = MCL_CURRENT;
-		if (capIpc)
+		if ((capMask & CAPMASK_IPC))
 			lockt |= MCL_FUTURE;
 		if (-1 == mlockall(lockt))
 			err_exit_n(errno, "MLockall failed");
