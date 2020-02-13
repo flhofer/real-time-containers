@@ -182,6 +182,12 @@ cat("FileName;worst min; - max; - avg\n")
 
 col<- viridis(8)
 
+df <- df <- file.info(dir(".", pattern= "^UC1"))
+rownames(df)[which.max(df$mtime)]
+
+df <- df <- file.info(dir(".", pattern= "^UC2"))
+rownames(df)[which.max(df$mtime)]
+
 # Find all directories with pattern.. UC1
 dirs <- dir(".", pattern= "^UC1")
 
