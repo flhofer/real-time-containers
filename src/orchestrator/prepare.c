@@ -479,16 +479,19 @@ int prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// detect NUMA configuration TODO: adapt for full support
-	char * numastr = "0"; // default NUMA string
+	char * numastr = malloc (5);
+	if (!(numastr))
+			err_exit("could not allocate memory!");
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
-		if (!(numastr = malloc (5)))
-			err_exit("could not allocate memory!");
 
 		sprintf(numastr, "0-%d", numanodes);
 	}
-	else
+	else{
 		warn("NUMA not enabled, defaulting to memory node '0'");
+		// default NUMA string
+		sprintf(numastr, "0");
+	}
 
 	/// --------------------
 	/// CGroup present, fix cpu-sets of running containers
@@ -722,7 +725,7 @@ sysend: // jumped here if not possible to create system
 
 	// TODO: check if it makes sense to do this before or after starting threads
 	/* lock all memory (prevent swapping) -- do here */
-	if (prgset->lock_pages) {
+	if (set->lock_pages) {
 		// find lock configuration - depending on CAPS
 		int lockt = MCL_CURRENT;
 		if ((capMask & CAPMASK_IPC))
