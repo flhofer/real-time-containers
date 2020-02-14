@@ -17,13 +17,14 @@
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// Linux specific scheduling
+#include <poll.h>
 
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
 	prgset->affinity= "0"; // todo, detect
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
-	prgset->ftrace = 1;
+	prgset->ftrace = 0;
 
 	contparm = malloc (sizeof(containers_t));
 	contparm->img = NULL; // locals are not initialized
@@ -38,6 +39,19 @@ static void orchestrator_manage_teardown() {
 	free(contparm);
 }
 
+int is_pipe_closed(int fd) {
+    struct pollfd pfd = {
+        .fd = fd,
+        .events = POLLOUT,
+    };
+
+    if (poll(&pfd, 1, 1) < 0) {
+        return 0;
+    }
+
+    return pfd.revents & POLLERR;
+}
+
 /// TEST CASE -> test read of runparameters of detected pid list
 /// EXPECTED -> 3 elements show changed runtimes and/or deadlines
 START_TEST(orchestrator_ftrace_readdata)
@@ -50,12 +64,7 @@ START_TEST(orchestrator_ftrace_readdata)
 								"chrt -r 2 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test2'; done\"",
 								"chrt -r 3 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test3'; done\"",
 								NULL };
-/*
-	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 watch -n 1 'echo \"test 1\" > /dev/null'",
-								"chrt -r 2 taskset -c 0 watch -n 1 'echo \"test 2\" > /dev/null'",
-								"chrt -r 3 taskset -c 0 watch -n 1 'echo \"test 3\" > /dev/null'",
-								NULL };
-*/
+
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
 	FILE * fd[sz_test];
 	pid_t pid[sz_test];
@@ -78,7 +87,7 @@ START_TEST(orchestrator_ftrace_readdata)
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
-	sleep(4);
+	sleep(8);
 //	// set stop sig
 	stat1 = -1;
 
@@ -87,6 +96,18 @@ START_TEST(orchestrator_ftrace_readdata)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join(thread1, NULL); // wait until end
+
+	ck_assert_int_gt(0, nhead->mon.dl_count);
+	ck_assert_int_gt(0, nhead->next->mon.dl_count);
+	ck_assert_int_gt(0, nhead->next->next->mon.dl_count);
+
+	ck_assert_int_gt(0, nhead->mon.rt_avg);
+	ck_assert_int_gt(0, nhead->next->mon.rt_avg);
+	ck_assert_int_gt(0, nhead->next->next->mon.rt_avg);
+
+	ck_assert_int_ge(0, nhead->mon.rt_min);
+	ck_assert_int_ge(0, nhead->next->mon.rt_min);
+	ck_assert_int_ge(0, nhead->next->next->mon.rt_min);
 
 	// free memory
 	while (nhead)
@@ -97,11 +118,13 @@ END_TEST
 
 /// TEST CASE -> Stop manage thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
-START_TEST(orchestrator_ftrace_stop)
+/// iteration 0 = debug, iteration 1 = function trace
+START_TEST(orchestrator_manage_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
+	prgset->ftrace = _i; // iteration 0 = debug, iteration 1 = ftrace
 
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
@@ -116,14 +139,17 @@ START_TEST(orchestrator_ftrace_stop)
 END_TEST
 
 void orchestrator_manage (Suite * s) {
-	TCase *tc1 = tcase_create("manage_thread");
- 
-	// TODO: using functions of update here, fix or export
-	tcase_add_checked_fixture(tc1, orchestrator_manage_setup, orchestrator_manage_teardown);
-	tcase_add_exit_test(tc1, orchestrator_ftrace_stop, EXIT_SUCCESS);
-	tcase_add_test(tc1, orchestrator_ftrace_readdata);
+	TCase *tc1 = tcase_create("manage_thread_stop");
 
-    suite_add_tcase(s, tc1);
+	tcase_add_checked_fixture(tc1, orchestrator_manage_setup, orchestrator_manage_teardown);
+	tcase_add_loop_exit_test(tc1, orchestrator_manage_stop, EXIT_SUCCESS, 0, 2);
+	suite_add_tcase(s, tc1);
+
+	TCase *tc2 = tcase_create("manage_thread_read");
+	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);
+	tcase_add_loop_test(tc2, orchestrator_ftrace_readdata, 0, 2);
+	tcase_set_timeout(tc2, 10);
+    suite_add_tcase(s, tc2);
 
 	return;
 }
