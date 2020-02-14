@@ -424,15 +424,13 @@ elif [[ $cmd == "timing" ]]; then
 	done
 
 	#Launch datadistributor
-	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg 1"
+	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 3 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg 1"
 	echo ">>> Running command: datadistributor $cmdargs"
-#	cmdargs="--readpipe /tmp/source_1 --num 3 --dbg"
 	startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy $datadistributorPriority"
 
 	#Launch datagenerator
-	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg 1"
+	cmdargs=" --generator 1 --mininterval 40000 --maxinterval 40000 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg 1"
 	echo ">>> Running command: datagenerator $cmdargs"
-#	cmdargs="--mininterval 40000 --maxinterval 40000 --sleeptimer --writepipe /tmp/source --dbg --num 1"
 	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy $datageneratorPriority"
 
 elif [[ $cmd == "monitor" ]]; then
