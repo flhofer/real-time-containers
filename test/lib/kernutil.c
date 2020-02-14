@@ -68,7 +68,7 @@ START_TEST(kernutil_setkernvar)
 }
 END_TEST
 
-// TODO: bitmask test functions!
+// TODO: bit mask test functions!
 
 void library_kernutil (Suite * s) {
 

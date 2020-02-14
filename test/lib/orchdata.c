@@ -8,99 +8,76 @@
 
 //TODO: all tests!!!
 
-#include "../../src/orchestrator/orchestrator.h"
-#include "../../src/orchestrator/update.h"
+//#include "../../src/orchestrator/update.h"
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
-//#include <malloc.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
-
-/*
-extern void __builtin_free(void *__ptr);
-
-struct list {
-	struct list * next;
-	void * ptr;
-};
-
-struct list * lst;
-
-void
-free (void *ptr)
-{
-  if (ptr){
-	push((void **)&lst, sizeof(struct list));
-	lst->ptr = ptr;
-  }
-  return __builtin_free (ptr);
-}
-*/
 
 /// TEST CASE -> push node elements and test
 /// EXPECTED -> pushing, no matter where, should keep order, data is initialized
 START_TEST(orchdata_ndpush)
 {
-	ck_assert(!head);
-	node_push(&head);
+	ck_assert(!nhead);
+	node_push(&nhead);
 
-	ck_assert_ptr_eq(head->next, NULL);
-	ck_assert_int_eq(head->pid, 0);
-	ck_assert_int_eq(head->det_mode, 0);
-	ck_assert_ptr_eq(head->psig, NULL);
-	ck_assert_ptr_eq(head->contid, NULL);
-	ck_assert_ptr_eq(head->imgid, NULL);
-	ck_assert_int_eq(head->attr.size, 48);
-	ck_assert_int_eq(head->attr.sched_policy, SCHED_NODATA);
-	ck_assert_int_eq(head->mon.rt_min, INT64_MAX);
-	ck_assert_int_eq(head->mon.rt_avg, 0);
-	ck_assert_int_eq(head->mon.rt_max, INT64_MIN);
-	ck_assert_int_eq(head->mon.dl_count, 0);
-	ck_assert_int_eq(head->mon.dl_scanfail, 0);
-	ck_assert_int_eq(head->mon.dl_overrun, 0);
-	ck_assert_int_eq(head->mon.dl_deadline, 0);
-	ck_assert_int_eq(head->mon.dl_rt, 0);
-	ck_assert_int_eq(head->mon.dl_diff, 0);
-	ck_assert_int_eq(head->mon.dl_diffmin, INT64_MAX);
-	ck_assert_int_eq(head->mon.dl_diffavg, 0);
-	ck_assert_int_eq(head->mon.dl_diffmax, INT64_MIN);
-	ck_assert_ptr_eq(head->param, NULL);
+	ck_assert_ptr_eq(nhead->next, NULL);
+	ck_assert_int_eq(nhead->pid, 0);
+	ck_assert_int_eq(nhead->det_mode, 0);
+	ck_assert_ptr_eq(nhead->psig, NULL);
+	ck_assert_ptr_eq(nhead->contid, NULL);
+	ck_assert_ptr_eq(nhead->imgid, NULL);
+	ck_assert_int_eq(nhead->attr.size, 48);
+	ck_assert_int_eq(nhead->attr.sched_policy, SCHED_NODATA);
+	ck_assert_int_eq(nhead->mon.rt_min, INT64_MAX);
+	ck_assert_int_eq(nhead->mon.rt_avg, 0);
+	ck_assert_int_eq(nhead->mon.rt_max, INT64_MIN);
+	ck_assert_int_eq(nhead->mon.dl_count, 0);
+	ck_assert_int_eq(nhead->mon.dl_scanfail, 0);
+	ck_assert_int_eq(nhead->mon.dl_overrun, 0);
+	ck_assert_int_eq(nhead->mon.dl_deadline, 0);
+	ck_assert_int_eq(nhead->mon.dl_rt, 0);
+	ck_assert_int_eq(nhead->mon.dl_diff, 0);
+	ck_assert_int_eq(nhead->mon.dl_diffmin, INT64_MAX);
+	ck_assert_int_eq(nhead->mon.dl_diffavg, 0);
+	ck_assert_int_eq(nhead->mon.dl_diffmax, INT64_MIN);
+	ck_assert_ptr_eq(nhead->param, NULL);
 
 	// verify default settings
 
-	node_t * a = head;
-	node_push(&head);
-	node_t * b = head;
-	node_push(&head);
-	node_t * c = head;
+	node_t * a = nhead;
+	node_push(&nhead);
+	node_t * b = nhead;
+	node_push(&nhead);
+	node_t * c = nhead;
 
-	// head |-> c -> b -> a
-	ck_assert_ptr_eq(head,c);
-	ck_assert_ptr_eq(head->next,b);
-	ck_assert_ptr_eq(head->next->next,a);
+	// nhead |-> c -> b -> a
+	ck_assert_ptr_eq(nhead,c);
+	ck_assert_ptr_eq(nhead->next,b);
+	ck_assert_ptr_eq(nhead->next->next,a);
 
-	// head |-> c -> a
+	// nhead |-> c -> a
 	node_pop(&c->next); // drop after C
 	
-	ck_assert_ptr_eq(head,c);
-	ck_assert_ptr_eq(head->next,a);
+	ck_assert_ptr_eq(nhead,c);
+	ck_assert_ptr_eq(nhead->next,a);
 
-	node_push(&head);
+	node_push(&nhead);
 	node_push(&c->next);
 
-	// head |->x -> c -> y -> a
-	ck_assert_ptr_eq(head->next,c);
-	ck_assert_ptr_eq(head->next->next->next,a);
+	// nhead |->x -> c -> y -> a
+	ck_assert_ptr_eq(nhead->next,c);
+	ck_assert_ptr_eq(nhead->next->next->next,a);
 
 	// cleanup
-	node_pop(&head);
-	node_pop(&head);
-	node_pop(&head);
-	node_pop(&head);
+	node_pop(&nhead);
+	node_pop(&nhead);
+	node_pop(&nhead);
+	node_pop(&nhead);
 
-	ck_assert(!head);
+	ck_assert(!nhead);
 }
 END_TEST
 
@@ -112,13 +89,13 @@ START_TEST(orchdata_ndpop)
 	static const char *b[] = {"56", NULL, "78"}; // compiler optimization
 	static const char *c[] = {"90", "ab", NULL};
 
-	node_push(&head);
-	head->psig = a == NULL ? strdup(a[_i]) : NULL;
-	head->contid = b == NULL ? strdup(b[_i]) : NULL;
-	head->imgid = c == NULL ? strdup(c[_i]) : NULL;
-	node_pop(&head);
+	node_push(&nhead);
+	nhead->psig = a == NULL ? strdup(a[_i]) : NULL;
+	nhead->contid = b == NULL ? strdup(b[_i]) : NULL;
+	nhead->imgid = c == NULL ? strdup(c[_i]) : NULL;
+	node_pop(&nhead);
 
-	ck_assert(!head);
+	ck_assert(!nhead);
 }
 END_TEST
 
@@ -134,15 +111,15 @@ START_TEST(orchdata_ndpop2)
 	img_t e = {NULL, c};
 	pidc_t f = {NULL, a, NULL, NULL, &d, &e};
 	
-	node_push(&head);
-	head->psig= a;
-	head->contid = b;
-	head->imgid = c;
-	head->param = &f;
-	node_t * p = head;	// save for test
-	node_pop(&head);
+	node_push(&nhead);
+	nhead->psig= a;
+	nhead->contid = b;
+	nhead->imgid = c;
+	nhead->param = &f;
+	node_t * p = nhead;	// save for test
+	node_pop(&nhead);
 
-	ck_assert(!head);
+	ck_assert(!nhead);
 
 	// waring! accessing unallocated memrory
 	ck_assert(p);
@@ -168,15 +145,15 @@ START_TEST(orchdata_ndpop3)
 	img_t e = {NULL, "xxx"};
 	pidc_t f = {NULL, "ss", NULL, NULL, &d, &e};
 	
-	node_push(&head);
-	head->psig= a;
-	head->contid = b;
-	head->imgid = c;
-	head->param = &f;
-	node_t * p = head;	// save for test
-	node_pop(&head);
+	node_push(&nhead);
+	nhead->psig= a;
+	nhead->contid = b;
+	nhead->imgid = c;
+	nhead->param = &f;
+	node_t * p = nhead;	// save for test
+	node_pop(&nhead);
 
-	ck_assert(!head);
+	ck_assert(!nhead);
 
 	// waring! accessing unallocated memrory
 	ck_assert(p);
@@ -199,20 +176,20 @@ START_TEST(orchdata_qsort)
 	int no;
 	int cnt = rand() % 20 + 3;
 
-	ck_assert(!head);
+	ck_assert(!nhead);
 
 	for (int i = 0; i < cnt; i ++) {
-		node_push(&head);
+		node_push(&nhead);
 		no = rand() % 32768;
 		sum += no;
-		head->pid = no;
+		nhead->pid = no;
 	}
 
 	// apply quick sort!
-	qsortll((void **)&head, cmpPidItem);
+	qsortll((void **)&nhead, cmpPidItem);
 
 	no = 32768;
-	for (node_t * curr = head; ((curr)); curr=curr->next) {
+	for (node_t * curr = nhead; ((curr)); curr=curr->next) {
 		ck_assert_int_le (curr->pid, no);	// old < new -> order verify
 		sum -= curr->pid; 					// create diff, -> sum must go to 0, mismatch verify
 		cnt--; 								// count down -> must go to 0, count verify
@@ -223,8 +200,8 @@ START_TEST(orchdata_qsort)
 	ck_assert_int_eq(cnt, 0);
 
 	// cleanup	
-	while ((head))
-		node_pop(&head);
+	while ((nhead))
+		node_pop(&nhead);
 }
 END_TEST
 
@@ -241,12 +218,12 @@ END_TEST
 /// EXPECTED -> should not fail
 START_TEST(orchdata_qsort3)
 {	
-	node_push(&head);	
-	node_push(&head);	
+	node_push(&nhead);
+	node_push(&nhead);
 	// apply quick sort!
-	qsortll((void **)&head, NULL);
-	node_pop(&head);
-	node_pop(&head);
+	qsortll((void **)&nhead, NULL);
+	node_pop(&nhead);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -466,41 +443,41 @@ static void orchdata_tc2_teardown () {
 		pop((void **)&contparm->pids);
 	}
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 
 static void findparamsCheck (int imgtest, int conttest) {	
 
-	int retv = node_findParams(head , contparm);
+	int retv = node_findParams(nhead , contparm);
 	ck_assert_int_eq(retv, 0);
-	ck_assert(head->param);
-	ck_assert(head->param->rscs);
-	ck_assert(head->param->attr);
+	ck_assert(nhead->param);
+	ck_assert(nhead->param->rscs);
+	ck_assert(nhead->param->attr);
 
-	ck_assert((NULL != head->param->img) ^ !(imgtest));
+	ck_assert((NULL != nhead->param->img) ^ !(imgtest));
 	if (imgtest){
-		ck_assert(head->param->img->imgid);
-		ck_assert_str_eq(head->param->img->imgid, head->imgid);
-		ck_assert(head->param->img->rscs);
-		ck_assert(head->param->img->attr);
+		ck_assert(nhead->param->img->imgid);
+		ck_assert_str_eq(nhead->param->img->imgid, nhead->imgid);
+		ck_assert(nhead->param->img->rscs);
+		ck_assert(nhead->param->img->attr);
 	}
 
 	if (!(conttest) && !(imgtest)){
-		ck_assert(!head->param->cont);
+		ck_assert(!nhead->param->cont);
 		// both neg-> nothing to do here. Exit
 		return;
 	}
 
 	// if only container off, container is created. Test for presence
-	ck_assert(head->param->cont);
+	ck_assert(nhead->param->cont);
 	// if test, tesst for id only. Rest test anyway as created for img
 	if (conttest) {
-		ck_assert_str_eq(head->param->cont->contid, head->contid);
-		ck_assert(head->param->cont->contid);
+		ck_assert_str_eq(nhead->param->cont->contid, nhead->contid);
+		ck_assert(nhead->param->cont->contid);
 	}
 
-	ck_assert(head->param->cont->rscs);
-	ck_assert(head->param->cont->attr);
+	ck_assert(nhead->param->cont->rscs);
+	ck_assert(nhead->param->cont->attr);
 }
 
 /// TEST CASE -> test configuration find 
@@ -510,13 +487,13 @@ START_TEST(orchdata_findparams)
 	// complete match, center, beginning, end
 	static const char *sigs[] = { "hard 5", "do we sleep or more", "weep 1", "keep 4"};
 
-	node_push(&head);
-	head->pid = 1;
-	head->psig = strdup(sigs[_i]);
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
 
 	findparamsCheck( 0, 0 );
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -527,14 +504,14 @@ START_TEST(orchdata_findparams_cont)
 	// some match, 2,3
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
-	node_push(&head);
-	head->pid = 1;
-	head->psig = strdup(sigs[_i]);
-	head->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
+	nhead->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
 
 	findparamsCheck( 0, 1 );
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -545,15 +522,15 @@ START_TEST(orchdata_findparams_image)
 	// some match, 2,3
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
-	node_push(&head);
-	head->pid = 1;
-	head->psig = strdup(sigs[_i]);
-	head->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
-	head->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
+	nhead->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
+	nhead->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
 
 	findparamsCheck( 1, (_i<2) );
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -562,17 +539,17 @@ END_TEST
 START_TEST(orchdata_findparams_fail)
 {	
 	// sometimes null, sometimes with id, but never fitting -> check segfaults
-	node_push(&head);
-	head->pid = 1;
-	head->psig = _i 		? NULL : strdup("wleep 1 as");
-	head->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
-	head->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
-	int retv = node_findParams(head , contparm);
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = _i 		? NULL : strdup("wleep 1 as");
+	nhead->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
+	nhead->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
+	int retv = node_findParams(nhead , contparm);
 	
 	ck_assert_int_eq(retv, -1);
-	ck_assert(!head->param);
+	ck_assert(!nhead->param);
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -581,15 +558,15 @@ END_TEST
 /// EXPECTED -> verifies that with data from dockerlink the function finds the parameters
 START_TEST(orchdata_findparams_link)
 {	
-	node_push(&head);
-	head->pid = 0;
-	head->psig = NULL;
-	head->contid = strdup("d7408531a3b4d7408531a3b4");
-	head->imgid  = strdup("51c3cc77fcf051c3cc77fcf0");
+	node_push(&nhead);
+	nhead->pid = 0;
+	nhead->psig = NULL;
+	nhead->contid = strdup("d7408531a3b4d7408531a3b4");
+	nhead->imgid  = strdup("51c3cc77fcf051c3cc77fcf0");
 	
 	findparamsCheck( 1, 1 );
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 
@@ -598,18 +575,18 @@ END_TEST
 /// EXPECTED -> verifies that with data from dockerlink the function finds the parameters, container name
 START_TEST(orchdata_findparams_link2)
 {	
-	node_push(&head);
-	head->pid = 0;
-	head->psig = strdup("mytestcontainer");
-	head->contid = strdup("32aeede2352d57f52");
-	head->imgid  = strdup("c3cc77fcf051c3cc7");
+	node_push(&nhead);
+	nhead->pid = 0;
+	nhead->psig = strdup("mytestcontainer");
+	nhead->contid = strdup("32aeede2352d57f52");
+	nhead->imgid  = strdup("c3cc77fcf051c3cc7");
 	
 	findparamsCheck( 0, 1 );
 
 	// fix for r/o test -> duplicate manual free
-	head->param->cont->pids = NULL;
+	nhead->param->cont->pids = NULL;
 
-	node_pop(&head);
+	node_pop(&nhead);
 }
 END_TEST
 

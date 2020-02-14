@@ -66,7 +66,7 @@ static int manageSched(){
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-    node_t * current = head;
+    node_t * current = nhead;
 
 	while (current != NULL) {
 
@@ -297,7 +297,7 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 	// reset item, remains null if not found
 	*item=NULL;
 	// for now does only a simple update
-	for (node_t * citem = head; ((citem)); citem=citem->next )
+	for (node_t * citem = nhead; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
 		if (abs(citem->pid)==pFrame->pid){
 			*item = citem;
@@ -331,7 +331,7 @@ static int pickPidInfo(node_t ** item, void * addr) {
 	// reset item, remains null if not found
 	*item=NULL;
 	// for now does only a simple update
-	for (node_t * citem = head; ((citem)); citem=citem->next )
+	for (node_t * citem = nhead; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
 		if (abs(citem->pid)==pFrame->next_pid){
 			*item = citem;
@@ -371,7 +371,7 @@ static int update_sched_info(node_t ** item, void * addr)
 
 		*item=NULL;
 		// for now does only a simple update
-		for (node_t * citem = head; ((citem)); citem=citem->next )
+		for (node_t * citem = nhead; ((citem)); citem=citem->next )
 			// skip deactivated tracking items
 			if (abs(citem->pid)==pFrame->pid){
 				*item = citem;
@@ -657,7 +657,7 @@ static int updateStats ()
 	scount++; // increase scan-count
 
 	// for now does only a simple update
-	for (node_t * item = head; ((item)); item=item->next ) {
+	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
 		if (item->pid<0){
 			item=item->next; 
@@ -719,7 +719,7 @@ static int updateStats ()
 /// Return value: -
 static void dumpStats (){
 
-	node_t * item = head;
+	node_t * item = nhead;
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"

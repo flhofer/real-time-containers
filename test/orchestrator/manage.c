@@ -6,10 +6,10 @@
 ###############################
 */
 
-#include "../../src/orchestrator/orchestrator.h"
 #include "../../src/orchestrator/manage.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
+#include <check.h>
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -47,9 +47,9 @@ START_TEST(orchestrator_ftrace_stop)
 
 			fd[i] = popen2(pidsig[i], "r", &pid[i]);
 
-			node_push(&head);
-			head->pid = pid[i];
-			head->psig = strdup(pidsig[i]);
+			node_push(&nhead);
+			nhead->pid = pid[i];
+			nhead->psig = strdup(pidsig[i]);
 
 			i++;
 		}
@@ -69,8 +69,8 @@ START_TEST(orchestrator_ftrace_stop)
 		iret1 = pthread_join(thread1, NULL); // wait until end
 
 	// free memory
-	while (head)
-		node_pop(&head);
+	while (nhead)
+		node_pop(&nhead);
 
 }
 END_TEST

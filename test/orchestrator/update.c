@@ -6,11 +6,11 @@
 ###############################
 */
 
-#include "../../src/orchestrator/orchestrator.h"
 #include "../../src/orchestrator/update.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
+#include <check.h>
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -124,22 +124,22 @@ START_TEST(orchestrator_update_findprocs)
 	sleep(1);
 
 	// verify 2 nodes exist
-	ck_assert(head);
-	ck_assert(head->next);
-	ck_assert(head->next->next);
-	ck_assert(!head->next->next->next);
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
 
 	// verify pids
-	ck_assert_int_eq(head->next->next->pid, pid1);
-	ck_assert_int_eq(head->next->pid, pid2);
-	ck_assert_int_eq(head->pid, pid3);
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
 
 	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
 	sleep(1);
 
 	// verify pids
-	ck_assert_int_eq(head->next->pid, pid1);
-	ck_assert_int_eq(head->pid, pid3);
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid3);
 
 	// TODO: verify if threads remain defunct
 	pclose(fd1); // close pipe of sleep instance = HUP
@@ -235,16 +235,16 @@ START_TEST(orchestrator_update_rscs)
 	sleep(1);
 
 	// verify 2 nodes exist
-	ck_assert(head);
-	ck_assert(head->next);
-	ck_assert(!head->next->next);
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(!nhead->next->next);
 
 	// verify pids
-	ck_assert_int_eq(head->next->pid, pid1);
-	ck_assert_int_eq(head->pid, pid2);
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid2);
 
-	ck_assert_ptr_eq(head->param, contparm->pids);
-	ck_assert_ptr_eq(head->next->param, contparm->pids);
+	ck_assert_ptr_eq(nhead->param, contparm->pids);
+	ck_assert_ptr_eq(nhead->next->param, contparm->pids);
 
 	{
 		struct rlimit rlim;		

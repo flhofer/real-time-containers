@@ -7,6 +7,7 @@
 */
 
 #include "../../src/include/dockerlink.h"
+#include <check.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update

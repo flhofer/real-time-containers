@@ -11,8 +11,23 @@
 #include <errno.h>
 #include <time.h>
 
+#include "../../src/orchestrator/orchestrator.h"
+
+// ############################ common global variables ###########################333
+
 // debug output file
 FILE  * dbg_out;
+
+containers_t * contparm; // container parameter settings
+prgset_t * prgset; // programm setings structure
+
+// mutex to avoid read while updater fills or empties existing threads
+pthread_mutex_t dataMutex;
+
+// local head of pidlist - PID runtime and configuration details
+node_t * nhead = NULL;
+
+// ############################ end common global variables ###########################333
 
 #include "lib/library_suite.c"
 #include "orchestrator/orchestrator_suite.c"

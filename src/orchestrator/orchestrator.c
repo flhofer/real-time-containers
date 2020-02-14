@@ -39,7 +39,7 @@ volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
-node_t * head = NULL;
+node_t * nhead = NULL;
 
 // TODO configuration read file -- TEMP public, -> then change to static
 char * config = "config.json";

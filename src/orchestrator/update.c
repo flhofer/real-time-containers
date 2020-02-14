@@ -476,7 +476,7 @@ static void updateDocker() {
 
 			case cnt_remove: ;
 				(void)pthread_mutex_lock(&dataMutex);
-				node_t dummy = {head};
+				node_t dummy = {nhead};
 				node_t * curr = &dummy;
 
 				// drop matching PIDs of this container
@@ -547,7 +547,7 @@ static void scanNew () {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	node_t	dummy = { head }; // dummy placeholder for head list
+	node_t	dummy = { nhead }; // dummy placeholder for head list
 	node_t	*tail = &dummy;	  // pointer to tail element
 
 	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
@@ -613,7 +613,7 @@ static void scanNew () {
 	}
 
 	// 
-	head = dummy.next;
+	nhead = dummy.next;
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
@@ -621,7 +621,7 @@ static void scanNew () {
 
 #ifdef DEBUG
 	printDbg("\nResult list: ");
-	for (node_t * curr = head; ((curr)); curr=curr->next)
+	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif

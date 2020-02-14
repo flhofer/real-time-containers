@@ -6,11 +6,11 @@
 ###############################
 */
 
-#include "../../src/orchestrator/orchestrator.h"
 #include "../../src/orchestrator/adaptive.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
+#include <check.h>
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -18,7 +18,6 @@
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
-//#include <check.h>
 
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME

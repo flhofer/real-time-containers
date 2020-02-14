@@ -30,7 +30,7 @@ unsigned long endInSeconds = 0;
 int timedloops=0;
 bool bDbg = false;
 int maxTests = 8;
-bool terminateProcess = false;
+volatile bool terminateProcess = false;
 
 timespec calculateTimeDifference(const timespec& first, const timespec& second){
 
