@@ -218,7 +218,7 @@ static int startTraceRead() {
 	// loop through, bit set = start a thread and store in ll
 	for (int i=0;i<maxcpu  ;i++)
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
-			push((void**)&elist_thead, sizeof(elist_thead));
+			push((void**)&elist_thead, sizeof(struct ftrace_elist));
 			elist_thead->cpuno = i;
 			//TODO: return value
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
