@@ -220,6 +220,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'A':
 			adaptive = 1;
+			break;
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
