@@ -319,15 +319,16 @@ runTest() {
     done
 
     #Launch event-driven workers
+    startWorkers=5
     for (( iw=0 ; iw<maxWorkers; iw++ )); do
-        let instance=5+$iw
+        let instance=$startWorkers+$iw
         echo "Calling startWorkerEventDriven $instance"
         startWorkerEventDriven $instance 
     done
 
     #Launch Event-driver datagenerator/datadistributor (all-in-one)
     # NOTE: datadistributor is a binary copy of datagenerator, function depends on settings
-    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    cmdargs=" --generator 2 --maxTests 1 --mininterval 500 --maxinterval 100000 --startWritePipes $startWorkers --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
     startFIFOorRRContainer rt-datadistributor "$cmdargs" datadistributor "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
