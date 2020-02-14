@@ -11,6 +11,7 @@ OptParams::OptParams() :
     loops( -1),         //debugging only
     mininterval( 0),
     maxinterval( 0),
+	startWritePipes( 0),
     maxWritePipes( 10),
     bThreaded( false),  //Use Case 2 only
     bTimeSleep( true),
@@ -52,6 +53,7 @@ void OptParams::printHelp(std::string msg)
     printf("       --maxWritePipes(-p) <n>   : number of write pipes (default %d)\n", maxWritePipes);
     printf("       --readpipe    (-r) <name> : name of pipe from which to read (default none)\n");
     printf("       --sleeptimer  (-s)        : log the actual duration of sleep interval between simulated inputs (default %s)\n", (bTimeSleep?"true":"false") );
+    printf("       --startWritePipes(-S) <n> : offset for of write pipes (default %d)\n", startWritePipes);
     printf("       --threaded    (-t)        : multi-threaded (one thread per write pipe) (default false)\n");
     printf("       --testSecs    (-n) <n>    : (testing only) seconds between FPS changes by timeBasedDesiredFPS (default %d)\n", testSecs);
     printf("       --endInSeconds(-n) <n>    : controls lifetime of Process, value must be in seconds (default %lu)\n", endInSeconds);
@@ -64,7 +66,7 @@ int OptParams::processOptions(int argc, char **argv)
 {
 
     int optargs = 0;
-    const char * const short_opts = "a:b:d:g:hi:j:l:m:n:p:r:stw:x:z:e:?";
+    const char * const short_opts = "a:b:d:g:hi:j:l:m:n:p:r:sS:tw:x:z:e:?";
     const option long_opts[] = {
     {"histMin",     required_argument,  nullptr, 'a'},
     {"histMax",     required_argument,  nullptr, 'b'},
@@ -80,6 +82,7 @@ int OptParams::processOptions(int argc, char **argv)
     {"maxWritePipes", required_argument, nullptr, 'p'},
     {"readpipe",    required_argument, nullptr, 'r'},
     {"sleeptimer",  no_argument,       nullptr, 's'},
+    {"startWritePipes", required_argument, nullptr, 'S'},
     {"threaded",    no_argument,       nullptr, 't'},
     {"baseWritePipeName",   required_argument, nullptr, 'w'},
     {"maxinterval", required_argument, nullptr, 'x'},
@@ -134,6 +137,9 @@ int OptParams::processOptions(int argc, char **argv)
         case 's':
             bTimeSleep = true;
             break;
+        case 'S':
+        	startWritePipes = std::stoi(optarg);
+            break;
         case 't':
             bThreaded = true;
             break;
@@ -163,6 +169,6 @@ int OptParams::processOptions(int argc, char **argv)
     {
         mininterval = maxinterval = 0;
     }
-    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%lu/%lu/%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
+    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d offset %d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%lu/%lu/%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, startWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
     return 0;
 }
