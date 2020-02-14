@@ -16,7 +16,7 @@
 #include "GenerateData.h"
 
 std::string progName;
-bool terminateProcess{false};
+volatile bool terminateProcess{false};
 int desiredFPS{-1};
 const char * fpsName = "/tmp/fps";
 

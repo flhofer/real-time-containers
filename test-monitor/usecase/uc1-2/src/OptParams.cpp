@@ -18,14 +18,14 @@ OptParams::OptParams() :
     bReadPipe( false),
     readPipeName("none"),
     baseWritePipeName("/tmp/worker"),
-    timingHistMinValue(1),
-    timingHistMaxValue(5000000),
-    histCount(10000),
+    timingHistMinValue(1),		 // TODO: unused. what is this for?
+    timingHistMaxValue(5000000), // TODO: unused. what is this for?
+    histCount(10000),		// TODO: unused. what is this for?
     maxTests(8),
-    testSecs(6666660),
+    testSecs(6666660),		// TODO: unused. what is this for?
     endInSeconds(0),
-    firstFPS(24),        //debugging only
-    lastFPS(64),        //debugging only
+    firstFPS(24),			// debugging only? TODO: unused. what is this for?
+    lastFPS(64),       		// debugging only? TODO: unused. what is this for?
     datagenerator(1)
 {}
 

@@ -10,7 +10,10 @@ GenerateData::GenerateData(PipeStruct *wPipes, PipeStruct *rPipe, OptParams &opt
     generator(optParams.datagenerator),
     initialFPS(true),
     prevDesiredFPS(-1),
-    constIntervalUsec(0)
+    constIntervalUsec(0),
+	sleepIntervalRange(0),
+	pSimulatedMsg(nullptr),
+	mMsg(0.0)
 {}
 
 void GenerateData::initializeSimulatedMsg()
@@ -78,7 +81,7 @@ void GenerateData::initializeSleepSpec()
         **********************************************************/
         if (sleepIntervalRange == 0 && params.mininterval != 0 )
         {
-            //This case is not currently in use
+            // This case is not currently in use
             constIntervalUsec = params.mininterval;
             /********************************************
             * periodic operation
@@ -128,8 +131,6 @@ void GenerateData::initializeSleepSpec()
 
 void GenerateData::useCase1Sleep()
 {
-    SimulatedMsg &simulatedMsg = *pSimulatedMsg;
-
     if (constIntervalUsec == 0 )   //This is the normal case
     {
         int fps = desiredFPS;   //desired frames/second
@@ -156,10 +157,10 @@ void GenerateData::useCase1Sleep()
                 statsStartSpec.tv_sec, statsStartSpec.tv_nsec, (initialFPS?"true":"false"), fps, prevDesiredFPS);
 
             params.dbg && fprintf(stderr, "Location d: Calling startNewTest (new fps=%d, prevDesiredFPS=%d)\n", fps, prevDesiredFPS);
-            simulatedMsg.startNextTest(statsStartSpec);
+            pSimulatedMsg->startNextTest(statsStartSpec);
             std::string testName(std::to_string(fps));
             testName += " FPS";
-            simulatedMsg.setTestName(std::to_string(fps));
+            pSimulatedMsg->setTestName(std::to_string(fps));
             /********************************************
             * periodic operation
             *******************************************/
@@ -169,7 +170,7 @@ void GenerateData::useCase1Sleep()
             prevTimeSpec = statsStartSpec;
         }    
     }
-    sleeper.doSleep(params, sleepSpec, prevTimeSpec, simulatedMsg.getTimingStats());
+    sleeper.doSleep(params, sleepSpec, prevTimeSpec, pSimulatedMsg->getTimingStats());
 }
 
 void GenerateData::useCase2Sleep()
@@ -205,9 +206,9 @@ void GenerateData::mainLoop()
     {
         /**************************************************************
         * If Distributor (generator type 0), reads from pipe.  
-        * Updates fps and timing stats type 0.
+        * Updates FPS and timing statistics type 0.
         *
-        * If Generator (generator type 1) creates msg.
+        * If Generator (generator type 1) creates MSG.
         **************************************************************/
         if (!simulatedMsg.nextMsg(mMsg, pReadPipe)) 
         {
@@ -215,9 +216,11 @@ void GenerateData::mainLoop()
             break;
         }
 
+        // -- Pipe is not open, loop through until one is
         while ((!terminateProcess) && p->fd == -1 )
         {
-            if (n+1 >= maxWritePipes)
+            // so, are we at the end?
+        	if (n+1 >= maxWritePipes)
             {
                 n = 0;
                 p = pWritePipes;
@@ -244,6 +247,7 @@ void GenerateData::mainLoop()
                 ++n;
             }
         }
+
         if (terminateProcess)
             break;
 
@@ -275,7 +279,14 @@ void GenerateData::mainLoop()
             n = 0;
             if (params.loops != -1)
             {
-                //For debugging purposes, this allow running just loops passes through all open pipes for the first FPS before terminating
+                if (params.dbg)
+                {
+                    clock_gettime(CLOCK_REALTIME, &nowSpec);
+                    fprintf(stderr, "%s: At %ld.%09ld secs, completed write to %d pipes\n",
+                        (generator==0 ? "DataDistributor" : "DataGenerator"), nowSpec.tv_sec, nowSpec.tv_nsec, numPipes.load());
+                }
+
+            	//For debugging purposes, this allow running just loops passes through all open pipes for the first FPS before terminating
                 if (++loopct >= params.loops)
                 {
                     terminateProcess = true;

@@ -8,7 +8,7 @@ DoSleep::DoSleep()
       maxLatency(0)
 {}
 
-bool DoSleep::doSleep(OptParams &params, timespec & sleepSpec, timespec &prevTimeSpec, Stats *pStats /*=nullptr*/)
+bool DoSleep::doSleep(OptParams &params, timespec &sleepSpec, timespec &prevTimeSpec, Stats *pStats)
 {
     static bool firstEver = true;
     struct timespec endSpec, afterSpec, delaySpec, wakeupTimeSpec;

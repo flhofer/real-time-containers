@@ -10,6 +10,6 @@ class DoSleep {
     unsigned long maxLatency;
 public:
     DoSleep();
-    bool doSleep(OptParams &params, timespec & sleepSpec, timespec &prevTimeSpec, Stats *pStats =nullptr);
+    bool doSleep(OptParams &params, timespec &sleepSpec, timespec &prevTimeSpec, Stats *pStats =nullptr);
     void printSleepLatency(std::ostream & os);
 };
