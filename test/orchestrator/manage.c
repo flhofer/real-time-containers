@@ -19,10 +19,12 @@
 #include <linux/sched.h>	// Linux specific scheduling
 #include <poll.h>
 
+#define TESTCPU "1"
+
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
-	prgset->affinity= "0"; // todo, detect
+	prgset->affinity= TESTCPU; // todo, detect
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
 
@@ -39,19 +41,6 @@ static void orchestrator_manage_teardown() {
 	free(contparm);
 }
 
-int is_pipe_closed(int fd) {
-    struct pollfd pfd = {
-        .fd = fd,
-        .events = POLLOUT,
-    };
-
-    if (poll(&pfd, 1, 1) < 0) {
-        return 0;
-    }
-
-    return pfd.revents & POLLERR;
-}
-
 /// TEST CASE -> test read of runparameters of detected pid list
 /// EXPECTED -> 3 elements show changed runtimes and/or deadlines
 START_TEST(orchestrator_ftrace_readdata)
@@ -59,10 +48,11 @@ START_TEST(orchestrator_ftrace_readdata)
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
+	prgset->ftrace = _i; // iteration 0 = debug, iteration 1 = ftrace
 
-	const char * pidsig[] = {	"chrt -r 1 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test1'; done\"",
-								"chrt -r 2 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test2'; done\"",
-								"chrt -r 3 taskset -c 0 sh -c \"for i in {1..5}; do sleep 1; echo 'test3'; done\"",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..10}; do sleep 1; echo 'test1'; done\"",
+								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..10}; do sleep 1; echo 'test2'; done\"",
+								"chrt -r 3 taskset -c " TESTCPU  " sh -c \"for i in {1..10}; do sleep 1; echo 'test3'; done\"",
 								NULL };
 
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
@@ -76,6 +66,7 @@ START_TEST(orchestrator_ftrace_readdata)
 
 			fd[i] = popen2(pidsig[i], "r", &pid[i]);
 
+			printf("created pid %d\n", pid[i]);
 			node_push(&nhead);
 			nhead->pid = pid[i];
 			nhead->psig = strdup(pidsig[i]);
@@ -97,17 +88,17 @@ START_TEST(orchestrator_ftrace_readdata)
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join(thread1, NULL); // wait until end
 
-	ck_assert_int_gt(0, nhead->mon.dl_count);
-	ck_assert_int_gt(0, nhead->next->mon.dl_count);
-	ck_assert_int_gt(0, nhead->next->next->mon.dl_count);
+	ck_assert_int_lt(0, nhead->mon.dl_count);
+	ck_assert_int_lt(0, nhead->next->mon.dl_count);
+	ck_assert_int_lt(0, nhead->next->next->mon.dl_count);
 
-	ck_assert_int_gt(0, nhead->mon.rt_avg);
-	ck_assert_int_gt(0, nhead->next->mon.rt_avg);
-	ck_assert_int_gt(0, nhead->next->next->mon.rt_avg);
+	ck_assert_int_lt(0, nhead->mon.rt_avg);
+	ck_assert_int_lt(0, nhead->next->mon.rt_avg);
+	ck_assert_int_lt(0, nhead->next->next->mon.rt_avg);
 
-	ck_assert_int_ge(0, nhead->mon.rt_min);
-	ck_assert_int_ge(0, nhead->next->mon.rt_min);
-	ck_assert_int_ge(0, nhead->next->next->mon.rt_min);
+	ck_assert_int_le(0, nhead->mon.rt_min);
+	ck_assert_int_le(0, nhead->next->mon.rt_min);
+	ck_assert_int_le(0, nhead->next->next->mon.rt_min);
 
 	// free memory
 	while (nhead)
