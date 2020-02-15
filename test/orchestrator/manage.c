@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 25/07/2019
+# last change: 15/02/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -24,7 +24,7 @@
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
-	prgset->affinity= TESTCPU; // todo, detect
+	prgset->affinity= TESTCPU; // todo, detect?
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
 
@@ -41,18 +41,19 @@ static void orchestrator_manage_teardown() {
 	free(contparm);
 }
 
-/// TEST CASE -> test read of runparameters of detected pid list
-/// EXPECTED -> 3 elements show changed runtimes and/or deadlines
-START_TEST(orchestrator_ftrace_readdata)
+/// TEST CASE -> test read of run parameters of detected PID list
+/// EXPECTED -> 3 elements show changed run-times and/or deadlines
+/// iteration 0 = debug output, iteration 1 = function trace
+START_TEST(orchestrator_manage_readdata)
 {	
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
 	prgset->ftrace = _i; // iteration 0 = debug, iteration 1 = ftrace
 
-	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..10}; do sleep 1; echo 'test1'; done\"",
-								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..10}; do sleep 1; echo 'test2'; done\"",
-								"chrt -r 3 taskset -c " TESTCPU  " sh -c \"for i in {1..10}; do sleep 1; echo 'test3'; done\"",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test1'; done\"",
+								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test2'; done\"",
+								"chrt -r 3 taskset -c " TESTCPU  " sh -c \"for i in {1..1000}; do echo 'test3'; done\"",
 								NULL };
 
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
@@ -62,11 +63,11 @@ START_TEST(orchestrator_ftrace_readdata)
 	{
 		int i =0;
 		while (pidsig[i]) {
-			// new pid
+			// new PID
 
 			fd[i] = popen2(pidsig[i], "r", &pid[i]);
 
-			printf("created pid %d\n", pid[i]);
+			printf("created PID %d\n", pid[i]);
 			node_push(&nhead);
 			nhead->pid = pid[i];
 			nhead->psig = strdup(pidsig[i]);
@@ -78,8 +79,8 @@ START_TEST(orchestrator_ftrace_readdata)
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
-	sleep(8);
-//	// set stop sig
+	sleep(5);
+	// set stop status
 	stat1 = -1;
 
 	for (int i=0; i< sz_test; i++)
@@ -109,19 +110,19 @@ END_TEST
 
 /// TEST CASE -> Stop manage thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
-/// iteration 0 = debug, iteration 1 = function trace
+/// iteration 0 = debug output, iteration 1 = function trace
 START_TEST(orchestrator_manage_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
-	prgset->ftrace = _i; // iteration 0 = debug, iteration 1 = ftrace
+	prgset->ftrace = _i;
 
 	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
 	sleep(2);
-	// set stop sig
+	// set stop status
 	stat1 = -1;
 
 	if (!iret1) // thread started successfully
@@ -138,7 +139,7 @@ void orchestrator_manage (Suite * s) {
 
 	TCase *tc2 = tcase_create("manage_thread_read");
 	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);
-	tcase_add_loop_test(tc2, orchestrator_ftrace_readdata, 0, 2);
+	tcase_add_loop_test(tc2, orchestrator_manage_readdata, 0, 2);
 	tcase_set_timeout(tc2, 10);
     suite_add_tcase(s, tc2);
 
