@@ -229,22 +229,39 @@ void *thread_watch_docker(void *arg) {
 	char * pcmd;
 	contevent_t * cntevent;
 
-	// TODO: block not used signals
 	{ // setup interrupt handler block
 		struct sigaction act;
-		memset (&act, '\0', sizeof(act));
-	 
+
 		/* Use the sa_sigaction field because the handles has two additional parameters */
-		act.sa_sigaction = &stphand;
-	 
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_handler = NULL; // On some architectures ---
+		act.sa_sigaction = &stphand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
-	 
-		if (sigaction(SIGHUP, &act, NULL) < 0) { // INT signal, stop from main prg
-			perror ("Setup of sigaction failed");  
+
+		/* blocking signal set */
+		(void)sigemptyset(&act.sa_mask);
+
+		act.sa_restorer = NULL;
+
+		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
+		{ // INT signal, stop from main prg
+			perror ("Setup of sigaction failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	} // END interrupt handler block
+
+	{
+		sigset_t set;
+		/* Block all signals except SIGHUP */
+
+		(void)sigfillset(&set);
+		(void)sigdelset(&set, SIGHUP);
+		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
+		{
+			perror ("Setup of sigmask failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	}
 	
 	if (NULL != arg)
 		pcmd = (char *)arg;

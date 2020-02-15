@@ -463,13 +463,12 @@ static void *thread_ftrace(void *arg){
 
 	{
 		 sigset_t set;
-		/* Block all signals except
-		  will inherit a copy of the signal mask. */
+		/* Block all signals except SIGQUIT */
 
 		(void)sigfillset(&set);
 		(void)sigdelset(&set, SIGQUIT);
 		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{ // INT signal, stop from main prg
+		{
 			perror ("Setup of sigmask failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
