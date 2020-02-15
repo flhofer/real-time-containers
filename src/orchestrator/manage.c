@@ -159,6 +159,15 @@ static int pickPidInfoW(node_t ** item, void * addr);
 static int pickPidInfo(node_t ** item, void * addr);
 static int update_sched_info(node_t ** item, void * addr);
 
+/// ftrace_inthand(): interrupt handler for infinite while loop, help
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: -
+void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
+	ftrace_stop = 1;
+}
+
 /// configureTracers(): setup kernel function trace system
 ///
 /// Arguments: - none
@@ -237,11 +246,11 @@ static int startTraceRead() {
 static int stopTraceRead() {
 
 	// loop through, existing list elements, and join
-	ftrace_stop = 1;
+	//ftrace_stop = 1;
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 			//TODO: return value
-//			(void)pthread_kill (elist_thead->thread, SIGINT); // tell threads to stop
+			(void)pthread_kill (elist_thead->thread, SIGQUIT); // tell threads to stop
 			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
 			pop((void**)&elist_thead);
 		}
@@ -408,6 +417,41 @@ static void *thread_ftrace(void *arg){
 	unsigned char buffer[PIPE_BUFFER];
 	uint16_t *pType;
 	node_t * item;
+
+	{ // setup interrupt handler block
+		struct sigaction act;
+
+		/* Use the sa_sigaction field because the handles has two additional parameters */
+		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_handler = NULL; // On some architectures ---
+		act.sa_sigaction = &ftrace_inthand; // these are a union, do not assign both, -> first set null, then value
+		act.sa_flags = SA_SIGINFO;
+
+		/* blocking signal set */
+		(void)sigemptyset(&act.sa_mask);
+
+		act.sa_restorer = NULL;
+
+		if (sigaction(SIGQUIT, &act, NULL) < 0)		 // quit from caller
+		{ // INT signal, stop from main prg
+			perror ("Setup of sigaction failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	} // END interrupt handler block
+
+	{
+		 sigset_t set;
+		/* Block all signals except
+		  will inherit a copy of the signal mask. */
+
+		(void)sigfillset(&set);
+		(void)sigdelset(&set, SIGQUIT);
+		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
+		{ // INT signal, stop from main prg
+			perror ("Setup of sigmask failed");
+			exit(EXIT_FAILURE); // exit the software, not working
+		}
+	}
 
 	while(1) {
 
