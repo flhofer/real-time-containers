@@ -229,8 +229,13 @@ static int startTraceRead() {
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
 			push((void**)&elist_thead, sizeof(struct ftrace_elist));
 			elist_thead->cpuno = i;
-			//TODO: return value
+			//TODO: use return value
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
+#ifdef DEBUG
+			char tname [17]; // 16 char length restriction
+			(void)sprintf(tname, "manage_ftCPU%d", elist_thead->cpuno); // space for 4 digit cpu number
+			(void)pthread_setname_np(elist_thead->thread, tname);
+#endif
 		}
 
 	// TODO: add return value

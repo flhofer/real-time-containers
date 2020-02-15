@@ -478,10 +478,15 @@ int main(int argc, char **argv)
 		err_msg_n (iret1, "could not start update thread");
 		t_stat1 = -1;
 	}
+
 	if ((iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2))) {
 		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
 	}
+#ifdef DEBUG
+	(void)pthread_setname_np(thread1, "manage");
+	(void)pthread_setname_np(thread2, "update");
+#endif
 
 	// TODO: consider moving these two before the thread creation -> inheritance
 	{ // setup interrupt handler block
@@ -489,8 +494,8 @@ int main(int argc, char **argv)
 
 		/* Use the sa_sigaction field because the handles has two additional parameters */
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
-		act.sa_handler = NULL;
-		act.sa_sigaction = &inthand;
+		act.sa_handler = NULL; // On some architectures ---
+		act.sa_sigaction = &inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
 
 		/* blocking signal set */
@@ -510,14 +515,16 @@ int main(int argc, char **argv)
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	} // END interrupt handler block
-	{
+	{ // signal blocking set
+
 		 sigset_t set;
 	   /* Block SIGQUIT and SIGUSR1; other threads created by main()
 		  will inherit a copy of the signal mask. */
 
+	   // allow all to be handled by Main, except
 	   sigemptyset(&set);
-	   sigaddset(&set, SIGQUIT);
-	   sigaddset(&set, SIGUSR2);
+	   sigaddset(&set, SIGQUIT);	// used in manage thread
+	   sigaddset(&set, SIGHUP);		// used in docker_link
 	   if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
 		{ // INT signal, stop from main prg
 			perror ("Setup of sigmask failed");

@@ -433,9 +433,10 @@ int  iret_dlink; // Timeout is set to 4 seconds by default
 ///
 static void startDocker() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
-
+#ifdef DEBUG
+	(void)pthread_setname_np(thread_dlink, "docker_link");
+#endif
 }
-
 
 /// updateDocker(): pull event from dockerlink and verify
 ///
