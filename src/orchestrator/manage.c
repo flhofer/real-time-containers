@@ -53,32 +53,6 @@ static uint64_t scount = 0; // total scan count
 
 #define PIPE_BUFFER			4096
 
-/// manageSched(): main function called to reassign resources
-///
-/// Arguments: 
-///
-/// Return value: N/D - int
-///
-static int manageSched(){
-
-	// TODO: this is for the dynamic and adaptive scheduler only
-
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
-
-    node_t * current = nhead;
-
-	while (current != NULL) {
-
-        current = current->next;
-    }
-
-
-	(void)pthread_mutex_unlock(&dataMutex); 
-
-	return 0;
-}
-
 // #################################### THREAD configuration specific ############################################
 
 // Linked list of event configurations and handlers
@@ -99,9 +73,6 @@ struct ftrace_thread {
 	int cpuno;			// CPU number monitored
 };
 struct ftrace_thread * elist_thead = NULL;
-
-// signal to keep status of triggers ext SIG
-volatile sig_atomic_t ftrace_stop;
 
 struct tr_common {
 	uint16_t common_type;
@@ -138,6 +109,9 @@ struct tr_runtime {
 	// filled with 0's to 52
 };
 
+// signal to keep status of triggers ext SIG
+static volatile sig_atomic_t ftrace_stop;
+
 static void *thread_ftrace(void *arg);
 // functions to elaborate data for tracer frames
 static int pickPidInfoW(node_t ** item, void * addr);
@@ -149,7 +123,7 @@ static int pickPidInfoR(node_t ** item, void * addr);
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
+static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
@@ -455,7 +429,7 @@ static void *thread_ftrace(void *arg){
 		act.sa_restorer = NULL;
 
 		if (sigaction(SIGQUIT, &act, NULL) < 0)		 // quit from caller
-		{ // INT signal, stop from main prg
+		{
 			perror ("Setup of sigaction failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
@@ -569,6 +543,32 @@ static void *thread_ftrace(void *arg){
 }
 
 // #################################### THREAD specific END ############################################
+
+/// manageSched(): main function called to reassign resources
+///
+/// Arguments:
+///
+/// Return value: N/D - int
+///
+static int manageSched(){
+
+	// TODO: this is for the dynamic and adaptive scheduler only
+
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+    node_t * current = nhead;
+
+	while (current != NULL) {
+
+        current = current->next;
+    }
+
+
+	(void)pthread_mutex_unlock(&dataMutex);
+
+	return 0;
+}
 
 /// get_sched_info(): get scheduler debug output info
 ///

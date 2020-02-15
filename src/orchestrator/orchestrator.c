@@ -23,9 +23,7 @@
 #include <sys/mman.h>		// memory lock
 #include <getopt.h>			// command line parsing
 
-static void display_help(int); // declaration for compatibility
-
-/* --------------------------- Global variables for all the threads and programms ------------------ */
+/* --------------------------- Global variables for all the threads and programs ------------------ */
 
 containers_t * contparm; // container parameter settings
 prgset_t * prgset; // program settings structure
@@ -34,8 +32,6 @@ prgset_t * prgset; // program settings structure
 // debug output file
 	FILE  * dbg_out;
 #endif
-// signal to keep status of triggers ext SIG
-volatile sig_atomic_t stop;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
@@ -43,24 +39,29 @@ node_t * nhead = NULL;
 
 // TODO configuration read file -- TEMP public, -> then change to static
 char * config = "config.json";
-int adaptive = 0;
-
-/* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
-
-/// inthand(): interrupt handler for infinite while loop, help 
-/// this function is called from outside, interrupt handling routine
-/// Arguments: - signal number of interrupt calling
-///
-/// Return value: -
-void inthand (int sig, siginfo_t *siginfo, void *context){
-	stop = 1;
-}
 
 // -------------- LOCAL variables for all the functions  ------------------
 
 // TODO:  implement fifo thread as in cyclic-test for readout
 //static pthread_t fifo_threadid;
 //static char fifopath[MAX_PATH];
+static int adaptive = 0;
+
+// signal to keep status of triggers ext SIG
+static volatile sig_atomic_t main_stop;
+
+/* -------------------------------------------- DECLARATION END ---- CODE BEGIN -------------------- */
+
+
+/// inthand(): interrupt handler for infinite while loop, help 
+/// this function is called from outside, interrupt handling routine
+/// Arguments: - signal number of interrupt calling
+///
+/// Return value: -
+static void inthand (int sig, siginfo_t *siginfo, void *context){
+	main_stop = 1;
+}
+
 
 /// display_help(): Print usage information 
 ///
@@ -533,7 +534,7 @@ int main(int argc, char **argv)
 	}
 
 	// infinite loop until stop
-	while (!stop && (t_stat1 > -1 || t_stat2 > -1)) {
+	while (!main_stop && (t_stat1 > -1 || t_stat2 > -1)) {
 		sleep (1);
 	}
 

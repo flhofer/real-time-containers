@@ -32,16 +32,16 @@
 #include "parse_func.h"
 
 // signal to keep status of triggers ext SIG
-volatile sig_atomic_t stop;
+static volatile sig_atomic_t dlink_stop;
 
-/// stphand(): interrupt handler for infinite while loop, help 
+/// dlink_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
 //TODO: check function with static
-static void stphand (int sig, siginfo_t *siginfo, void *context){
-	stop = 1;
+static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
+	dlink_stop = 1;
 }
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
@@ -49,13 +49,13 @@ static void stphand (int sig, siginfo_t *siginfo, void *context){
 /// Arguments: pointer to timespec to check
 ///
 /// Return value: -
-static inline void tsnorm(struct timespec *ts)
-{
-	while (ts->tv_nsec >= NSEC_PER_SEC) {
-		ts->tv_nsec -= NSEC_PER_SEC;
-		ts->tv_sec++;
-	}
-}
+//static inline void tsnorm(struct timespec *ts)
+//{
+//	while (ts->tv_nsec >= NSEC_PER_SEC) {
+//		ts->tv_nsec -= NSEC_PER_SEC;
+//		ts->tv_sec++;
+//	}
+//}
 
 FILE * inpipe;
 pthread_mutex_t containerMutex; // data access mutex
@@ -113,7 +113,7 @@ static int docker_read_pipe(struct eventData * evnt){
 
 	// repeat loop for reading until process ends or interrupt
 	// is called
-	while (!(stop) && !feof(inpipe)){
+	while (!(dlink_stop) && !feof(inpipe)){
 
 		// read buffer until timeout
 		char * got = fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
@@ -235,7 +235,7 @@ void *thread_watch_docker(void *arg) {
 		/* Use the sa_sigaction field because the handles has two additional parameters */
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
 		act.sa_handler = NULL; // On some architectures ---
-		act.sa_sigaction = &stphand; // these are a union, do not assign both, -> first set null, then value
+		act.sa_sigaction = &dlink_inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
 
 		/* blocking signal set */
@@ -244,7 +244,7 @@ void *thread_watch_docker(void *arg) {
 		act.sa_restorer = NULL;
 
 		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
-		{ // INT signal, stop from main prg
+		{
 			perror ("Setup of sigaction failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
@@ -320,7 +320,7 @@ void *thread_watch_docker(void *arg) {
 				break;
 		}
 
-		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
+		if (3 > pstate && dlink_stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
 /*		else if (1 == pstate) {
