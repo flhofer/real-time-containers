@@ -468,24 +468,24 @@ int main(int argc, char **argv)
 		adaptFreeTracer(); // free as we don't need it for the rest of the process
 	}
 
-	pthread_t thread1, thread2;
+	pthread_t thrManage, thrUpdate;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads
 	int32_t t_stat2 = 0; 
 	int  iret1, iret2;
 
 	/* Create independent threads each of which will execute function */ 
-	if ((iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) &t_stat1))) {
+	if ((iret1 = pthread_create( &thrManage, NULL, thread_manage, (void*) &t_stat1))) {
 		err_msg_n (iret1, "could not start update thread");
 		t_stat1 = -1;
 	}
 
-	if ((iret2 = pthread_create( &thread2, NULL, thread_update, (void*) &t_stat2))) {
+	if ((iret2 = pthread_create( &thrUpdate, NULL, thread_update, (void*) &t_stat2))) {
 		err_msg_n (iret2, "could not start management thread");
 		t_stat2 = -1;
 	}
 #ifdef DEBUG
-	(void)pthread_setname_np(thread1, "manage");
-	(void)pthread_setname_np(thread2, "update");
+	(void)pthread_setname_np(thrManage, "manage");
+	(void)pthread_setname_np(thrUpdate, "update");
 #endif
 
 	// TODO: consider moving these two before the thread creation -> inheritance
@@ -545,9 +545,9 @@ int main(int argc, char **argv)
 
 	// wait until threads have stopped
 	if (!iret1) // thread started successfully
-		iret1 = pthread_join( thread1, NULL);
+		iret1 = pthread_join( thrManage, NULL);
 	if (!iret2)	// thread started successfully
-		iret2 = pthread_join( thread2, NULL); 
+		iret2 = pthread_join( thrUpdate, NULL); 
 
     // close and cleanup
     info("exiting safely");

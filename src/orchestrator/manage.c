@@ -111,11 +111,6 @@ struct tr_common {
 };
 
 struct tr_wakeup {
-	uint16_t common_type; // 2
-	uint8_t common_flags; // 3
-	uint8_t common_preempt_count; //4
-	int32_t common_pid; // 8
-
 	char comm[16]; //24 - 16
 	pid_t pid; // 28 - 20
 	int32_t prio; // 32 - 24
@@ -124,11 +119,6 @@ struct tr_wakeup {
 };
 
 struct tr_switch {
-	uint16_t common_type; // 2
-	uint8_t common_flags; // 3
-	uint8_t common_preempt_count; //4
-	int32_t common_pid; // 8
-
 	char prev_comm[16]; //24 - 16
 	pid_t prev_pid; // 28 - 20
 	int32_t prev_prio; // 32 - 24
@@ -140,11 +130,6 @@ struct tr_switch {
 };
 
 struct tr_runtime {
-	uint16_t common_type; // 2
-	uint8_t common_flags; // 3
-	uint8_t common_preempt_count; //4
-	int32_t common_pid; // 8
-
 	char comm[16]; //24 - 16
 	pid_t pid; // 28 - 20
 	uint32_t dummy  ; // 32 - 24 - alignment filler
@@ -156,8 +141,8 @@ struct tr_runtime {
 static void *thread_ftrace(void *arg);
 // functions to elaborate data for tracer frames
 static int pickPidInfoW(node_t ** item, void * addr);
-static int pickPidInfo(node_t ** item, void * addr);
-static int update_sched_info(node_t ** item, void * addr);
+static int pickPidInfoS(node_t ** item, void * addr);
+static int pickPidInfoR(node_t ** item, void * addr);
 
 /// ftrace_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -180,9 +165,10 @@ static int configureTracers(){
 			valid_tracer("wakeup_dl");
 
 	printDbg(PFX "Present tracers, status %d\n", notrace);
-	// tracing_cpumask - hex string of tracing cpus!
 
 	if (2 == notrace) {
+		// TODO: set tracing off
+
 		// TODO: add return value check
 		(void)event_disable_all();
 
@@ -191,7 +177,7 @@ static int configureTracers(){
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
 			elist_head->event = "sched_stat_runtime";
 			elist_head->eventsz = 52;
-			elist_head->eventcall = update_sched_info;
+			elist_head->eventcall = pickPidInfoR;
 		}// TODO: else
 
 		if (0 < event_enable("sched/sched_wakeup")) {
@@ -207,8 +193,10 @@ static int configureTracers(){
 			elist_head->eventid = event_getid("sched/sched_switch");
 			elist_head->event = "sched_switch";
 			elist_head->eventsz = 68;
-			elist_head->eventcall = pickPidInfo;
+			elist_head->eventcall = pickPidInfoS;
 		}// TODO: else
+
+		// TODO: set tracing on
 
 		printDbg("\n");
 	}
@@ -233,7 +221,7 @@ static int startTraceRead() {
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
 #ifdef DEBUG
 			char tname [17]; // 16 char length restriction
-			(void)sprintf(tname, "manage_ftCPU%d", elist_thead->cpuno); // space for 4 digit cpu number
+			(void)sprintf(tname, "manage_ftCPU%d", elist_thead->cpuno); // space for 4 digit CPU number
 			(void)pthread_setname_np(elist_thead->thread, tname);
 #endif
 		}
@@ -251,7 +239,6 @@ static int startTraceRead() {
 static int stopTraceRead() {
 
 	// loop through, existing list elements, and join
-	//ftrace_stop = 1;
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 			//TODO: return value
@@ -266,6 +253,13 @@ static int stopTraceRead() {
 
 // #################################### THREAD specific ############################################
 
+/// pickPidInfoS(): process PID fTrace common
+///
+/// Arguments: - item to update with statistics
+///			   - frame containing the runtime info
+///
+/// Return value: error code, 0 = success
+///
 static int pickPidCommon(node_t ** item, void * addr) {
 #ifdef DEBUG
 	struct tr_common *pFrame = (struct tr_common*)addr;
@@ -291,13 +285,22 @@ static int pickPidCons(node_t *item){
 	return 0; // TODO:
 }
 
-
+/// pickPidInfoW(): process PID fTrace sched_wakeup
+///					update data with kernel tracer debug out
+///
+/// Arguments: - item to update with statistics
+///			   - frame containing the runtime info
+///
+/// Return value: error code, 0 = success
+///
 static int pickPidInfoW(node_t ** item, void * addr) {
-	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
-/*
-	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
+	int ret1 = pickPidCommon(item, addr);
+	addr+= sizeof(struct tr_common);
+
+	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+
+/*
 	printDbg("comm=%s pid=%d prio=%d target_cpu=%03d\n",
 			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
 */
@@ -320,14 +323,25 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return 0;
+	return ret1 + 0;
 }
 
-static int pickPidInfo(node_t ** item, void * addr) {
+/// pickPidInfoS(): process PID fTrace sched_switch
+///					update data with kernel tracer debug out
+///
+/// Arguments: - item to update with statistics
+///			   - frame containing the runtime info
+///
+/// Return value: error code, 0 = success
+///
+static int pickPidInfoS(node_t ** item, void * addr) {
+
+	int ret1 = pickPidCommon(item, addr);
+	addr+= sizeof(struct tr_common);
+
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
+
 /*
-	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 	printDbg("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
 //				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
@@ -353,24 +367,27 @@ static int pickPidInfo(node_t ** item, void * addr) {
 		}
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return 0;
+	return ret1 + 0;
 }
 
-/// update_sched_info(): update data with kernel tracer debug out
+/// pickPidInfoR(): process PID fTrace sched_stat_runtime
+///					update data with kernel tracer debug out
 ///
 /// Arguments: - item to update with statistics
 ///			   - frame containing the runtime info
 ///
 /// Return value: error code, 0 = success
 ///
-static int update_sched_info(node_t ** item, void * addr)
+static int pickPidInfoR(node_t ** item, void * addr)
 {
-	// TODO: change UpdateStats form item update to update item :) ??
-	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
-/*
-	printDbg( "type=%u flags=%u preempt=%u pid=%d : ",
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+	struct tr_common *pcFrame = (struct tr_common*)addr;
 
+	int ret1 = pickPidCommon(item, addr);
+	addr+= sizeof(struct tr_common);
+
+	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
+
+/*
 	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 */
@@ -396,13 +413,13 @@ static int update_sched_info(node_t ** item, void * addr)
 	// item deactivated -> TODO actually an error!
 	if ((*item) && (*item)->pid > 0) {
 		(*item)->mon.dl_rt += pFrame->runtime;
-		(*item)->mon.dl_scanfail += pFrame->common_preempt_count;
+		(*item)->mon.dl_scanfail += pcFrame->common_preempt_count;
 		(*item)->mon.dl_count++;
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return 0; // implement return values
+	return ret1 + 0; // implement return values
 
 }
 
