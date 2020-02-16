@@ -60,8 +60,7 @@ struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
-	int eventsz;	// event telegram size
-	int (*eventcall)(node_t **, void *); // event elaboration func
+	int (*eventcall)(node_t **, void *); // event elaboration function
 };
 struct ftrace_elist * elist_head;
 
@@ -159,7 +158,6 @@ static int configureTracers(){
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
 			elist_head->event = "sched_stat_runtime";
-			elist_head->eventsz = 52; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoR;
 		}
 		else
@@ -169,7 +167,6 @@ static int configureTracers(){
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_wakeup");
 			elist_head->event = "sched_wakeup";
-			elist_head->eventsz = 44; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoW;
 		}
 		else
@@ -180,7 +177,6 @@ static int configureTracers(){
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_switch");
 			elist_head->event = "sched_switch";
-			elist_head->eventsz = 68; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoS;
 		}
 		else
@@ -245,23 +241,6 @@ static int stopTraceRead() {
 
 // #################################### THREAD specific ############################################
 
-/// pickPidInfoS(): process PID fTrace common
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///
-/// Return value: error code, 0 = success
-///
-static int pickPidCommon(node_t ** item, void * addr) {
-#ifdef DEBUG
-	struct tr_common *pFrame = (struct tr_common*)addr;
-#endif
-	printDbg( "type=%u flags=%u preempt=%u pid=%d\n",
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
-
-	return 0;
-}
-
 static int pickPidCons(node_t *item){
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
@@ -275,6 +254,22 @@ static int pickPidCons(node_t *item){
 	item->mon.dl_rt = 0;
 
 	return 0; // TODO:
+}
+
+/// pickPidInfoS(): process PID fTrace common
+///
+/// Arguments: - item to update with statistics
+///			   - frame containing the runtime info
+///
+/// Return value: error code, 0 = success
+///
+static int pickPidCommon(node_t ** item, void * addr) {
+	struct tr_common *pFrame = (struct tr_common*)addr;
+
+	printDbg( "type=%u flags=%u preempt=%u pid=%d\n",
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	return sizeof(*pFrame);
 }
 
 /// pickPidInfoW(): process PID fTrace sched_wakeup
@@ -292,10 +287,10 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
 
-/*
-	printDbg("comm=%s pid=%d prio=%d target_cpu=%03d\n",
+
+	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
 			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
-*/
+
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -315,7 +310,7 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + 0;
+	return ret1 + sizeof(struct tr_wakeup);
 }
 
 /// pickPidInfoS(): process PID fTrace sched_switch
@@ -333,14 +328,14 @@ static int pickPidInfoS(node_t ** item, void * addr) {
 
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
 
-/*
-	printDbg("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
+
+	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
 //				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
 //				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
 //						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
 						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
-*/
+
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -359,7 +354,7 @@ static int pickPidInfoS(node_t ** item, void * addr) {
 		}
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + 0;
+	return ret1 + sizeof(struct tr_switch);
 }
 
 /// pickPidInfoR(): process PID fTrace sched_stat_runtime
@@ -379,10 +374,10 @@ static int pickPidInfoR(node_t ** item, void * addr)
 
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
 
-/*
-	printDbg( "comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
+
+	printDbg( "    comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
-*/
+
 	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -411,8 +406,7 @@ static int pickPidInfoR(node_t ** item, void * addr)
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + 0; // implement return values
-
+	return ret1 + sizeof(struct tr_runtime);
 }
 
 /// thread_ftrace(): parse kernel tracer output
@@ -421,9 +415,6 @@ static int pickPidInfoR(node_t ** item, void * addr)
 ///
 /// Return value: error code, 0 = success
 ///
-#ifndef DEBUG
-static // define as static in non-debug
-#endif
 void *thread_ftrace(void *arg){
 
 	int pstate = 0;
@@ -522,25 +513,35 @@ void *thread_ftrace(void *arg){
 			got -=20;
 
 			while ((NULL != (void*)pType) && (0 != *pType) && (!ftrace_stop)) {
-				struct ftrace_elist * event = elist_head;
-				for (; ((event)); event=event->next)
-					if (event->eventid == *pType) {
-						// pick event
-						// todo return value
-						(void)event->eventcall(&item, (void*)pType);
+				int (*eventcall)(node_t **, void *) = pickPidCommon; // default to common
 
-						pType += (event->eventsz/2); // TODO: hack, check 2byte steps
-						got -= event->eventsz;
+				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
+					if (event->eventid == *pType){
+						eventcall = event->eventcall;
 						break;
 					}
 
-				if (!event){ // special chars.. TODO: find out
-					// todo return value
-//					(void)pickPidCommon(&item, (void*)pType);
-					pType += sizeof(struct tr_common)/2; // TODO: hack, check 2byte steps
-					got -= sizeof(struct tr_common);
+				// call event
+				int count = eventcall(&item, (void*)pType);
+				if (0 > count){
+					// something went wrong, dump and exit
+					got = 0;
+					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", *cpuno);
+					break;
 				}
-				// TODO: no event? something went wrong, unconfigured event
+				// TODO: no event? something went wrong, not configured event
+
+				// update to the end of Frame
+				pType += (count/2); // 16 bit values, double in bytes
+				got -= count;
+
+				{ // read end of Frame signature and update pointers
+					int32_t * pFrameSig = (int32_t*) pType;
+					printDbg(PFX "Frame signature %d\n",  *pFrameSig);
+
+					pType += sizeof(*pFrameSig)/2;
+					got -= sizeof(*pFrameSig);
+				}
 
 				// end of pipe, end of buffer?
 				if (44 > got || 0x14 == *pType){ // TODO: test if got size necessary
