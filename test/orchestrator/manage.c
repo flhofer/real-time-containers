@@ -37,19 +37,36 @@ static void orchestrator_manage_setup() {
 }
 
 static void orchestrator_manage_teardown() {
+	// free memory
+	while (nhead)
+		node_pop(&nhead);
+
 	free(prgset);
 	free(contparm);
 }
 
-/// TEST CASE -> test read of run parameters of detected PID list
+static void orchestrator_manage_checkread(){
+	ck_assert_int_lt(0, nhead->mon.dl_count);
+	ck_assert_int_lt(0, nhead->next->mon.dl_count);
+	ck_assert_int_lt(0, nhead->next->next->mon.dl_count);
+
+	ck_assert_int_lt(0, nhead->mon.rt_avg);
+	ck_assert_int_lt(0, nhead->next->mon.rt_avg);
+	ck_assert_int_lt(0, nhead->next->next->mon.rt_avg);
+
+	ck_assert_int_le(0, nhead->mon.rt_min);
+	ck_assert_int_le(0, nhead->next->mon.rt_min);
+	ck_assert_int_le(0, nhead->next->next->mon.rt_min);
+}
+
+/// TEST CASE -> test read of run parameters of detected PID list, debug output
 /// EXPECTED -> 3 elements show changed run-times and/or deadlines
-/// iteration 0 = debug output, iteration 1 = function trace
 START_TEST(orchestrator_manage_readdata)
 {	
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
-	prgset->ftrace = _i; // iteration 0 = debug, iteration 1 = ftrace
+	prgset->ftrace = 0; // iteration 0 = debug, iteration 1 = ftrace
 
 	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test1'; done\"",
 								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test2'; done\"",
@@ -89,22 +106,7 @@ START_TEST(orchestrator_manage_readdata)
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join(thread1, NULL); // wait until end
 
-	ck_assert_int_lt(0, nhead->mon.dl_count);
-	ck_assert_int_lt(0, nhead->next->mon.dl_count);
-	ck_assert_int_lt(0, nhead->next->next->mon.dl_count);
-
-	ck_assert_int_lt(0, nhead->mon.rt_avg);
-	ck_assert_int_lt(0, nhead->next->mon.rt_avg);
-	ck_assert_int_lt(0, nhead->next->next->mon.rt_avg);
-
-	ck_assert_int_le(0, nhead->mon.rt_min);
-	ck_assert_int_le(0, nhead->next->mon.rt_min);
-	ck_assert_int_le(0, nhead->next->next->mon.rt_min);
-
-	// free memory
-	while (nhead)
-		node_pop(&nhead);
-
+	orchestrator_manage_checkread();
 }
 END_TEST
 
@@ -130,6 +132,39 @@ START_TEST(orchestrator_manage_stop)
 }
 END_TEST
 
+/// TEST CASE -> test read of run parameters of detected PID list, fTrace read
+/// EXPECTED -> 3 elements show changed run-times and/or deadlines
+START_TEST(orchestrator_manage_readftrace)
+{
+	pthread_t thread1;
+	int  iret1;
+	char * testfile = malloc(100); // it's freed inside the thread
+	(void)sprinf(testfile, "manage_ftread.dat"); // dump of a kernel thread scan
+	prgset->ftrace = 1;
+
+	const int pid[] = { 1, 2, 3	}; // TODO: setup
+
+	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
+		node_push(&nhead);
+		nhead->pid = pid[i];
+		nhead->psig = strdup("");
+	}
+
+	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) testfile);
+	ck_assert_int_eq(iret1, 0);
+
+	sleep(2);
+
+	// tell fTrace threads to stop
+	(void)pthread_kill (thread1, SIGQUIT);
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+
+	orchestrator_manage_checkread();
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -139,7 +174,8 @@ void orchestrator_manage (Suite * s) {
 
 	TCase *tc2 = tcase_create("manage_thread_read");
 	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);
-	tcase_add_loop_test(tc2, orchestrator_manage_readdata, 0, 2);
+	tcase_add_test(tc2, orchestrator_manage_readdata);
+	tcase_add_test(tc2, orchestrator_manage_readftrace);
 	tcase_set_timeout(tc2, 10);
     suite_add_tcase(s, tc2);
 

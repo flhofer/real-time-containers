@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 31/12/2019
+# last change: 15/02/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -166,7 +166,7 @@ START_TEST(dockerlink_conf_stop)
 
 	sleep(2);
 	// set stop signal
-	pthread_kill (thread1, SIGINT); // tell linking threads to stop
+	(void)pthread_kill (thread1, SIGHUP); // tell linking threads to stop
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end

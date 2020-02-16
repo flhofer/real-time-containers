@@ -461,24 +461,28 @@ void *thread_ftrace(void *arg){
 		{
 		case 0:
 			;
-			char fn[100];
+			char* fn;
 			if (NULL != arg)
 				fn = (char *)arg;
-			else
+			else{
+				fn = malloc(100);
 				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
-
+			}
 			if (-1 == access (fn, R_OK)) {
 				pstate = -1;
 				err_msg (PFX "Could not open trace pipe for CPU%d", *cpuno);
 				err_msg (PIN "Tracing for CPU%d disabled", *cpuno);
+				free(fn);
 				break;
 			} /** if file doesn't exist **/
 
 			if ((fp = fopen (fn, "r")) == NULL) {
 				pstate = -1;
 				err_msg ("File open failed");
+				free(fn);
 				break;
 			} /** IF_NULL **/
+			free(fn);
 
 			printDbg(PFX "Reading trace output from pipe...\n");
 			//no break
