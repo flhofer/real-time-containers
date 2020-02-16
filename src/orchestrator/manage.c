@@ -195,53 +195,61 @@ static int configureTracers(){
 ///
 /// Arguments:
 ///
-/// Return value:
+/// Return value: OR-result of pthread_create, negative if one failed
 ///
 static int startTraceRead() {
 
-	int maxcpu = get_nprocs();
+	int maxcpu = prgset->affinity_mask->size;
+	int ret = 0;
 	// loop through, bit set = start a thread and store in ll
-	for (int i=0;i<maxcpu  ;i++)
+	for (int i=0;i<maxcpu;i++)
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
 			push((void**)&elist_thead, sizeof(struct ftrace_elist));
 			elist_thead->cpuno = i;
-			//TODO: use return value
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
 #ifdef DEBUG
 			char tname [17]; // 16 char length restriction
 			(void)sprintf(tname, "manage_ftCPU%d", elist_thead->cpuno); // space for 4 digit CPU number
 			(void)pthread_setname_np(elist_thead->thread, tname);
 #endif
+			ret |= elist_thead->iret; // combine results in OR to detect one failing
 		}
 
-	// TODO: add return value
-	return 0;
+	return ret; // = 0 if OK, else negative
 }
 
 /// stopTraceRead(): stop CPU tracing threads
 ///
 /// Arguments:
 ///
-/// Return value:
+/// Return value: OR-result of pthread_*, negative if one failed
 ///
 static int stopTraceRead() {
 
+	int ret = 0;
 	// loop through, existing list elements, and join
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
-			//TODO: return value
-			(void)pthread_kill (elist_thead->thread, SIGQUIT); // tell threads to stop
-			elist_thead->iret = pthread_join( elist_thead->thread, NULL); // wait until end
+
+			int ret1 = pthread_kill (elist_thead->thread, SIGQUIT); // tell threads to stop
+			if (ret1)
+				perror("Failed to send signal to fTrace thread");
+			ret |= ret1; // combine results in OR to detect one failing
+
+			ret1 = pthread_join( elist_thead->thread, NULL); // wait until end
+			if (ret1)
+				perror("Could not join with fTrace thread");
+			ret |= ret1; // combine results in OR to detect one failing
+
 			pop((void**)&elist_thead);
 		}
 
-	// TODO: add return value
-	return 0;
+	return ret; // >= 0 if OK, else negative
 }
 
 // #################################### THREAD specific ############################################
 
-static int pickPidCons(node_t *item){
+static void pickPidCons(node_t *item){
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
@@ -253,7 +261,6 @@ static int pickPidCons(node_t *item){
 
 	item->mon.dl_rt = 0;
 
-	return 0; // TODO:
 }
 
 /// pickPidInfoS(): process PID fTrace common
@@ -296,7 +303,7 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	if ((*item))
-		(void)pickPidCons(*item);
+		pickPidCons(*item);
 
 	// reset item, remains null if not found
 	*item=NULL;
@@ -341,7 +348,7 @@ static int pickPidInfoS(node_t ** item, void * addr) {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	if ((*item))
-		(void)pickPidCons(*item);
+		pickPidCons(*item);
 
 	// reset item, remains null if not found
 	*item=NULL;
@@ -385,7 +392,7 @@ static int pickPidInfoR(node_t ** item, void * addr)
 	// reset item, remains null if not found
 	if (!(*item) || ((*item) && (*item)->pid != pFrame->pid)) {
 		if ((*item))
-			(void)pickPidCons(*item);
+			pickPidCons(*item);
 
 		*item=NULL;
 		// for now does only a simple update
@@ -873,8 +880,12 @@ void *thread_manage (void *arg)
 		if (prgset->ftrace) {
 			if (configureTracers())
 				warn("Kernel function tracers not available");
-			// TODO use return function
-			(void)startTraceRead();
+
+			if (startTraceRead()){
+				err_msg("Unable to start tracing, have to stop here now..");
+				// set stop signal
+				raise (SIGTERM); // tell main to stop
+			}
 		}
 		//no break
 
@@ -900,7 +911,8 @@ void *thread_manage (void *arg)
 		// set stop signal to dependent threads
 		if (prgset->ftrace) {
 			(void)printf(PFX "Stopping threads\n");
-			(void)stopTraceRead();
+			if (stopTraceRead())
+				warn("Unable to stop all fTrace threads");
 			(void)printf(PFX "Threads stopped\n");
 		}
 		// no break

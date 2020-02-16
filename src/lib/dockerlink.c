@@ -13,13 +13,6 @@
 #define TIMER_RELTIME		0
 #define INTERV_RFSH			1000
 
-// TODO: implement rt signal interface
-// TODO: /proc/sys/kernel/rtsig-max /proc/sys/kernel/rtsig-nr
-// RLIMIT_SIGPENDING in 2.6.8
-// implemented since 2.2
-// http://man7.org/linux/man-pages/man7/signal.7.html 
-// waring -> interrupt with EINTR
-
 #define PFX "[dockerlink] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)

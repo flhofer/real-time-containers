@@ -69,8 +69,6 @@ static uint64_t gcd(uint64_t a, uint64_t b)
 #define MAX_UL 0.90
 static struct resTracer * rHead;
 
-// TODO: somehow does only checks.. :/
-
 /// createResTracer(): create resource tracing memory elements
 //
 /// Arguments:

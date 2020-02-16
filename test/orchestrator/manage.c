@@ -139,7 +139,7 @@ START_TEST(orchestrator_manage_readftrace)
 	pthread_t thread1;
 	int  iret1;
 	char * testfile = malloc(100); // it's freed inside the thread
-	(void)sprinf(testfile, "manage_ftread.dat"); // dump of a kernel thread scan
+	(void)sprintf(testfile, "manage_ftread.dat"); // dump of a kernel thread scan
 	prgset->ftrace = 1;
 
 	const int pid[] = { 1, 2, 3	}; // TODO: setup

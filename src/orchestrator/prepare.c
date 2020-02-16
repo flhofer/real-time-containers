@@ -160,7 +160,8 @@ int prepareEnvironment(prgset_t *set) {
 		else
 			cont("SMT is disabled, as required");
 	}
-	// TODO: else
+	else // SMT failed or DryRun
+		warn("Skipping read of SMT status. This can influence latency performance!");
 
 	// prepare bit-mask, no need to do it before
 	set->affinity_mask = parse_cpumask(set->affinity);
@@ -276,7 +277,8 @@ int prepareEnvironment(prgset_t *set) {
 			}
 		}
 	}
-	// TODO else
+	else // online CPU string not readable
+		err_exit("Can not read online CPUs");
 
 	// parse to string
 	if (parse_bitmask (naffinity, cpus))
