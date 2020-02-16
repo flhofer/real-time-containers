@@ -112,7 +112,11 @@ struct tr_runtime {
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
 
-static void *thread_ftrace(void *arg);
+#ifndef DEBUG
+static // define as static in non-debug
+#endif
+void *thread_ftrace(void *arg);
+
 // functions to elaborate data for tracer frames
 static int pickPidInfoW(node_t ** item, void * addr);
 static int pickPidInfoS(node_t ** item, void * addr);
@@ -403,7 +407,10 @@ static int pickPidInfoR(node_t ** item, void * addr)
 ///
 /// Return value: error code, 0 = success
 ///
-static void *thread_ftrace(void *arg){
+#ifndef DEBUG
+static // define as static in non-debug
+#endif
+void *thread_ftrace(void *arg){
 
 	int pstate = 0;
 	int got = 0;
@@ -455,7 +462,10 @@ static void *thread_ftrace(void *arg){
 		case 0:
 			;
 			char fn[100];
-			(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
+			if (NULL != arg)
+				fn = (char *)arg;
+			else
+				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
 
 			if (-1 == access (fn, R_OK)) {
 				pstate = -1;
