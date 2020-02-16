@@ -137,13 +137,13 @@ loadData <- function(fName) {
 		plots[[k]] <- plot
 	}
 
-	cat(paste0(fName, ";", min, ";", max, ";", avg, "\n"))
+	write(paste0(fName, ";", min, ";", max, ";", avg), stdout())
 	return(plots)
 
 }
 
 plotData<-function(directory) {
-	write(paste0("Proceeding with directory " ,directory), stderr())
+	write(paste0("Proceeding with directory ", directory), stderr())
 
 	# init
 	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) 
@@ -178,18 +178,18 @@ plotData<-function(directory) {
 ## sink to write worst performing thread to a csv
 sink("stats-maxmin.csv")
 
-cat("FileName;worst min; - max; - avg\n")
+write("FileName;worst min; - max; - avg", stdout())
 
 col<- viridis(8)
 
-df <- df <- file.info(dir(".", pattern= "^UC1"))
-rownames(df)[which.max(df$mtime)]
+df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
+write(rownames(df)[which.max(df$mtime)], stderr())
 
-df <- df <- file.info(dir(".", pattern= "^UC2"))
-rownames(df)[which.max(df$mtime)]
+df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
+write(rownames(df)[which.max(df$mtime)], stderr())
 
 # Find all directories with pattern.. UC1
-dirs <- dir(".", pattern= "^UC1")
+dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
 
 # Combine results of test batches
 for (d in seq(along=dirs)){
@@ -197,7 +197,7 @@ for (d in seq(along=dirs)){
 }
 
 # Find all directories with pattern.. UC1
-dirs <- dir(".", pattern= "^UC2")
+dirs <- dir(".", pattern= "(^UC2|TEST[0-9]_2$)")
 
 # Combine results of test batches
 for (d in seq(along=dirs)){
