@@ -165,7 +165,7 @@ START_TEST(orchestrator_adaptive_schedule)
 	// check result of CPU assignments
 	ck_assert_int_eq(5000000, rhead->basePeriod);
 	ck_assert_int_eq(900000, rhead->usedPeriod);
-	// TODO: check >= 0.11 has ck_assert_float
+	//check >= 0.11 has ck_assert_float
 	ck_assert((float)((double)900000/(double)5000000) == rhead->U);
 
 	ck_assert_int_eq(4000000, rhead->next->basePeriod);

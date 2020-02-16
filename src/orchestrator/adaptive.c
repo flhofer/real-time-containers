@@ -26,16 +26,14 @@
 typedef struct resAlloc { 		// resource allocations mapping
 	struct resAlloc *	next;		//
 	struct bitmask * 	affinity;	// computed affinity candidates
-	struct cont_parm *	item; 		// default // TODO: all have rscs on the same edge!
-	// TODO: maybe pointer to struct as well??
-	struct resTracer *	assigned;	// null = no, pointer is restracer assigned to
+	struct cont_parm *	item; 		// default
+	struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
 	int					readOnly;	// do not update resources = shared values
 } resAlloc_t;
 
 static resAlloc_t * aHead = NULL;
 
-// Combining and or bitmasks
-// TODO: make universal!
+// Combining and or bit masks
 #define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
 									  if ((numa_bitmask_isbitset(a, i)) \
 										c (numa_bitmask_isbitset(b, i))) \
@@ -240,7 +238,7 @@ static int addTracer(resAlloc_t * res, int cpu){
 /// pushResource(): append resource to resource task list with mask
 ///
 /// Arguments: - item is container, image or pid
-///				(they're equal for attr and rscs // TODO: impl
+///				(they're equal for attr and rscs )
 ///			   - depth 0 = image, 1 = container, 2 - pid
 ///
 /// Return value: returns the created resource info for hierarchical
