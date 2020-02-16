@@ -39,7 +39,6 @@ static volatile sig_atomic_t dlink_stop;
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-//TODO: check function with static
 static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
 	dlink_stop = 1;
 }

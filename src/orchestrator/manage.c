@@ -145,39 +145,53 @@ static int configureTracers(){
 	printDbg(PFX "Present tracers, status %d\n", notrace);
 
 	if (2 == notrace) {
-		// TODO: set tracing off
+		char * dbgpfx = get_debugfileprefix();
+
+		// TODO: add to util?
+		if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
+			warn("Can not disable kernel function tracing");
 
 		// TODO: add return value check
-		(void)event_disable_all();
+		if (0 > event_disable_all())
+			warn("Unable to clear kernel fTrace event list");
 
 		if (0 < event_enable("sched/sched_stat_runtime")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
 			elist_head->event = "sched_stat_runtime";
-			elist_head->eventsz = 52;
+			elist_head->eventsz = 52; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoR;
-		}// TODO: else
+		}
+		else
+			warn("Unable to set event for 'sched_stat_runtime'");
 
 		if (0 < event_enable("sched/sched_wakeup")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_wakeup");
 			elist_head->event = "sched_wakeup";
-			elist_head->eventsz = 44;
+			elist_head->eventsz = 44; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoW;
-		}// TODO: else
+		}
+		else
+			warn("Unable to set event for 'sched_wakeup'");
+
 
 		if (0 < event_enable("sched/sched_switch")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_switch");
 			elist_head->event = "sched_switch";
-			elist_head->eventsz = 68;
+			elist_head->eventsz = 68; // TODO -> update parsing
 			elist_head->eventcall = pickPidInfoS;
-		}// TODO: else
+		}
+		else
+			warn("Unable to set event for 'sched_switch'");
 
-		// TODO: set tracing on
+		if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun))
+			warn("Can not enable kernel function tracing");
 
 		printDbg("\n");
 	}
+	// TODO: review this return value
 	return notrace-2; // return number found versus needed
 }
 
