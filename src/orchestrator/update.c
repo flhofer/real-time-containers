@@ -425,17 +425,39 @@ static contevent_t * lstevent;
 pthread_t thread_dlink;
 int  iret_dlink; // Timeout is set to 4 seconds by default
 
-/// startDocker(): start docker verification thread
+/// startDockerThread(): start docker verification thread
 ///
 /// Arguments: 
 ///
-/// Return value: 
+/// Return value: result of pthread_create, negative if failed
 ///
-static void startDocker() {
+static int startDockerThread() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
 #ifdef DEBUG
 	(void)pthread_setname_np(thread_dlink, "docker_link");
 #endif
+	return iret_dlink;
+}
+
+/// stopDockerThread(): stop docker verification thread
+///
+/// Arguments:
+///
+/// Return value: result of pthread_*, negative if one failed
+///
+static int stopDockerThread(){
+	// set stop signal
+	int ret = 0;
+	if (!iret_dlink) { // thread started successfully
+		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
+			perror("Failed to send signal to docker_link thread");
+		ret |= iret_dlink;
+		if ((iret_dlink = pthread_join( thread_dlink, NULL))) // wait until end
+			perror("Could not join with docker_link thread");
+		ret |= iret_dlink;
+		(void)printf(PFX "Threads stopped\n");
+	}
+	return ret;
 }
 
 /// updateDocker(): pull event from dockerlink and verify
@@ -726,7 +748,8 @@ void *thread_update (void *arg)
 			}
 
 			// start docker link thread
-			startDocker();
+			if (startDockerThread())
+				warn("Unable to start the Docker link thread");
 
 			// set local variable -- all CPUs set.
 			// TODO: adapt to cpu mask
@@ -765,13 +788,8 @@ void *thread_update (void *arg)
 			//no break
 		case -2:
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
-			// set stop signal
-			if (!iret_dlink) { // thread started successfully
-				// todo: return values
-				(void)pthread_kill (thread_dlink, SIGHUP); // tell linking threads to stop
-				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
-				(void)printf(PFX "Threads stopped\n");
-			}
+			if (stopDockerThread())
+				warn("Unable to stop the Docker link thread");
 			//no break
 
 		case -99:
