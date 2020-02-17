@@ -198,7 +198,6 @@ int check_kernel(void)
 ///
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
-	// TODO: read vs fread
 	char filename[128];
 	int path;
 

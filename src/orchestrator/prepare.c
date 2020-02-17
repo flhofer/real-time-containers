@@ -349,7 +349,7 @@ int prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-	// here.. off-line messes up cset
+	// here.. off-line messes up CSET
 	cont("moving kernel thread affinity");
 	// kernel interrupt threads affinity
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
@@ -496,7 +496,7 @@ int prepareEnvironment(prgset_t *set) {
 	}
 
 	/// --------------------
-	/// CGroup present, fix cpu-sets of running containers
+	/// CGroup present, fix CPU-sets of running containers
 	if (AFFINITY_USEALL != set->setaffinity){ // TODO: useall = ignore setting of exclusive
 
 		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
@@ -506,6 +506,7 @@ int prepareEnvironment(prgset_t *set) {
 		d = opendir(set->cpusetdfileprefix);// -> pointing to global
 		if (d) {
 
+			// CLEAR exclusive flags in all existing containers
 			{
 				char *contp = NULL; // clear pointer
 				while ((dir = readdir(d)) != NULL) {
@@ -519,7 +520,7 @@ int prepareEnvironment(prgset_t *set) {
 
 							// remove exclusive!
 							if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-								warn("Can not remove cpu exclusive : %s", strerror(errno));
+								warn("Can not remove CPU exclusive : %s", strerror(errno));
 							}
 						}
 						else // realloc error
@@ -531,19 +532,22 @@ int prepareEnvironment(prgset_t *set) {
 
 			// clear Docker CGroup settings and affinity first..
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
-				warn("Can not remove cpu exclusive : %s", strerror(errno));
+				warn("Can not remove CPU exclusive : %s", strerror(errno));
 			}
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
 				// global reset failed, try affinity only
 				if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-					warn("Can not reset cpu-affinity. Expect malfunction!"); // set online cpus as default
+					warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
 				}
 			}
-			/* if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separte NUMA settings
-			}*/
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
+			}
 
+			// rewind, stard configuring
 			rewinddir(d);
+
+
 			{
 				char *contp = NULL; // clear pointer
 				/// Reassigning pre-existing containers?
@@ -560,7 +564,7 @@ int prepareEnvironment(prgset_t *set) {
 								warn("Can not set CPU-affinity");
 							}
 							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set NUMA memory nodes"); // TODO: separte numa settings
+								warn("Can not set NUMA memory nodes"); // TODO: separate numa settings
 							}
 						}
 						else // realloc error
@@ -575,10 +579,10 @@ int prepareEnvironment(prgset_t *set) {
 				warn("Can not set CPU-affinity");
 			}
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separte numa settings
+				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
 			}
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set cpu exclusive");
+				warn("Can not set CPU exclusive");
 			}
 
 			closedir(d);
@@ -630,7 +634,6 @@ int prepareEnvironment(prgset_t *set) {
 
 	cont("creating CGroup for system on %s", cpus);
 
-	// TODO: system directory is hard-coded -> at least use MACRO
 	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
 		char * nfileprefix = NULL;
 
@@ -648,13 +651,13 @@ int prepareEnvironment(prgset_t *set) {
 		// ELSE: created, or directory already exists
 
 		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
-			warn("Can not set cpu-affinity");
+			warn("Can not set CPU-affinity");
 		}
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set numa memory nodes");
+			warn("Can not set NUMA memory nodes");
 		}
 		if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-			warn("Can not set cpu exclusive");
+			warn("Can not set CPU exclusive");
 		}
 
 		cont( "moving tasks..");
@@ -664,51 +667,40 @@ int prepareEnvironment(prgset_t *set) {
 			// copy to new prefix
 			nfileprefix = strcat(strcat(nfileprefix,set->cpusetfileprefix),"tasks");
 
-			int mtask = 0,
-				mtask_old;
-			do
-			{
-				// update counters, start again
-				mtask_old = mtask;
-				mtask = 0;
+			int mtask = 0;
 
-				char pidline[BUFRD];
-				char *pid, *pid_ptr;
-				int nleft=0; // reading left counter
-				// prepare literal and open pipe request
-				int path = open(nfileprefix,O_RDONLY);
+			char pidline[BUFRD];
+			char *pid, *pid_ptr;
+			int nleft=0, got; // reading left counter
+			// prepare literal and open pipe request
+			int path = open(nfileprefix,O_RDONLY);
 
-				// Scan through string and put in array, leave one byte extra, needed for strtok to work
-				while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) { 	// TODO: read vs fread
-					printDbg("%s: Pid string return %s\n", __func__, pidline);
-					pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
-					pid = strtok_r (pidline,"\n", &pid_ptr);
-					while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
-						// DO STUFF
+			// Scan through string and put in array, leave one byte extra, needed for strtok to work
+			while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
+				nleft += got;
+				printDbg("%s: Pid string return %s\n", __func__, pidline);
+				pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
+				pid = strtok_r (pidline,"\n", &pid_ptr);
+				while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+					// DO STUFF
 
-						// file prefix still pointing to CSET_SYS
-						if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
-							printDbg( "Warn! Can not move task %s\n", pid);
-							mtask++;
-						}
-						nleft-=strlen(pid)+1;
-						pid = strtok_r (NULL,"\n", &pid_ptr);
+					// file prefix still pointing to CSET_SYS
+					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
+						printDbg( "Warn! Can not move task %s\n", pid);
+						mtask++;
 					}
-					if (pid) // copy leftover chars to beginning of string buffer
-						memcpy(pidline, pidline+BUFRD-nleft-1, nleft);
+					nleft-=strlen(pid)+1;
+					pid = strtok_r (NULL,"\n", &pid_ptr);
 				}
-
-				close(path);
-
-				// some unmoveable tasks?, one free try
-				if (mtask_old != mtask && mtask_old == 0)
-				{
-					warn("Could not move %d tasks", mtask);
-					cont("retry..");
-					sleep(5);
-				}
+				if (pid) // copy leftover chars to beginning of string buffer
+					memcpy(pidline, pidline+BUFRD-nleft-1, nleft);
 			}
-			while (mtask_old != mtask);
+
+			close(path);
+
+			// some non-movable tasks?
+			if (0!= mtask)
+				warn("Could not move %d tasks", mtask);
 		}
 
 sysend: // jumped here if not possible to create system
@@ -749,7 +741,7 @@ void cleanupEnvironment(prgset_t *set){
 	if(set->smi) {
 
 		unsigned long smi_old;
-		int maxccpu = numa_num_configured_cpus();
+		int maxccpu = get_nprocs_conf()();
 		info("SMI counters for the CPUs");
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++)
@@ -759,8 +751,8 @@ void cleanupEnvironment(prgset_t *set){
 				if (get_smi_counter(*smi_msr_fd+i, &smi_old))
 					err_exit_n( errno, "Could not read SMI counter");
 				cont("CPU%d: %ld", i, smi_old-*(smi_counter+i));
+				close(*smi_msr_fd+i);
 			}
-		// todo: close counters??
 	}
 
 	// unlock memory pages

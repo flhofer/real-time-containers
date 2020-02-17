@@ -110,7 +110,7 @@ static int docker_read_pipe(struct eventData * evnt){
 		// read buffer until timeout
 		char * got = fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
 
-		// buf read successfully? // TODO: fix check. seems odd
+		// buf read successfully?
 		if ((!got) || '\0' == buf[0]) {
 			warn(PFX "Empty JSON buffer");
 			continue;
