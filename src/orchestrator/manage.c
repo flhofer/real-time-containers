@@ -146,11 +146,9 @@ static int configureTracers(){
 	if (2 == notrace) {
 		char * dbgpfx = get_debugfileprefix();
 
-		// TODO: add to util?
 		if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
 			warn("Can not disable kernel function tracing");
 
-		// TODO: add return value check
 		if (0 > event_disable_all())
 			warn("Unable to clear kernel fTrace event list");
 
@@ -588,7 +586,7 @@ void *thread_ftrace(void *arg){
 ///
 static int manageSched(){
 
-	// TODO: this is for the dynamic and adaptive scheduler only
+	// this is for the dynamic and adaptive scheduler only
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);

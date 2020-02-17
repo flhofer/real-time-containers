@@ -1,5 +1,4 @@
 #include "orchdata.h" // memory structure to store information
-// TODO: FIXME: need return value to deal with memory allocation problems
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 
@@ -38,7 +37,6 @@ static struct base *getTail(struct base *cur)
     return cur; 
 } 
 
-// TODO: this consumes a ton of stack. convert to array, use other alg, than back to ll
 // Partitions the list taking the last element as the pivot 
 static struct base *qsortll_partition(struct base *head, struct base *end, 
                        struct base **newHead, struct base **newEnd,
@@ -369,7 +367,6 @@ void node_pop(node_t ** head) {
 
 	// free strings id specifically created for this pid
 	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
-	// TODO: temporary for free hooks
 #ifdef DEBUG
 	{
 		free((*head)->psig);

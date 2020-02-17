@@ -104,189 +104,17 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	pclose(fp);
 }
 
-/// prepareEnvironment(): prepares the runtime environment for real-time
-/// operation. Creates CPU shield and configures the affinity of system
-/// processes and interrupts to reduce off-load on RT resources
+/// getCapMask(): utility function get our capability mask
 ///
-/// Arguments: - structure with parameter set
+/// Arguments: - program settings structure
 ///
-/// Return value: Error code
-/// 				Only valid if the function returns
+/// Return value: --
 ///
-int prepareEnvironment(prgset_t *set) {
-
-	// TODO: CPU number vs CPU enabling mask
-	// TODO: check maxcpu vs last cpu!
-	// Important when many are disabled from the beginning
-	// TODO: numa_allocate_cpumask vs malloc!! -> Allocates the size!!
-
-	/// --------------------
-	/// verify CPU topology and distribution
-	// TODO: global update maxCPU?
-	int maxcpu = get_nprocs();
-	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
-
-	char cpus[10]; // cpu allocation string
-	char constr[10]; // cpu online string
-	char str[100]; // generic string...
-
-	info("This system has %d processors configured and "
-        "%d processors available.",
-        maxccpu, maxcpu);
-
-	if (numa_available())
-		err_exit( "NUMA is not available but mandatory for the orchestration");
-
-	info("Starting environment setup");
-
-	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
-	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
-		// value read ok
-		if (!strcmp(str, "on")) {
-			// SMT - HT is on
-			if (set->dryrun)
-				cont("Skipping setting SMT.");
-			else
-				if (!set->force)
-					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-			else
-				if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
-					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-			else
-				cont("SMT is now disabled, as required. Refresh configurations..");
-			sleep(1); // leave time to refresh conf buffers -> immediate query fails
-			maxcpu = get_nprocs();	// update
-		}
-		else
-			cont("SMT is disabled, as required");
-	}
-	else // SMT failed or DryRun
-		warn("Skipping read of SMT status. This can influence latency performance!");
-
-	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity);
-	if (!set->affinity_mask)
-		return -1; // return to display help
-
-	smi_counter = calloc (maxccpu, sizeof(long));
-	smi_msr_fd = calloc (maxccpu, sizeof(int));
-	if (!smi_counter || !smi_msr_fd)
-		err_exit("could not allocate memory!");
-
-	struct bitmask * con;
-	struct bitmask * naffinity = numa_allocate_cpumask();
-	if (!naffinity)
-		err_exit("could not allocate memory!");
-
-	// get online cpu's
-	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
-		con = numa_parse_cpustring_all(constr);
-		// mask affinity and invert for system map / readout of smi of online CPUs
-		for (int i=0;i<maxccpu;i++) {
-
-			/* ---------------------------------------------------------*/
-			/* Configure online cpus - HT, SMT and performance settings */
-			/* ---------------------------------------------------------*/
-			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
-
-				char fstring[50]; 	// cpu string
-
-				{ // start block governor
-					char poss[50]; 		// possible settings string for governors
-
-					// verify if CPU-freq is on performance -> set it
-					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-					if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss)))){
-						// value possible read ok
-						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-							// value act read ok
-							if (strcmp(str, CPUGOVR)) {
-								// Governor is set to a different value
-								cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
-
-								if (set->dryrun)
-									cont("Skipping setting of governor on CPU%d.", i);
-								else
-									if (!set->force)
-										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
-									else
-										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
-											err_exit_n(errno, "CPU-freq change unsuccessful!");
-										else
-											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
-							}
-							else
-								cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
-						}
-						else
-							warn("CPU%d Scaling governor settings not found. Skipping.", i);
-					}
-					else
-						warn("CPU%d available CPU scaling governors not found. Skipping.", i);
-
-				} // end block
-
-				// CPU-IDLE settings, added with Kernel 4_16
-				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
-				if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str)))){
-					// value act read ok
-					if (strcmp(str, "n/a")) {
-						//
-						cont("Setting for power-QoS now \"%s\" on CPU%d.", str, i);
-
-						if (set->dryrun)
-							cont("Skipping setting of power QoS policy on CPU%d.", i);
-						else
-							if (!set->force)
-								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
-							else
-								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
-									err_exit_n(errno, "CPU-QoS change unsuccessful!");
-								else
-									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
-					}
-					else
-						cont("CPU-freq on CPU%d is set to \"" "n/a" "\" as required", i);
-				}
-				else
-					warn("CPU%d power saving configuration not found. Skipping.", i);
-
-				// if smi is set, read SMI counter
-				if(set->smi) {
-					*(smi_msr_fd+i) = open_msr_file(i);
-					if (*(smi_msr_fd+i) < 0)
-						err_exit("Could not open MSR interface, errno: %d",
-							errno);
-					// get current smi count to use as base value
-					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
-						err_exit("Could not read SMI counter, errno: %d",
-							0, errno);
-				}
-
-				// invert affinity for available cpus only -> for system
-				if (!numa_bitmask_isbitset(set->affinity_mask, i))
-					numa_bitmask_setbit(naffinity, i);
-			}
-
-			// if CPU not online
-			else if (numa_bitmask_isbitset(set->affinity_mask, i)){
-				// disabled processor set to affinity
-				info("Processor %d is set for affinity mask, but is disabled.", i);
-				err_exit("Unavailable CPU set for affinity.");
-			}
-		}
-	}
-	else // online CPU string not readable
-		err_exit("Can not read online CPUs");
-
-	// parse to string
-	if (parse_bitmask (naffinity, cpus))
-		err_exit ("can not determine inverse affinity mask!");
-
-	/// --------------------
+static int getCapMask(prgset_t *set) {
 	/// verify executable permissions - needed for dry run, not blind run
-	{
+
+	int capMask = 0;
+
 	cont( "Verifying for process capabilities..");
 	cap_t cap = cap_get_proc(); // get capability map of process
 	if (!cap)
@@ -325,7 +153,192 @@ int prepareEnvironment(prgset_t *set) {
 		capMask &= CAPMASK_IPC;
 	}
 
+	return capMask;
+}
+
+/// prepareEnvironment(): prepares the runtime environment for real-time
+/// operation. Creates CPU shield and configures the affinity of system
+/// processes and interrupts to reduce off-load on RT resources
+///
+/// Arguments: - structure with parameter set
+///
+/// Return value: Error code
+/// 				Only valid if the function returns
+///
+int prepareEnvironment(prgset_t *set) {
+
+	// TODO: CPU number vs CPU enabling mask
+	// TODO: check maxcpu vs last cpu!
+	// Important when many are disabled from the beginning
+	// TODO: numa_allocate_cpumask vs malloc!! -> Allocates the size!!
+
+	/// --------------------
+	/// verify CPU topology and distribution
+	// TODO: global update maxCPU -> max CPU number of last installed CPU, could be higher number than expected
+	int maxcpu = get_nprocs();
+	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
+
+	char cpus[10]; // cpu allocation string
+	char constr[10]; // cpu online string
+	char str[100]; // generic string...
+
+	info("This system has %d processors configured and "
+        "%d processors available.",
+        maxccpu, maxcpu);
+
+	if (numa_available())
+		err_exit( "NUMA is not available but mandatory for the orchestration");
+
+	info("Starting environment setup");
+
+	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
+	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
+		// value read OK
+		if (!strcmp(str, "on")) {
+			// SMT - HT is on
+			if (set->dryrun)
+				cont("Skipping setting SMT.");
+			else
+				if (!set->force)
+					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
+			else
+				if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+			else
+				cont("SMT is now disabled, as required. Refresh configurations..");
+			sleep(1); // leave time to refresh conf buffers -> immediate query fails
+			maxcpu = get_nprocs();	// update
+		}
+		else
+			cont("SMT is disabled, as required");
 	}
+	else // SMT failed or DryRun
+		warn("Skipping read of SMT status. This can influence latency performance!");
+
+	// prepare bit-mask, no need to do it before
+	set->affinity_mask = parse_cpumask(set->affinity);
+	if (!set->affinity_mask)
+		return -1; // return to display help
+
+	smi_counter = calloc (maxccpu, sizeof(long));
+	smi_msr_fd = calloc (maxccpu, sizeof(int));
+	if (!smi_counter || !smi_msr_fd)
+		err_exit("could not allocate memory!");
+
+	struct bitmask * naffinity = numa_allocate_cpumask();
+	if (!naffinity)
+		err_exit("could not allocate memory!");
+
+	// get online cpu's
+	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
+		struct bitmask * con = numa_parse_cpustring_all(constr);
+		// mask affinity and invert for system map / readout of smi of online CPUs
+		for (int i=0;i<maxccpu;i++) {
+
+			/* ---------------------------------------------------------*/
+			/* Configure online CPUs - HT, SMT and performance settings */
+			/* ---------------------------------------------------------*/
+			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
+
+				char fstring[50]; 	// cpu string
+
+				{ // start block governor
+					char poss[50]; 		// possible settings string for governors
+
+					// verify if CPU-freq is on performance -> set it
+					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
+					if (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
+						// value possible read ok
+						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
+						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+							// value act read ok
+							if (strcmp(str, CPUGOVR)) {
+								// Governor is set to a different value
+								cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
+
+								if (set->dryrun || set->blindrun)
+									cont("Skipping setting of governor on CPU%d.", i);
+								else
+									if (!set->force)
+										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
+									else
+										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
+											err_exit_n(errno, "CPU-freq change unsuccessful!");
+										else
+											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
+							}
+							else
+								cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
+						}
+						else
+							warn("CPU%d Scaling governor settings not found. Skipping.", i);
+					}
+					else
+						warn("CPU%d available CPU scaling governors not found. Skipping.", i);
+
+				} // end block
+
+				// CPU-IDLE settings, added with Kernel 4_16
+				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
+				if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+					// value act read ok
+					if (strcmp(str, "n/a")) {
+						//
+						cont("Setting for power-QoS now \"%s\" on CPU%d.", str, i);
+
+						if (set->dryrun || set->blindrun)
+							cont("Skipping setting of power QoS policy on CPU%d.", i);
+						else
+							if (!set->force)
+								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
+							else
+								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
+									err_exit_n(errno, "CPU-QoS change unsuccessful!");
+								else
+									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
+					}
+					else
+						cont("CPU-freq on CPU%d is set to \"" "n/a" "\" as required", i);
+				}
+				else
+					warn("CPU%d power saving configuration not found. Skipping.", i);
+
+				// if smi is set, read SMI counter
+				if(set->smi) {
+					*(smi_msr_fd+i) = open_msr_file(i);
+					if (*(smi_msr_fd+i) < 0)
+						err_exit("Could not open MSR interface, errno: %d",
+							errno);
+					// get current smi count to use as base value
+					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
+						err_exit("Could not read SMI counter, errno: %d",
+							0, errno);
+				}
+
+				// invert affinity for available CPUs only -> for system
+				if (!numa_bitmask_isbitset(set->affinity_mask, i))
+					numa_bitmask_setbit(naffinity, i);
+			}
+
+			// if CPU not online
+			else if (numa_bitmask_isbitset(set->affinity_mask, i)){
+				// disabled processor set to affinity
+				info("Processor %d is set for affinity mask, but is disabled.", i);
+				err_exit("Unavailable CPU set for affinity.");
+			}
+		}
+		numa_free_cpumask(con);
+	}
+	else // online CPU string not readable
+		err_exit("Can not read online CPUs");
+
+
+	// parse to string
+	if (parse_bitmask (naffinity, cpus))
+		err_exit ("can not determine inverse affinity mask!");
+
+	// verify our capability mask
+	capMask = getCapMask(set);
 
 	/// --------------------
 	/// Kernel variables, disable bandwidth management and RT-throttle
@@ -341,7 +354,7 @@ int prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
-	if (SCHED_RR == set->policy && 0 < set->rrtime) { //TODO: rrtime always?
+	if (SCHED_RR == set->policy && 0 < set->rrtime) {
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
@@ -564,7 +577,7 @@ int prepareEnvironment(prgset_t *set) {
 								warn("Can not set CPU-affinity");
 							}
 							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set NUMA memory nodes"); // TODO: separate numa settings
+								warn("Can not set NUMA memory nodes"); // TODO: separate NUMA settings
 							}
 						}
 						else // realloc error
@@ -589,7 +602,7 @@ int prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER ids ------------
+	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
 	// we know of, so set it up-front
 	// TODO: simplify code using single function for all -> internal CG library?
 	cont("creating CGroup entries for configured CIDs");
@@ -610,15 +623,15 @@ int prepareEnvironment(prgset_t *set) {
 				// try to create directory
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 				{
-					warn("Can not set cgroup: %s", strerror(errno));
+					warn("Can not set CGroup: %s", strerror(errno));
 					continue;
 				}
 
 				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){
-					warn("Can not set cpu-affinity");
+					warn("Can not set CPU-affinity");
 				}
 				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
-					warn("Can not set numa memory nodes"); // TODO: separte numa settings
+					warn("Can not set NUMA memory nodes"); // TODO: separte NUMA settings
 				}
 			}
 			else //realloc issues
@@ -713,6 +726,7 @@ sysend: // jumped here if not possible to create system
 	else //re-alloc issues
 		err_exit("could not allocate memory!");
 
+	numa_free_cpumask(naffinity);
 	free(numastr);
 
 	// TODO: check if it makes sense to do this before or after starting threads
@@ -741,7 +755,7 @@ void cleanupEnvironment(prgset_t *set){
 	if(set->smi) {
 
 		unsigned long smi_old;
-		int maxccpu = get_nprocs_conf()();
+		int maxccpu = get_nprocs_conf();
 		info("SMI counters for the CPUs");
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		for (int i=0;i<maxccpu;i++)

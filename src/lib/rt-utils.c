@@ -117,7 +117,7 @@ int mount_debugfs(char *path)
 	sprintf(cmd, "mount -t debugfs debugfs %s", mountpoint);
 	ret = system(cmd);
 	if (ret != 0) {
-		fprintf(stderr, "Error mounting debugfs at %s: %s\n",
+		fprintf(stderr, PFX "Error mounting debugfs at %s: %s\n",
 			mountpoint, strerror(errno));
 		return -1;
 	}

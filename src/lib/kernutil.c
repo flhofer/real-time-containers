@@ -314,6 +314,7 @@ struct bitmask *parse_cpumask(const char *option)
 ///
 /// Return value: error code if present
 ///
+// TODO: size of string!
 int parse_bitmask(struct bitmask *mask, char * str){
 	// base case check
 	if (!mask || !str)

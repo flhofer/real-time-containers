@@ -449,18 +449,20 @@ int main(int argc, char **argv)
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
 	(void)printf("This software comes with no warranty. Please be careful\n");
 
-	prgset_t *tmpset;
-	if (!(tmpset = malloc (sizeof(prgset_t))))
-		err_exit("Unable to allocate memory");
+	{ // preprocessing and configuration readout
+		prgset_t *tmpset;
+		if (!(tmpset = malloc (sizeof(prgset_t))))
+			err_exit("Unable to allocate memory");
 
-	process_options(tmpset, argc, argv, max_cpus);
+		process_options(tmpset, argc, argv, max_cpus);
 
-	// gather actual information at startup, prepare environment
-	if (prepareEnvironment(tmpset))
-		display_help(1); // if it returns with error code, display help
+		// gather actual information at startup, prepare environment
+		if (prepareEnvironment(tmpset))
+			display_help(1); // if it returns with error code, display help
 
-	// NOW all is public!
-	prgset = tmpset; // move to make write protected // TODO: test!
+		// NOW all is public!
+		prgset = tmpset;
+	}
 
 	if (adaptive){
 		// adaptive scheduling active? Clean prepare, execute, free

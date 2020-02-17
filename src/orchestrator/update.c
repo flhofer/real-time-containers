@@ -260,7 +260,7 @@ static void getContPids (node_t **pidlst)
 		printDbg( "\nContainer detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
-			// scan trough docker cgroups, find them?
+			// scan trough docker CGroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
 					fname[0] = '\0';   // ensures the memory is an empty string
@@ -272,16 +272,18 @@ static void getContPids (node_t **pidlst)
 					int path = open(fname,O_RDONLY);
 
 					// Scan through string and put in array
-					int nleft = 0;
-					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
-						printDbg("%s: Pid string return %s\n", __func__, pidline);
+					int nleft = 0, got;
+					while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
+						nleft += got;
+						printDbg("%s: PID string return %s\n", __func__, pidline);
 						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
 						pid = strtok_r (pidline,"\n", &pid_ptr);	
 						printDbg("%s: processing ", __func__);
 						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
+
 							node_push(pidlst);
-							// pid found
+							// PID found
 							(*pidlst)->pid = atoi(pid);
 							printDbg("->%d ",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
@@ -328,7 +330,7 @@ static void getContPids (node_t **pidlst)
 	prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 }
 
-/// getpids(): utility function to get list of PID
+/// getPids(): utility function to get list of PID
 /// Arguments: - pointer to linked list of PID
 ///			   - tag string containing the command signature to look for 
 ///
