@@ -13,6 +13,7 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir entry structure and expl
 #include <errno.h>			// error numbers and strings
+#include <numa.h>			// Numa node identification
 
 // Custom includes
 #include "orchestrator.h"
@@ -122,8 +123,6 @@ static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t typ
 	}
 } 
 
-static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
-
 // TODO: might need to move these to manage
 
 /// setPidResources(): set PID resources at first detection
@@ -133,7 +132,7 @@ static cpu_set_t cset_full; // local static to avoid recomputation.. (may also u
 ///
 static void setPidResources(node_t * node) {
 
-	cpu_set_t cset;
+	struct bitmask * cset = numa_allocate_cpumask();
 
 	// parameters unassigned
 	if (!prgset->quiet)
@@ -148,14 +147,14 @@ static void setPidResources(node_t * node) {
 	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
 		// pre-compute affinity
 		if (0 <= node->param->rscs->affinity) {
-			// CPU affinity defined to one CPU?
-			CPU_ZERO(&cset);
-			CPU_SET(node->param->rscs->affinity & ~(SCHED_FAFMSK), &cset);
+			// CPU affinity defined to one CPU? set!
+			(void)numa_bitmask_clearall(cset);
+			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity & ~(SCHED_FAFMSK)); // TODO: ?? FAFMSK
 		}
-		else {
-			// CPU affinity to all
-			cset = cset_full;
-		}
+		else
+			// CPU affinity to all enabled CPU's
+			copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
+
 
 		if (!node->psig) 
 			node->psig = node->param->psig;
@@ -202,7 +201,7 @@ static void setPidResources(node_t * node) {
 			}
 
 			// Set affinity
-			if (sched_setaffinity(node->pid, sizeof(cset), &cset ))
+			if (numa_sched_setaffinity(node->pid, cset))
 				err_msg_n(errno,"setting affinity for PID %d",
 					node->pid);
 			else
@@ -752,8 +751,6 @@ void *thread_update (void *arg)
 				warn("Unable to start the Docker link thread");
 
 			// set local variable -- all CPUs set.
-			// TODO: adapt to cpu mask
-			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 			*pthread_state=1;
 			//no break
 

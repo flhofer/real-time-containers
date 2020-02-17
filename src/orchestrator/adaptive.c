@@ -68,12 +68,13 @@ static uint64_t gcd(uint64_t a, uint64_t b)
 static struct resTracer * rHead;
 
 /// createResTracer(): create resource tracing memory elements
+/// 				   set them to default value
 //
 /// Arguments:
 ///
-/// Return value: N/D - int
+/// Return value:
 ///
-static int createResTracer(){
+static void createResTracer(){
 
 	// backwards, cpu0 on top, we assume affinity_mask ok
 	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
@@ -84,7 +85,6 @@ static int createResTracer(){
 			rHead->U = 0.0;
 			rHead->basePeriod = 0;
 	}
-	return 0;
 }
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
@@ -114,7 +114,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 
 		if (new_base % 1000 != 0){
 			warn("Check -> Nanosecond resolution periods not supported!");
-			// todo temporary solution to avoid very long loops
 			return -2;
 		}
 		// recompute new values of resource tracer
@@ -153,7 +152,6 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 
 		if (new_base % 1000 != 0)
 			fatal("Nanosecond resolution periods not supported!");
-			// todo temporary solution to avoid very long loops
 
 		// recompute new values of tracer
 		res->usedPeriod *= new_base/res->basePeriod;
@@ -281,7 +279,6 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 ///
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
-	// TODO: return value!
 	(void)createResTracer();
 
 	// transform all masks, starting from images

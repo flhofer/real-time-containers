@@ -214,7 +214,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 		return -1;
 	}
 
-	errno = 0; // reset global errno
+	errno = 0; // reset global error number
 
 	memcpy(filename, prefix, len_prefix);
 	memcpy(filename + len_prefix, name, len_name + 1);
@@ -223,7 +223,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	if (0 <= path) {
 		if (O_RDONLY == mode) {
 			int got;
-			// TODO fix if = 0
+			// if = 0, no change
 			if ((got = read(path, value, sizeofvalue)) > 0) {
 				value[got-1] = '\0';
 				close(path);

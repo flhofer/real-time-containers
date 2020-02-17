@@ -54,7 +54,7 @@ END_TEST
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
 		{"/proc/","version_signature", "test", -1, EACCES},	// write protected
-		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO
+		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO: implement
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
 	}; 

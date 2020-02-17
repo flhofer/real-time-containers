@@ -509,9 +509,8 @@ int main(int argc, char **argv)
 		act.sa_restorer = NULL;
 
 		if ((sigaction(SIGINT, &act, NULL) < 0)		 // CTRL+C
-			|| (sigaction(SIGTERM, &act, NULL) < 0)  // KILL termination or end of test
-			|| (sigaction(SIGUSR1, &act, NULL) < 0)) // USR1 signal, not handled yet TODO
-		{ // INT signal, stop from main prg
+			|| (sigaction(SIGTERM, &act, NULL) < 0)) // KILL termination or end of test
+		{
 			perror ("Setup of sigaction failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
