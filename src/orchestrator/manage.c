@@ -70,6 +70,7 @@ struct ftrace_thread {
 	pthread_t thread;	// thread information
 	int iret;			// return value of thread launch
 	int cpuno;			// CPU number monitored
+	char * dbgfile;		// file pointer to the debug file. NULL == use default
 };
 struct ftrace_thread * elist_thead = NULL;
 
@@ -149,6 +150,10 @@ static int configureTracers(){
 		if (0 > event_disable_all())
 			warn("Unable to clear kernel fTrace event list");
 
+		// sched_stat_runtime tracer seems to need sched_stats
+		if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
+			warn("Unable to activate schedstat probe");
+
 		if (0 < event_enable("sched/sched_stat_runtime")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
@@ -186,6 +191,29 @@ static int configureTracers(){
 	return notrace-2; // return number found versus needed
 }
 
+/// resetTracers(): reset kernel function trace system
+///
+/// Arguments: - none
+///
+/// Return value: 0 = success, else error
+///
+static void resetTracers(){
+	char * dbgpfx = get_debugfileprefix();
+
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
+		warn("Can not disable kernel function tracing");
+
+	if (0 > event_disable_all())
+		warn("Unable to clear kernel fTrace event list");
+
+	// sched_stat_runtime tracer seems to need sched_stats
+	if (0 > setkernvar(prgset->procfileprefix, "sched_schedstats", "0", prgset->dryrun) )
+		warn("Unable to deactivate schedstat probe");
+
+	while (elist_head)
+		pop((void**)&elist_head);
+}
+
 /// startTraceRead(): start CPU tracing threads
 ///
 /// Arguments:
@@ -201,7 +229,8 @@ static int startTraceRead() {
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
 			push((void**)&elist_thead, sizeof(struct ftrace_elist));
 			elist_thead->cpuno = i;
-			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, &elist_thead->cpuno);
+			elist_thead->dbgfile = NULL;
+			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, elist_thead);
 #ifdef DEBUG
 			char tname [17]; // 16 char length restriction
 			(void)sprintf(tname, "manage_ftCPU%d", elist_thead->cpuno); // space for 4 digit CPU number
@@ -236,9 +265,9 @@ static int stopTraceRead() {
 				perror("Could not join with fTrace thread");
 			ret |= ret1; // combine results in OR to detect one failing
 
+			free(elist_thead->dbgfile); // free it if defined
 			pop((void**)&elist_thead);
 		}
-
 	return ret; // >= 0 if OK, else negative
 }
 
@@ -422,7 +451,7 @@ void *thread_ftrace(void *arg){
 	int pstate = 0;
 	int got = 0;
 	FILE *fp = NULL;
-	int* cpuno = (int *)arg;
+	const struct ftrace_thread * fthread = (struct ftrace_thread *)arg;
 
 	unsigned char buffer[PIPE_BUFFER];
 	uint16_t *pType;
@@ -444,7 +473,7 @@ void *thread_ftrace(void *arg){
 
 		if (sigaction(SIGQUIT, &act, NULL) < 0)		 // quit from caller
 		{
-			perror ("Setup of sigaction failed");
+			perror ("Setup of sigaction failed");// TODO fix that
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	} // END interrupt handler block
@@ -457,7 +486,7 @@ void *thread_ftrace(void *arg){
 		(void)sigdelset(&set, SIGQUIT);
 		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
 		{
-			perror ("Setup of sigmask failed");
+			perror ("Setup of sigmask failed");// TODO fix that
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	}
@@ -469,16 +498,16 @@ void *thread_ftrace(void *arg){
 		case 0:
 			;
 			char* fn;
-			if (NULL != arg)
-				fn = (char *)arg;
+			if (NULL != fthread->dbgfile)
+				fn = fthread->dbgfile;
 			else{
 				fn = malloc(100);
-				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), *cpuno);
+				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), fthread->cpuno);
 			}
 			if (-1 == access (fn, R_OK)) {
 				pstate = -1;
-				err_msg (PFX "Could not open trace pipe for CPU%d", *cpuno);
-				err_msg (PIN "Tracing for CPU%d disabled", *cpuno);
+				err_msg (PFX "Could not open trace pipe for CPU%d", fthread->cpuno);
+				err_msg (PIN "Tracing for CPU%d disabled", fthread->cpuno);
 				free(fn);
 				break;
 			} /** if file doesn't exist **/
@@ -528,7 +557,7 @@ void *thread_ftrace(void *arg){
 				if (0 > count){
 					// something went wrong, dump and exit
 					got = 0;
-					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", *cpuno);
+					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
 					break;
 				}
 				// TODO: no event? something went wrong, not configured event
@@ -567,7 +596,7 @@ void *thread_ftrace(void *arg){
 		}
 	}
 
-	printf(PFX "Exit fTrace CPU%d thread\n", *cpuno);
+	printf(PFX "Exit fTrace CPU%d thread\n", fthread->cpuno);
 	fflush(stderr);
 
 	return NULL;
@@ -908,6 +937,7 @@ void *thread_manage (void *arg)
 			(void)printf(PFX "Stopping threads\n");
 			if (stopTraceRead())
 				warn("Unable to stop all fTrace threads");
+			resetTracers();
 			(void)printf(PFX "Threads stopped\n");
 		}
 		// no break
