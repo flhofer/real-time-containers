@@ -82,7 +82,7 @@ START_TEST(dockerlink_err_json)
 {	
 	pthread_t thread1;
 	int  iret1;
-	char buf[10] = "echo '";
+	char buf[50] = "echo '";
 	strcat(strcat(buf, dockerlink_empty[_i]), "'");
 	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
