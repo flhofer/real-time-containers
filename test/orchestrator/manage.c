@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 15/02/2020
+# last change: 18/02/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -15,18 +15,18 @@
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <limits.h>
-#include <sys/resource.h>
 #include <linux/sched.h>	// Linux specific scheduling
-#include <poll.h>
 
+#define MAX_PATH 256
 #define TESTCPU "1"
 
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
-	prgset->affinity= TESTCPU; // todo, detect?
+	prgset->affinity= TESTCPU; // TODO, detect?
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
+	prgset->procfileprefix = strdup("/proc/sys/kernel/");
 
 	contparm = malloc (sizeof(containers_t));
 	contparm->img = NULL; // locals are not initialized
@@ -41,6 +41,7 @@ static void orchestrator_manage_teardown() {
 	while (nhead)
 		node_pop(&nhead);
 
+	free(prgset->procfileprefix);
 	free(prgset);
 	free(contparm);
 }
@@ -66,7 +67,7 @@ START_TEST(orchestrator_manage_readdata)
 	pthread_t thread1;
 	int  iret1;
 	int stat1 = 0;
-	prgset->ftrace = 0; // iteration 0 = debug, iteration 1 = ftrace
+	prgset->ftrace = 0;
 
 	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test1'; done\"",
 								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test2'; done\"",
@@ -138,8 +139,11 @@ START_TEST(orchestrator_manage_readftrace)
 {
 	pthread_t thread1;
 	int  iret1;
-	char * testfile = malloc(100); // it's freed inside the thread
-	(void)sprintf(testfile, "manage_ftread.dat"); // dump of a kernel thread scan
+	struct ftrace_thread fthread;
+	fthread.dbgfile = malloc(MAX_PATH); // it's freed inside the thread
+	fthread.cpuno = TESTCPU;
+	(void)sprintf(fthread.dbgfile, "manage_ftread.dat"); // dump of a kernel thread scan
+
 	prgset->ftrace = 1;
 
 	const int pid[] = { 1, 2, 3	}; // TODO: setup
@@ -150,7 +154,7 @@ START_TEST(orchestrator_manage_readftrace)
 		nhead->psig = strdup("");
 	}
 
-	iret1 = pthread_create( &thread1, NULL, thread_manage, (void*) testfile);
+	iret1 = pthread_create( &thread1, NULL, thread_ftrace, (void*)&fthread);
 	ck_assert_int_eq(iret1, 0);
 
 	sleep(2);
@@ -170,11 +174,12 @@ void orchestrator_manage (Suite * s) {
 
 	tcase_add_checked_fixture(tc1, orchestrator_manage_setup, orchestrator_manage_teardown);
 	tcase_add_loop_exit_test(tc1, orchestrator_manage_stop, EXIT_SUCCESS, 0, 2);
+	tcase_set_timeout(tc1, 10);
 	suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("manage_thread_read");
 	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);
-	tcase_add_test(tc2, orchestrator_manage_readdata);
+//	tcase_add_test(tc2, orchestrator_manage_readdata);
 	tcase_add_test(tc2, orchestrator_manage_readftrace);
 	tcase_set_timeout(tc2, 10);
     suite_add_tcase(s, tc2);

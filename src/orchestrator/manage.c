@@ -23,7 +23,6 @@
 #include "error.h"		// error and stderr print functions
 
 #include <sys/wait.h>
-#include <sys/types.h>
 #include <numa.h>			// NUMA node identification
 #include <sys/sysinfo.h>	// system general information
 
@@ -64,14 +63,6 @@ struct ftrace_elist {
 };
 struct ftrace_elist * elist_head;
 
-// Linked list of CPU threads
-struct ftrace_thread {
-	struct ftrace_thread * next;
-	pthread_t thread;	// thread information
-	int iret;			// return value of thread launch
-	int cpuno;			// CPU number monitored
-	char * dbgfile;		// file pointer to the debug file. NULL == use default
-};
 struct ftrace_thread * elist_thead = NULL;
 
 struct tr_common {

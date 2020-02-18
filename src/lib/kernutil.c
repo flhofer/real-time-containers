@@ -8,7 +8,7 @@
 #include <cpuid.h>	// cpu information
 #include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
-#include <wordexp.h>	// for posix word expansion
+#include <wordexp.h>		// for POSIX word expansion
 
 #include "error.h"		// error and strerr print functions
 

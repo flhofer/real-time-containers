@@ -6,7 +6,7 @@
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
-#define MAX_PATH 256
+#define MAX_PATH 256 // TODO: review file path max and set global allocation maximum
 
 char *get_debugfileprefix(void);
 int mount_debugfs(char *);
