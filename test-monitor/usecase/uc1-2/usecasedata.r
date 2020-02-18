@@ -11,7 +11,7 @@ loadData <- function(fName) {
 	#Function, load data from text file into a data frame, only min, avg and max
 
 	# Read text into R
-	#print(fName)
+	#write(fName, stderr())
 
 	if (!file.exists(fName) || file.info(fName)$size == 0) {
 		# break here if file does not exist
@@ -150,20 +150,24 @@ plotData<-function(directory) {
 	xmin <- 250
 	xmax <- 0
 
-	for (i in 0:7) {
-		fName<- paste0(directory, '/workerapp', i,'.log')
-		histLoad<-loadData(fName)
+	files <- dir(directory, pattern= "(^workerapp[0-9](\\.|-fifo)*log)")
 
-		write(paste0("Size of dataset for ", fName, " iter ", i, " :", length(histLoad)), stderr())
+	# Combine results of test batches
+	for (f in seq(along=files)){
+
+		histLoad<-loadData(paste0(directory, "/", files[f]))
+
+		write(paste0("Size of dataset for ", files[f], " iter ", f, " :", length(histLoad)), stderr())
 
 		if (length(histLoad) > 0) {
 			xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
 			xmax <- max(xmax, histLoad[[1]]$dataT$rows$bStart)
 
-			gplot <- gplot + geom_line(data = histLoad[[1]]$dataT$rows,stat="identity", color=col[i+1]) #width=histLoad[[1]]$dataT$res, 
+			gplot <- gplot + geom_line(data = histLoad[[1]]$dataT$rows,stat="identity", color=col[f]) #width=histLoad[[1]]$dataT$res, 
 		}
 	}	  
 
+	directory <- (gsub("/", "_", directory))
 	pdf(file= paste0("Hist_", directory,".pdf"), width = 10, height = 10)
 	gplot <- gplot + labs(x='occurrence of exeution value') +
 		     scale_x_continuous(trans='log10') 
@@ -206,7 +210,7 @@ for (d in seq(along=dirs)){
 
 	# Combine results of test batches
 	for (e in seq(along=dirs2)){
-		plotData(dirs2[e])
+		plotData(paste0(dirs[d], "/",dirs2[e]))
 	}
 }
 
