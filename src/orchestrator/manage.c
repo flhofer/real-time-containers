@@ -111,9 +111,6 @@ struct tr_runtime {
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
 
-#ifndef DEBUG
-static // define as static in non-debug
-#endif
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
