@@ -173,7 +173,7 @@ int node_findParams(node_t* node, struct containers * conts){
 				if (imgcont->cont->contid && node->contid) {
 					// 12 is standard docker short signature
 					if  (!strncmp(imgcont->cont->contid, node->contid,
-							MIN(strlen(img->imgid), strlen(node->imgid)))) {
+							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
 						cont = imgcont->cont;
 						break;
 					}
@@ -201,7 +201,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			// 12 is standard docker short signature
 			if(cont->contid && node->contid) {
 				if (!strncmp(cont->contid, node->contid,
-						MIN(strlen(img->imgid), strlen(node->imgid))))
+						MIN(strlen(cont->contid), strlen(node->contid))))
 					break;
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink

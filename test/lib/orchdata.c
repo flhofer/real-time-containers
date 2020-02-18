@@ -155,7 +155,7 @@ START_TEST(orchdata_ndpop3)
 
 	ck_assert(!nhead);
 
-	// waring! accessing unallocated memrory
+	// waring! accessing unallocated memory
 	ck_assert(p);
 	ck_assert(!p->psig);
 	ck_assert(!p->contid);
@@ -596,7 +596,9 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_ndpush);
 	tcase_add_test(tc0, orchdata_ndpop);
 	tcase_add_test(tc0, orchdata_ndpop2);
+#ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
 	tcase_add_test(tc0, orchdata_ndpop3);
+#endif
 	tcase_add_test(tc0, orchdata_qsort);
 	tcase_add_test(tc0, orchdata_qsort2);
 	tcase_add_test(tc0, orchdata_qsort3);
