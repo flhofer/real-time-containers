@@ -164,13 +164,16 @@ int node_findParams(node_t* node, struct containers * conts){
 	// check for image match first
 	while (NULL != img) {
 		// 12 is standard docker short signature
-		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid, 12)) {
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
+				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			conts_t * imgcont = img->conts;	
+			printDbg("Image match %s\n", img->imgid);
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
 					// 12 is standard docker short signature
-					if  (!strncmp(imgcont->cont->contid, node->contid, 12)) {
+					if  (!strncmp(imgcont->cont->contid, node->contid,
+							MIN(strlen(img->imgid), strlen(node->imgid)))) {
 						cont = imgcont->cont;
 						break;
 					}
@@ -197,7 +200,8 @@ int node_findParams(node_t* node, struct containers * conts){
 		while (NULL != cont) {
 			// 12 is standard docker short signature
 			if(cont->contid && node->contid) {
-				if (!strncmp(cont->contid, node->contid, 12))
+				if (!strncmp(cont->contid, node->contid,
+						MIN(strlen(img->imgid), strlen(node->imgid))))
 					break;
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
