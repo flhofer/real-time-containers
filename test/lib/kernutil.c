@@ -12,8 +12,30 @@
 
 START_TEST(kernutil_check_kernel)
 {	
-	// NOTE, kernel version of local system, should be >= 5.0
-    ck_assert_int_eq(check_kernel(), KV_50);
+	char buf[256];
+	ck_assert_int_gt(getkernvar("/proc/", "version", buf, sizeof(buf)), 0);
+
+	int maj, min,rev;
+	ck_assert_int_eq(sscanf(buf, "%*s %*s %d.%d.%d-%*d-%*s %*s", &maj, &min, &rev), 3);
+
+	int kv = KV_NOT_SUPPORTED;
+	if (3 == maj && 14 <=  min)
+		kv = KV_314;
+	else if (4 == maj) { // fil
+		// kernel 4.x introduces Deadline scheduling
+		if (13 > min)
+			// standard
+			kv = KV_40;
+		else if (16 > min)
+			// full EDF
+			kv = KV_413;
+		else
+			// full EDF -PA
+			kv = KV_416;
+	} else if (5 == maj)
+		kv = KV_50;
+
+    ck_assert_int_eq(check_kernel(), kv);
 }
 END_TEST
 
