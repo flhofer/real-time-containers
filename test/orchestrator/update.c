@@ -308,8 +308,6 @@ END_TEST
 
 void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
- 
-	// TODO: reduce verbosity on failed pids... -> update.c
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
 	tcase_add_test(tc1, orchestrator_update_findprocs);
@@ -318,7 +316,6 @@ void orchestrator_update (Suite * s) {
     suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("update_thread_resources");
- 
 	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc2, orchestrator_update_rscs);
 

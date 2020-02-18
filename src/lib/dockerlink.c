@@ -24,6 +24,8 @@
 
 #include "parse_func.h"
 
+int th_return = EXIT_SUCCESS;
+
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t dlink_stop;
 
@@ -121,8 +123,8 @@ static int docker_read_pipe(struct eventData * evnt){
 		// root read successfully?
 		if (NULL == root) {
 			warn(PFX "Empty JSON");
-//			pthread_exit(0);
-			exit(EXIT_INV_CONFIG);
+			th_return = EXIT_INV_CONFIG;
+			pthread_exit(&th_return);
 		}
 
 		evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
@@ -238,7 +240,8 @@ void *thread_watch_docker(void *arg) {
 		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
 		{
 			perror ("Setup of sigaction failed");
-			exit(EXIT_FAILURE); // exit the software, not working
+			th_return = EXIT_FAILURE;
+			pthread_exit(&th_return);
 		}
 	} // END interrupt handler block
 
@@ -251,7 +254,8 @@ void *thread_watch_docker(void *arg) {
 		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
 		{
 			perror ("Setup of sigmask failed");
-			exit(EXIT_FAILURE); // exit the software, not working
+			th_return = EXIT_FAILURE;
+			pthread_exit(&th_return);
 		}
 	}
 	
@@ -275,8 +279,11 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "r", &pid)))
-					err_exit_n(errno, "Pipe process open failed!");
+				if (!(inpipe = popen2 (pcmd, "r", &pid))){
+					err_msg_n(errno, "Pipe process open failed!");
+					th_return = EXIT_FAILURE;
+					pthread_exit(&th_return);
+				}
 				pstate = 1;
 				printDbg(PFX "Reading JSON output from pipe...\n");
 				// no break
@@ -308,8 +315,7 @@ void *thread_watch_docker(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
-				pthread_exit(0); // exit the thread signaling normal return
-				break;
+				pthread_exit(&th_return);
 		}
 
 		if (3 > pstate && dlink_stop){ // if 3 wait for change, lock is hold

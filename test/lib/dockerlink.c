@@ -86,8 +86,11 @@ START_TEST(dockerlink_err_json)
 	strcat(strcat(buf, dockerlink_empty[_i]), "'");
 	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
+	int * th_return;
 	if (!iret1) // thread started successfully
-		iret1 = pthread_join( thread1, NULL); // wait until end
+		iret1 = pthread_join( thread1, (void**)&th_return); // wait until end
+
+	exit(*th_return);
 }
 END_TEST
 

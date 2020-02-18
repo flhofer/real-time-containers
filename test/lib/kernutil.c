@@ -21,17 +21,13 @@ START_TEST(kernutil_check_kernel)
 	int kv = KV_NOT_SUPPORTED;
 	if (3 == maj && 14 <=  min)
 		kv = KV_314;
-	else if (4 == maj) { // fil
-		// kernel 4.x introduces Deadline scheduling
-		if (13 > min)
-			// standard
-			kv = KV_40;
-		else if (16 > min)
-			// full EDF
+	else if (4 == maj) {
+		if (min >= 16)
+			kv = KV_416;
+		else if (min >= 13)
 			kv = KV_413;
 		else
-			// full EDF -PA
-			kv = KV_416;
+			kv = KV_40;
 	} else if (5 == maj)
 		kv = KV_50;
 
