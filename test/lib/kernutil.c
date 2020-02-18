@@ -13,7 +13,7 @@
 START_TEST(kernutil_check_kernel)
 {	
 	// NOTE, kernel version of local system, should be >= 5.0
-	ck_assert_int_eq(check_kernel(), KV_50);
+    ck_assert_int_eq(check_kernel(), KV_50);
 }
 END_TEST
 
@@ -26,7 +26,7 @@ struct kernvar_test {
 };
 
 static const struct kernvar_test getkernvar_var[6] = {
-		{"/proc/", "version_signature", "Ubuntu", 0, 0},	// standard read - len = 0, changes by kernel version
+		{"/proc/", "version", "Linux", 0, 0},	// standard read - len = 0, changes by kernel version
 		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
@@ -53,7 +53,7 @@ END_TEST
 
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/proc/","version_signature", "test", -1, EACCES},	// write protected
+		{"/proc/","version", "test", -1, EIO},				// write protected
 		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO: implement
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
