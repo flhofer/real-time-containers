@@ -141,7 +141,7 @@ START_TEST(orchestrator_manage_readftrace)
 	int  iret1;
 	struct ftrace_thread fthread;
 	fthread.dbgfile = malloc(MAX_PATH); // it's freed inside the thread
-	fthread.cpuno = TESTCPU;
+	fthread.cpuno = 1; // dummy value
 	(void)sprintf(fthread.dbgfile, "manage_ftread.dat"); // dump of a kernel thread scan
 
 	prgset->ftrace = 1;
