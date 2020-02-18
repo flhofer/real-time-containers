@@ -156,8 +156,8 @@ END_TEST
 
 /// TEST CASE -> Stop link thread on signal
 /// EXPECTED -> exit after 2 seconds, no error
-START_TEST(dockerlink_conf_stop)
-{	
+START_TEST(dockerlink_stop)
+{
 	pthread_t thread1;
 	int  iret1;
 	char buf[10] = "sleep 10"; // Timeout is set to 4 secs by default
@@ -170,6 +170,23 @@ START_TEST(dockerlink_conf_stop)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+
+}
+END_TEST
+
+/// TEST CASE -> Stop link thread on signal
+/// EXPECTED -> exit after 2 seconds, no error
+START_TEST(dockerlink_startfail)
+{	
+	pthread_t thread1;
+	int  iret1;
+	char buf[10] = "doucqeker"; // non existing command
+	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	ck_assert_int_eq(iret1, 0);
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+
 }
 END_TEST
 
@@ -191,9 +208,14 @@ void library_dockerlink (Suite * s) {
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
-	tcase_add_test(tc1, dockerlink_conf_stop);
 
     suite_add_tcase(s, tc1);
+
+	TCase *tc2 = tcase_create("dockerlink_startstop");
+	tcase_add_exit_test(tc2, dockerlink_stop, EXIT_SUCCESS);
+	tcase_add_exit_test(tc2, dockerlink_startfail, EXIT_SUCCESS);
+
+	suite_add_tcase(s, tc2);
 
 	return;
 }
