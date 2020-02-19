@@ -247,7 +247,7 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 	// add item
 	push((void**)&aHead, sizeof (resAlloc_t));
 	if (item->rscs->affinity > 0) {
-		char  affstr[6];
+		char  affstr[11];
 		(void)sprintf(affstr, "%d", item->rscs->affinity);
 		aHead->affinity = numa_parse_cpustring_all(affstr);
 	}

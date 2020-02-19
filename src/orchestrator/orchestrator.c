@@ -210,7 +210,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				optargs++;
 				set->setaffinity = AFFINITY_SPECIFIED;
 			} else {
-				set->affinity = malloc(10);
+				set->affinity = malloc(14);
 				if (!set->affinity){
 					err_msg("could not allocate memory!");
 					exit(EXIT_FAILURE);

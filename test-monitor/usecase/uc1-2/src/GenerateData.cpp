@@ -121,7 +121,7 @@ void GenerateData::initializeSleepSpec()
             *******************************************/
             // Seed the random number generator with the current timespec nsec value
             clock_gettime(CLOCK_REALTIME, &nowSpec);
-            uint seed = (uint)(nowSpec.tv_nsec);
+            unsigned int seed = (unsigned int)(nowSpec.tv_nsec);
             fprintf(stderr, "generateData thread: type=generator 2, seeding Random Number generator with seed %u (tv_nsec=%ld), num Write Pipes=%d\n", seed, nowSpec.tv_nsec, params.maxWritePipes);
             srand(seed);
         }

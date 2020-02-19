@@ -320,7 +320,9 @@ int parse_bitmask(struct bitmask *mask, char * str){
 	if (!mask || !str)
 		return -1;
  
+	char num[12];
 	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
+
 	str [0] = '\0';
 
 	for (int i=0; i<sz; i++){
@@ -333,9 +335,11 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				fd = i; // found and start range bit number
 				if (!strlen(str))
 					// first at all?
-					sprintf(str, "%d", fd);
-				else
-					sprintf(str, "%s,%d", str,fd);
+					(void)sprintf(str, "%d", fd);
+				else{
+					(void)sprintf(num, ",%d", fd);
+					(void)strcat(str, num);
+				}
 				rg = fd; // end range bit number 
 			}
 			else 
@@ -343,9 +347,11 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				rg++;
 		}
 		else {
-			if (rg != fd)
+			if (rg != fd){
 				// end of 1-bit sequence, print end of range
-				sprintf(str, "%s-%d", str,rg);
+				(void)sprintf(num, "-%d",rg);
+				(void)strcat(str, num);
+			}
 			fd = rg = -1; // reset range
 		}
 	}

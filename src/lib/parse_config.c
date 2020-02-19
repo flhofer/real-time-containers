@@ -442,10 +442,10 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 
 
-		// affinity default setting
+		// affinity default setting // TODO: duplicate -> function
 		if (!set->affinity){
 			char *defafin;
-			if (!(defafin = malloc(10))) // has never been set
+			if (!(defafin = malloc(22))) // has never been set
 				err_exit("could not allocate memory!");
 
 			(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
@@ -545,7 +545,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	{  // default affinity mask and selection block
 
 		char *defafin;
-		if (!(defafin = malloc(10))) // has never been set
+		if (!(defafin = malloc(22))) // has never been set
 			err_exit("could not allocate memory!");
 
 		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
