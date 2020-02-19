@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
 RUN apt-get update && \
-	apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev \
+	apt-get install -y gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home
