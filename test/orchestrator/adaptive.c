@@ -192,7 +192,7 @@ END_TEST
 void orchestrator_adaptive (Suite * s) {
 
 	int numcpu = numa_num_configured_cpus();
-	if (numcpu < 4){
+	if (numcpu < 3){
 		warn("adapt: Not enough CPU's for this test. Skipping");
 		return;
 	}

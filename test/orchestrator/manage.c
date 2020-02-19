@@ -69,9 +69,9 @@ START_TEST(orchestrator_manage_readdata)
 	int stat1 = 0;
 	prgset->ftrace = 0;
 
-	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test1'; done\"",
-								"chrt -r 2 taskset -c " TESTCPU " sh -c \"for i in {1..1000}; do echo 'test2'; done\"",
-								"chrt -r 3 taskset -c " TESTCPU  " sh -c \"for i in {1..1000}; do echo 'test3'; done\"",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
+								"chrt -r 2 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
+								"chrt -r 3 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
 								NULL };
 
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
@@ -142,9 +142,10 @@ START_TEST(orchestrator_manage_readftrace)
 	struct ftrace_thread fthread;
 	fthread.dbgfile = malloc(MAX_PATH); // it's freed inside the thread
 	fthread.cpuno = 1; // dummy value
-	(void)sprintf(fthread.dbgfile, "manage_ftread.dat"); // dump of a kernel thread scan
+	(void)sprintf(fthread.dbgfile, "test/manage_ftread.dat"); // dump of a kernel thread scan
 
 	prgset->ftrace = 1;
+
 
 	const int pid[] = { 1, 2, 3	}; // TODO: setup
 
@@ -153,6 +154,8 @@ START_TEST(orchestrator_manage_readftrace)
 		nhead->pid = pid[i];
 		nhead->psig = strdup("");
 	}
+
+	buildEventConf();
 
 	iret1 = pthread_create( &thread1, NULL, thread_ftrace, (void*)&fthread);
 	ck_assert_int_eq(iret1, 0);
@@ -164,6 +167,8 @@ START_TEST(orchestrator_manage_readftrace)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+
+	clearEventConf();
 
 	orchestrator_manage_checkread();
 }

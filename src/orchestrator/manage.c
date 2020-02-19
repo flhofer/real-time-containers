@@ -119,6 +119,29 @@ static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
+void buildEventConf(){
+	push((void**)&elist_head, sizeof(struct ftrace_elist));
+	elist_head->eventid = 305;
+	elist_head->event = "sched_stat_runtime";
+	elist_head->eventcall = pickPidInfoR;
+
+	push((void**)&elist_head, sizeof(struct ftrace_elist));
+	elist_head->eventid = 319;
+	elist_head->event = "sched_wakeup";
+	elist_head->eventcall = pickPidInfoW;
+
+
+	push((void**)&elist_head, sizeof(struct ftrace_elist));
+	elist_head->eventid = 317;
+	elist_head->event = "sched_switch";
+	elist_head->eventcall = pickPidInfoS;
+}
+
+void clearEventConf(){
+	while (elist_head)
+		pop((void**)&elist_head);
+}
+
 /// configureTracers(): setup kernel function trace system
 ///
 /// Arguments: - none
@@ -291,7 +314,7 @@ static int pickPidCommon(node_t ** item, void * addr) {
 	printDbg( "type=%u flags=%u preempt=%u pid=%d\n",
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-	return sizeof(*pFrame);
+	return sizeof(*pFrame)+8; // TODO 8 zeros?
 }
 
 /// pickPidInfoW(): process PID fTrace sched_wakeup
@@ -305,7 +328,7 @@ static int pickPidCommon(node_t ** item, void * addr) {
 static int pickPidInfoW(node_t ** item, void * addr) {
 
 	int ret1 = pickPidCommon(item, addr);
-	addr+= sizeof(struct tr_common);
+	addr+= ret1;
 
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
 
@@ -346,7 +369,7 @@ static int pickPidInfoW(node_t ** item, void * addr) {
 static int pickPidInfoS(node_t ** item, void * addr) {
 
 	int ret1 = pickPidCommon(item, addr);
-	addr+= sizeof(struct tr_common);
+	addr+= ret1;
 
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
 
@@ -392,7 +415,7 @@ static int pickPidInfoR(node_t ** item, void * addr)
 	struct tr_common *pcFrame = (struct tr_common*)addr;
 
 	int ret1 = pickPidCommon(item, addr);
-	addr+= sizeof(struct tr_common);
+	addr+= ret1;
 
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
 
@@ -531,8 +554,9 @@ void *thread_ftrace(void *arg){
 
 			// TODO: what are these first 20 bytes?
 
-			pType = (uint16_t *)(buffer+20);
-			got -=20;
+//			pType = (uint16_t *)(buffer+20);
+			pType = (uint16_t *)(buffer+28);
+			got -=28;
 
 			while ((NULL != (void*)pType) && (0 != *pType) && (!ftrace_stop)) {
 				int (*eventcall)(node_t **, void *) = pickPidCommon; // default to common
