@@ -302,6 +302,12 @@ void adaptPrepareSchedule(){
 
 				rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
 				numa_or_cpumask(rTmp->affinity,bmPids);
+
+				// if fix assignment, add to tracer
+				if (numa_bitmask_weight(rTmp->affinity) == 1)
+					if (0 > addTracer(rTmp, -1))
+						err_exit("The resource plan does not fit your system!");
+
 			}
 
 			// update affinity values of container, keep only necessary
@@ -310,6 +316,11 @@ void adaptPrepareSchedule(){
 			// merge mask to image shared, free unused
 			numa_or_cpumask(rCont->affinity,bmConts);
 			numa_free_cpumask(bmPids);
+
+			// if fix assignment, add to tracer
+			if (numa_bitmask_weight(rCont->affinity) == 1)
+				if (0 > addTracer(rCont, -1))
+					err_exit("The resource plan does not fit your system!");
 		}
 
 		// depending PIDs
@@ -317,12 +328,22 @@ void adaptPrepareSchedule(){
 
 			rTmp = pushResource((cont_t*)pids->pid, rImg->affinity, 1);
 			numa_or_cpumask(rTmp->affinity,bmConts);
+
+			// if fix assignment, add to tracer
+			if (numa_bitmask_weight(rTmp->affinity) == 1)
+				if (0 > addTracer(rTmp, -1))
+					err_exit("The resource plan does not fit your system!");
 		}
 
 		// update affinity values of image, keep only necessary
 		numa_and_cpumask(bmConts,rImg->affinity);
 		// free unused
 		numa_free_cpumask(bmConts);
+
+		// if fix assignment, add to tracer
+		if (numa_bitmask_weight(rImg->affinity) == 1)
+			if (0 > addTracer(rImg, -1))
+				err_exit("The resource plan does not fit your system!");
 	}
 
 	// transform all masks, solo containers
@@ -341,6 +362,11 @@ void adaptPrepareSchedule(){
 
 			rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
 			numa_or_cpumask(rTmp->affinity,bmPids);
+
+			// if fix assignment, add to tracer
+			if (numa_bitmask_weight(rTmp->affinity) == 1)
+				if (0 > addTracer(rTmp, -1))
+					err_exit("The resource plan does not fit your system!");
 		}
 
 		// update affinity values, keep only necessary
@@ -348,6 +374,11 @@ void adaptPrepareSchedule(){
 
 		//push container mask, and merge to image shared
 		numa_free_cpumask(bmPids);
+
+		// if fix assignment, add to tracer
+		if (numa_bitmask_weight(rCont->affinity) == 1)
+			if (0 > addTracer(rCont, -1))
+				err_exit("The resource plan does not fit your system!");
 	}
 
 	// transform all masks, PIDs
@@ -355,18 +386,54 @@ void adaptPrepareSchedule(){
 		if (pid->img || pid->cont) // part of tree, skip
 			continue;
 
-		(void)pushResource((cont_t*)pid, NULL, 2);
+		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL, 2);
+
+		// if fix assignment, add to tracer
+		if (numa_bitmask_weight(rTmp->affinity) == 1)
+			if (0 > addTracer(rTmp, -1))
+				err_exit("The resource plan does not fit your system!");
 	}
 
 	// ################## from here use resource masks ##############
-	// add all fixed resources // TODO: push up to mask for efficiency
-	for (resAlloc_t * res = aHead; ((res)); res=res->next)
-		if (numa_bitmask_weight(res->affinity) == 1)
-			if (0 > addTracer(res, -1))
-				err_exit("The resource plan does not fit your system!");
 
+	int unmatched = 0;
 	{ // compute flexible resources
 		resTracer_t * DLtrc = NULL;
+		resTracer_t * FFtrc = NULL;
+		for (resAlloc_t * res = aHead; ((res)); res=res->next){
+			if (!res->assigned)
+				switch (res->item->attr->sched_policy) {
+
+					default:
+						// is a runtime defined? if not,..
+						if (!res->item->attr->sched_runtime ||
+								!res->item->attr->sched_period)	{
+							unmatched++;
+							break;
+						}
+						// else assign as if a deadline
+						FFtrc= checkPeriod(res->item);
+						if (FFtrc){
+							addUvalue(FFtrc, res->item->attr);
+							res->assigned = FFtrc;
+						}
+						break;
+
+					case SCHED_DEADLINE:
+						// allocate resources for flexible tasks
+						DLtrc= checkPeriod(res->item);
+						if (DLtrc){
+							addUvalue(DLtrc, res->item->attr);
+							res->assigned = DLtrc;
+						}
+						else
+							warn("Could not assign an resource!");
+						break;
+			}
+		}
+	} // END dedicated resources
+
+	{ // compute flexible resources
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;
 		resTracer_t * BTtrc = NULL;
@@ -374,23 +441,17 @@ void adaptPrepareSchedule(){
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
 			if (!res->assigned)
 				switch (res->item->attr->sched_policy) {
-					case SCHED_DEADLINE:
-							// allocate resources for flexible tasks
-							DLtrc= checkPeriod(res->item);
-							if (DLtrc){
-								addUvalue(DLtrc, res->item->attr);
-								res->assigned = DLtrc;
-							}
-							else
-								warn("Could not assign an resource!");
-							break;
-					case SCHED_FIFO: // TODO: allocation?
+
+					case SCHED_FIFO:
 						// allocate FIFO tasks to
+
 						if (!FFtrc)
 							FFtrc = grepTracer();
 						res->assigned = FFtrc;
+						// else assign as if a deadline
 
-						break;
+						//no break
+
 					case SCHED_RR:
 						// allocate RR tasks to dedicated CPU
 						if (!RRtrc)
