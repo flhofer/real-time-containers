@@ -63,8 +63,8 @@ static uint64_t gcd(uint64_t a, uint64_t b)
     return a;
 }
 
-// ################### duplicates of manager.c simple template ################
 #define MAX_UL 0.90
+#define SCHED_UKNLOAD 10 // 10% load extra per task
 static struct resTracer * rHead;
 
 /// createResTracer(): create resource tracing memory elements
@@ -93,42 +93,153 @@ static void createResTracer(){
 ///
 /// Return value: the matching level property. negative are problems
 ///				  higher is better
-///				  3 = OK, perfect period match; 0 = OK, but recalculated base;
-///				  2 = OK, but empty cpu
-///				  1 = same but new period is an exact multiplier;
 ///				  -1 = no space; -2 error
 static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	int rv = 3; // perfect match
+	int rv = 1000; // perfect match -> all cases max value default
 
-	// if unused, set to this period
-	if (0==base){
-		base = par->sched_period;
-		rv = 1 + CHKNUISBETTER;
-	}
-
-	if (base != par->sched_period) {
-		// recompute base
-		uint64_t new_base = gcd(base, par->sched_period);
-
-		if (new_base % 1000 != 0){
-			warn("Check -> Nanosecond resolution periods not supported!");
-			return -2;
+	switch (par->sched_policy) {
+	case SCHED_DEADLINE:
+		/*
+		 * DEADLINE return values
+		 * 3 = OK, perfect period match;
+		 * 2 = OK, but empty CPU
+		 * 1 = recalculate base but new period is an exact multiplier;
+		 * 0 = OK, but recalculated base;
+		 */
+		// if unused, set to this period
+		if (0==base){
+			base = par->sched_period;
+			rv = 1 + CHKNUISBETTER;
 		}
-		// recompute new values of resource tracer
-		used *= new_base/res->basePeriod;
-		base = new_base;
 
-		// are the periods a perfect fit?
-		if ((0 == res->basePeriod % par->sched_period)
-			|| (0 == par->sched_period % res->basePeriod))
-				rv = 2-CHKNUISBETTER;
-		else
-			rv =0;
+		if (base != par->sched_period) {
+			// recompute base
+			uint64_t new_base = gcd(base, par->sched_period);
+
+			if (new_base % 1000 != 0){
+				warn("Check -> Nanosecond resolution periods not supported!");
+				return -2;
+			}
+			// recompute new values of resource tracer
+			used *= new_base/res->basePeriod;
+			base = new_base;
+
+			// are the periods a perfect fit?
+			if ((new_base == res->basePeriod)
+				|| (new_base == par->sched_period))
+					rv = 2-CHKNUISBETTER;
+			else
+				rv =0;
+
+			used += par->sched_runtime * base/par->sched_period;
+		}
+		break;
+	case SCHED_FIFO:
+		/*
+		 *	FIFO return values for different situations
+		 *	3 .. perfect match desired repetition matches period of resources
+		 *	2 .. empty CPU, = perfect fit on new CPU
+		 *  1 .. recalculation of period, but new is perfect fit to both
+		 *  0 .. recompute needed
+		 *  all with +1 bonus if runtime fits remaining UL
+		 */
+
+		// TODO: maybe add subtraction instead of equal rv
+		if (0 == par->sched_runtime){
+			// can't do anything about computation
+			rv = 0;
+			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+			break;
+		}
+
+		uint64_t basec = par->sched_period;
+		int rvbonus = 1;
+
+		// if unused, set to this period
+		if (0 == basec){
+			rvbonus = 0; // record that we have a fake base
+			basec = 1000000000; // default to 1 second)
+		}
+
+		if (0==base){
+			base = basec;
+			rvbonus  = 1; // reset again, we have match
+			rv = 1 + CHKNUISBETTER;
+		}
+
+		if (rvbonus){
+			// free slice smaller than runtime, = additional preemption => lower pts
+			if ((MAX_UL-res->U) * (double)res->basePeriod < par->sched_runtime)
+				rvbonus=0;
+		}
+
+		if (base != basec) {
+			// recompute base
+			uint64_t new_base = gcd(base, basec);
+
+			if (new_base % 1000 != 0){
+				warn("Check -> Nanosecond resolution periods not supported!");
+				return -2;
+			}
+
+			// recompute new values of resource tracer
+			used *= new_base/res->basePeriod;
+			base = new_base;
+
+			// are the periods a perfect fit?
+			if ((new_base == res->basePeriod)
+				|| (new_base == basec))
+					rv = 2-CHKNUISBETTER;
+			else
+				rv = 0;
+		}
+
+		// apply bonus
+		rv+= rvbonus;
+
+		used += par->sched_runtime * base/basec;
+		break;
+	case SCHED_RR:
+
+		if (0==base){
+			// if unused, set to rr slice. top fit
+			base = prgset->rrtime*1000;
+			rv += CHKNUISBETTER;
+		}
+		else if (base != prgset->rrtime * 1000)
+		{
+			// try to fit into RR slice, it is the preemption period for RR
+			uint64_t new_base = gcd(base, prgset->rrtime*1000);
+
+			// GCD matches slice-> good candidate, base bigger than slice
+			if (base > prgset->rrtime*1000)
+				rv = MAX(1000-(base/new_base),1); // reduction factor, an indicator for bad match
+			else {
+				// rr_slice is bigger than period.. strong preemtion risk
+				if ((MAX_UL-res->U) * (double)prgset->rrtime*1000 < par->sched_runtime)
+					rv = 1; // still fitting into it
+				else
+					rv=0; // can not guarantee that it fits!
+			}
+
+			used *= new_base/res->basePeriod;
+			base = new_base;
+		}
+
+		if (0 == par->sched_runtime){
+			// can't do anything more about usage computation
+			break;
+		}
+
+		used += par->sched_runtime * base/par->sched_period;
+
+		break;
+	default:
+		break;
 	}
 
-	used += par->sched_runtime * base/par->sched_period;
 	if (MAX_UL < ((double)used/(double)base))
 		rv = -1;
 
@@ -161,8 +272,6 @@ static void addUvalue(struct resTracer * res, struct sched_attr * par) {
 	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
 	res->U = ((double)res->usedPeriod/(double)res->basePeriod);
 }
-
-// ################################################################################
 
 /// checkPeriod(): find a resource that fits period
 ///
@@ -209,7 +318,7 @@ static resTracer_t * grepTracer() {
 
 /// addTracer(): append resource with mask
 ///
-/// Arguments: - item is container, image or pid
+/// Arguments: - res is the resource reservation record
 ///			   - CPU, number to allocate, -1 for default (if weight 1)
 ///
 /// Return value: error, or 0 if successful
@@ -232,6 +341,18 @@ static int addTracer(resAlloc_t * res, int cpu){
 	return -1; // error! not found
 }
 
+
+/// addTracer(): append resource with mask for fixed values
+///
+/// Arguments: - res is the resource reservation record
+///
+/// Return value:
+///
+static void addTracerFix(resAlloc_t * res) {
+	if (numa_bitmask_weight(res->affinity) == 1)
+		if (0 > addTracer(res, -1))
+			err_exit("The resource plan does not fit your system!");
+}
 
 /// pushResource(): append resource to resource task list with mask
 ///
@@ -304,10 +425,7 @@ void adaptPrepareSchedule(){
 				numa_or_cpumask(rTmp->affinity,bmPids);
 
 				// if fix assignment, add to tracer
-				if (numa_bitmask_weight(rTmp->affinity) == 1)
-					if (0 > addTracer(rTmp, -1))
-						err_exit("The resource plan does not fit your system!");
-
+				addTracerFix(rTmp);
 			}
 
 			// update affinity values of container, keep only necessary
@@ -318,9 +436,7 @@ void adaptPrepareSchedule(){
 			numa_free_cpumask(bmPids);
 
 			// if fix assignment, add to tracer
-			if (numa_bitmask_weight(rCont->affinity) == 1)
-				if (0 > addTracer(rCont, -1))
-					err_exit("The resource plan does not fit your system!");
+			addTracerFix(rCont);
 		}
 
 		// depending PIDs
@@ -330,9 +446,7 @@ void adaptPrepareSchedule(){
 			numa_or_cpumask(rTmp->affinity,bmConts);
 
 			// if fix assignment, add to tracer
-			if (numa_bitmask_weight(rTmp->affinity) == 1)
-				if (0 > addTracer(rTmp, -1))
-					err_exit("The resource plan does not fit your system!");
+			addTracerFix(rTmp);
 		}
 
 		// update affinity values of image, keep only necessary
@@ -341,9 +455,7 @@ void adaptPrepareSchedule(){
 		numa_free_cpumask(bmConts);
 
 		// if fix assignment, add to tracer
-		if (numa_bitmask_weight(rImg->affinity) == 1)
-			if (0 > addTracer(rImg, -1))
-				err_exit("The resource plan does not fit your system!");
+		addTracerFix(rImg);
 	}
 
 	// transform all masks, solo containers
@@ -364,9 +476,7 @@ void adaptPrepareSchedule(){
 			numa_or_cpumask(rTmp->affinity,bmPids);
 
 			// if fix assignment, add to tracer
-			if (numa_bitmask_weight(rTmp->affinity) == 1)
-				if (0 > addTracer(rTmp, -1))
-					err_exit("The resource plan does not fit your system!");
+			addTracerFix(rTmp);
 		}
 
 		// update affinity values, keep only necessary
@@ -376,9 +486,7 @@ void adaptPrepareSchedule(){
 		numa_free_cpumask(bmPids);
 
 		// if fix assignment, add to tracer
-		if (numa_bitmask_weight(rCont->affinity) == 1)
-			if (0 > addTracer(rCont, -1))
-				err_exit("The resource plan does not fit your system!");
+		addTracerFix(rCont);
 	}
 
 	// transform all masks, PIDs
@@ -389,9 +497,7 @@ void adaptPrepareSchedule(){
 		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL, 2);
 
 		// if fix assignment, add to tracer
-		if (numa_bitmask_weight(rTmp->affinity) == 1)
-			if (0 > addTracer(rTmp, -1))
-				err_exit("The resource plan does not fit your system!");
+		addTracerFix(rTmp);
 	}
 
 	// ################## from here use resource masks ##############
