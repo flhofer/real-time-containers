@@ -354,11 +354,21 @@ int prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
-	if (SCHED_RR == set->policy && 0 < set->rrtime) {
+	if (SCHED_RR == set->policy && 0 < set->rrtime) { // TODO: maybe change to global as now used for adapt
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
 			warn("RR time slice not changed!");
+		}
+	}
+	else{
+		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
+			warn("Could not read RR time slice! Setting to default 100ms");
+			set->rrtime=100; // default to 100ms
+		}
+		else{
+			set->rrtime = atoi(str);
+			info("RR slice is set to %s ms", set->rrtime);
 		}
 	}
 
