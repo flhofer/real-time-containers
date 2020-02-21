@@ -257,33 +257,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	return rv;
 }
 
-/// addUvalue(): verify if task fits into Utilization limits of a resource
-///
-/// Arguments: resource entry for this cpu, the attr structure of the task
-///
-/// Return value: -
-static void addUvalue(struct resTracer * res, struct sched_attr * par) {
-
-	// if unused, set to this period
-	if (0==res->basePeriod)
-		res->basePeriod = par->sched_period;
-
-	if (res->basePeriod != par->sched_period) {
-		// recompute base
-		uint64_t new_base = gcd(res->basePeriod, par->sched_period);
-
-		if (new_base % 1000 != 0)
-			fatal("Nanosecond resolution periods not supported!");
-
-		// recompute new values of tracer
-		res->usedPeriod *= new_base/res->basePeriod;
-		res->basePeriod = new_base;
-	}
-
-	res->usedPeriod += par->sched_runtime * res->basePeriod/par->sched_period;
-	res->U = ((double)res->usedPeriod/(double)res->basePeriod);
-}
-
 /// checkPeriod(): find a resource that fits period
 ///
 /// Arguments: the attr structure of the task
