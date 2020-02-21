@@ -33,6 +33,8 @@ typedef struct resAlloc { 		// resource allocations mapping
 
 static resAlloc_t * aHead = NULL;
 
+static struct resTracer * rHead;
+
 // Combining and or bit masks
 #define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
 									  if ((numa_bitmask_isbitset(a, i)) \
@@ -43,6 +45,9 @@ static resAlloc_t * aHead = NULL;
 #define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
 
 #define CHKNUISBETTER 1	// new CPU if available better than perfect match?
+#define MAX_UL 0.90
+#define SCHED_UKNLOAD 10 // 10% load extra per task
+
 
 /// gcd(): greatest common divisor, iterative
 //
@@ -62,10 +67,6 @@ static uint64_t gcd(uint64_t a, uint64_t b)
     }
     return a;
 }
-
-#define MAX_UL 0.90
-#define SCHED_UKNLOAD 10 // 10% load extra per task
-static struct resTracer * rHead;
 
 /// createResTracer(): create resource tracing memory elements
 /// 				   set them to default value
@@ -89,15 +90,17 @@ static void createResTracer(){
 
 /// checkUvalue(): verify if task fits into Utilization limits of a resource
 ///
-/// Arguments: resource entry for this CPU, the attr structure of the task
+/// Arguments:  - resource entry for this CPU
+///				- the `attr` structure of the task we are trying to fit in
+///				- add or test, 0 = test, 1 = add to resources // TODO : variants, add-if
 ///
-/// Return value: the matching level property. negative are problems
-///				  higher is better
-///				  -1 = no space; -2 error
-static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
+/// Return value: a matching score, higher is better. Negative values return error
+///				  -1 = no space; -2 error // TODO: maybe use ERRNO?
+///
+static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	int rv = 1000; // perfect match -> all cases max value default
+	int rv = 3; // perfect match -> all cases max value default
 
 	switch (par->sched_policy) {
 	case SCHED_DEADLINE:
@@ -240,8 +243,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par) {
 		break;
 	}
 
-	if (MAX_UL < ((double)used/(double)base))
+	// calculate and verify utilization rate
+	float U = (double)used/(double)base;
+	if (MAX_UL < U)
 		rv = -1;
+
+	if (add){
+		res->usedPeriod = used;
+		res->basePeriod = base;
+		res->U;
+	}
 
 	return rv;
 }
@@ -286,7 +297,7 @@ static resTracer_t * checkPeriod(cont_t * item) {
 
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		res = checkUvalue(trc, item->attr);
+		res = checkUvalue(trc, item->attr, 0);
 		if ((res > match) // better match, or matching favorite
 			|| ((res == match) && (trc->affinity == abs(item->rscs->affinity))) )	{
 			match = res;
@@ -330,10 +341,9 @@ static int addTracer(resAlloc_t * res, int cpu){
 			|| (cpu == trc->affinity)){
 
 			// check first. add and return check value
-			int ret = checkUvalue(trc, res->item->attr);
+			int ret = checkUvalue(trc, res->item->attr, 1);
 			if (-1 == ret)
 				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
-			addUvalue(trc, res->item->attr);
 			res->assigned = trc;
 			return ret;
 		}
@@ -342,7 +352,7 @@ static int addTracer(resAlloc_t * res, int cpu){
 }
 
 
-/// addTracer(): append resource with mask for fixed values
+/// addTracerFix(): append resource with mask for fixed values
 ///
 /// Arguments: - res is the resource reservation record
 ///
@@ -520,7 +530,7 @@ void adaptPrepareSchedule(){
 						// else assign as if a deadline
 						FFtrc= checkPeriod(res->item);
 						if (FFtrc){
-							addUvalue(FFtrc, res->item->attr);
+							checkUvalue(FFtrc, res->item->attr, 1);
 							res->assigned = FFtrc;
 						}
 						break;
@@ -529,7 +539,7 @@ void adaptPrepareSchedule(){
 						// allocate resources for flexible tasks
 						DLtrc= checkPeriod(res->item);
 						if (DLtrc){
-							addUvalue(DLtrc, res->item->attr);
+							checkUvalue(DLtrc, res->item->attr, 1);
 							res->assigned = DLtrc;
 						}
 						else
