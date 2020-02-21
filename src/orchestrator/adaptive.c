@@ -222,16 +222,18 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		if (0==base){
 			// if unused, set to rr slice. top fit
 			base = prgset->rrtime*1000;
-			rv += CHKNUISBETTER;
+			rv = 1 + CHKNUISBETTER;
 		}
-		else if (base != prgset->rrtime * 1000)
+
+		if (base != prgset->rrtime * 1000)
 		{
 			// try to fit into RR slice, it is the preemption period for RR
 			uint64_t new_base = gcd(base, prgset->rrtime*1000);
 
 			// GCD matches slice-> good candidate, base bigger than slice
 			if (base > prgset->rrtime*1000)
-				rv = MAX(1000-(base/new_base),1); // reduction factor, an indicator for bad match
+//				rv = MAX(1000-(base/new_base),1); // reduction factor, an indicator for bad match
+				rv = 1;
 			else {
 				// rr_slice is bigger than period.. strong preemtion risk
 				if ((MAX_UL-res->U) * (double)prgset->rrtime*1000 < par->sched_runtime)
@@ -239,6 +241,13 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 				else
 					rv=0; // can not guarantee that it fits!
 			}
+
+			// are the periods a perfect fit?
+			if ((new_base == res->basePeriod)
+				|| (new_base == prgset->rrtime))
+					rv = 2-CHKNUISBETTER;
+			else
+				rv = 0;
 
 			used *= new_base/res->basePeriod;
 			base = new_base;
