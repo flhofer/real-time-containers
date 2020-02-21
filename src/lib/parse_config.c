@@ -73,9 +73,9 @@ static void parse_scheduling_data(struct json_object *obj,
 	(*data)->sched_flags = get_int_value_from(obj, "flags", TRUE, 0);
 	(*data)->sched_nice = get_int_value_from(obj, "nice", TRUE, 0);
 	(*data)->sched_priority = get_int_value_from(obj, "prio", TRUE, 0);
-	(*data)->sched_runtime = get_int_value_from(obj, "runtime", TRUE, 0);
-	(*data)->sched_deadline = get_int_value_from(obj, "deadline", TRUE, (*data)->sched_runtime);
-	(*data)->sched_period = get_int_value_from(obj, "period", TRUE, (*data)->sched_deadline);
+	(*data)->sched_runtime = get_int64_value_from(obj, "runtime", TRUE, 0);
+	(*data)->sched_deadline = get_int64_value_from(obj, "deadline", TRUE, (*data)->sched_runtime);
+	(*data)->sched_period = get_int64_value_from(obj, "period", TRUE, (*data)->sched_deadline);
 }
 
 /// parse_pid_data(): extract parameter values from JSON tokens for pid
