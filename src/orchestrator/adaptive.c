@@ -103,14 +103,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	int rv = 3; // perfect match -> all cases max value default
 
 	switch (par->sched_policy) {
+
+	/*
+	 * DEADLINE return values
+	 * 3 = OK, perfect period match;
+	 * 2 = OK, but empty CPU
+	 * 1 = recalculate base but new period is an exact multiplier;
+	 * 0 = OK, but recalculated base;
+	 */
+
 	case SCHED_DEADLINE:
-		/*
-		 * DEADLINE return values
-		 * 3 = OK, perfect period match;
-		 * 2 = OK, but empty CPU
-		 * 1 = recalculate base but new period is an exact multiplier;
-		 * 0 = OK, but recalculated base;
-		 */
 		// if unused, set to this period
 		if (0==base){
 			base = par->sched_period;
@@ -122,6 +124,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			uint64_t new_base = gcd(base, par->sched_period);
 
 			if (new_base % 1000 != 0){
+				// TODO: warn or error if add is set?
 				warn("Check -> Nanosecond resolution periods not supported!");
 				return -2;
 			}
@@ -136,18 +139,19 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			else
 				rv =0;
 
-			used += par->sched_runtime * base/par->sched_period;
 		}
+		used += par->sched_runtime * base/par->sched_period;
 		break;
+
+	/*
+	 *	FIFO return values for different situations
+	 *	3 .. perfect match desired repetition matches period of resources
+	 *	2 .. empty CPU, = perfect fit on new CPU
+	 *  1 .. recalculation of period, but new is perfect fit to both
+	 *  0 .. recompute needed
+	 *  all with +1 bonus if runtime fits remaining UL
+	 */
 	case SCHED_FIFO:
-		/*
-		 *	FIFO return values for different situations
-		 *	3 .. perfect match desired repetition matches period of resources
-		 *	2 .. empty CPU, = perfect fit on new CPU
-		 *  1 .. recalculation of period, but new is perfect fit to both
-		 *  0 .. recompute needed
-		 *  all with +1 bonus if runtime fits remaining UL
-		 */
 
 		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
@@ -204,6 +208,15 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		used += par->sched_runtime * base/basec;
 		break;
+
+	/* TODO: review
+	 *	RR return values for different situations
+	 *	1000 .. perfect match desired repetition matches period of resources
+	 *	   2 .. empty CPU, = perfect fit on new CPU
+	 *     1 .. recalculation of period, but new is perfect fit to both
+	 *     0 .. recompute needed
+	 *  all with +1 bonus if runtime fits remaining UL
+	 */
 	case SCHED_RR:
 
 		if (0==base){
@@ -239,6 +252,9 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		used += par->sched_runtime * base/par->sched_period;
 
 		break;
+
+
+	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
 	default:
 		break;
 	}
@@ -248,10 +264,10 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	if (MAX_UL < U)
 		rv = -1;
 
-	if (add){
+	if (add){ // apply changes to res structure?
 		res->usedPeriod = used;
 		res->basePeriod = base;
-		res->U;
+		res->U=U;
 	}
 
 	return rv;
