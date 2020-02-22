@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function runtest() {
+function prepareTest() {
 	no=$1
 
 	if [ "$no" -eq 0 ]; then
@@ -33,16 +33,28 @@ function runtest() {
 		for i in {8..12}; do
 			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 		done
+	elif [ "$no" -eq 5 ]; then
+
+		eval ./orchestrator -fd orchUC1.json &
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)	
 	fi
 }
 
-for k in {0..4}; do
+for k in {0..5}; do
 
-	runtest $k
+	prepareTest $k
 	eval ./ucexec.sh test 1
 	sleep 30
 	eval ./ucexec.sh test 2
 	sleep 30
+
+	if [ -n "$SPID" ]; then
+		# end orchestrator
+		kill -SIGINT $SPID
+		sleep 1
+	fi
+
 	mv logs/UC1* logs/TEST${k}_1
 	mv logs/UC2* logs/TEST${k}_2
 
