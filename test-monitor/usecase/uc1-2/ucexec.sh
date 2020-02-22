@@ -317,9 +317,9 @@ runTest() {
     for (( ip=0 ; ip<maxWorkers; ip++ )); do
         workerPeriodPollingParamName="worker${ip}PeriodPolling"
         workerPeriodPolling="${!workerPeriodPollingParamName}"
-        workerDeadlinePolling=$workerPeriodPolling-1000000
-        workerRuntimePolling=($ip+1)*500000
-        outerloops=$ip+1 # 1 loop is ca 0.5ms on BM
+        workerDeadlinePolling=$(( $workerPeriodPolling-1000000 ))
+        workerRuntimePolling=$(( $ip+1*500000 ))
+        outerloops=$(( $ip+1 )) # 1 loop is ca 0.5ms on BM
         echo "Calling startWorkerPolling $ip $workerPeriodPolling $outerloops"
         startWorkerPolling $ip $workerPeriodPolling $outerloops
     done
