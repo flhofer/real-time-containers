@@ -181,11 +181,11 @@ startContainer() {
 # same as Workerpolling +- for uc1 and timing test
 startWorkerContainer() {
     #Argument 1 is instance number
-    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server
+    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server, ~37ms
     #Argument 3 is timed loops, defaults to 500
     #Argument 4- eventual additional parameters
     i=$1
-    oul=${2:-'85'}
+    oul=${2:-'56'}
     tdl=${3:-'500'}
 
     scheduling="$workerPolicyEvent $workerPriorityEvent"
