@@ -181,7 +181,7 @@ startContainer() {
 # same as Workerpolling +- for uc1 and timing test
 startWorkerContainer() {
     #Argument 1 is instance number
-    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server, ~37ms
+    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server, 56 = ~37ms
     #Argument 3 is timed loops, defaults to 500
     #Argument 4- eventual additional parameters
     i=$1
@@ -291,12 +291,12 @@ startWorkerPolling() {
     #Argument 3 is outer loops for runtime estimation
     i=$1
     pollingPeriod=$2
-    oul=$3
+    oul=$3 # 1 outer loop is ca 0.5 ms on BM
 
     baseworkerImage=rt-workerapp
     imageName=${baseworkerImage}$i
     progName=workerapp${i}
-    cmdargs="--instnum $i --innerloops 20 --outerloops ${oul} --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
+    cmdargs="--instnum $i --innerloops 19 --outerloops ${oul} --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
 
     startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling "-deadline"
 }
@@ -318,8 +318,8 @@ runTest() {
         workerPeriodPollingParamName="worker${ip}PeriodPolling"
         workerPeriodPolling="${!workerPeriodPollingParamName}"
         workerDeadlinePolling=$(( $workerPeriodPolling-1000000 ))
-        workerRuntimePolling=$(( $ip+1*500000 ))
-        outerloops=$(( $ip+1 )) # 1 loop is ca 0.5ms on BM
+        workerRuntimePolling=$(( $(( $ip+1 )) * 525000 )) # give it 5% margin
+        outerloops=$(( $ip+1 )) # 1 loop is ca 0.5 ms on BM
         echo "Calling startWorkerPolling $ip $workerPeriodPolling $outerloops"
         startWorkerPolling $ip $workerPeriodPolling $outerloops
     done
