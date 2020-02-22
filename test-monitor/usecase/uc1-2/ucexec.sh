@@ -181,11 +181,11 @@ startContainer() {
 # same as Workerpolling +- for uc1 and timing test
 startWorkerContainer() {
     #Argument 1 is instance number
-    #Argument 2 is outer loops, defaults to 10
+    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server
     #Argument 3 is timed loops, defaults to 500
     #Argument 4- eventual additional parameters
     i=$1
-    oul=${2:-'10'}
+    oul=${2:-'85'}
     tdl=${3:-'500'}
 
     scheduling="$workerPolicyEvent $workerPriorityEvent"
@@ -274,6 +274,7 @@ startDeadlineContainer() {
 }
 
 startWorkerEventDriven() {
+	# about 6,5 ms on BM
     #Argument 1 is instance number
     i=$1
     echo "startWorkerEventDriven: i=$i"
@@ -287,13 +288,15 @@ startWorkerEventDriven() {
 startWorkerPolling() {
     #Argument 1 is instance number
     #Argument 2 is polling period
+    #Argument 3 is outer loops for runtime estimation
     i=$1
     pollingPeriod=$2
+    oul=$3
 
     baseworkerImage=rt-workerapp
     imageName=${baseworkerImage}$i
     progName=workerapp${i}
-    cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
+    cmdargs="--instnum $i --innerloops 20 --outerloops ${oul} --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
 
     startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling "-deadline"
 }
@@ -314,8 +317,11 @@ runTest() {
     for (( ip=0 ; ip<maxWorkers; ip++ )); do
         workerPeriodPollingParamName="worker${ip}PeriodPolling"
         workerPeriodPolling="${!workerPeriodPollingParamName}"
-        echo "Calling startWorkerPolling $ip $workerPeriodPolling "
-        startWorkerPolling $ip $workerPeriodPolling
+        workerDeadlinePolling=$workerPeriodPolling-1000000
+        workerRuntimePolling=($ip+1)*500000
+        outerloops=$ip+1 # 1 loop is ca 0.5ms on BM
+        echo "Calling startWorkerPolling $ip $workerPeriodPolling $outerloops"
+        startWorkerPolling $ip $workerPeriodPolling $outerloops
     done
 
     #Launch event-driven workers
@@ -420,7 +426,7 @@ elif [[ $cmd == "timing" ]]; then
 
 	echo ">>> Starting workerapps."
 	for (( i=0; i< numContainers; i++ )); do
-	    startWorkerContainer ${i} 150 10 "--dbg 1"
+	    startWorkerContainer ${i} 85 10 "--dbg 1"
 	done
 
 	#Launch datadistributor
@@ -532,18 +538,13 @@ elif [[ $cmd == "test" ]]; then
 		###################
 		# parameters for test 2
 		workerPolicyPolling="--deadline"
-		# Allow 100 msecs for runtime
-		workerRuntimePolling=175000000
 
 		# Each polling task should resume within 1 msec of the start of its next period
-		workerDeadlinePolling=300000000
-
-		#MIT: This is a guess as to the polling periods desired: 1 second, 750 msecs, 500 msecs, 250 msecs, 150 msecs 
-		worker0PeriodPolling=800000000
-		worker1PeriodPolling=700000000
-		worker2PeriodPolling=600000000
-		worker3PeriodPolling=550000000
-		worker4PeriodPolling=500000000
+		worker0PeriodPolling=5000000
+		worker1PeriodPolling=10000000
+		worker2PeriodPolling=12000000
+		worker3PeriodPolling=15000000
+		worker4PeriodPolling=21000000
 
 		# Test parameters
 		if [ $# -gt 0 ] ; then
