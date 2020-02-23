@@ -48,6 +48,19 @@ static struct resTracer * rHead;
 #define MAX_UL 0.90
 #define SCHED_UKNLOAD 10 // 10% load extra per task
 
+/// cmpresItem(): compares two resource allocation items for Qsort
+///
+/// Arguments: pointers to the items to check
+///
+/// Return value: difference
+static int cmpPidItem (const void * a, const void * b) {
+	int64_t diff = (((resAlloc_t *)b)->item->attr->sched_period
+			- ((resAlloc_t *)a)->item->attr->sched_period);
+	if (!diff)
+		return (int)((((resAlloc_t *)b)->item->attr->sched_runtime
+				- ((resAlloc_t *)a)->item->attr->sched_runtime)  % INT32_MAX);
+	return (int)(diff % INT32_MAX); // reduce but keep sign
+}
 
 /// gcd(): greatest common divisor, iterative
 //
@@ -511,47 +524,35 @@ void adaptPrepareSchedule(){
 	// ################## from here use resource masks ##############
 
 	int unmatched = 0;
-	{ // compute flexible resources
-		resTracer_t * DLtrc = NULL;
-		resTracer_t * FFtrc = NULL;
+	{ // compute flexible resources for tasks with defined runtime and period (desired)
+		resTracer_t * trc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
-			if (!res->assigned)
-				switch (res->item->attr->sched_policy) {
-
-					default:
-						// is a runtime defined? if not,..
-						if (!res->item->attr->sched_runtime ||
-								!res->item->attr->sched_period)	{
-							unmatched++;
-							break;
-						}
-						// else assign as if a deadline
-						FFtrc= checkPeriod(res->item);
-						if (FFtrc){
-							checkUvalue(FFtrc, res->item->attr, 1);
-							res->assigned = FFtrc;
-						}
-						break;
-
-					case SCHED_DEADLINE:
-						// allocate resources for flexible tasks
-						DLtrc= checkPeriod(res->item);
-						if (DLtrc){
-							checkUvalue(DLtrc, res->item->attr, 1);
-							res->assigned = DLtrc;
-						}
-						else
-							warn("Could not assign an resource!");
-						break;
+			if (!res->assigned){
+				// is a runtime defined? if not,..
+				if (!res->item->attr->sched_runtime ||
+						!res->item->attr->sched_period)	{
+					unmatched++;
+					break;
+				}
+				else {
+					// allocate resources for flexible tasks
+					trc= checkPeriod(res->item);
+					if (trc){
+						checkUvalue(trc, res->item->attr, 1);
+						res->assigned = trc;
+					}
+					else
+						warn("Could not assign a resource!");
+					break;
+				}
 			}
 		}
 	} // END dedicated resources
 
-	{ // compute flexible resources
+	{ // compute flexible resources with undefined detail
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;
 		resTracer_t * BTtrc = NULL;
-//		resTracer_t * NRtrc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
 			if (!res->assigned)
 				switch (res->item->attr->sched_policy) {
@@ -562,16 +563,13 @@ void adaptPrepareSchedule(){
 						if (!FFtrc)
 							FFtrc = grepTracer();
 						res->assigned = FFtrc;
-						// else assign as if a deadline
-
-						//no break
+						break;
 
 					case SCHED_RR:
 						// allocate RR tasks to dedicated CPU
 						if (!RRtrc)
 							RRtrc = grepTracer();
 						res->assigned = RRtrc;
-
 						break;
 
 					case SCHED_BATCH:
@@ -579,14 +577,13 @@ void adaptPrepareSchedule(){
 						if (!BTtrc)
 							BTtrc = grepTracer();
 						res->assigned = BTtrc;
-
 						break;
 
 					case SCHED_NORMAL:
 	//				case SCHED_OTHER:
 					case SCHED_IDLE:
 					default:
-						// NORMAL/IDLE/OTHER tasks can be floating
+						// NORMAL/IDLE/OTHER tasks can be floating and should not exist in general
 						break;
 				}
 			}
