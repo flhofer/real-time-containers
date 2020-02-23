@@ -48,17 +48,17 @@ static struct resTracer * rHead;
 #define MAX_UL 0.90
 #define SCHED_UKNLOAD 10 // 10% load extra per task
 
-/// cmpresItem(): compares two resource allocation items for Qsort
+/// cmpresItem(): compares two resource allocation items for Qsort, ascending
 ///
 /// Arguments: pointers to the items to check
 ///
 /// Return value: difference
 static int cmpPidItem (const void * a, const void * b) {
-	int64_t diff = (((resAlloc_t *)b)->item->attr->sched_period
-			- ((resAlloc_t *)a)->item->attr->sched_period);
+	int64_t diff = ((int64_t)((resAlloc_t *)a)->item->attr->sched_period
+			- (int64_t)((resAlloc_t *)b)->item->attr->sched_period);
 	if (!diff)
-		return (int)((((resAlloc_t *)b)->item->attr->sched_runtime
-				- ((resAlloc_t *)a)->item->attr->sched_runtime)  % INT32_MAX);
+		return (int)((int64_t)(((resAlloc_t *)a)->item->attr->sched_runtime
+				- (int64_t)((resAlloc_t *)b)->item->attr->sched_runtime)  % INT32_MAX);
 	return (int)(diff % INT32_MAX); // reduce but keep sign
 }
 
@@ -115,6 +115,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	uint64_t used = res->usedPeriod;
 	int rv = 3; // perfect match -> all cases max value default
 
+	// TODO: case areas are NOT a new scope
 	switch (par->sched_policy) {
 
 	/*
@@ -164,7 +165,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 *  0 .. recompute needed
 	 *  all with +1 bonus if runtime fits remaining UL
 	 */
-	case SCHED_FIFO:
+	case SCHED_FIFO: {
 
 		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
@@ -221,7 +222,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		used += par->sched_runtime * base/basec;
 		break;
-
+	}
 	/* TODO: review
 	 *	RR return values for different situations
 	 *	1000 .. perfect match desired repetition matches period of resources
@@ -236,6 +237,13 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			// if unused, set to rr slice. top fit
 			base = prgset->rrtime*1000;
 			rv = 1 + CHKNUISBETTER;
+		}
+
+		uint64_t basec = par->sched_period;
+
+		// if unused, set to this period
+		if (0 == basec){
+			basec = 1000000000; // default to 1 second)
 		}
 
 		if (base != prgset->rrtime * 1000)
@@ -271,13 +279,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			break;
 		}
 
-		used += par->sched_runtime * base/par->sched_period;
+		used += par->sched_runtime * base/basec;
 
 		break;
 
 
 	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
 	default:
+		if (0 == base){
+			base = 1000000000; // default to 1 second)
+		}
 		break;
 	}
 
@@ -523,6 +534,9 @@ void adaptPrepareSchedule(){
 
 	// ################## from here use resource masks ##############
 
+	// order by period and runtime
+	qsortll((void **)&aHead, cmpPidItem);
+
 	int unmatched = 0;
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
 		resTracer_t * trc = NULL;
@@ -530,10 +544,8 @@ void adaptPrepareSchedule(){
 			if (!res->assigned){
 				// is a runtime defined? if not,..
 				if (!res->item->attr->sched_runtime ||
-						!res->item->attr->sched_period)	{
+						!res->item->attr->sched_period)
 					unmatched++;
-					break;
-				}
 				else {
 					// allocate resources for flexible tasks
 					trc= checkPeriod(res->item);
@@ -543,10 +555,31 @@ void adaptPrepareSchedule(){
 					}
 					else
 						warn("Could not assign a resource!");
-					break;
 				}
 			}
 		}
+	} // END dedicated resources
+
+	{ // compute flexible resources with partially defined detail
+		resTracer_t * trc = NULL;
+		for (resAlloc_t * res = aHead; ((res)); res=res->next){
+			if (!res->assigned)
+				if (!res->assigned){
+					// is a runtime defined? if not,..
+					if (!res->item->attr->sched_runtime)
+						unmatched++;
+					else {
+						// allocate resources for flexible tasks
+						trc= checkPeriod(res->item);
+						if (trc){
+							checkUvalue(trc, res->item->attr, 1);
+							res->assigned = trc;
+						}
+						else
+							warn("Could not assign a resource!");
+					}
+				}
+			}
 	} // END dedicated resources
 
 	{ // compute flexible resources with undefined detail
