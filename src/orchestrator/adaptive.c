@@ -113,6 +113,7 @@ static void createResTracer(){
 static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
+	uint64_t basec = par->sched_period;
 	int rv = 3; // perfect match -> all cases max value default
 
 	// TODO: case areas are NOT a new scope
@@ -165,7 +166,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 *  0 .. recompute needed
 	 *  all with +1 bonus if runtime fits remaining UL
 	 */
-	case SCHED_FIFO: {
+	case SCHED_FIFO:
 
 		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
@@ -175,7 +176,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			break;
 		}
 
-		uint64_t basec = par->sched_period;
 		int rvbonus = 1;
 
 		// if unused, set to this period
@@ -205,16 +205,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 				return -2;
 			}
 
-			// recompute new values of resource tracer
-			used *= new_base/res->basePeriod;
-			base = new_base;
-
 			// are the periods a perfect fit?
-			if ((new_base == res->basePeriod)
+			if ((new_base == base)
 				|| (new_base == basec))
 					rv = 2-CHKNUISBETTER;
 			else
 				rv = 0;
+
+			// recompute new values of resource tracer
+			used *= new_base/res->basePeriod;
+			base = new_base;
 		}
 
 		// apply bonus
@@ -222,7 +222,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		used += par->sched_runtime * base/basec;
 		break;
-	}
+
 	/* TODO: review
 	 *	RR return values for different situations
 	 *	1000 .. perfect match desired repetition matches period of resources
@@ -233,44 +233,52 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 */
 	case SCHED_RR:
 
-		if (0==base){
-			// if unused, set to rr slice. top fit
-			base = prgset->rrtime*1000;
-			rv = 1 + CHKNUISBETTER;
+		// TODO: maybe add subtraction instead of equal rv
+		if (0 == par->sched_runtime){
+			// can't do anything about computation
+			rv = 0;
+			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+			break;
 		}
 
-		uint64_t basec = par->sched_period;
+		// if the runtime doesn't fit into the pre-emption slice..
+		// reset base to slice as it will be preempted during run increasing task switching
+		if (prgset->rrtime*1000 <= par->sched_runtime)
+			basec = prgset->rrtime*1000;
 
 		// if unused, set to this period
 		if (0 == basec){
 			basec = 1000000000; // default to 1 second)
 		}
 
-		if (base != prgset->rrtime * 1000)
-		{
-			// try to fit into RR slice, it is the preemption period for RR
-			uint64_t new_base = gcd(base, prgset->rrtime*1000);
+		if (0==base){
+			// if unused, set to rr slice. top fit
+			base = basec;
+			rv = 1 + CHKNUISBETTER;
+		}
 
-			// GCD matches slice-> good candidate, base bigger than slice
-			if (base > prgset->rrtime*1000)
-//				rv = MAX(1000-(base/new_base),1); // reduction factor, an indicator for bad match
-				rv = 1;
-			else {
-				// rr_slice is bigger than period.. strong preemtion risk
-				if ((MAX_UL-res->U) * (double)prgset->rrtime*1000 < par->sched_runtime)
-					rv = 1; // still fitting into it
+		if (base != basec)
+		{
+
+			// recompute base
+			uint64_t new_base = gcd(base, basec);
+
+			// are the periods a perfect fit?
+			if ((new_base == basec)
+				// .. or equals the original period (could be 0 but would not be a match)
+				|| (new_base == par->sched_period))
+				rv = 2-CHKNUISBETTER;
+			else{
+				// GCD doesn't match slice and is bigger than preemption slice ->
+				if ((new_base > prgset->rrtime*1000)
+					// or  remaining utilization is enough to keep the thing running w/o preemtion
+					|| ((MAX_UL-res->U) * (double)new_base > par->sched_runtime))
+						rv = 1; // still fitting into it
 				else
 					rv=0; // can not guarantee that it fits!
 			}
 
-			// are the periods a perfect fit?
-			if ((new_base == res->basePeriod)
-				|| (new_base == prgset->rrtime))
-					rv = 2-CHKNUISBETTER;
-			else
-				rv = 0;
-
-			used *= new_base/res->basePeriod;
+			used *= new_base/base;
 			base = new_base;
 		}
 
