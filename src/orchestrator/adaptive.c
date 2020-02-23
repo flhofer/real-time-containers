@@ -118,6 +118,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	int rv = 3; // perfect match -> all cases max value default
 
 	// TODO: case areas are NOT a new scope
+	// TODO: generic checks for 0 base, basec
 	switch (par->sched_policy) {
 
 	/*
@@ -193,7 +194,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		if (rvbonus){
 			// free slice smaller than runtime, = additional preemption => lower pts
-			if ((MAX_UL-res->U) * (double)res->basePeriod < par->sched_runtime)
+			if ((MAX_UL-res->U) * (double)base < par->sched_runtime)
 				rvbonus=0;
 		}
 
@@ -214,7 +215,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 				rv = 0;
 
 			// recompute new values of resource tracer
-			used *= new_base/res->basePeriod;
+			used *= new_base/base;
 			base = new_base;
 		}
 
@@ -242,15 +243,15 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			break;
 		}
 
-		// if the runtime doesn't fit into the preemption slice..
-		// reset base to slice as it will be preempted during run increasing task switching
-		if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
-			basec = prgset->rrtime*SCHED_RRTONATTR;
-
 		// if unused, set to this period
 		if (0 == basec){
 			basec = 1000000000; // default to 1 second)
 		}
+		else // TODO: check that
+			// if the runtime doesn't fit into the preemption slice..
+			// reset base to slice as it will be preempted during run increasing task switching
+			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+				basec = prgset->rrtime*SCHED_RRTONATTR;
 
 		if (0==base){
 			// if unused, set to rr slice. top fit

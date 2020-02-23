@@ -192,11 +192,11 @@ START_TEST(orchestrator_adaptive_schedule2)
 
 	// verify memory result in parameters
 
-	// image 1, -1 -> 2 for match period
-	ck_assert_int_eq(2, contparm->img->rscs->affinity);
+	// image 1, -1 -> 0 for empty cpu
+	ck_assert_int_eq(0, contparm->img->rscs->affinity);
 
 	cont_t * cont = contparm->cont;
-	// container set to other -1
+	// container set to other -1, fits to 1
 	ck_assert_int_eq(1, cont->rscs->affinity);
 
 	cont=cont->next;
@@ -207,22 +207,33 @@ START_TEST(orchestrator_adaptive_schedule2)
 	// container -2, but one of it's pids 2, the other 0-> 0+2, stays -2 for now
 	ck_assert_int_eq(-2, cont->rscs->affinity);
 	// second (first in list) pid in container on -2 -> gets 1 for period match
-	ck_assert_int_eq(0, cont->pids->pid->rscs->affinity);
+	ck_assert_int_eq(1, cont->pids->pid->rscs->affinity);
 	// first pid in container on 2 -> stays
 	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
+
+
+	// container -2, fits period 400, 2
+	ck_assert_int_eq(2, contparm->pids->rscs->affinity);
+	// set to -99, no period, 0 has only 1 task U0.1 period 100
+	ck_assert_int_eq(0, contparm->pids->next->rscs->affinity);
+
 
 	// get result
 	struct resTracer * rhead = adaptGetTracers();
 
 	// check result of CPU assignments
-	ck_assert_int_eq(500000000, rhead->basePeriod);
-	ck_assert_int_eq(100000000, rhead->usedPeriod);
+	ck_assert_int_eq(1000000000, rhead->basePeriod);
+	ck_assert_int_eq(220000000, rhead->usedPeriod);
 	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)100000000/(double)500000000) == rhead->U);
+	ck_assert((float)((double)220000000/(double)1000000000) == rhead->U);
 
-	ck_assert_int_eq(4000000000, rhead->next->next->basePeriod);
-	ck_assert_int_eq(2200000000, rhead->next->next->usedPeriod);
-	ck_assert((float)((double)220000000/(double)400000000) == rhead->next->next->U);
+	ck_assert_int_eq(500000000, rhead->next->basePeriod);
+	ck_assert_int_eq(100000000, rhead->next->usedPeriod);
+	ck_assert((float)((double)100000000/(double)500000000) == rhead->next->U);  // 90+10
+
+	ck_assert_int_eq(400000000, rhead->next->next->basePeriod);
+	ck_assert_int_eq(220000000, rhead->next->next->usedPeriod);
+	ck_assert((float)((double)22000000/(double)40000000) == rhead->next->next->U);
 
 }
 END_TEST
