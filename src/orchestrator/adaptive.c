@@ -46,7 +46,8 @@ static struct resTracer * rHead;
 
 #define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 #define MAX_UL 0.90
-#define SCHED_UKNLOAD 10 // 10% load extra per task
+#define SCHED_UKNLOAD	10 		// 10% load extra per task
+#define SCHED_RRTONATTR	1000000 // conversion factor from sched_rr_timeslice_ms to sched_attr
 
 /// cmpresItem(): compares two resource allocation items for Qsort, ascending
 ///
@@ -243,8 +244,8 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		// if the runtime doesn't fit into the pre-emption slice..
 		// reset base to slice as it will be preempted during run increasing task switching
-		if (prgset->rrtime*1000 <= par->sched_runtime)
-			basec = prgset->rrtime*1000;
+		if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+			basec = prgset->rrtime*SCHED_RRTONATTR;
 
 		// if unused, set to this period
 		if (0 == basec){
@@ -270,7 +271,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 				rv = 2-CHKNUISBETTER;
 			else{
 				// GCD doesn't match slice and is bigger than preemption slice ->
-				if ((new_base > prgset->rrtime*1000)
+				if ((new_base > prgset->rrtime*SCHED_RRTONATTR)
 					// or  remaining utilization is enough to keep the thing running w/o preemtion
 					|| ((MAX_UL-res->U) * (double)new_base > par->sched_runtime))
 						rv = 1; // still fitting into it
