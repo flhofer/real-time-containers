@@ -242,7 +242,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			break;
 		}
 
-		// if the runtime doesn't fit into the pre-emption slice..
+		// if the runtime doesn't fit into the preemption slice..
 		// reset base to slice as it will be preempted during run increasing task switching
 		if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
 			basec = prgset->rrtime*SCHED_RRTONATTR;
@@ -269,6 +269,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 				// .. or equals the original period (could be 0 but would not be a match)
 				|| (new_base == par->sched_period))
 				rv = 2-CHKNUISBETTER;
+			// TODO: new_base == base and base > rrtime vs base < rrtime
 			else{
 				// GCD doesn't match slice and is bigger than preemption slice ->
 				if ((new_base > prgset->rrtime*SCHED_RRTONATTR)
@@ -323,15 +324,23 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 ///					returns null if nothing is found
 static resTracer_t * checkPeriod(cont_t * item) {
 	resTracer_t * ftrc = NULL;
-	int match = -2; // error by default
+	int last = -2;		// last checked tracer's score, error by default
+	float Ulast = 10;	// last checked traces's utilization rate
 	int res;
 
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		res = checkUvalue(trc, item->attr, 0);
-		if ((res > match) // better match, or matching favorite
-			|| ((res == match) && (trc->affinity == abs(item->rscs->affinity))) )	{
-			match = res;
+		if ((res > last) // better match, or matching favorite
+			|| ((res == last) &&
+				(  (trc->affinity == abs(item->rscs->affinity))
+				|| (trc->U < Ulast)) ) )	{
+			last = res;
+			// reset U if we had an affinity match
+			if (trc->affinity == abs(item->rscs->affinity))
+				Ulast= 0.0;
+			else
+				Ulast = trc->U;
 			ftrc = trc;
 		}
 	}
