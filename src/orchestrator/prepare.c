@@ -368,7 +368,7 @@ int prepareEnvironment(prgset_t *set) {
 		}
 		else{
 			set->rrtime = atoi(str);
-			info("RR slice is set to %s ms", set->rrtime);
+			info("RR slice is set to %d ms", set->rrtime);
 		}
 	}
 
