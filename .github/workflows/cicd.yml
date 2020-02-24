@@ -17,10 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2.0.0
 
-    - name: "Check if it is master"
-      env: 
-        DEBUG: ${{ !endsWith(github.ref, '/master') }}
-        
     - name: "Install dependencies"
       run: |
             sudo apt-get update \
@@ -28,6 +24,8 @@ jobs:
 
     - name: "Build Orchestrator and Use cases"
       run: make
+      env: 
+        DEBUG: ${{ !endsWith(github.ref, '/master') }}
       
     - name: "Build test code - libcheck"
       run: make check
