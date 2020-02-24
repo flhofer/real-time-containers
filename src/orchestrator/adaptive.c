@@ -121,6 +121,13 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	// TODO: generic checks for 0 base, basec
 	switch (par->sched_policy) {
 
+	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	default:
+		if (0 == base || 0 == par->sched_runtime){
+			base = 1000000000; // default to 1 second)
+			break;
+		}
+		// TODO : else fall through
 	/*
 	 * DEADLINE return values
 	 * 3 = OK, perfect period match;
@@ -128,6 +135,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 * 1 = recalculate base but new period is an exact multiplier;
 	 * 0 = OK, but recalculated base;
 	 */
+		// no break
 
 	case SCHED_DEADLINE:
 		// if unused, set to this period
@@ -294,13 +302,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 		break;
 
-
-	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
-	default:
-		if (0 == base){
-			base = 1000000000; // default to 1 second)
-		}
-		break;
 	}
 
 	// calculate and verify utilization rate
@@ -582,23 +583,22 @@ void adaptPrepareSchedule(){
 	{ // compute flexible resources with partially defined detail
 		resTracer_t * trc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
-			if (!res->assigned)
-				if (!res->assigned){
-					// is a runtime defined? if not,..
-					if (!res->item->attr->sched_runtime)
-						unmatched++;
-					else {
-						// allocate resources for flexible tasks
-						trc= checkPeriod(res->item);
-						if (trc){
-							checkUvalue(trc, res->item->attr, 1);
-							res->assigned = trc;
-						}
-						else
-							warn("Could not assign a resource!");
+			if (!res->assigned){
+				// is a runtime defined? if not,..
+				if (!res->item->attr->sched_runtime)
+					unmatched++;
+				else {
+					// allocate resources for flexible tasks
+					trc= checkPeriod(res->item);
+					if (trc){
+						checkUvalue(trc, res->item->attr, 1);
+						res->assigned = trc;
 					}
+					else
+						warn("Could not assign a resource!");
 				}
 			}
+		}
 	} // END dedicated resources
 
 	{ // compute flexible resources with undefined detail
