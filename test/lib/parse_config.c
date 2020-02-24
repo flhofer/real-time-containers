@@ -7,6 +7,7 @@
 */
 
 #include "../../src/include/parse_config.h"
+#include <check.h>
 
 //TODO: all tests!!!
 

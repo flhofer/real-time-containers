@@ -8,7 +8,7 @@
 #include <cpuid.h>	// cpu information
 #include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
-#include <wordexp.h>	// for posix word expansion
+#include <wordexp.h>		// for POSIX word expansion
 
 #include "error.h"		// error and strerr print functions
 
@@ -198,7 +198,6 @@ int check_kernel(void)
 ///
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
-	// TODO: read vs fread
 	char filename[128];
 	int path;
 
@@ -214,7 +213,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 		return -1;
 	}
 
-	errno = 0; // reset global errno
+	errno = 0; // reset global error number
 
 	memcpy(filename, prefix, len_prefix);
 	memcpy(filename + len_prefix, name, len_name + 1);
@@ -223,7 +222,7 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	if (0 <= path) {
 		if (O_RDONLY == mode) {
 			int got;
-			// TODO fix if = 0
+			// if = 0, no change
 			if ((got = read(path, value, sizeofvalue)) > 0) {
 				value[got-1] = '\0';
 				close(path);
@@ -283,25 +282,28 @@ int getkernvar(const char *prefix, const char *name, char *value, int size)
 
 }
 
-/// parse_cpumask(): checks if the cpu bitmask is ok
+/// parse_cpumask(): parses and checks if the CPU bit-mask is OK
+///		w/ similar to numa_parse_cpustring_all()
 ///
 /// Arguments: - pointer to bitmask
-/// 		   - max number of cpus
 ///
-/// Return value: a bitmask containing the required values
+/// Return value: the parsed bitmask, returns null if empty cpuset
 ///
-struct bitmask *parse_cpumask(const char *option, const int max_cpus)
+struct bitmask *parse_cpumask(const char *option)
 {
 	struct bitmask * mask = numa_parse_cpustring_all(option);
+
 	if (mask) {
-		if (0==numa_bitmask_weight(mask)) {
+		// no CPU is set.. :/ Free
+		if (0 == numa_bitmask_weight(mask)) {
 			numa_bitmask_free(mask);
 			mask = NULL;
 		}
 		else
-		printDbg("%s: Using %u cpus.\n", __func__,
-			numa_bitmask_weight(mask));
+			printDbg("%s: Using %u cpus.\n", __func__,
+					numa_bitmask_weight(mask));
 	}
+
 	return mask;
 }
 
@@ -312,12 +314,15 @@ struct bitmask *parse_cpumask(const char *option, const int max_cpus)
 ///
 /// Return value: error code if present
 ///
+// TODO: size of string!
 int parse_bitmask(struct bitmask *mask, char * str){
 	// base case check
 	if (!mask || !str)
 		return -1;
  
+	char num[12];
 	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
+
 	str [0] = '\0';
 
 	for (int i=0; i<sz; i++){
@@ -330,9 +335,11 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				fd = i; // found and start range bit number
 				if (!strlen(str))
 					// first at all?
-					sprintf(str, "%d", fd);
-				else
-					sprintf(str, "%s,%d", str,fd);
+					(void)sprintf(str, "%d", fd);
+				else{
+					(void)sprintf(num, ",%d", fd);
+					(void)strcat(str, num);
+				}
 				rg = fd; // end range bit number 
 			}
 			else 
@@ -340,9 +347,11 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				rg++;
 		}
 		else {
-			if (rg != fd)
+			if (rg != fd){
 				// end of 1-bit sequence, print end of range
-				sprintf(str, "%s-%d", str,rg);
+				(void)sprintf(num, "-%d",rg);
+				(void)strcat(str, num);
+			}
 			fd = rg = -1; // reset range
 		}
 	}
@@ -362,8 +371,7 @@ int parse_bitmask(struct bitmask *mask, char * str){
 #define READ   0 // pipe position
 #define WRITE  1 
 
-// TODO: adapt constant to input
-FILE * popen2(char * command, char * type, pid_t * pid)
+FILE * popen2(const char * command, const char * type, pid_t * pid)
 {
     pid_t child_pid;
     int fd[2];

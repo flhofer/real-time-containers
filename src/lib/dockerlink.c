@@ -13,13 +13,6 @@
 #define TIMER_RELTIME		0
 #define INTERV_RFSH			1000
 
-// TODO: implement rt signal interface
-// TODO: /proc/sys/kernel/rtsig-max /proc/sys/kernel/rtsig-nr
-// RLIMIT_SIGPENDING in 2.6.8
-// implemented since 2.2
-// http://man7.org/linux/man-pages/man7/signal.7.html 
-// waring -> interrupt with EINTR
-
 #define PFX "[dockerlink] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
@@ -31,17 +24,18 @@
 
 #include "parse_func.h"
 
-// signal to keep status of triggers ext SIG
-volatile sig_atomic_t stop;
+int th_return = EXIT_SUCCESS;
 
-/// stphand(): interrupt handler for infinite while loop, help 
+// signal to keep status of triggers ext SIG
+static volatile sig_atomic_t dlink_stop;
+
+/// dlink_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
 ///
 /// Return value: -
-//TODO: check function with static
-static void stphand (int sig, siginfo_t *siginfo, void *context){
-	stop = 1;
+static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
+	dlink_stop = 1;
 }
 
 /// tsnorm(): verifies timespec for boundaries + fixes it
@@ -49,13 +43,13 @@ static void stphand (int sig, siginfo_t *siginfo, void *context){
 /// Arguments: pointer to timespec to check
 ///
 /// Return value: -
-static inline void tsnorm(struct timespec *ts)
-{
-	while (ts->tv_nsec >= NSEC_PER_SEC) {
-		ts->tv_nsec -= NSEC_PER_SEC;
-		ts->tv_sec++;
-	}
-}
+//static inline void tsnorm(struct timespec *ts)
+//{
+//	while (ts->tv_nsec >= NSEC_PER_SEC) {
+//		ts->tv_nsec -= NSEC_PER_SEC;
+//		ts->tv_sec++;
+//	}
+//}
 
 FILE * inpipe;
 pthread_mutex_t containerMutex; // data access mutex
@@ -113,13 +107,13 @@ static int docker_read_pipe(struct eventData * evnt){
 
 	// repeat loop for reading until process ends or interrupt
 	// is called
-	while (!(stop) && !feof(inpipe)){
+	while (!(dlink_stop) && !feof(inpipe)){
 
 		// read buffer until timeout
-		(void)fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
+		char * got = fgets(buf, JSON_FILE_BUF_SIZE, inpipe);
 
 		// buf read successfully?
-		if ('\0' == buf[0]) {
+		if ((!got) || '\0' == buf[0]) {
 			warn(PFX "Empty JSON buffer");
 			continue;
 		}
@@ -129,8 +123,8 @@ static int docker_read_pipe(struct eventData * evnt){
 		// root read successfully?
 		if (NULL == root) {
 			warn(PFX "Empty JSON");
-//			pthread_exit(0);
-			exit(EXIT_INV_CONFIG);
+			th_return = EXIT_INV_CONFIG;
+			pthread_exit(&th_return);
 		}
 
 		evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
@@ -229,22 +223,41 @@ void *thread_watch_docker(void *arg) {
 	char * pcmd;
 	contevent_t * cntevent;
 
-	// TODO: block not used signals
 	{ // setup interrupt handler block
 		struct sigaction act;
-		memset (&act, '\0', sizeof(act));
-	 
+
 		/* Use the sa_sigaction field because the handles has two additional parameters */
-		act.sa_sigaction = &stphand;
-	 
 		/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+		act.sa_handler = NULL; // On some architectures ---
+		act.sa_sigaction = &dlink_inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
-	 
-		if (sigaction(SIGHUP, &act, NULL) < 0) { // INT signal, stop from main prg
-			perror ("Setup of sigaction failed");  
-			exit(EXIT_FAILURE); // exit the software, not working
+
+		/* blocking signal set */
+		(void)sigemptyset(&act.sa_mask);
+
+		act.sa_restorer = NULL;
+
+		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
+		{
+			perror ("Setup of sigaction failed");
+			th_return = EXIT_FAILURE;
+			pthread_exit(&th_return);
 		}
 	} // END interrupt handler block
+
+	{
+		sigset_t set;
+		/* Block all signals except SIGHUP */
+
+		(void)sigfillset(&set);
+		(void)sigdelset(&set, SIGHUP);
+		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
+		{
+			perror ("Setup of sigmask failed");
+			th_return = EXIT_FAILURE;
+			pthread_exit(&th_return);
+		}
+	}
 	
 	if (NULL != arg)
 		pcmd = (char *)arg;
@@ -266,8 +279,11 @@ void *thread_watch_docker(void *arg) {
 		switch (pstate) {
 
 			case 0: 
-				if (!(inpipe = popen2 (pcmd, "r", &pid)))
-					err_exit_n(errno, "Pipe process open failed!");
+				if (!(inpipe = popen2 (pcmd, "r", &pid))){
+					err_msg_n(errno, "Pipe process open failed!");
+					th_return = EXIT_FAILURE;
+					pthread_exit(&th_return);
+				}
 				pstate = 1;
 				printDbg(PFX "Reading JSON output from pipe...\n");
 				// no break
@@ -299,11 +315,10 @@ void *thread_watch_docker(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
-				pthread_exit(0); // exit the thread signaling normal return
-				break;
+				pthread_exit(&th_return);
 		}
 
-		if (3 > pstate && stop){ // if 3 wait for change, lock is hold
+		if (3 > pstate && dlink_stop){ // if 3 wait for change, lock is hold
 			pstate=4;
 		}
 /*		else if (1 == pstate) {

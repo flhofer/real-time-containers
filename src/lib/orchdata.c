@@ -1,5 +1,4 @@
 #include "orchdata.h" // memory structure to store information
-// TODO: FIXME: need return value to deal with memory allocation problems
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 
@@ -38,7 +37,6 @@ static struct base *getTail(struct base *cur)
     return cur; 
 } 
 
-// TODO: this consumes a ton of stack. convert to array, use other alg, than back to ll
 // Partitions the list taking the last element as the pivot 
 static struct base *qsortll_partition(struct base *head, struct base *end, 
                        struct base **newHead, struct base **newEnd,
@@ -166,13 +164,16 @@ int node_findParams(node_t* node, struct containers * conts){
 	// check for image match first
 	while (NULL != img) {
 		// 12 is standard docker short signature
-		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid, 12)) {
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
+				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			conts_t * imgcont = img->conts;	
+			printDbg("Image match %s\n", img->imgid);
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
 					// 12 is standard docker short signature
-					if  (!strncmp(imgcont->cont->contid, node->contid, 12)) {
+					if  (!strncmp(imgcont->cont->contid, node->contid,
+							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
 						cont = imgcont->cont;
 						break;
 					}
@@ -199,7 +200,8 @@ int node_findParams(node_t* node, struct containers * conts){
 		while (NULL != cont) {
 			// 12 is standard docker short signature
 			if(cont->contid && node->contid) {
-				if (!strncmp(cont->contid, node->contid, 12))
+				if (!strncmp(cont->contid, node->contid,
+						MIN(strlen(cont->contid), strlen(node->contid))))
 					break;
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
@@ -307,6 +309,41 @@ int node_findParams(node_t* node, struct containers * conts){
 */
 }
 
+/* -------------------- special for Param structures --------------------- */
+
+void freeParm(cont_t ** head, struct sched_attr * attr,
+		struct sched_rscs * rscs, int depth){
+	cont_t * item = *head;
+
+	{ // attributes check
+	int copy = (item->attr == attr) // Check global
+		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
+				&& (item->attr == item->img->attr))
+		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
+				&& (item->attr == ((pidc_t*)item)->cont->attr));
+
+	if (!copy){
+		free(item->attr);
+		item->attr = NULL;
+	}
+	}
+	{ // resources check
+	int copy = (item->rscs == rscs) // Check global
+		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
+				&& (item->rscs == item->img->rscs))
+		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
+				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
+
+	if (!copy){
+		free(item->rscs);
+		item->rscs = NULL;
+	}
+	}
+
+	if (0==depth)
+		pop((void **)head);
+}
+
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
@@ -334,7 +371,6 @@ void node_pop(node_t ** head) {
 
 	// free strings id specifically created for this pid
 	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
-	// TODO: temporary for free hooks
 #ifdef DEBUG
 	{
 		free((*head)->psig);

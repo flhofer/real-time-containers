@@ -28,10 +28,10 @@ WorkerApp: ${wa_objects}
 WorkerAppTmp: $(addprefix $(OBJDIR)/,WorkerAppTmp.o PipeStruct.o SimulatedMsg.o Stats.o) 
 	g++ $(CCPFLAGS) -o $@ $(addprefix $(OBJDIR)/,WorkerAppTmp.o PipeStruct.o SimulatedMsg.o Stats.o) 2>&1 | tee -a make.out 
 
-test: test.cpp 
+testUC: test.cpp 
 	g++ -g -std=c++14 test.cpp -pthread  -o test 
 
-testOne: testOne.o Stats.o
+testUCOne: testOne.o Stats.o
 	g++ $(CCPFLAGS) -o $@ $^ 2>&1 | tee make.out
 
 dgl_objects = DataGenerator.lockall.o OptParams.o PipeStruct.o SimulatedMsg.o Stats.o FPSThread.o DoSleep.o

@@ -1,7 +1,7 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 17/07/2019
+# last change: 17/02/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
@@ -10,15 +10,6 @@
 #include "orchdata.c"
 #include "parse_config.c"
 #include "dockerlink.c"
-#include "../../src/include/orchdata.h"
-
-containers_t * contparm; // container parameter settings
-prgset_t * prgset; // programm setings structure
-
-// mutex to avoid read while updater fills or empties existing threads
-pthread_mutex_t dataMutex;
-// head of pidlist - PID runtime and configuration details
-node_t * head = NULL;
 
 Suite * library_suite(void) {
 

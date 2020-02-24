@@ -36,7 +36,6 @@
 /// Return value: no return value, exits on error
 static void parse_resource_data(struct json_object *obj,
 		  struct sched_rscs **data){
-	// TODO: recursive defaults
 
 	*data = malloc(sizeof(struct sched_rscs));
 	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
@@ -54,8 +53,6 @@ static void parse_resource_data(struct json_object *obj,
 /// Return value: no return value, exits on error
 static void parse_scheduling_data(struct json_object *obj,
 		  struct sched_attr **data){
-
-	// TODO: recursive defaults
 
 	*data = malloc(sizeof(struct sched_attr));
 
@@ -76,9 +73,9 @@ static void parse_scheduling_data(struct json_object *obj,
 	(*data)->sched_flags = get_int_value_from(obj, "flags", TRUE, 0);
 	(*data)->sched_nice = get_int_value_from(obj, "nice", TRUE, 0);
 	(*data)->sched_priority = get_int_value_from(obj, "prio", TRUE, 0);
-	(*data)->sched_runtime = get_int_value_from(obj, "runtime", TRUE, 0);
-	(*data)->sched_deadline = get_int_value_from(obj, "deadline", TRUE, (*data)->sched_runtime);
-	(*data)->sched_period = get_int_value_from(obj, "period", TRUE, (*data)->sched_deadline);
+	(*data)->sched_runtime = get_int64_value_from(obj, "runtime", TRUE, 0);
+	(*data)->sched_deadline = get_int64_value_from(obj, "deadline", TRUE, (*data)->sched_runtime);
+	(*data)->sched_period = get_int64_value_from(obj, "period", TRUE, (*data)->sched_deadline);
 }
 
 /// parse_pid_data(): extract parameter values from JSON tokens for pid
@@ -414,7 +411,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 		// TODO set only if NULL
 
-		// logging TODO:
+		// logging
 		if (!(set->logdir = strdup("./")) || 
 			!(set->logbasename = strdup("orchestrator.txt")))
 			err_exit_n(errno, "Can not set parameter");
@@ -445,10 +442,10 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 
 
-		// affinity default setting
+		// affinity default setting // TODO: duplicate -> function
 		if (!set->affinity){
 			char *defafin;
-			if (!(defafin = malloc(10))) // has never been set
+			if (!(defafin = malloc(22))) // has never been set
 				err_exit("could not allocate memory!");
 
 			(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
@@ -537,7 +534,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		char *setaffinity;
 
 		setaffinity = get_string_value_from(global, "setaffinity",
-					       TRUE, "AFFINITY_UNSPECIFIED");
+					       TRUE, "unspecified");
 
 		// function to evaluate string value!
 		set->setaffinity = string_to_affinity(setaffinity);
@@ -548,7 +545,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	{  // default affinity mask and selection block
 
 		char *defafin;
-		if (!(defafin = malloc(10))) // has never been set
+		if (!(defafin = malloc(22))) // has never been set
 			err_exit("could not allocate memory!");
 
 		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
@@ -562,7 +559,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		}
 		else
 			// read from file
-			set->cpusystemfileprefix = get_string_value_from(global, "affinity", TRUE, defafin);
+			set->affinity = get_string_value_from(global, "affinity", TRUE, defafin);
 
 		free(defafin);
 	} // END default affinity block 
@@ -581,7 +578,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 /// Return value: no return value, exits on error
 void parse_config_set_default(prgset_t *set) {
 
-	// logging TODO:
+	// logging
 	set->logdir = NULL; 
 	set->logbasename = NULL;
 	set->logsize = 0;
@@ -617,7 +614,7 @@ void parse_config_set_default(prgset_t *set) {
 	set->force = 0;
 	set->smi = 0;
 	set->rrtime = 0;
-	set->use_fifo=0; // TODO
+	set->use_fifo=0; // TODO FIFO implementation
 
 	// runtime values
 	set->kernelversion = KV_NOT_SUPPORTED;
@@ -626,8 +623,8 @@ void parse_config_set_default(prgset_t *set) {
 	set->affinity = NULL;
 	set->affinity_mask = NULL;
 
-	// TODO:
-	set->gnuplot = 0;
+
+	set->gnuplot = 0; // TODO: GNU-plot?
 	set->ftrace = 0;
 
 	set->use_cgroup = DM_CGRP;
@@ -791,7 +788,7 @@ void parse_config_stdin(prgset_t *set, containers_t *conts) {
 ///
 /// Return value: void (exits with error if needed)
 void parse_config_file (const char *filename, prgset_t *set, containers_t *conts) {
-	char *fn = strdup(filename); // TODO: why?
+	char *fn = strdup(filename);
 	struct json_object *js;
 	printDbg(PFX "Reading JSON config from %s\n", fn);
 	js = json_object_from_file(fn);

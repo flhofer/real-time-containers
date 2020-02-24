@@ -5,7 +5,7 @@
 #include <string>
 #include <unistd.h>
 #include <ctime>
-extern bool terminateProcess;
+extern volatile bool terminateProcess;
 extern int desiredFPS;
 extern std::string progName;
 const double terminationMsg=-2.0;

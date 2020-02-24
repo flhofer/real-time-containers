@@ -117,7 +117,7 @@ int mount_debugfs(char *path)
 	sprintf(cmd, "mount -t debugfs debugfs %s", mountpoint);
 	ret = system(cmd);
 	if (ret != 0) {
-		fprintf(stderr, "Error mounting debugfs at %s: %s\n",
+		fprintf(stderr, PFX "Error mounting debugfs at %s: %s\n",
 			mountpoint, strerror(errno));
 		return -1;
 	}
@@ -384,7 +384,7 @@ uint32_t string_to_affinity(const char *str)
 		return AFFINITY_SPECIFIED;
 	else if (!strcmp(str, "useall"))
 		return AFFINITY_USEALL;
-
+	warn("Unrecongnized value '%s' for affinity setting", str);
 	return 0; // default to other
 }
 

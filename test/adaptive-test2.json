@@ -1,0 +1,121 @@
+{
+ "global" : {
+	"lock_pages" : true,
+	"setdflag" : true,
+	"interval" : 6000,
+	"ftrace" : true,
+	"setaffinity" : "specified",
+	"affinity" : "0-2"
+	},
+ "containers" : [
+		{
+			"contid" : "cd5834d2b980",
+			"pids" : [
+				{
+					"cmd" : "bash -- ll",
+					"params" : {
+						"policy" : "SCHED_DEADLINE",
+						"flags"  : 0,
+						"nice"   : 0,
+						"prio"   : 0,
+						"runtime": 100000000,
+						"deadline": 400000000,
+						"period" : 400000000
+					},
+					"res" : {
+						"affinity" : 2
+					}
+				},
+				{
+					"cmd" : "bash -- ls",
+					"params" : {
+						"policy" : "SCHED_DEADLINE",
+						"flags"  : 0,
+						"nice"   : 0,
+						"prio"   : 0,
+						"runtime": 90000000,
+						"deadline": 500000000,
+						"period" : 500000000
+					},
+					"res" : {
+						"affinity" : -2
+					}
+				}
+			],
+			"res" : {
+				"affinity" : -2
+			}
+		},
+		{
+			"contid" : "a2aa8c37ce4c",
+			"res" : {
+				"affinity" : -2
+			}
+		},
+		{
+			"contid" : "4efcb6c965de",
+			"params" : {
+				"policy" : "SCHED_RR",
+				"flags"  : 0,
+				"nice"   : 0,
+				"prio"   : 0,
+				"runtime": 10000000,
+				"deadline": 0,
+				"period" : 500000000
+			},
+			"res" : {
+				"affinity" : -1
+			}
+		}
+	],
+"images": [
+		{
+			"imgid" : "951dec8fa8a1",
+			"params" : {
+				"policy" : "SCHED_RR",
+				"flags"  : 0,
+				"nice"   : 0,
+				"prio"   : 0,
+				"runtime": 120000000,
+				"deadline": 0,
+				"period" : 0
+			},
+			"res" : {
+				"affinity" : -3
+			}
+		}
+
+],
+"pids" : [
+	{
+		"cmd" : "bash -- lscpu",
+		"params" : {
+			"policy" : "SCHED_FIFO",
+			"flags"  : 0,
+			"nice"   : 0,
+			"prio"   : 0,
+			"runtime": 100000000,
+			"deadline": 0,
+			"period" : 0
+		},
+		"res" : {
+			"affinity" : -99
+		}
+	},
+	{
+		"cmd" : "bash -- dir",
+		"params" : {
+			"policy" : "SCHED_FIFO",
+			"flags"  : 0,
+			"nice"   : 0,
+			"prio"   : 0,
+			"runtime": 120000000,
+			"deadline": 0,
+			"period" : 400000000
+		},
+		"res" : {
+			"affinity" : -2
+		}
+	}
+]
+}

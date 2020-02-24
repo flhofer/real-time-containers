@@ -25,10 +25,10 @@
 
 	// affinity and CPU bit-masks
 	int parse_bitmask(struct bitmask *mask, char * str);
-	struct bitmask *parse_cpumask(const char *option, const int max_cpus);
+	struct bitmask *parse_cpumask(const char *option);
 
 	// customized pipe operations
-	FILE * popen2(char * command, char * type, pid_t * pid);
+	FILE * popen2(const char * command, const char * type, pid_t * pid);
 	int pclose2(FILE * fp, pid_t pid, int dokill);
 #endif
 

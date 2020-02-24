@@ -13,6 +13,7 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir entry structure and expl
 #include <errno.h>			// error numbers and strings
+#include <numa.h>			// Numa node identification
 
 // Custom includes
 #include "orchestrator.h"
@@ -122,8 +123,6 @@ static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t typ
 	}
 } 
 
-static cpu_set_t cset_full; // local static to avoid recomputation.. (may also use affinity_mask? )
-
 // TODO: might need to move these to manage
 
 /// setPidResources(): set PID resources at first detection
@@ -133,7 +132,7 @@ static cpu_set_t cset_full; // local static to avoid recomputation.. (may also u
 ///
 static void setPidResources(node_t * node) {
 
-	cpu_set_t cset;
+	struct bitmask * cset = numa_allocate_cpumask();
 
 	// parameters unassigned
 	if (!prgset->quiet)
@@ -148,14 +147,14 @@ static void setPidResources(node_t * node) {
 	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
 		// pre-compute affinity
 		if (0 <= node->param->rscs->affinity) {
-			// CPU affinity defined to one CPU?
-			CPU_ZERO(&cset);
-			CPU_SET(node->param->rscs->affinity & ~(SCHED_FAFMSK), &cset);
+			// CPU affinity defined to one CPU? set!
+			(void)numa_bitmask_clearall(cset);
+			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity & ~(SCHED_FAFMSK)); // TODO: ?? FAFMSK
 		}
-		else {
-			// CPU affinity to all
-			cset = cset_full;
-		}
+		else
+			// CPU affinity to all enabled CPU's
+			copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
+
 
 		if (!node->psig) 
 			node->psig = node->param->psig;
@@ -202,7 +201,7 @@ static void setPidResources(node_t * node) {
 			}
 
 			// Set affinity
-			if (sched_setaffinity(node->pid, sizeof(cset), &cset ))
+			if (numa_sched_setaffinity(node->pid, cset))
 				err_msg_n(errno,"setting affinity for PID %d",
 					node->pid);
 			else
@@ -261,7 +260,7 @@ static void getContPids (node_t **pidlst)
 		printDbg( "\nContainer detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
-			// scan trough docker cgroups, find them?
+			// scan trough docker CGroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
 					fname[0] = '\0';   // ensures the memory is an empty string
@@ -273,16 +272,18 @@ static void getContPids (node_t **pidlst)
 					int path = open(fname,O_RDONLY);
 
 					// Scan through string and put in array
-					int nleft = 0;
-					while(nleft += read(path, pidline+nleft,BUFRD-nleft-1)) {  	// TODO: read vs fread
-						printDbg("%s: Pid string return %s\n", __func__, pidline);
+					int nleft = 0, got;
+					while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
+						nleft += got;
+						printDbg("%s: PID string return %s\n", __func__, pidline);
 						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
 						pid = strtok_r (pidline,"\n", &pid_ptr);	
 						printDbg("%s: processing ", __func__);
 						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
+
 							node_push(pidlst);
-							// pid found
+							// PID found
 							(*pidlst)->pid = atoi(pid);
 							printDbg("->%d ",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
@@ -329,7 +330,7 @@ static void getContPids (node_t **pidlst)
 	prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 }
 
-/// getpids(): utility function to get list of PID
+/// getPids(): utility function to get list of PID
 /// Arguments: - pointer to linked list of PID
 ///			   - tag string containing the command signature to look for 
 ///
@@ -425,17 +426,40 @@ static contevent_t * lstevent;
 pthread_t thread_dlink;
 int  iret_dlink; // Timeout is set to 4 seconds by default
 
-/// startDocker(): start docker verification thread
+/// startDockerThread(): start docker verification thread
 ///
 /// Arguments: 
 ///
-/// Return value: 
+/// Return value: result of pthread_create, negative if failed
 ///
-static void startDocker() {
+static int startDockerThread() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
-
+#ifdef DEBUG
+	(void)pthread_setname_np(thread_dlink, "docker_link");
+#endif
+	return iret_dlink;
 }
 
+/// stopDockerThread(): stop docker verification thread
+///
+/// Arguments:
+///
+/// Return value: result of pthread_*, negative if one failed
+///
+static int stopDockerThread(){
+	// set stop signal
+	int ret = 0;
+	if (!iret_dlink) { // thread started successfully
+		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
+			perror("Failed to send signal to docker_link thread");
+		ret |= iret_dlink;
+		if ((iret_dlink = pthread_join( thread_dlink, NULL))) // wait until end
+			perror("Could not join with docker_link thread");
+		ret |= iret_dlink;
+		(void)printf(PFX "Threads stopped\n");
+	}
+	return ret;
+}
 
 /// updateDocker(): pull event from dockerlink and verify
 ///
@@ -476,7 +500,7 @@ static void updateDocker() {
 
 			case cnt_remove: ;
 				(void)pthread_mutex_lock(&dataMutex);
-				node_t dummy = {head};
+				node_t dummy = {nhead};
 				node_t * curr = &dummy;
 
 				// drop matching PIDs of this container
@@ -547,7 +571,7 @@ static void scanNew () {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	node_t	dummy = { head }; // dummy placeholder for head list
+	node_t	dummy = { nhead }; // dummy placeholder for head list
 	node_t	*tail = &dummy;	  // pointer to tail element
 
 	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
@@ -613,7 +637,7 @@ static void scanNew () {
 	}
 
 	// 
-	head = dummy.next;
+	nhead = dummy.next;
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
@@ -621,7 +645,7 @@ static void scanNew () {
 
 #ifdef DEBUG
 	printDbg("\nResult list: ");
-	for (node_t * curr = head; ((curr)); curr=curr->next)
+	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
@@ -725,11 +749,10 @@ void *thread_update (void *arg)
 			}
 
 			// start docker link thread
-			startDocker();
+			if (startDockerThread())
+				warn("Unable to start the Docker link thread");
 
 			// set local variable -- all CPUs set.
-			// TODO: adapt to cpu mask
-			for (int i=0; i<sizeof(cset_full); CPU_SET(i,&cset_full) ,i++);
 			*pthread_state=1;
 			//no break
 
@@ -764,13 +787,8 @@ void *thread_update (void *arg)
 			//no break
 		case -2:
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
-			// set stop signal
-			if (!iret_dlink) { // thread started successfully
-				// todo: return values
-				(void)pthread_kill (thread_dlink, SIGHUP); // tell linking threads to stop
-				iret_dlink = pthread_join( thread_dlink, NULL); // wait until end
-				(void)printf(PFX "Threads stopped\n");
-			}
+			if (stopDockerThread())
+				warn("Unable to stop the Docker link thread");
 			//no break
 
 		case -99:

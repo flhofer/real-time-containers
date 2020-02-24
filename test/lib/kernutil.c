@@ -12,8 +12,26 @@
 
 START_TEST(kernutil_check_kernel)
 {	
-	// NOTE, kernel version of local system, should be >= 5.0
-	ck_assert_int_eq(check_kernel(), KV_50);
+	char buf[256];
+	ck_assert_int_gt(getkernvar("/proc/", "version", buf, sizeof(buf)), 0);
+
+	int maj, min,rev;
+	ck_assert_int_eq(sscanf(buf, "%*s %*s %d.%d.%d-%*d-%*s %*s", &maj, &min, &rev), 3);
+
+	int kv = KV_NOT_SUPPORTED;
+	if (3 == maj && 14 <=  min)
+		kv = KV_314;
+	else if (4 == maj) {
+		if (min >= 16)
+			kv = KV_416;
+		else if (min >= 13)
+			kv = KV_413;
+		else
+			kv = KV_40;
+	} else if (5 == maj)
+		kv = KV_50;
+
+    ck_assert_int_eq(check_kernel(), kv);
 }
 END_TEST
 
@@ -26,7 +44,7 @@ struct kernvar_test {
 };
 
 static const struct kernvar_test getkernvar_var[6] = {
-		{"/proc/", "version_signature", "Ubuntu", 0, 0},	// standard read - len = 0, changes by kernel version
+		{"/proc/", "version", "Linux", 0, 0},	// standard read - len = 0, changes by kernel version
 		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
@@ -53,8 +71,8 @@ END_TEST
 
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/proc/","version_signature", "test", -1, EACCES},	// write protected
-		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO
+		{"/proc/","version", "test", -1, EIO},				// write protected
+		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO: implement
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
 	}; 
@@ -68,7 +86,7 @@ START_TEST(kernutil_setkernvar)
 }
 END_TEST
 
-// TODO: bitmask test functions!
+// TODO: bit mask test functions!
 
 void library_kernutil (Suite * s) {
 

@@ -3,7 +3,7 @@
 #ifndef __SCHEDSTAT_H_
 	#define __SCHEDSTAT_H_
 
-	#define PRGNAME "DC static orchestrator"
+	#define PRGNAME "DC (adaptive) static orchestrator"
 	#ifndef VERSION
 		#define VERSION "-- UNVERSIONED --"
 	#endif
@@ -16,6 +16,6 @@
 
 	// runtime value tracing
 	extern pthread_mutex_t dataMutex; // data access mutex
-	extern node_t * head; // head of pidlist - PID runtime and configuration details
+	extern node_t * nhead; // head of pidlist - PID runtime and configuration details
 
 #endif

@@ -8,6 +8,7 @@ struct OptParams {
     int loops;
     int mininterval;    //usecs
     int maxinterval;    //usecs
+    int startWritePipes;
     int maxWritePipes;
     bool bThreaded;
     bool bTimeSleep;

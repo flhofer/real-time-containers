@@ -1,12 +1,13 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 31/12/2019
+# last change: 15/02/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
 
 #include "../../src/include/dockerlink.h"
+#include <check.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
@@ -81,12 +82,15 @@ START_TEST(dockerlink_err_json)
 {	
 	pthread_t thread1;
 	int  iret1;
-	char buf[10] = "echo '";
+	char buf[50] = "echo '";
 	strcat(strcat(buf, dockerlink_empty[_i]), "'");
 	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
+	int * th_return;
 	if (!iret1) // thread started successfully
-		iret1 = pthread_join( thread1, NULL); // wait until end
+		iret1 = pthread_join( thread1, (void**)&th_return); // wait until end
+
+	exit(*th_return);
 }
 END_TEST
 
@@ -155,8 +159,8 @@ END_TEST
 
 /// TEST CASE -> Stop link thread on signal
 /// EXPECTED -> exit after 2 seconds, no error
-START_TEST(dockerlink_conf_stop)
-{	
+START_TEST(dockerlink_stop)
+{
 	pthread_t thread1;
 	int  iret1;
 	char buf[10] = "sleep 10"; // Timeout is set to 4 secs by default
@@ -165,13 +169,31 @@ START_TEST(dockerlink_conf_stop)
 
 	sleep(2);
 	// set stop signal
-	pthread_kill (thread1, SIGINT); // tell linking threads to stop
+	(void)pthread_kill (thread1, SIGHUP); // tell linking threads to stop
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+
 }
 END_TEST
 
+/// TEST CASE -> Stop link thread on signal
+/// EXPECTED -> exit after 2 seconds, no error
+START_TEST(dockerlink_startfail)
+{	
+	pthread_t thread1;
+	int  iret1;
+	char buf[10] = "doucqeker"; // non existing command
+	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	ck_assert_int_eq(iret1, 0);
+
+	if (!iret1) // thread started successfully
+		iret1 = pthread_join( thread1, NULL); // wait until end
+
+}
+END_TEST
+
+/*
 static char * dockerlink_cevents [6] = {
 	"2019-07-22 14:59:10.335889938 +0000 UTC moby /containers/create {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"runtime\":{\"name\":\"io.containerd.runtime.v1.linux\",\"options\":{\"type_url\":\"containerd.linux.runc.RuncOptions\",\"value\":\"CgRydW5jEhwvdmFyL3J1bi9kb2NrZXIvcnVudGltZS1ydW5j\"}}}",
 	"2019-07-22 14:59:11.117134632 +0000 UTC moby /tasks/create {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"bundle\":\"/run/containerd/io.containerd.runtime.v1.linux/moby/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"io\":{\"stdout\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stdout\",\"stderr\":\"/var/run/docker/containerd/4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29/init-stderr\"},\"pid\":10019}",
@@ -180,7 +202,7 @@ static char * dockerlink_cevents [6] = {
 	"2019-07-22 15:00:57.461623225 +0000 UTC moby /tasks/delete {\"container_id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\",\"pid\":10019,\"exited_at\":\"2019-07-22T15:00:57.332138232Z\"}",
 	"2019-07-22 15:00:57.890534722 +0000 UTC moby /containers/delete {\"id\":\"4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29\"}"
 	};
-
+*/
 
 void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");
@@ -189,9 +211,14 @@ void library_dockerlink (Suite * s) {
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
-	tcase_add_test(tc1, dockerlink_conf_stop);
 
     suite_add_tcase(s, tc1);
+
+	TCase *tc2 = tcase_create("dockerlink_startstop");
+	tcase_add_exit_test(tc2, dockerlink_stop, EXIT_SUCCESS);
+	tcase_add_exit_test(tc2, dockerlink_startfail, EXIT_SUCCESS);
+
+	suite_add_tcase(s, tc2);
 
 	return;
 }

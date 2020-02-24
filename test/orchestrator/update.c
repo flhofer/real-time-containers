@@ -6,11 +6,11 @@
 ###############################
 */
 
-#include "../../src/orchestrator/orchestrator.h"
 #include "../../src/orchestrator/update.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
+#include <check.h>
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -18,7 +18,6 @@
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
-#include <check.h>
 
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME
@@ -30,7 +29,7 @@ static void orchestrator_update_setup() {
 	parse_config_set_default(prgset);
 
 	prgset->affinity= "0"; // todo, detect
-	prgset->affinity_mask = parse_cpumask(prgset->affinity, 4); // TODO: hardcoded
+	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
 
 	prgset->logdir = strdup("./");
@@ -125,26 +124,26 @@ START_TEST(orchestrator_update_findprocs)
 	sleep(1);
 
 	// verify 2 nodes exist
-	ck_assert(head);
-	ck_assert(head->next);
-	ck_assert(head->next->next);
-	ck_assert(!head->next->next->next);
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
 
 	// verify pids
-	ck_assert_int_eq(head->next->next->pid, pid1);
-	ck_assert_int_eq(head->next->pid, pid2);
-	ck_assert_int_eq(head->pid, pid3);
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
 
-	pclose2(fd2, pid2, 0);
+	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
 	sleep(1);
 
 	// verify pids
-	ck_assert_int_eq(head->next->pid, pid1);
-	ck_assert_int_eq(head->pid, pid3);
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid3);
 
 	// TODO: verify if threads remain defunct
-	pclose(fd1);
-	pclose(fd3);
+	pclose(fd1); // close pipe of sleep instance = HUP
+	pclose(fd3); // close pipe of sleep instance = HUP
 
 	// set stop sig
 	stat1 = -1;
@@ -236,16 +235,16 @@ START_TEST(orchestrator_update_rscs)
 	sleep(1);
 
 	// verify 2 nodes exist
-	ck_assert(head);
-	ck_assert(head->next);
-	ck_assert(!head->next->next);
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(!nhead->next->next);
 
 	// verify pids
-	ck_assert_int_eq(head->next->pid, pid1);
-	ck_assert_int_eq(head->pid, pid2);
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid2);
 
-	ck_assert_ptr_eq(head->param, contparm->pids);
-	ck_assert_ptr_eq(head->next->param, contparm->pids);
+	ck_assert_ptr_eq(nhead->param, contparm->pids);
+	ck_assert_ptr_eq(nhead->next->param, contparm->pids);
 
 	{
 		struct rlimit rlim;		
@@ -309,8 +308,6 @@ END_TEST
 
 void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
- 
-	// TODO: reduce verbosity on failed pids... -> update.c
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
 	tcase_add_test(tc1, orchestrator_update_findprocs);
@@ -319,7 +316,6 @@ void orchestrator_update (Suite * s) {
     suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("update_thread_resources");
- 
 	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc2, orchestrator_update_rscs);
 

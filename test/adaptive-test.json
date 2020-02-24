@@ -3,7 +3,9 @@
 	"lock_pages" : true,
 	"setdflag" : true,
 	"interval" : 6000,
-	"ftrace" : true
+	"ftrace" : true,
+	"setaffinity" : "specified",
+	"affinity" : "0,2"
 	},
  "containers" : [
 		{
@@ -36,18 +38,18 @@
 						"period" : 5000000
 					},
 					"res" : {
-						"affinity" : 2
+						"affinity" : -2
 					}
 				}
 			],
 			"res" : {
-				"affinity" : 2
+				"affinity" : -2
 			}
 		},
 		{
 			"contid" : "a2aa8c37ce4c",
 			"res" : {
-				"affinity" : 2
+				"affinity" : -2
 			}
 		},
 		{
@@ -61,12 +63,6 @@
 				"deadline": 4000000,
 				"period" : 4000000
 			},
-			"res" : {
-				"affinity" : -1
-			}
-		},
-		{
-			"cmd" : "rt-app",
 			"res" : {
 				"affinity" : -1
 			}
@@ -88,5 +84,6 @@
 				"affinity" : -1
 			}
 		}
+
 ]
 }

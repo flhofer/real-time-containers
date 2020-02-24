@@ -1,4 +1,4 @@
-VERSION = 0.68
+VERSION = 0.70
 VERSUFF = "-beta"
 GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
 CC?=$(CROSS_COMPILE)gcc
@@ -11,6 +11,7 @@ CPP?=$(CROSS_COMPILE)g++
 OBJDIR = build
 
 sources = orchestrator.c
+orcbins = update.o manage.o prepare.o adaptive.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c
@@ -95,15 +96,15 @@ $(OBJDIR):
 # Include dependency files, automatically generate them if needed.
 -include $(addprefix $(OBJDIR)/,$(sources:.c=.d))
 
-orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@ $< $(LIBS) $(NUMA_LIBS)
+orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, $(orcbins)) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 # Old test make
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o manage.o update.o librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, manage.o update.o) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, $(orcbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	
 test:
 	./check_test

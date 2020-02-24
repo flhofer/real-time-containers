@@ -181,11 +181,11 @@ startContainer() {
 # same as Workerpolling +- for uc1 and timing test
 startWorkerContainer() {
     #Argument 1 is instance number
-    #Argument 2 is outer loops, defaults to 10
+    #Argument 2 is outer loops, defaults to 85 = 55,9 ms on BM server, 56 = ~37ms
     #Argument 3 is timed loops, defaults to 500
     #Argument 4- eventual additional parameters
     i=$1
-    oul=${2:-'10'}
+    oul=${2:-'56'}
     tdl=${3:-'500'}
 
     scheduling="$workerPolicyEvent $workerPriorityEvent"
@@ -274,6 +274,7 @@ startDeadlineContainer() {
 }
 
 startWorkerEventDriven() {
+	# about 6,5 ms on BM
     #Argument 1 is instance number
     i=$1
     echo "startWorkerEventDriven: i=$i"
@@ -287,13 +288,15 @@ startWorkerEventDriven() {
 startWorkerPolling() {
     #Argument 1 is instance number
     #Argument 2 is polling period
+    #Argument 3 is outer loops for runtime estimation
     i=$1
     pollingPeriod=$2
+    oul=$3 # 1 outer loop is ca 0.5 ms on BM
 
     baseworkerImage=rt-workerapp
     imageName=${baseworkerImage}$i
     progName=workerapp${i}
-    cmdargs="--instnum $i --innerloops 25 --outerloops 10 --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
+    cmdargs="--instnum $i --innerloops 19 --outerloops ${oul} --maxTests 1 --timedloops 50 --basePipeName $fifoDir/polling --pollPeriod $pollingPeriod --dline $workerDeadlinePolling --rtime $workerRuntimePolling --endInSeconds $testTime"
 
     startDeadlineContainer $imageName "$cmdargs" workerapp$i $workerRuntimePolling $pollingPeriod $workerDeadlinePolling "-deadline"
 }
@@ -314,20 +317,25 @@ runTest() {
     for (( ip=0 ; ip<maxWorkers; ip++ )); do
         workerPeriodPollingParamName="worker${ip}PeriodPolling"
         workerPeriodPolling="${!workerPeriodPollingParamName}"
-        echo "Calling startWorkerPolling $ip $workerPeriodPolling "
-        startWorkerPolling $ip $workerPeriodPolling
+        workerDeadlinePolling=$(( $workerPeriodPolling-1000000 ))
+        workerRuntimePolling=$(( $(( $ip+1 )) * 525000 )) # give it 5% margin
+        outerloops=$(( $ip+1 )) # 1 loop is ca 0.5 ms on BM
+        echo "Calling startWorkerPolling $ip $workerPeriodPolling $outerloops"
+        startWorkerPolling $ip $workerPeriodPolling $outerloops
     done
 
     #Launch event-driven workers
+    startWorkers=5
     for (( iw=0 ; iw<maxWorkers; iw++ )); do
-        let instance=5+$iw
+        let instance=$startWorkers+$iw
         echo "Calling startWorkerEventDriven $instance"
         startWorkerEventDriven $instance 
     done
 
-    #Launch Event-driver datagenerator
-    cmdargs=" --generator 2 --maxTests 1 --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
-    startFIFOorRRContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy" $datageneratorPriority "-fifo"
+    #Launch Event-driver datagenerator/datadistributor (all-in-one)
+    # NOTE: datadistributor is a binary copy of datagenerator, function depends on settings
+    cmdargs=" --generator 2 --maxTests 1 --mininterval 500 --maxinterval 100000 --startWritePipes $startWorkers --maxWritePipes $maxWorkers --baseWritePipeName $fifoDir/worker --threaded --endInSeconds $testTime"
+    startFIFOorRRContainer rt-datadistributor "$cmdargs" datadistributor "$datageneratorPolicy" $datageneratorPriority "-fifo"
     
     #Launch Polling-driver datagenerator
     cmdargs=" --generator 2 --maxTests 1 --maxWritePipes 1  --baseWritePipeName $fifoDir/polling --endInSeconds $testTime"
@@ -418,19 +426,17 @@ elif [[ $cmd == "timing" ]]; then
 
 	echo ">>> Starting workerapps."
 	for (( i=0; i< numContainers; i++ )); do
-	    startWorkerContainer ${i} 150 10 "--dbg 1"
+	    startWorkerContainer ${i} 85 10 "--dbg 1"
 	done
 
 	#Launch datadistributor
-	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 8 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg 1"
+	cmdargs="--generator 0 --maxTests 6 --maxWritePipes 3 --baseWritePipeName $fifoDir/worker --readpipe $fifoDir/datadistributor_0 --dbg 1"
 	echo ">>> Running command: datadistributor $cmdargs"
-#	cmdargs="--readpipe /tmp/source_1 --num 3 --dbg"
 	startContainer rt-datadistributor "$cmdargs" datadistributor "$datadistributorPolicy $datadistributorPriority"
 
 	#Launch datagenerator
-	cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg 1"
+	cmdargs=" --generator 1 --mininterval 40000 --maxinterval 40000 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor --dbg 1"
 	echo ">>> Running command: datagenerator $cmdargs"
-#	cmdargs="--mininterval 40000 --maxinterval 40000 --sleeptimer --writepipe /tmp/source --dbg --num 1"
 	startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy $datageneratorPriority"
 
 elif [[ $cmd == "monitor" ]]; then
@@ -503,10 +509,10 @@ elif [[ $cmd == "test" ]]; then
 		echo $fps >>$fpsFile
 
 		i=3 # start with worker 4
-		while [ $i -lt 8 ];
-		do
+		while [ $i -lt 8 ]
 		    echo "Sleeping for $sleepTime seconds"
-		    sleep $sleepTime
+		    sleep $sleepTime;
+		do
 		    let fps=${fps}+8
 		    startNewTest $fps $i
 		    let i++;
@@ -532,18 +538,13 @@ elif [[ $cmd == "test" ]]; then
 		###################
 		# parameters for test 2
 		workerPolicyPolling="--deadline"
-		# Allow 100 msecs for runtime
-		workerRuntimePolling=175000000
 
 		# Each polling task should resume within 1 msec of the start of its next period
-		workerDeadlinePolling=300000000
-
-		#MIT: This is a guess as to the polling periods desired: 1 second, 750 msecs, 500 msecs, 250 msecs, 150 msecs 
-		worker0PeriodPolling=800000000
-		worker1PeriodPolling=700000000
-		worker2PeriodPolling=600000000
-		worker3PeriodPolling=550000000
-		worker4PeriodPolling=500000000
+		worker0PeriodPolling=5000000
+		worker1PeriodPolling=10000000
+		worker2PeriodPolling=12000000
+		worker3PeriodPolling=15000000
+		worker4PeriodPolling=21000000
 
 		# Test parameters
 		if [ $# -gt 0 ] ; then

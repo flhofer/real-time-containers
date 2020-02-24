@@ -47,13 +47,16 @@
 
 	typedef struct sched_rscs { // resources 
 		int32_t affinity; // exclusive CPU-numbers
-		// TODO: verify data type -> rlim in GDB says unsigned long
 		int32_t rt_timew; // RT execution time soft limit
 		int32_t rt_time;  // RT execution time hard limit
 		int32_t mem_dataw; // Data memory soft limit
 		int32_t mem_data;  // Data memory time hard limit
 		// TODO: fill with other values, i.e. memory bounds ecc.
 	} rscs_t;
+
+	// ############################  WARN -- DO NOT CHANGE ##########################3
+	// ##### from here on, same structure to keep format! ### unify?
+	// use this? ----- depth 0 = image, 1 = container, 2 - pid
 
 	typedef struct pidc_parm {
 		struct pidc_parm *next; 
@@ -92,6 +95,9 @@
 		struct conts_parm *conts;// linked list pointing to the containers	
 	} img_t;
 
+	// ################################## Until here! ##########################
+	// ################################## Until here! ##########################
+
 	typedef struct containers {
 		struct img_parm   *img;	// linked list of images_t
 		struct cont_parm  *cont;// linked list of containers_t
@@ -104,7 +110,8 @@
 
 	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
-		int32_t affinity; 		// exclusive CPU-num
+		int32_t	 affinity; 		// exclusive CPU-num
+		float	 U;				// utilization factor
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 		// TODO: fill with other values, i.e. memory amounts ecc
@@ -197,6 +204,10 @@
 	void push(void ** head, size_t size);
 	void pop(void ** head);
 	void qsortll(void **head, int (*compar)(const void *, const void*) );
+
+	// special - free structure
+	void freeParm(cont_t ** head,struct sched_attr * attr,
+			struct sched_rscs * rscs, int depth);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs
