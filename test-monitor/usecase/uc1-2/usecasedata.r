@@ -1,5 +1,5 @@
 # Set the working directory
-setwd("./logs/") # temp
+setwd("./logx/") # temp
 library(ggplot2)
 library(viridis)
 
@@ -84,9 +84,9 @@ loadData <- function(fName) {
 					"rows"=NULL, "expMin"=-1, "expMax"=1, "bins"=-1, "res"=-1)
 
 			# parse min max avg
-			dataD$min <- as.integer(stringValue(linn[act+3])[2])
-			dataD$max <- as.integer(stringValue(linn[act+4])[2])
-			dataD$avg <- as.integer(stringValue(linn[act+5])[2])
+			dataD$min <- as.double(stringValue(linn[act+3])[2])
+			dataD$max <- as.double(stringValue(linn[act+4])[2])
+			dataD$avg <- as.double(stringValue(linn[act+5])[2])
 			act <- act +6		
 
 			# find beginning of table
@@ -149,7 +149,8 @@ plotData<-function(directory) {
 	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) 
 	xmin <- 250
 	xmax <- 0
-
+	fpsmin <- 250
+	fpsmax <- 0
 	files <- dir(directory, pattern= "(^workerapp[0-9](\\.|-fifo)*log)")
 
 	# Combine results of test batches
@@ -163,15 +164,21 @@ plotData<-function(directory) {
 			xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
 			xmax <- max(xmax, histLoad[[1]]$dataT$rows$bStart)
 
-			gplot <- gplot + geom_line(data = histLoad[[1]]$dataT$rows,stat="identity", color=col[f]) #width=histLoad[[1]]$dataT$res, 
+			fpsmin <- min(fpsmin, histLoad[[1]]$dataFPS$min)
+			fpsmax <- max(fpsmax, histLoad[[1]]$dataFPS$max)
+
+			write(paste0(fpsmin ," - ", fpsmax), stderr())
+
+			gplot <- gplot + geom_bar(data = histLoad[[1]]$dataFPS$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
+
 		}
 	}	  
 
 	directory <- (gsub("/", "_", directory))
 	pdf(file= paste0("Hist_", directory,".pdf"), width = 10, height = 10)
 	gplot <- gplot + labs(x='occurrence of exeution value') +
-		     scale_x_continuous(trans='log10') 
-	#		 xlim(c(xmin,xmax)) 
+#		     scale_x_continuous(trans='log10',limits=c(10,50000)) 
+			 xlim(c(7,9)) 
 
 	print (gplot)
 	dev.off()
