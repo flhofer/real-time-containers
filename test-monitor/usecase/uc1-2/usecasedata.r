@@ -141,7 +141,7 @@ loadData <- function(fName) {
 
 }
 
-plotData<-function(directory) {
+plotData<-function(directory, time) {
 	write(paste0("Proceeding with directory ", directory), stderr())
 
 	# init
@@ -159,25 +159,36 @@ plotData<-function(directory) {
 
 		write(paste0("Size of dataset for ", files[f], " iter ", f, " :", length(histLoad)), stderr())
 
-		if (length(histLoad) > 0) {
-			xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
-			xmax <- max(xmax, histLoad[[1]]$dataT$rows$bStart)
+		k <- 1
 
-			fpsmin <- min(fpsmin, histLoad[[1]]$dataFPS$min)
-			fpsmax <- max(fpsmax, histLoad[[1]]$dataFPS$max)
+		for (k in 1:length(histLoad)) {
+			xmin <- min(xmin, histLoad[[k]]$dataT$rows$bStart)
+			xmax <- max(xmax, histLoad[[k]]$dataT$rows$bStart)
+
+			fpsmin <- min(fpsmin, histLoad[[k]]$dataFPS$min)
+			fpsmax <- max(fpsmax, histLoad[[k]]$dataFPS$max)
 
 			write(paste0(fpsmin ," - ", fpsmax), stderr())
 
-			gplot <- gplot + geom_bar(data = histLoad[[1]]$dataFPS$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
-
+			if (time) {
+				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataT$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
+			}
+			else {
+				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataFPS$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
+			}
 		}
 	}	  
 
 	directory <- (gsub("/", "_", directory))
 	pdf(file= paste0(directory,".pdf"), width = 10, height = 10)
-	gplot <- gplot + labs(x='occurrence of exeution value') +
-#		     scale_x_continuous(trans='log10',limits=c(10,50000)) 
-			 xlim(c(7,9)) 
+	gplot <- gplot + labs(x='occurrence of exeution value')
+
+	if (time) {
+		gplot <- gplot + scale_x_continuous(trans='log10',limits=c(10,50000)) 
+	}
+	else {
+		gplot <- gplot +  xlim(c(6,10))
+	}
 
 	print (gplot)
 	dev.off()
@@ -300,7 +311,7 @@ dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
 
 # Combine results of test batches
 for (d in seq(along=dirs)){
-	plotData(dirs[d])
+	plotData(dirs[d], 0)
 }
 
 # Find all directories with pattern.. UC1
@@ -313,7 +324,7 @@ for (d in seq(along=dirs)){
 
 	# Combine results of test batches
 	for (e in seq(along=dirs2)){
-		plotData(paste0(dirs[d], "/",dirs2[e]))
+		plotData(paste0(dirs[d], "/",dirs2[e]), 1)
 		readDeadline(paste0(dirs[d], "/",dirs2[e]))
 	}
 }
