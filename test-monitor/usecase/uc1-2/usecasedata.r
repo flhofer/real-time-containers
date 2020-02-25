@@ -1,5 +1,5 @@
 # Set the working directory
-setwd("./logx/") # temp
+setwd("./logs/")
 library(ggplot2)
 library(viridis)
 
@@ -54,7 +54,6 @@ loadData <- function(fName) {
 			if (( (as.integer(line[2]) != plot$Test) || (as.integer(line[3]) != plot$FPS)) &&
 				(plot$Test > -1)) {
 
-#				print(plot)
 				# new test data, append existing results to list, use test number for index
 				plots[[k]] <- plot
 				k <- k + 1
@@ -118,13 +117,13 @@ loadData <- function(fName) {
 			# assign to set in data structure
 			if (identical(dataD$unit, "FPS")) {
 				plot$dataFPS <- dataD
-			}
-			else {
-				plot$dataT <- dataD
 				# compare min max avg
 				min = min(min,dataD$min)
 				max = max(max,dataD$max)
 				avg = max(avg,dataD$avg)	
+			}
+			else {
+				plot$dataT <- dataD
 			}
 
 		# once for is finished, increase start
@@ -175,10 +174,107 @@ plotData<-function(directory) {
 	}	  
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0("Hist_", directory,".pdf"), width = 10, height = 10)
+	pdf(file= paste0(directory,".pdf"), width = 10, height = 10)
 	gplot <- gplot + labs(x='occurrence of exeution value') +
 #		     scale_x_continuous(trans='log10',limits=c(10,50000)) 
 			 xlim(c(7,9)) 
+
+	print (gplot)
+	dev.off()
+}
+
+loadDelays<-function(fName){
+	#Function, load data from text file for average plots 
+
+	# Read text into R
+	#write(fName, stderr())
+
+	if (!file.exists(fName) || file.info(fName)$size == 0) {
+		# break here if file does not exist
+		records <- data.frame ()
+		return(records)
+	}
+	#TODO: add protection big size
+
+
+	# read string buffer
+	linn <- readLines(fName)
+	#print(head(linn))
+
+	# init values
+	start <- 1
+	plot  <- list("nPeriods" = -1, "nOverruns"= -1, "nViolations"=-1, "data"=NULL)
+	k <- 1
+
+	# find starting test entry
+	while(length(linn) > start && !startsWith(linn[start], 'Total Number'))
+		start <- start+1
+
+	# end of parsing buffer?
+	if (length(linn) <= start) 
+		break
+
+	# save to the actual parsing position variable
+	act=start
+
+	# parse min max avg
+	plot$nPeriods <- as.double(stringValue(linn[act])[4])
+	plot$nOverruns <- as.double(stringValue(linn[act+1])[3])
+	plot$nViolations <- as.double(stringValue(linn[act+2])[3])
+
+		# create data structure for histogram
+	plot$data<- list("run" = -1)
+
+	act=act+4
+	tstart=act
+
+	# parse hstrogram values..
+
+	# find end of this table of values
+	while(length(linn) > act && !startsWith(linn[act], '------'))
+		act=act+1
+
+	#counters
+	tend=act-1
+
+	# Transform into table, filter and add names
+	records = read.table(text= (gsub('[^0-9. ]' ,'', linn[tstart:tend])), header=FALSE)
+	plot$data <- data.frame ("run"=records$V1)
+			   
+	# compare min max avg
+	min = min(plot$data$run)
+	max = max(plot$data$run)
+	avg = mean(plot$data$run)	
+
+	write(paste0(fName, ";", min, ";", max, ";", avg), stdout())
+
+	return(plot)
+}
+
+readDeadline<-function(directory) {
+	write(paste0("Deadline read directory ", directory), stderr())
+
+	# init
+	gplot <- ggplot(mapping=aes(x=run)) 
+	files <- dir(directory, pattern= "(^workerapp[0-9]-deadline.*log)")
+
+	# Combine results of test batches
+	for (f in seq(along=files)){
+
+		delays<-loadDelays(paste0(directory, "/", files[f]))
+
+		if (length(delays$data) > 0) {
+
+			gplot <- gplot + geom_histogram(data = delays$data, fill=col[f]) 
+
+		}
+	}	  
+
+	directory <- (gsub("/", "_", directory))
+	pdf(file= paste0(directory,"delay.pdf"), width = 10, height = 10)
+	gplot <- gplot + labs(x='occurrence of exeution value') 
+#		     scale_x_continuous(trans='log10',limits=c(10,50000)) 
+#			 xlim(c(7,9)) 
 
 	print (gplot)
 	dev.off()
@@ -218,6 +314,7 @@ for (d in seq(along=dirs)){
 	# Combine results of test batches
 	for (e in seq(along=dirs2)){
 		plotData(paste0(dirs[d], "/",dirs2[e]))
+		readDeadline(paste0(dirs[d], "/",dirs2[e]))
 	}
 }
 
