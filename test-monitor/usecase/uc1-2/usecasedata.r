@@ -1,6 +1,7 @@
 # Set the working directory
 setwd("./logs/")
 library(ggplot2)
+library(dplyr)
 library(viridis)
 
 stringValue <-function(line) {
@@ -214,7 +215,7 @@ loadDelays<-function(fName){
 
 	# init values
 	start <- 1
-	plot  <- list("nPeriods" = -1, "nOverruns"= -1, "nViolations"=-1, "data"=NULL)
+	plot  <- list("name"=fName, "nPeriods" = -1, "nOverruns"= -1, "nViolations"=-1, "dataD"=NULL)
 	k <- 1
 
 	# find starting test entry
@@ -229,12 +230,12 @@ loadDelays<-function(fName){
 	act=start
 
 	# parse min max avg
-	plot$nPeriods <- as.double(stringValue(linn[act])[4])
+	plot$nPeriods <- as.double(stringValue(linn[act])[5])
 	plot$nOverruns <- as.double(stringValue(linn[act+1])[3])
-	plot$nViolations <- as.double(stringValue(linn[act+2])[3])
+	plot$nViolations <- as.double(stringValue(linn[act+2])[4])
 
 		# create data structure for histogram
-	plot$data<- list("run" = -1)
+	plot$dataD<- list("run" = -1)
 
 	act=act+4
 	tstart=act
@@ -250,12 +251,12 @@ loadDelays<-function(fName){
 
 	# Transform into table, filter and add names
 	records = read.table(text= (gsub('[^0-9. ]' ,'', linn[tstart:tend])), header=FALSE)
-	plot$data <- data.frame ("run"=records$V1)
+	plot$dataD <- data.frame ("run"=records$V1)
 			   
 	# compare min max avg
-	min = min(plot$data$run)
-	max = max(plot$data$run)
-	avg = mean(plot$data$run)	
+	min = min(plot$dataD$run)
+	max = max(plot$dataD$run)
+	avg = mean(plot$dataD$run)	
 
 	write(paste0(fName, ";", min, ";", max, ";", avg), stdout())
 
@@ -265,70 +266,61 @@ loadDelays<-function(fName){
 readDeadline<-function(directory) {
 	write(paste0("Deadline read directory ", directory), stderr())
 
-	# init
-	gplot <- ggplot(mapping=aes(x=run)) 
+	# detect files
 	files <- dir(directory, pattern= "(^workerapp[0-9]-deadline.*log)")
-
 	# Combine results of test batches
-	for (f in seq(along=files)){
-
-		delays<-loadDelays(paste0(directory, "/", files[f]))
-
-		if (length(delays$data) > 0) {
-
-			gplot <- gplot + geom_histogram(data = delays$data, fill=col[f]) 
-
-		}
-	}	  
+	delays <- lapply (paste0(directory, "/", files), loadDelays)
+	# Create frames
+	delays <- lapply( delays, function(x) data.frame(name=rep(x$name), dataD=x$dataD$run))
+	# Merge
+	delays <- Reduce(function(...) merge(..., all=T), delays)
+	# filter name tags, reduce count in 1000ths
+	delays[,1]<- gsub(".*(workerapp[0-9]).*", "\\1", delays[,1]) 
+	delays[,2]<- delays[,2]/1000 
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0(directory,"delay.pdf"), width = 10, height = 10)
-	gplot <- gplot + labs(x='occurrence of exeution value') 
-#		     scale_x_continuous(trans='log10',limits=c(10,50000)) 
-#			 xlim(c(7,9)) 
+	pdf(file= paste0(directory,"delay.pdf"), width = 7, height = 5)
 
-	print (gplot)
+	print (ggplot(delays, aes(x=dataD)) +
+		geom_histogram(aes(fill=name)) +
+		labs(x=expression(paste("Periodic task runtime values [", mu, "s]")), y="Occurrence count", fill="Instance") +
+		xlim (c(400,3000)) +
+		ylim (c(0,500)) +
+		scale_fill_viridis_d()
+	)
 	dev.off()
 }
 
 ######### Start script main ()
 
 ## sink to write worst performing thread to a csv
-sink("stats-maxmin.csv")
+# sink("stats-maxmin.csv")
 
-write("FileName;worst min; - max; - avg", stdout())
+# write("FileName;worst min; - max; - avg", stdout())
 
-col<- viridis(8)
+# col<- viridis(8)
 
-df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
-write(rownames(df)[which.max(df$mtime)], stderr())
+# df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
+# write(rownames(df)[which.max(df$mtime)], stderr())
 
-df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
-write(rownames(df)[which.max(df$mtime)], stderr())
+# df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
+# write(rownames(df)[which.max(df$mtime)], stderr())
 
-# Find all directories with pattern.. UC1
-dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
+# # Find all directories with pattern.. UC1
+# dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
+# # Combine results of test batches
+# sapply(dirs, function(x) plotData(x, 0) )
 
-# Combine results of test batches
-for (d in seq(along=dirs)){
-	plotData(dirs[d], 0)
-}
-
-# Find all directories with pattern.. UC1
+# # Find all directories with pattern.. UC1
 dirs <- dir(".", pattern= "(^UC2|TEST[0-9]_2$)")
+# Find all directories with pattern.. Test
+dirs2 <- dir(dirs, pattern= "^Test")
 
-# Combine results of test batches
-for (d in seq(along=dirs)){
-	# Find all directories with pattern.. Test
-	dirs2 <- dir(dirs[d], pattern= "^Test")
-
-	# Combine results of test batches
-	for (e in seq(along=dirs2)){
-		plotData(paste0(dirs[d], "/",dirs2[e]), 1)
-		readDeadline(paste0(dirs[d], "/",dirs2[e]))
-	}
-}
+# # Combine results of test batches
+# sapply( paste0(dirs, "/", dirs2), function(x) plotData(x,1))
+sapply( paste0(dirs, "/", dirs2), function (x) readDeadline(x))
 
 ## back to the console
-sink(type="output")
+#sink(type="output")
+
 
