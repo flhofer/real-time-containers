@@ -29,7 +29,7 @@ loadData <- function(fName) {
 	# init values
 	start <- 1
 	plots <- list()
-	plot  <- list("Test" = -1, "FPS"= -1, "dataFPS"=NULL, "dataT"=NULL)
+	plot  <- list(name=fName, "Test" = -1, "FPS"= -1, "dataFPS"=NULL, "dataT"=NULL)
 	min=9999999
 	max = -1
 	avg = -1
@@ -142,15 +142,21 @@ loadData <- function(fName) {
 
 }
 
-plotData<-function(directory, time) {
+plotData<-function(directory) {
 	write(paste0("Proceeding with directory ", directory), stderr())
 
 	# init
-	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) 
-	xmin <- 250
-	xmax <- 0
-	fpsmin <- 250
-	fpsmax <- 0
+	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) +
+			scale_fill_viridis_d() +
+	 		ylim (c(0,500)) +
+	 		scale_x_continuous(trans='log10',limits=c(10,50000)) +
+			labs(x=expression(paste("Frame delivery delays [", mu, "s]")), y="Occurrence count", fill="Instance") 
+	gplot2 <- ggplot(mapping= aes(x=bStart, y=Count)) +
+		scale_fill_viridis_d() +
+ 		labs(x=paste("Processing frame rate, FPS"), y="Occurrence count", fill="Instance") +
+		ylim (c(0,1000)) +
+		xlim (c(6,10)) 
+
 	files <- dir(directory, pattern= "(^workerapp[0-9](\\.|-fifo)*log)")
 
 	# Combine results of test batches
@@ -163,35 +169,18 @@ plotData<-function(directory, time) {
 		k <- 1
 
 		for (k in 1:length(histLoad)) {
-			xmin <- min(xmin, histLoad[[k]]$dataT$rows$bStart)
-			xmax <- max(xmax, histLoad[[k]]$dataT$rows$bStart)
-
-			fpsmin <- min(fpsmin, histLoad[[k]]$dataFPS$min)
-			fpsmax <- max(fpsmax, histLoad[[k]]$dataFPS$max)
-
-			write(paste0(fpsmin ," - ", fpsmax), stderr())
-
-			if (time) {
-				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataT$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
+				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataT$rows,stat="identity", width = 0.1) 
+				gplot2 <- gplot2 + geom_bar(data = histLoad[[k]]$dataFPS$rows,stat="identity", width = 0.1) 
 			}
-			else {
-				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataFPS$rows,stat="identity", width = 0.1) # width=histLoad[[1]]$dataT$res) 
-			}
-		}
 	}	  
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0(directory,".pdf"), width = 10, height = 10)
-	gplot <- gplot + labs(x='occurrence of exeution value')
-
-	if (time) {
-		gplot <- gplot + scale_x_continuous(trans='log10',limits=c(10,50000)) 
-	}
-	else {
-		gplot <- gplot +  xlim(c(6,10))
-	}
-
+	pdf(file= paste0(directory,"fdelay.pdf"), width = 7, height = 5)
 	print (gplot)
+	dev.off()
+
+	pdf(file= paste0(directory,"FPS.pdf"), width = 7, height = 5)
+	print (gplot2)
 	dev.off()
 }
 
@@ -294,11 +283,9 @@ readDeadline<-function(directory) {
 ######### Start script main ()
 
 ## sink to write worst performing thread to a csv
-# sink("stats-maxmin.csv")
+sink("stats-maxmin.csv")
 
-# write("FileName;worst min; - max; - avg", stdout())
-
-# col<- viridis(8)
+write("FileName;worst min; - max; - avg", stdout())
 
 # df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
 # write(rownames(df)[which.max(df$mtime)], stderr())
@@ -306,21 +293,21 @@ readDeadline<-function(directory) {
 # df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
 # write(rownames(df)[which.max(df$mtime)], stderr())
 
-# # Find all directories with pattern.. UC1
-# dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
-# # Combine results of test batches
-# sapply(dirs, function(x) plotData(x, 0) )
+# Find all directories with pattern.. UC1
+dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
+# Combine results of test batches
+sapply(dirs, function(x) plotData(x) )
 
-# # Find all directories with pattern.. UC1
+# Find all directories with pattern.. UC1
 dirs <- dir(".", pattern= "(^UC2|TEST[0-9]_2$)")
 # Find all directories with pattern.. Test
 dirs2 <- dir(dirs, pattern= "^Test")
 
-# # Combine results of test batches
-# sapply( paste0(dirs, "/", dirs2), function(x) plotData(x,1))
+# Combine results of test batches
+sapply( paste0(dirs, "/", dirs2), function(x) plotData(x))
 sapply( paste0(dirs, "/", dirs2), function (x) readDeadline(x))
 
-## back to the console
-#sink(type="output")
+# back to the console
+sink(type="output")
 
 
