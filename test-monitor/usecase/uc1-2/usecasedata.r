@@ -149,7 +149,7 @@ plotData<-function(directory) {
 	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) +
 			scale_fill_viridis_d() +
 	 		ylim (c(0,500)) +
-	 		scale_x_continuous(trans='log10',limits=c(10,50000)) +
+	 		scale_x_continuous(trans='log10',limits=c(10,100000)) +
 			labs(x=expression(paste("Frame delivery delays [", mu, "s]")), y="Occurrence count", fill="Instance") 
 	gplot2 <- ggplot(mapping= aes(x=bStart, y=Count)) +
 		scale_fill_viridis_d() +
@@ -175,11 +175,11 @@ plotData<-function(directory) {
 	}	  
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0(directory,"fdelay.pdf"), width = 7, height = 5)
+	pdf(file= paste0(directory,"fdelay.pdf"), width = 6, height = 5)
 	print (gplot)
 	dev.off()
 
-	pdf(file= paste0(directory,"FPS.pdf"), width = 7, height = 5)
+	pdf(file= paste0(directory,"FPS.pdf"), width = 6, height = 5)
 	print (gplot2)
 	dev.off()
 }
