@@ -170,6 +170,7 @@ static int configureTracers(){
 		if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
 			warn("Unable to activate schedstat probe");
 
+/* FIXME: it seems that I only need sched switch
 		if (0 < event_enable("sched/sched_stat_runtime")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
 			elist_head->eventid = event_getid("sched/sched_stat_runtime");
@@ -187,7 +188,7 @@ static int configureTracers(){
 		}
 		else
 			warn("Unable to set event for 'sched_wakeup'");
-
+*/
 
 		if (0 < event_enable("sched/sched_switch")) {
 			push((void**)&elist_head, sizeof(struct ftrace_elist));
@@ -295,7 +296,6 @@ static void pickPidCons(node_t *item, uint64_t ts){
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
-
 	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
 	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
 	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
@@ -391,8 +391,10 @@ static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	if ((*item))
+	if ((*item)){
+		(*item)->mon.dl_rt = ts - (*item)->mon.last_ts;
 		pickPidCons(*item, ts);
+	}
 
 	// reset item, remains null if not found
 	*item=NULL;
@@ -480,7 +482,7 @@ void *thread_ftrace(void *arg){
 	void *pEvent;
 	node_t * item;
 	struct kbuffer * kbuf; // kernel ring buffer structure
-	uint64_t timestamp; // event time stamp, based on up-time in ns
+	unsigned long long timestamp; // event time stamp, based on up-time in ns (using long long for compatibility kbuffer library)
 
 	{ // setup interrupt handler block
 		struct sigaction act;
