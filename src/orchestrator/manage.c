@@ -26,7 +26,9 @@
 #include <numa.h>			// NUMA node identification
 #include <sys/sysinfo.h>	// system general information
 
-// total scan counter for updatestats
+#include "kbuffer.h"		// ring-buffer management from trace-event
+
+// total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
 
 // for musl systems
@@ -470,6 +472,8 @@ void *thread_ftrace(void *arg){
 	unsigned char buffer[PIPE_BUFFER];
 	uint16_t *pType;
 	node_t * item;
+	struct kbuffer * kbuf; // kernel ring buffer structure
+	unsigned long long timestamp; // event timestamp
 
 	{ // setup interrupt handler block
 		struct sigaction act;
@@ -510,7 +514,8 @@ void *thread_ftrace(void *arg){
 		switch( pstate )
 		{
 		case 0:
-			;
+			kbuf = kbuffer_alloc(KBUFFER_LSIZE_4, KBUFFER_ENDIAN_LITTLE); // FIXME: static setting
+
 			char* fn;
 			if (NULL != fthread->dbgfile)
 				fn = fthread->dbgfile;
@@ -554,11 +559,12 @@ void *thread_ftrace(void *arg){
 
 			// TODO: what are these first 20 bytes?
 
-//			pType = (uint16_t *)(buffer+20);
-			pType = (uint16_t *)(buffer+28);
-			got -=28;
+			int ret;
 
-			while ((NULL != (void*)pType) && (0 != *pType) && (!ftrace_stop)) {
+			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
+				warn ("Unable to parse ring-buffer page!");
+
+			while ((pType = (uint16_t*)kbuffer_next_event(kbuf, &timestamp)) && (!ftrace_stop)) {
 				int (*eventcall)(node_t **, void *) = pickPidCommon; // default to common
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
@@ -571,26 +577,7 @@ void *thread_ftrace(void *arg){
 				int count = eventcall(&item, (void*)pType);
 				if (0 > count){
 					// something went wrong, dump and exit
-					got = 0;
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
-					break;
-				}
-				// TODO: no event? something went wrong, not configured event
-
-				// update to the end of Frame
-				pType += (count/2); // 16 bit values, double in bytes
-				got -= count;
-
-				{ // read end of Frame signature and update pointers
-					int32_t * pFrameSig = (int32_t*) pType;
-					printDbg(PFX "Frame signature %d\n",  *pFrameSig);
-
-					pType += sizeof(*pFrameSig)/2;
-					got -= sizeof(*pFrameSig);
-				}
-
-				// end of pipe, end of buffer?
-				if (44 > got || 0x14 == *pType){ // TODO: test if got size necessary
 					break;
 				}
 			}
@@ -600,6 +587,7 @@ void *thread_ftrace(void *arg){
 
 		case 2:
 			fclose (fp);
+			kbuffer_free(kbuf);
 			pstate = -1;
 			//no break
 
