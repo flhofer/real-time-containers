@@ -465,7 +465,7 @@ static int pickPidInfoR(node_t ** item, void * addr)
 void *thread_ftrace(void *arg){
 
 	int pstate = 0;
-	int got = 0;
+	int ret = 0;
 	FILE *fp = NULL;
 	const struct ftrace_thread * fthread = (struct ftrace_thread *)arg;
 
@@ -473,7 +473,7 @@ void *thread_ftrace(void *arg){
 	uint16_t *pType;
 	node_t * item;
 	struct kbuffer * kbuf; // kernel ring buffer structure
-	unsigned long long timestamp; // event timestamp
+	unsigned long long timestamp; // event time stamp, based on up-time in ns
 
 	{ // setup interrupt handler block
 		struct sigaction act;
@@ -514,7 +514,8 @@ void *thread_ftrace(void *arg){
 		switch( pstate )
 		{
 		case 0:
-			kbuf = kbuffer_alloc(KBUFFER_LSIZE_4, KBUFFER_ENDIAN_LITTLE); // FIXME: static setting
+			// init buffer structure for page management
+			kbuf = kbuffer_alloc(KBUFFER_LSIZE_8, KBUFFER_ENDIAN_LITTLE); // FIXME: static setting
 
 			char* fn;
 			if (NULL != fthread->dbgfile)
@@ -540,32 +541,28 @@ void *thread_ftrace(void *arg){
 			free(fn);
 
 			printDbg(PFX "Reading trace output from pipe...\n");
+			pstate = 1;
 			//no break
 
 		case 1:
-			pstate = 1;
-
 			// read output into buffer!
-			if (0 >= (got = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
-				if (got < -1) {
+			if (0 >= (ret = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
+				if (ret < -1) {
 					pstate = 2;
 					err_msg ("File read failed");
 				} // else stay here
 
 				break;
 			}
-			else if (buffer[0]==0 ) // empty buffer, it always starts with an ID
+			// empty buffer? it always starts with a header
+			else if (buffer[0]==0 )
 				break;
-
-			// TODO: what are these first 20 bytes?
-
-			int ret;
 
 			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
 				warn ("Unable to parse ring-buffer page!");
 
 			while ((pType = (uint16_t*)kbuffer_next_event(kbuf, &timestamp)) && (!ftrace_stop)) {
-				int (*eventcall)(node_t **, void *) = pickPidCommon; // default to common
+				int (*eventcall)(node_t **, void *); // = pickPidCommon; // TODO: default to common? still needed?
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					if (event->eventid == *pType){
@@ -589,12 +586,13 @@ void *thread_ftrace(void *arg){
 			fclose (fp);
 			kbuffer_free(kbuf);
 			pstate = -1;
-			//no break
+			break;
 
 		case -1:
+			sleep(1); // TODO: safety, avoids to overload CPU in case of not shutting down correctly
 			break;
 		}
-		if (ftrace_stop) {
+		if (-1 == pstate) { // if  at the end, was ftrace_stop
 			break;
 		}
 	}
