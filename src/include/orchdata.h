@@ -4,7 +4,7 @@
 	#include <stdio.h>
 	#include <stdlib.h>
 
-	// Custmom includes
+	// Custom includes
 	#include "rt-sched.h" // temporary as libc does not include new sched yet
 	#include "error.h"		// error and stderr print functions
 
@@ -96,7 +96,6 @@
 	} img_t;
 
 	// ################################## Until here! ##########################
-	// ################################## Until here! ##########################
 
 	typedef struct containers {
 		struct img_parm   *img;	// linked list of images_t
@@ -121,6 +120,7 @@
 		int64_t rt_min;
 		int64_t rt_avg;
 		int64_t rt_max;
+		uint64_t last_ts;		// last time stamp for this task
 		uint64_t dl_count;		// deadline verification/change count
 		uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 		uint64_t dl_overrun;	// overrun count
