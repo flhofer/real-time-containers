@@ -61,7 +61,7 @@ struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
-	int (*eventcall)(node_t **, void *, unsigned long long); // event elaboration function
+	int (*eventcall)(node_t **, void *, uint64_t); // event elaboration function
 };
 struct ftrace_elist * elist_head;
 
@@ -108,9 +108,9 @@ static volatile sig_atomic_t ftrace_stop;
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
-static int pickPidInfoW(node_t ** item, void * addr, unsigned long long ts);
-static int pickPidInfoS(node_t ** item, void * addr, unsigned long long ts);
-static int pickPidInfoR(node_t ** item, void * addr, unsigned long long ts);
+static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts);
+static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts);
+static int pickPidInfoR(node_t ** item, void * addr, uint64_t ts);
 
 /// ftrace_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -289,7 +289,7 @@ static int stopTraceRead() {
 
 // #################################### THREAD specific ############################################
 
-static void pickPidCons(node_t *item){
+static void pickPidCons(node_t *item, uint64_t ts){
 
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
@@ -304,19 +304,21 @@ static void pickPidCons(node_t *item){
 
 }
 
-/// pickPidInfoS(): process PID fTrace common
+/// pickPidCommon(): process PID fTrace common
 ///
 /// Arguments: - item to update with statistics
 ///			   - frame containing the runtime info
 ///			   - last time stamp
 ///
-/// Return value: -
+/// Return value: error code, 0 = success
 ///
-static void pickPidCommon(node_t ** item, void * addr, unsigned long long ts) {
+static int pickPidCommon(node_t ** item, void * addr, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
-	printDbg( "[%llu.%09llu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
+	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	return sizeof(*pFrame)+8; // TODO 8 zeros?
 }
 
 /// pickPidInfoW(): process PID fTrace sched_wakeup
@@ -328,7 +330,7 @@ static void pickPidCommon(node_t ** item, void * addr, unsigned long long ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoW(node_t ** item, void * addr, unsigned long long ts) {
+static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts) {
 
 	int ret1 = pickPidCommon(item, addr, ts);
 	addr+= ret1;
@@ -344,7 +346,7 @@ static int pickPidInfoW(node_t ** item, void * addr, unsigned long long ts) {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	if ((*item))
-		pickPidCons(*item);
+		pickPidCons(*item, ts);
 
 	// reset item, remains null if not found
 	*item=NULL;
@@ -370,7 +372,7 @@ static int pickPidInfoW(node_t ** item, void * addr, unsigned long long ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoS(node_t ** item, void * addr, unsigned long long ts) {
+static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 
 	int ret1 = pickPidCommon(item, addr, ts);
 	addr+= ret1;
@@ -390,7 +392,7 @@ static int pickPidInfoS(node_t ** item, void * addr, unsigned long long ts) {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	if ((*item))
-		pickPidCons(*item);
+		pickPidCons(*item, ts);
 
 	// reset item, remains null if not found
 	*item=NULL;
@@ -399,6 +401,7 @@ static int pickPidInfoS(node_t ** item, void * addr, unsigned long long ts) {
 		// skip deactivated tracking items
 		if (abs(citem->pid)==pFrame->next_pid){
 			*item = citem;
+			(*item)->mon.last_ts = ts;
 			break;
 		}
 	(void)pthread_mutex_unlock(&dataMutex);
@@ -415,7 +418,7 @@ static int pickPidInfoS(node_t ** item, void * addr, unsigned long long ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoR(node_t ** item, void * addr, unsigned long long ts) {
+static int pickPidInfoR(node_t ** item, void * addr, uint64_t ts) {
 
 	struct tr_common *pcFrame = (struct tr_common*)addr;
 
@@ -435,7 +438,7 @@ static int pickPidInfoR(node_t ** item, void * addr, unsigned long long ts) {
 	// reset item, remains null if not found
 	if (!(*item) || ((*item) && (*item)->pid != pFrame->pid)) {
 		if ((*item))
-			pickPidCons(*item);
+			pickPidCons(*item, ts);
 
 		*item=NULL;
 		// for now does only a simple update
@@ -450,6 +453,7 @@ static int pickPidInfoR(node_t ** item, void * addr, unsigned long long ts) {
 	// item deactivated -> TODO actually an error!
 	if ((*item) && (*item)->pid > 0) {
 		(*item)->mon.dl_rt += pFrame->runtime;
+		(*item)->mon.last_ts = ts;
 		(*item)->mon.dl_scanfail += pcFrame->common_preempt_count;
 		(*item)->mon.dl_count++;
 	}
@@ -476,7 +480,7 @@ void *thread_ftrace(void *arg){
 	void *pEvent;
 	node_t * item;
 	struct kbuffer * kbuf; // kernel ring buffer structure
-	unsigned long long timestamp; // event time stamp, based on up-time in ns
+	uint64_t timestamp; // event time stamp, based on up-time in ns
 
 	{ // setup interrupt handler block
 		struct sigaction act;
@@ -572,7 +576,7 @@ void *thread_ftrace(void *arg){
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
 			while ((pEvent)  && (!ftrace_stop)) {
-				int (*eventcall)(node_t **, void *, unsigned long long); // = pickPidCommon; // TODO: default to common? still needed?
+				int (*eventcall)(node_t **, void *, uint64_t); // = pickPidCommon; // TODO: default to common? still needed?
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					// check for ID, first value is 16 bit ID
