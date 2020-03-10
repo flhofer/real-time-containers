@@ -184,7 +184,7 @@ void orchestrator_manage (Suite * s) {
 
 	TCase *tc2 = tcase_create("manage_thread_read");
 	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);
-//	tcase_add_test(tc2, orchestrator_manage_readdata);
+	tcase_add_test(tc2, orchestrator_manage_readdata);
 	tcase_add_test(tc2, orchestrator_manage_readftrace);
 	tcase_set_timeout(tc2, 10);
     suite_add_tcase(s, tc2);
