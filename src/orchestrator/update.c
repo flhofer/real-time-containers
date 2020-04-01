@@ -14,6 +14,7 @@
 #include <dirent.h>			// dir entry structure and expl
 #include <errno.h>			// error numbers and strings
 #include <numa.h>			// Numa node identification
+#include <time.h>			// constants and functions for clock
 
 // Custom includes
 #include "orchestrator.h"
