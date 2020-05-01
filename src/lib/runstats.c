@@ -496,7 +496,7 @@ uniparm_copy(stat_param ** x){
 }
 
 /*
- * runstats_mdlpdf() :
+ * runstats_mdlpdf() : Integrate area under curve between a-b
  *
  * Arguments: - pointer to the parameter vector
  * 			  - parameter a, b of the model
@@ -523,7 +523,6 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 		= gsl_integration_workspace_alloc (NUMINT);
 	if (!w){
 		err_msg("unable to allocate workspace memory");
-		gsl_vector_free(x);
 		return GSL_ENOMEM;
 	}
 
@@ -538,7 +537,30 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 	printDbg("intervals       = %zu\n", w->size);
 
 	gsl_integration_workspace_free (w);
-	gsl_vector_free(x);
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+}
+
+/*
+ * runstats_freeparam() : free parameter vector
+ *
+ * Arguments: - pointer to the parameter vector
+ *
+ * Return value: -
+ */
+void
+runstats_freeparam(stat_param * x){
+	gsl_vector_free(x);
+}
+
+/*
+ * runstats_freehist() : free histogram structure
+ *
+ * Arguments: - pointer to the histogram data
+ *
+ * Return value: success or error code
+ */
+void
+runstats_freehist(stat_hist * h){
+	gsl_histogram_free(h);
 }

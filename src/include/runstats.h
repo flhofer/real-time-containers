@@ -35,4 +35,7 @@ int runstats_mdlpdf(stat_param * x, double a,
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);
 
+void runstats_freeparam(stat_param * x);
+void runstats_freehist(stat_hist * h);
+
 #endif /* RUNSTATS_H_ */
