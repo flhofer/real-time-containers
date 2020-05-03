@@ -5,7 +5,8 @@
 	#include <stdlib.h>
 
 	// Custom includes
-	#include "rt-sched.h" // temporary as libc does not include new sched yet
+	#include "runstats.h"	// statistics functions for curve fitting and prob estimation
+	#include "rt-sched.h"	// temporary as libc does not include new sched yet
 	#include "error.h"		// error and stderr print functions
 
 	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker
@@ -117,9 +118,9 @@
 	} resTracer_t;
 
 	typedef struct sched_mon { // actual values for monitoring
-		int64_t rt_min;
-		int64_t rt_avg;
-		int64_t rt_max;
+		int64_t rt_min;			// minimum run-time value
+		int64_t rt_avg;			// average run-time value
+		int64_t rt_max;			// maximum run-time value
 		uint64_t last_ts;		// last time stamp for this task
 		uint64_t dl_count;		// deadline verification/change count
 		uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
@@ -130,6 +131,8 @@
 		int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
+		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
+		stat_param * pdf_parm;	// PDF model parameters, estimated values
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info

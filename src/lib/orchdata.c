@@ -351,7 +351,8 @@ static const node_t _node_default = { NULL,				// *next,
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
 						0, 0, 0, 0, 0,
-						0, INT64_MAX, 0, INT64_MIN},
+						0, INT64_MAX, 0, INT64_MIN,
+						NULL , NULL},					// *pointer to fitting data and vectors
 						NULL};							// *param structure pointer
 
 /* -------------------- RUNTIME structure ----------------------*/
@@ -399,6 +400,12 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->imgid);
 #endif
+	// curve fitting parameters
+	if ((*head)->mon.pdf_hist)
+		runstats_freehist((*head)->mon.pdf_hist);
+	if ((*head)->mon.pdf_parm)
+		runstats_freeparam((*head)->mon.pdf_parm);
+
 	// TODO: configuration of PID and container maybe as well?
 
 	pop((void**)head);
