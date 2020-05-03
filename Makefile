@@ -14,7 +14,7 @@ sources = orchestrator.c
 orcbins = update.o manage.o prepare.o adaptive.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
-LIBS	= -lrt -lcap -lrttest -ljson-c -lgsl -lgslcblas
+LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
 # for tests
 TLIBS	= -lcheck -lm -lsubunit $(LIBS)
 
