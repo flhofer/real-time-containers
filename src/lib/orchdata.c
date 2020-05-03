@@ -349,10 +349,13 @@ void freeParm(cont_t ** head, struct sched_attr * attr,
 static const node_t _node_default = { NULL,				// *next, 
 						0, 0, NULL, NULL, NULL,			// PID, det_mode, *psig, *contid, *imgid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
-						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
-						0, 0, 0, 0, 0,
-						0, INT64_MAX, 0, INT64_MIN,
-						NULL , NULL},					// *pointer to fitting data and vectors
+						{ 								// statistics, max and min to min and max
+							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max
+							0, 0, 0, 0, 0,				//
+							0, 0,						//		dl rf, dl diff
+							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
+							NULL , NULL					// 		*pointer to fitting data and vectors
+						},
 						NULL};							// *param structure pointer
 
 /* -------------------- RUNTIME structure ----------------------*/
