@@ -221,7 +221,7 @@ static void setPidResources(node_t * node) {
 			// set the flag right away, if set..
 			if ((prgset->setdflag) 
 				&& (SCHED_DEADLINE == node->param->attr->sched_policy) 
-				&& (KV_416 <= prgset->kernelversion)) {
+				&& (KV_413 <= prgset->kernelversion)) {
 
 				cont("Set dl_overrun flag for PID %d", node->pid);		
 				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;

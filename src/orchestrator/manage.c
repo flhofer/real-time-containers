@@ -392,7 +392,15 @@ static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 	(void)pthread_mutex_lock(&dataMutex);
 
 	if ((*item)){
+		// compute runtime
 		(*item)->mon.dl_rt = ts - (*item)->mon.last_ts;
+		// check stats and add value
+		if ((*item)->mon.pdf_hist)
+			runstats_inithist(&((*item)->mon.pdf_hist),
+					(*item)->attr.sched_runtime);
+		runstats_addhist((*item)->mon.pdf_hist, (*item)->mon.dl_rt);
+
+		// consolidate other values
 		pickPidCons(*item, ts);
 	}
 
@@ -803,43 +811,60 @@ static int updateStats ()
 	// for now does only a simple update
 	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
-		if (item->pid<0){
+		// skip pid 0, = undefined or ROOT PID (swapper/sched)
+		if (item->pid<=0){
 			item=item->next; 
 			continue;
 		}
 
-		//TODO : move this to the container discovery
 		// update only when defaulting -> new entry, or every 100th scan
-		if (!(scount%prgset->loops) || (SCHED_NODATA == item->attr.sched_policy)) {
-			struct sched_attr attr_act;
-			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
+		if (!(scount%prgset->loops)){
 
-				warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
-			}
+			// update only when defaulting -> new entry, or every 100th scan
+			if (SCHED_NODATA == item->attr.sched_policy) {
+				struct sched_attr attr_act;
+				if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
 
-			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
-				
-				if (SCHED_NODATA != item->attr.sched_policy)
-					info("scheduling attributes changed for pid %d", item->pid);
-				item->attr = attr_act;
-			}
+					warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
+				}
 
-			// set the flag for GRUB reclaim operation if not enabled yet
-			if ((prgset->setdflag) 
-				&& (SCHED_DEADLINE == item->attr.sched_policy) 
-				&& (KV_416 <= prgset->kernelversion) 
-				&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
+				if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
 
-				cont("Set dl_overrun flag for PID %d", item->pid);		
+					if (SCHED_NODATA != item->attr.sched_policy)
+						info("scheduling attributes changed for pid %d", item->pid);
+					item->attr = attr_act;
+				}
 
-				// TODO: DL_overrun flag is set to inform running process of it's overrun
-				// could actually be a problem for the process itself -> depends on task.
-				// May need to set a parameter
-				item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
-				if (sched_setattr (item->pid, &(item->attr), 0U))
-					err_msg_n(errno, "Can not set overrun flag");
-			} 
-		}
+				// set the flag for GRUB reclaim operation if not enabled yet
+				if ((prgset->setdflag)
+					&& (SCHED_DEADLINE == item->attr.sched_policy)
+					&& (KV_413 <= prgset->kernelversion)
+					&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
+
+					cont("Set dl_overrun flag for PID %d", item->pid);
+
+					// TODO: DL_overrun flag is set to inform running process of it's overrun
+					// could actually be a problem for the process itself if it doesn't handle
+					// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
+					// May need to set a parameter
+					item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
+					if (sched_setattr (item->pid, &(item->attr), 0U))
+						err_msg_n(errno, "Can not set overrun flag");
+				}
+			} // end NO_DATA
+
+			/*  Curve Fitting from here, for now every second (default) */
+
+			if (!item->mon.pdf_parm)
+				runstats_initparam(&item->mon.pdf_parm, item->attr.sched_runtime);
+
+			if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
+				warn("Curve fitting solver error for PID %d", item->pid);
+
+			if ((runstats_fithist(&item->mon.pdf_hist)))
+				warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+
+		} // end % Loops
 
 		// get runtime value
 		if (!prgset->ftrace) // use standard debug output for scheduler
@@ -849,6 +874,8 @@ static int updateStats ()
 					err_msg ("reading thread debug details %d", ret);
 				}
 			}
+
+
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex); 
