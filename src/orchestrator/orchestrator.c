@@ -14,10 +14,9 @@
 #include <signal.h> // for SIGs, handling in main, raise in update
 
 // Custom includes
-#include "parse_config.h" // header file of configuration parser
-#include "rt-utils.h"	// trace and other utils
-#include "kernutil.h"	// generic kernel utilities
-#include "error.h"		// error and std error print functions
+#include "parse_config.h"	// header file of configuration parser
+#include "kernutil.h"		// generic kernel utilities
+#include "error.h"			// error and std error print functions
 
 // Things that should be needed only here
 #include <sys/mman.h>		// memory lock

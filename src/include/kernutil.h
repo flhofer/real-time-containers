@@ -1,7 +1,9 @@
 #ifndef __KERNUTIL_H_
 	#define __KERNUTIL_H_
 
-#include <stdio.h>
+	#include <stdio.h>
+	#include <stdint.h>
+	#include <sys/types.h>
 	#include <numa.h>			// NUMA node identification
 
 	enum kernelversion {
@@ -30,5 +32,31 @@
 	// customized pipe operations
 	FILE * popen2(const char * command, const char * type, pid_t * pid);
 	int pclose2(FILE * fp, pid_t pid, int dokill);
+
+	// EX RT-UTILS
+	#define _STR(x) #x
+	#define STR(x) _STR(x)
+	#define MAX_PATH 256 // TODO: review file path max and set global allocation maximum
+
+	char *get_debugfileprefix(void);
+	int mount_debugfs(char *);
+	int get_tracers(char ***);
+	int valid_tracer(char *);
+
+	int setevent(char *event, char *val);
+	int event_enable(char *event);
+	int event_getid(char *event);
+	int event_disable(char *event);
+	int event_enable_all(void);
+	int event_disable_all(void);
+
+	const int policy_is_realtime(int policy);
+	const char *policy_to_string(int policy);
+	int string_to_policy(const char *policy_name, uint32_t *policy);
+
+	uint32_t string_to_affinity(const char *str);
+
+	pid_t gettid(void);
+
 #endif
 

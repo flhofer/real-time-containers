@@ -5,6 +5,10 @@
  *      Author: Florian Hofer
  */
 
+// NOTE -> inspired by rt-app, may need licence header
+// Will change a lot. let's do a first change and then an estimation
+// http://json-c.github.io/json-c/json-c-0.13.1/doc/html/json__object_8h.html#a8c56dc58a02f92cd6789ba5dcb9fe7b1
+
 #include <json-c/json.h>	// libjson-c for parsing
 #include "error.h"		// error and stderr print functions
 

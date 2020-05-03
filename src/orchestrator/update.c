@@ -20,7 +20,6 @@
 #include "orchestrator.h"
 
 #include "orchdata.h"	// memory structure to store information
-#include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "dockerlink.h" // connection to docker runtime
 #include "error.h"		// error and stderr print functions

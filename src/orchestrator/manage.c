@@ -18,7 +18,6 @@
 #include "orchestrator.h"
 
 #include "orchdata.h"	// memory structure to store information
-#include "rt-utils.h"	// trace and other utilities
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
 

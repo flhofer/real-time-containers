@@ -15,7 +15,6 @@
 
 // static library includes
 #include "kernutil.h"		// kernel util data types and functions
-#include "rt-utils.h"	// trace and other utils
 
 #define PFX "[json] "
 #define JSON_FILE_BUF_SIZE 4096

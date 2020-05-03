@@ -23,7 +23,6 @@
 #include <errno.h>			// error numbers and strings
 
 // Custom includes
-#include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and std error print functions
 
