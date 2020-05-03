@@ -331,6 +331,7 @@ runstats_initparam(stat_param ** x, double b){
  * runstats_inithist: inits the histogram data structure
  *
  * Arguments: - pointer to pointer to the memory location for storage
+ * 			  - expected center of distribution
  *
  * Return value: success or error code
  */
@@ -354,6 +355,19 @@ runstats_inithist(stat_hist ** h, double b){
 		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+}
+
+/*
+ * runstats_addhist: inits the histogram data structure
+ *
+ * Arguments: - pointer to the memory location for storage
+ * 			  - expected center of distribution
+ *
+ * Return value: success or error code
+ */
+int
+runstats_addhist(stat_hist * h, double b){
+	return gsl_histogram_increment(h, b);
 }
 
 /*

@@ -27,6 +27,8 @@ int runstats_inithist(stat_hist ** h, double b);	// init histogram data structur
 
 int runstats_solvehist(stat_hist * h, stat_param * x);
 											// fit model (gaussian) to histogram
+int runstats_addhist(stat_hist * h, double b);		// add value to histogram
+
 int runstats_fithist(stat_hist **h);		// fit histogram bins
 
 int runstats_mdlpdf(stat_param * x, double a,
