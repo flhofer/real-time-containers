@@ -433,7 +433,7 @@ int  iret_dlink; // Timeout is set to 4 seconds by default
 /// Return value: result of pthread_create, negative if failed
 ///
 static int startDockerThread() {
-	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
+	iret_dlink = pthread_create( &thread_dlink, NULL, dlink_thread_watch, NULL);
 #ifdef DEBUG
 	(void)pthread_setname_np(thread_dlink, "docker_link");
 #endif

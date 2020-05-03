@@ -93,12 +93,12 @@ enum dockerEvents {
     dkrevnt_update
 	};
 
-/// docker_read_pipe(): read from pipe and parse JSON
+/// read_pipe(): read from pipe and parse JSON
 ///
 /// Arguments: event structure to fill with data from JSON
 ///
 /// Return value: (void)
-static int docker_read_pipe(struct eventData * evnt){
+static int read_pipe(struct eventData * evnt){
 
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
@@ -157,18 +157,18 @@ static int docker_read_pipe(struct eventData * evnt){
 	return 0;
 }
 
-/// docker_check_event(): call pipe read and parse response
+/// check_event(): call pipe read and parse response
 ///
 /// Arguments: - 
 ///
 /// Return value: pointer to valid container event
-static contevent_t * docker_check_event() {
+static contevent_t * check_event() {
 
 	struct eventData evnt;
 	memset(&evnt, 0, sizeof(struct eventData)); // set all pointers to NULL -> init
 
 	// read next element from pipe
-	if (!docker_read_pipe(&evnt))
+	if (!read_pipe(&evnt))
 		return NULL; // return if empty
 
 	// parse element
@@ -211,12 +211,12 @@ static contevent_t * docker_check_event() {
 	return cntevent;
 }
 
-/// thread_watch_docker(): checks for docker events and signals new containers
+/// dlink_thread_watch(): checks for docker events and signals new containers
 ///
 /// Arguments: - 
 ///
 /// Return value: pointer to void (PID exits with error if needed)
-void *thread_watch_docker(void *arg) {
+void *dlink_thread_watch(void *arg) {
 
 	int pstate = 0;
 	pid_t pid;
@@ -291,7 +291,7 @@ void *thread_watch_docker(void *arg) {
 			case 1:
 				if (feof(inpipe))
 					pstate = 4;
-				else if ((cntevent = docker_check_event()))  // new event?
+				else if ((cntevent = check_event()))  // new event?
 					pstate = 2;
 				break;
 
