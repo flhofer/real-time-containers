@@ -15,17 +15,14 @@
 
 // static library includes
 #include "kernutil.h"		// kernel util data types and functions
+#include "parse_func.h"
+#include "cmnutil.h"	// common definitions and functions
 
+#undef PFX
 #define PFX "[json] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
 
-#ifndef TRUE
-	#define TRUE true
-	#define FALSE false
-#endif
-
-#include "parse_func.h"
 
 /// parse_resource_data(): extract parameter values from JSON tokens for resource limits
 ///

@@ -9,7 +9,9 @@
 
 // Custom includes
 #include "orchestrator.h"
-#include "error.h"		// error and std error print functions
+#include "error.h"			// error and std error print functions
+#include "cmnutil.h"	// common definitions and functions
+#include "resmgmt.h"	// resource management for PIDs and Containers
 
 // Things that should be needed only here
 #include <numa.h>			// Numa node identification
@@ -17,11 +19,9 @@
 #include <sched.h>
 
 // TODO: standardize printing
+#undef PFX
 #define PFX "[adapt] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
+
 
 typedef struct resAlloc { 		// resource allocations mapping
 	struct resAlloc *	next;		//
@@ -34,15 +34,6 @@ typedef struct resAlloc { 		// resource allocations mapping
 static resAlloc_t * aHead = NULL;
 
 static struct resTracer * rHead;
-
-// Combining and or bit masks
-#define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
-									  if ((numa_bitmask_isbitset(a, i)) \
-										c (numa_bitmask_isbitset(b, i))) \
-										  numa_bitmask_setbit(b, i);
-
-#define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
-#define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
 
 #define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 #define MAX_UL 0.90

@@ -10,23 +10,17 @@
 // http://json-c.github.io/json-c/json-c-0.13.1/doc/html/json__object_8h.html#a8c56dc58a02f92cd6789ba5dcb9fe7b1
 
 #include <json-c/json.h>	// libjson-c for parsing
-#include "error.h"		// error and stderr print functions
+#include "error.h"			// error and stderr print functions
+#include "cmnutil.h"		// common definitions and functions
 
 // inline parse function for libson-c
 
 #ifndef _PARSE_FUNC_H_
 	#define _PARSE_FUNC_H_
 
-	#ifndef PFX
-		#define PFX "[default] "
-	#endif
-
-	// TODO: standardize this
-	#ifndef PFL
-		#define PFL "         "PFX
-		#define PIN PFX"    "
-		#define PIN2 PIN"    "
-		#define PIN3 PIN2"    "
+	#ifndef TRUE
+		#define TRUE true
+		#define FALSE false
 	#endif
 
 	/* this macro set a default if key not present, or give an error and exit

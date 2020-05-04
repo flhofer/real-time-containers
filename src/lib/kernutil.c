@@ -34,13 +34,10 @@
 #include "rt-sched.h"
 #include "error.h"		// error and strerr print functions
 #include "orchdata.h"
+#include "cmnutil.h"	// common definitions and functions
 
-// TODO: standardize printing
+#undef PFX
 #define PFX "[rt-utils] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
 
 static char debugfileprefix[MAX_PATH];
 

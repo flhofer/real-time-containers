@@ -13,6 +13,13 @@
 		#define printDbg(...) //
 	#endif
 
+	// Common standard printing definitions
+	#define PFX "[orchestrator] "
+	#define PFL "         "PFX
+	#define PIN PFX"    "
+	#define PIN2 PIN"    "
+	#define PIN3 PIN2"    "
+
 	// general log information
 	void debug(char *fmt, ...);
 	void cont(char *fmt, ...);
@@ -41,8 +48,10 @@
 	#define KWHT  "\x1B[37m"
 
 	/* exit codes */
-	#define EXIT_SUCCESS 0
-	#define EXIT_FAILURE 1
+	#ifndef EXIT_SUCCESS
+		#define EXIT_SUCCESS 0
+		#define EXIT_FAILURE 1
+	#endif
 	#define EXIT_INV_CONFIG 2
 	#define EXIT_INV_COMMANDLINE 3
 

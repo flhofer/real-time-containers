@@ -11,7 +11,7 @@ CPP?=$(CROSS_COMPILE)g++
 OBJDIR = build
 
 sources = orchestrator.c
-orcbins = update.o manage.o prepare.o adaptive.o
+orcbins = update.o manage.o prepare.o adaptive.o resmgmt.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas

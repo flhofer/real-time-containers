@@ -7,22 +7,16 @@
 
 #include "kernutil.h"	// used for custom pipes
 #include "error.h"		// error and stderr print functions
+#include "cmnutil.h"	// common definitions and functions
+#include "parse_func.h"
 
-#define USEC_PER_SEC		1000000
-#define NSEC_PER_SEC		1000000000
-#define TIMER_RELTIME		0
+
 #define INTERV_RFSH			1000
 
+#undef PFX
 #define PFX "[dockerlink] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
-
-#ifndef TRUE
-	#define TRUE true
-	#define FALSE false
-#endif
-
-#include "parse_func.h"
 
 int th_return = EXIT_SUCCESS;
 
@@ -37,19 +31,6 @@ static volatile sig_atomic_t dlink_stop;
 static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
 	dlink_stop = 1;
 }
-
-/// tsnorm(): verifies timespec for boundaries + fixes it
-///
-/// Arguments: pointer to timespec to check
-///
-/// Return value: -
-//static inline void tsnorm(struct timespec *ts)
-//{
-//	while (ts->tv_nsec >= NSEC_PER_SEC) {
-//		ts->tv_nsec -= NSEC_PER_SEC;
-//		ts->tv_sec++;
-//	}
-//}
 
 FILE * inpipe;
 pthread_mutex_t containerMutex; // data access mutex

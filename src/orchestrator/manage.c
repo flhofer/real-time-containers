@@ -20,38 +20,18 @@
 #include "orchdata.h"	// memory structure to store information
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
+#include "cmnutil.h"	// common definitions and functions
+#include "kbuffer.h"	// ring-buffer management from trace-event
 
-#include <sys/wait.h>
-#include <numa.h>			// NUMA node identification
-#include <sys/sysinfo.h>	// system general information
+#include <numa.h>		// NUMA node identification
 
-#include "kbuffer.h"		// ring-buffer management from trace-event
+#undef PFX
+#define PFX "[manage] "
+
+#define PIPE_BUFFER			4096
 
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
-
-// for musl systems
-#ifndef _POSIX_PATH_MAX
-	#define _POSIX_PATH_MAX 1024
-#endif
-
-// Included in kernel 4.13
-#ifndef SCHED_FLAG_RECLAIM
-	#define SCHED_FLAG_RECLAIM		0x02
-#endif
-// Included in kernel 4.16
-#ifndef SCHED_FLAG_DL_OVERRUN
-	#define SCHED_FLAG_DL_OVERRUN		0x04
-#endif
-
-// TODO: standardize printing
-#define PFX "[manage] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
-
-#define PIPE_BUFFER			4096
 
 // #################################### THREAD configuration specific ############################################
 
