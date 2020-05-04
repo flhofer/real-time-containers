@@ -11,12 +11,10 @@
 #include "orchestrator.h"
 #include "error.h"			// error and std error print functions
 #include "cmnutil.h"	// common definitions and functions
-#include "resmgmt.h"	// resource management for PIDs and Containers
-
-// Things that should be needed only here
 #include <numa.h>			// Numa node identification
 #include <linux/sched.h>
 #include <sched.h>
+#include "resmgnt.h"	// resource management for PIDs and Containers
 
 // TODO: standardize printing
 #undef PFX

@@ -4,7 +4,7 @@
  *  Created on: May 3, 2020
  *      Author: Florian Hofer
  */
-#include "resmgmt.h"
+#include "resmgnt.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -21,8 +21,8 @@
 #include "kernutil.h"	// generic kernel utilities
 #include "dockerlink.h" // connection to docker runtime
 #include "error.h"		// error and stderr print functions
-#include "resmgmt.h"	// resource management for PIDs and Containers
 #include "cmnutil.h"	// common definitions and functions
+#include "resmgnt.h"	// resource management for PIDs and Containers
 
 // locally globals variables used here ->
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
