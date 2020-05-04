@@ -1,7 +1,7 @@
 #include "orchdata.h"	// grobal memory structures and maniputlation functions
 
-#ifndef __SCHEDSTAT_H_
-	#define __SCHEDSTAT_H_
+#ifndef ORCHESTRATOR_H_
+	#define ORCHESTRATOR_H_
 
 	#define PRGNAME "DC (adaptive) static orchestrator"
 	#ifndef VERSION
