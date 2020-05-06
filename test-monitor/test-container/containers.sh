@@ -23,10 +23,7 @@ else
 	shift
 fi
 
-##################### DETERMINE CLI PARAMETERS ##########################
-
-if [ $# -eq 1 ]; then
-
+function printhelp () {
 cat <<EOF
 Not enough arguments supplied!
 Usag: ./container.sh command testgrp 
@@ -36,23 +33,43 @@ Usag: ./container.sh command testgrp
 Defaults are:
 command = start         command to apply to containers in group
 testgrp = *             all test groups present are applied (once per json)
+
+Commands:
+help                    this screen
+build                   build the containers for all JSON test files
+run                     run container specified
+start                   start container after it has been stopped
+stop                    stop container after it has been stopped
+rm                      remove container
+test                    test run for container (parallel execution of orchestrator)
+update                  update container calibration value
 EOF
         exit 1
+}
+
+##################### DETERMINE CLI PARAMETERS ##########################
+
+if [ $# -eq 1 ]; then
+	printhelp
 fi
 
-cmd=${1:-'start'}
+cmd=${1:-'help'}
 grp=${2:-'*'}
-
 
 ##################### EVALUATE COMMAND OUTPUT ##########################
 
-if [[ "$cmd" == "build" ]]; then
+if [[ "$cmd" == "help" ]]; then
+	printhelp
+
+elif [[ "$cmd" == "build" ]]; then
 # BUILD CONTAINER
+	echo "Build containers"
 
 	eval "docker build . -t testcnt"
 
 elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 # CREATE CONTAINERS OF GRP
+	echo "Run containers"
 
 	eval "mkdir -p log"
 	eval "chown 1000:1000 log"
@@ -75,6 +92,7 @@ elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 
 elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
 # APPLY CMD TO ALL CONTAINERS OF GRP
+	echo "Start containers"
 
 	while [ "$2" != "" ]; do
 		# all matching files
