@@ -25,6 +25,7 @@
 #include "error.h"
 
 #define NUMINT 20
+#define MINCOUNT 1000
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
@@ -367,6 +368,11 @@ runstats_inithist(stat_hist ** h, double b){
  */
 int
 runstats_addhist(stat_hist * h, double b){
+	// reshape into LIMIT
+	if (b > gsl_histogram_max_val(h))
+		b = gsl_histogram_max_val(h);
+	if (b < gsl_histogram_min_val(h))
+		b = gsl_histogram_min_val(h);
 	return gsl_histogram_increment(h, b);
 }
 
@@ -396,6 +402,9 @@ runstats_fithist(stat_hist **h)
 	double mn = gsl_histogram_mean(*h); 	// sample mean
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 	double N = gsl_histogram_sum(*h);
+
+	if (N< MINCOUNT)
+		return GSL_FAILURE; // TODO to fix with skipped
 
 	size_t n = gsl_histogram_bins(*h);
 
@@ -446,6 +455,11 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 			h->range,
 			h->bin,
 			h->n};
+
+	double N = gsl_histogram_sum(h);
+
+	if (N< MINCOUNT)
+		return GSL_FAILURE; // TODO to fix with skipped
 
 	/*
 	 * 	Starting from here, fitting method setup, TRS
