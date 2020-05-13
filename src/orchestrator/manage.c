@@ -297,7 +297,7 @@ static int pickPidCommon(node_t ** item, void * addr, uint64_t ts) {
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-	return sizeof(*pFrame)+8; // TODO 8 zeros?
+	return sizeof(*pFrame); // TODO: not always the case!! +8; // TODO 8 zeros?
 }
 
 /// pickPidInfoW(): process PID fTrace sched_wakeup
@@ -374,10 +374,20 @@ static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 		// compute runtime
 		(*item)->mon.dl_rt = ts - (*item)->mon.last_ts;
 		// check stats and add value
-		if ((*item)->mon.pdf_hist)
-			runstats_inithist(&((*item)->mon.pdf_hist),
-					(*item)->attr.sched_runtime);
-		runstats_addhist((*item)->mon.pdf_hist, (*item)->mon.dl_rt);
+		if (!((*item)->mon.pdf_hist)){
+			double b = (double)(*item)->attr.sched_runtime;
+			if (!b && (*item)->param)
+				b = (double)(*item)->param->attr->sched_runtime;
+			if (!b)
+				b = (double)(*item)->mon.dl_rt;
+			if (!b)
+				b = NSEC_PER_SEC; // failsafe
+			b/= NSEC_PER_SEC;
+			(void)runstats_inithist(&((*item)->mon.pdf_hist), b); // TODO return value
+		}
+
+		double b = (double)(*item)->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+		(void)runstats_addhist((*item)->mon.pdf_hist, b); // TODO return value
 
 		// consolidate other values
 		pickPidCons(*item, ts);
@@ -834,14 +844,19 @@ static int updateStats ()
 
 			/*  Curve Fitting from here, for now every second (default) */
 
-			if (!item->mon.pdf_parm)
-				runstats_initparam(&item->mon.pdf_parm, item->attr.sched_runtime);
+			// histogram already initialized?
+			if (!(scount%(prgset->loops*100)))
+				if (item->mon.pdf_hist){
 
-			if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
-				warn("Curve fitting solver error for PID %d", item->pid);
+				if (!item->mon.pdf_parm)
+					runstats_initparam(&item->mon.pdf_parm, (double)item->attr.sched_runtime/NSEC_PER_SEC);
 
-			if ((runstats_fithist(&item->mon.pdf_hist)))
-				warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+				if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
+					warn("Curve fitting solver error for PID %d", item->pid);
+
+				if ((runstats_fithist(&item->mon.pdf_hist)))
+					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+			}
 
 		} // end % Loops
 
