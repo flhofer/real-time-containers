@@ -40,7 +40,7 @@ struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
-	int (*eventcall)(node_t **, void *, uint64_t); // event elaboration function
+	int (*eventcall)(void *, uint64_t); // event elaboration function
 };
 struct ftrace_elist * elist_head;
 
@@ -87,9 +87,9 @@ static volatile sig_atomic_t ftrace_stop;
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
-static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts);
-static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts);
-static int pickPidInfoR(node_t ** item, void * addr, uint64_t ts);
+static int pickPidInfoW(void * addr, uint64_t ts);
+static int pickPidInfoS(void * addr, uint64_t ts);
+static int pickPidInfoR(void * addr, uint64_t ts);
 
 /// ftrace_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -291,7 +291,7 @@ static void pickPidCons(node_t *item, uint64_t ts){
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidCommon(node_t ** item, void * addr, uint64_t ts) {
+static int pickPidCommon(void * addr, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
@@ -309,9 +309,9 @@ static int pickPidCommon(node_t ** item, void * addr, uint64_t ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts) {
+static int pickPidInfoW(void * addr, uint64_t ts) {
 
-	int ret1 = pickPidCommon(item, addr, ts);
+	int ret1 = pickPidCommon(addr, ts);
 	addr+= ret1;
 
 	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
@@ -319,25 +319,6 @@ static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts) {
 
 	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
 			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
-
-	// TODO: change to RW locks
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
-
-	if ((*item))
-		pickPidCons(*item, ts);
-
-	// reset item, remains null if not found
-	*item=NULL;
-	// for now does only a simple update
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->pid){
-			*item = citem;
-			break;
-		}
-
-	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_wakeup);
 }
@@ -351,9 +332,9 @@ static int pickPidInfoW(node_t ** item, void * addr, uint64_t ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
+static int pickPidInfoS(void * addr, uint64_t ts) {
 
-	int ret1 = pickPidCommon(item, addr, ts);
+	int ret1 = pickPidCommon(addr, ts);
 	addr+= ret1;
 
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
@@ -370,39 +351,30 @@ static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	if ((*item)){
+	// TODO: AAAA leak with *item -> disappears from list after drop-> update inquiry!
+	node_t * item = NULL;
+	if (item){
 		// compute runtime
-		(*item)->mon.dl_rt = ts - (*item)->mon.last_ts;
+		item->mon.dl_rt = ts - item->mon.last_ts;
 		// check stats and add value
-		if (!((*item)->mon.pdf_hist)){
-			double b = (double)(*item)->attr.sched_runtime;
-			if (!b && (*item)->param)
-				b = (double)(*item)->param->attr->sched_runtime;
+		if (!(item->mon.pdf_hist)){
+			double b = (double)item->attr.sched_runtime;
+			if (!b && item->param)
+				b = (double)item->param->attr->sched_runtime;
 			if (!b)
-				b = (double)(*item)->mon.dl_rt;
+				b = (double)item->mon.dl_rt;
 			if (!b)
 				b = NSEC_PER_SEC; // failsafe
 			b/= NSEC_PER_SEC;
-			(void)runstats_inithist(&((*item)->mon.pdf_hist), b); // TODO return value
+			(void)runstats_inithist(&(item->mon.pdf_hist), b); // TODO return value
 		}
 
-		double b = (double)(*item)->mon.dl_rt/NSEC_PER_SEC; // transform to sec
-		(void)runstats_addhist((*item)->mon.pdf_hist, b); // TODO return value
+		double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+		(void)runstats_addhist(item->mon.pdf_hist, b); // TODO return value
 
 		// consolidate other values
-		pickPidCons(*item, ts);
+		pickPidCons(item, ts);
 	}
-
-	// reset item, remains null if not found
-	*item=NULL;
-	// for now does only a simple update
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->next_pid){
-			*item = citem;
-			(*item)->mon.last_ts = ts;
-			break;
-		}
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_switch);
@@ -417,11 +389,11 @@ static int pickPidInfoS(node_t ** item, void * addr, uint64_t ts) {
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidInfoR(node_t ** item, void * addr, uint64_t ts) {
+static int pickPidInfoR(void * addr, uint64_t ts) {
 
 	struct tr_common *pcFrame = (struct tr_common*)addr;
 
-	int ret1 = pickPidCommon(item, addr, ts);
+	int ret1 = pickPidCommon( addr, ts);
 	addr+= ret1;
 
 	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
@@ -434,27 +406,22 @@ static int pickPidInfoR(node_t ** item, void * addr, uint64_t ts) {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// reset item, remains null if not found
-	if (!(*item) || ((*item) && (*item)->pid != pFrame->pid)) {
-		if ((*item))
-			pickPidCons(*item, ts);
-
-		*item=NULL;
-		// for now does only a simple update
-		for (node_t * citem = nhead; ((citem)); citem=citem->next )
-			// skip deactivated tracking items
-			if (abs(citem->pid)==pFrame->pid){
-				*item = citem;
-				break;
-			}
-	}
+	// working item
+	node_t * item = NULL;
+	// for now does only a simple update of runtime
+	for (node_t * citem = nhead; ((citem)); citem=citem->next )
+		// skip deactivated tracking items
+		if (abs(citem->pid)==pFrame->pid){
+			item = citem;
+			break;
+		}
 
 	// item deactivated -> TODO actually an error!
-	if ((*item) && (*item)->pid > 0) {
-		(*item)->mon.dl_rt += pFrame->runtime;
-		(*item)->mon.last_ts = ts;
-		(*item)->mon.dl_scanfail += pcFrame->common_preempt_count;
-		(*item)->mon.dl_count++;
+	if (item && item->pid > 0) {
+		item->mon.dl_rt += pFrame->runtime;
+		item->mon.last_ts = ts;
+		item->mon.dl_scanfail += pcFrame->common_preempt_count;
+		item->mon.dl_count++;
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
@@ -477,7 +444,6 @@ void *thread_ftrace(void *arg){
 
 	unsigned char buffer[PIPE_BUFFER];
 	void *pEvent;
-	node_t * item;
 	struct kbuffer * kbuf; // kernel ring buffer structure
 	unsigned long long timestamp; // event time stamp, based on up-time in ns (using long long for compatibility kbuffer library)
 
@@ -575,7 +541,7 @@ void *thread_ftrace(void *arg){
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
 			while ((pEvent)  && (!ftrace_stop)) {
-				int (*eventcall)(node_t **, void *, uint64_t); // = pickPidCommon; // TODO: default to common? still needed?
+				int (*eventcall)(void *, uint64_t) = pickPidCommon; // TODO: default to common? still needed?
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					// check for ID, first value is 16 bit ID
@@ -585,7 +551,7 @@ void *thread_ftrace(void *arg){
 					}
 
 				// call event
-				int count = eventcall(&item, pEvent, timestamp);
+				int count = eventcall(pEvent, timestamp);
 				if (0 > count){
 					// something went wrong, dump and exit
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
