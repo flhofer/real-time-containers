@@ -372,10 +372,10 @@ runstats_inithist(stat_hist ** h, double b){
 double
 runstats_shapehist(stat_hist * h, double b){
 	// reshape into LIMIT -> refactor!
-	if (b > gsl_histogram_max(h))
-		b = gsl_histogram_max(h);
+	if (b >= gsl_histogram_max(h))
+		b = gsl_histogram_max(h) * 0.97; // TODO: fix border thing
 	if (b < gsl_histogram_min(h))
-		b = gsl_histogram_min(h);
+		b = gsl_histogram_min(h) * 1.03; // TODO: fix border thing
 	return b;
 }
 
@@ -396,7 +396,7 @@ runstats_verifyparam(stat_hist * h, stat_param * x){
 	double max = gsl_histogram_max(h);
 
 	return ( min > b || max < b					// center out of range
-			 || (min <= b-c && max >= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
+			 || (min > b-c && max <= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
 			?  GSL_FAILURE : GSL_SUCCESS;
 }
 
@@ -443,6 +443,9 @@ runstats_fithist(stat_hist **h)
 
 	if (N< MINCOUNT)
 		return GSL_FAILURE; // TODO to fix with skipped
+
+	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 10% of mean
+		sd = mn * 0.01;
 
 	size_t n = gsl_histogram_bins(*h);
 
@@ -618,13 +621,13 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 int
 runstats_printparam(stat_param * x, char * str, size_t len){
 
-	if (!str || len <= 42) // total length of format string TODO: better way?
+	if (!str || len < 40) // total length of format string TODO: better way?
 		return GSL_FAILURE; // TODO verify correct return value
 
 	double a = gsl_vector_get(x, 0);
 	double b = gsl_vector_get(x, 1);
 	double c = gsl_vector_get(x, 2);
-	(void)sprintf(str, "%3.9f %3.9f %3.9f");
+	(void)sprintf(str, "%12.9f %12.9f %12.9f", a, b, c);
 
 	return GSL_SUCCESS;
 }
