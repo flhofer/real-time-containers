@@ -18,6 +18,8 @@
 	#define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
 	#define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
 
+	// WARN! node is assumed to be already locked!
 	void setPidResources(node_t * node);	// set resources of PID in memory (new or update)
+	void updatePidAttr(node_t * node);		// update PID scheduling attributes and set flags if needed
 
 #endif /* RESMGMT_H_ */

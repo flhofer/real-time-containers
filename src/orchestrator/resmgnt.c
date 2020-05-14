@@ -170,3 +170,45 @@ void setPidResources(node_t * node) {
 			RLIMIT_DATA, "Data-Limit" );
 	}
 }
+
+/*
+ * updatePidAttr () : update PID scheduling attributes and check for flags (update)
+ *
+ * Arguments: - node_t item
+ *
+ * Return value: -
+ */
+void updatePidAttr(node_t * node){
+	// storage for actual attributes
+	struct sched_attr attr_act;
+
+	// try reading
+	if (sched_getattr (node->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0){
+		warn("Unable to read parameters for PID %d: %s", node->pid, strerror(errno));
+		return;
+	}
+
+	if (memcmp(&(node->attr), &attr_act, sizeof(struct sched_attr))) {
+		// inform if attributes changed
+		if (SCHED_NODATA != node->attr.sched_policy)
+			info("Scheduling attributes changed for pid %d", node->pid);
+		node->attr = attr_act;
+	}
+
+	// set the flag for GRUB reclaim operation if not enabled yet
+	if ((prgset->setdflag)															// set flag parameter enabled
+		&& (SCHED_DEADLINE == node->attr.sched_policy)								// deadline scheduling task
+		&& (KV_413 <= prgset->kernelversion)										// kernel version sufficient
+		&& !(SCHED_FLAG_RECLAIM == (node->attr.sched_flags & SCHED_FLAG_RECLAIM))){	// flag not set yet
+
+		cont("Set dl_overrun flag for PID %d", node->pid);
+
+		// TODO: DL_overrun flag is set to inform running process of it's overrun
+		// could actually be a problem for the process itself if it doesn't handle
+		// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
+		// May need to set a parameter
+		node->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN; // TODO test if 4.15 has DL_overrun
+		if (sched_setattr (node->pid, &(node->attr), 0U))
+			err_msg_n(errno, "Can not set overrun flag");
+	}
+}
