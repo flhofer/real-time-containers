@@ -136,6 +136,8 @@ static int configureTracers(){
 
 	printDbg(PFX "Present tracers, status %d\n", notrace);
 
+	// TODO enable affinity cpus only
+
 	if (2 == notrace) {
 		char * dbgpfx = get_debugfileprefix();
 
@@ -271,6 +273,14 @@ static int stopTraceRead() {
 
 static void pickPidCons(node_t *item, uint64_t ts){
 
+	// -> what if we read the debug output here??
+
+	if (SCHED_DEADLINE == item->attr.sched_policy)
+		// did we skip a deadline update? TODO: check if we can sync it
+		while (item->mon.dl_deadline < ts)
+			// TODO: what if sched_deadline is not set?
+			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
@@ -297,8 +307,11 @@ static int pickPidCommon(void * addr, uint64_t ts) {
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-	if (pFrame->common_flags > 1)
-		{ int i = 1; i++; }
+	if (pFrame->common_flags != 1)
+		{
+		// print the flag found, if different from 1
+		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
+		}
 
 	return sizeof(*pFrame); // TODO: not always the case!! +8; // TODO 8 zeros?
 }
@@ -804,58 +817,54 @@ static int updateStats ()
 		}
 
 		// update only when defaulting -> new entry, or every 100th scan
-		if (!(scount%prgset->loops)){
+		if (!(scount%prgset->loops)
+			|| (SCHED_NODATA == item->attr.sched_policy)) {
 
-			// update only when defaulting -> new entry, or every 100th scan
-			if (SCHED_NODATA == item->attr.sched_policy) {
-				struct sched_attr attr_act;
-				if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
+			struct sched_attr attr_act;
+			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
 
-					warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
-				}
-
-				if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
-
-					if (SCHED_NODATA != item->attr.sched_policy)
-						info("scheduling attributes changed for pid %d", item->pid);
-					item->attr = attr_act;
-				}
-
-				// set the flag for GRUB reclaim operation if not enabled yet
-				if ((prgset->setdflag)
-					&& (SCHED_DEADLINE == item->attr.sched_policy)
-					&& (KV_413 <= prgset->kernelversion)
-					&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
-
-					cont("Set dl_overrun flag for PID %d", item->pid);
-
-					// TODO: DL_overrun flag is set to inform running process of it's overrun
-					// could actually be a problem for the process itself if it doesn't handle
-					// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
-					// May need to set a parameter
-					item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
-					if (sched_setattr (item->pid, &(item->attr), 0U))
-						err_msg_n(errno, "Can not set overrun flag");
-				}
-			} // end NO_DATA
-
-			/*  Curve Fitting from here, for now every second (default) */
-
-			// histogram already initialized?
-			if (!(scount%(prgset->loops*100)))
-				if (item->mon.pdf_hist){
-
-				if (!item->mon.pdf_parm)
-					runstats_initparam(&item->mon.pdf_parm, (double)item->attr.sched_runtime/NSEC_PER_SEC);
-
-				if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
-					warn("Curve fitting solver error for PID %d", item->pid);
-
-				if ((runstats_fithist(&item->mon.pdf_hist)))
-					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+				warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
 			}
 
+			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
+
+				if (SCHED_NODATA != item->attr.sched_policy)
+					info("scheduling attributes changed for pid %d", item->pid);
+				item->attr = attr_act;
+			}
+
+			// set the flag for GRUB reclaim operation if not enabled yet
+			if ((prgset->setdflag)
+				&& (SCHED_DEADLINE == item->attr.sched_policy)
+				&& (KV_413 <= prgset->kernelversion)
+				&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
+
+				cont("Set dl_overrun flag for PID %d", item->pid);
+
+				// TODO: DL_overrun flag is set to inform running process of it's overrun
+				// could actually be a problem for the process itself if it doesn't handle
+				// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
+				// May need to set a parameter
+				item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
+				if (sched_setattr (item->pid, &(item->attr), 0U))
+					err_msg_n(errno, "Can not set overrun flag");
+			}
 		} // end % Loops
+		/*  Curve Fitting from here, for now every second (default) */
+
+		// histogram already initialized?
+		if (!(scount%(prgset->loops*100)))
+			if (item->mon.pdf_hist){
+
+			if (!item->mon.pdf_parm)
+				runstats_initparam(&item->mon.pdf_parm, (double)item->attr.sched_runtime/NSEC_PER_SEC);
+
+			if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
+				warn("Curve fitting solver error for PID %d", item->pid);
+
+			if ((runstats_fithist(&item->mon.pdf_hist)))
+				warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+		}
 
 		// get runtime value
 		if (!prgset->ftrace) // use standard debug output for scheduler
