@@ -26,16 +26,22 @@ int runstats_initparam(stat_param ** x, double b);	// init parameter vector
 int runstats_inithist(stat_hist ** h, double b);	// init histogram data structure
 
 int runstats_solvehist(stat_hist * h, stat_param * x);
-											// fit model (gaussian) to histogram
+													// fit model (gaussian) to histogram
+int runstats_verifyparam(stat_hist * h, stat_param * x);
+													// verify parameter and histogram areas match
+double runstats_shapehist(stat_hist * h, double b);	// shape value to histogram borders
 int runstats_addhist(stat_hist * h, double b);		// add value to histogram
 
-int runstats_fithist(stat_hist **h);		// fit histogram bins
+int runstats_fithist(stat_hist **h);				// fit histogram bins
 
 int runstats_mdlpdf(stat_param * x, double a,
 		double b, double * p, double * error);
 
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);
+
+int runstats_printparam(stat_param * x, char * str, size_t len);
+													// "print" parameters to buffer
 
 void runstats_freeparam(stat_param * x);
 void runstats_freehist(stat_hist * h);

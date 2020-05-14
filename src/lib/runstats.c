@@ -25,7 +25,8 @@
 #include "error.h"
 
 #define NUMINT 20
-#define MINCOUNT 1000
+#define MINCOUNT 100
+#define STARTBINS 30
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
@@ -320,6 +321,7 @@ runstats_initparam(stat_param ** x, double b){
 		return GSL_ENOMEM;
 	}
 
+	// TODO:  make configurable through external values
 	/* (Gaussian) fitting model starting parameters, updated through iterations */
 	gsl_vector_set(*x, 0, 100.0);  		/* amplitude */
 	gsl_vector_set(*x, 1, b * 1.02); 	/* center */
@@ -339,7 +341,8 @@ runstats_initparam(stat_param ** x, double b){
 int
 runstats_inithist(stat_hist ** h, double b){
 
-	size_t n = 300;				// number of bins to fit
+	// TODO:  make configurable through external values
+	size_t n = STARTBINS;		// number of bins to fit
 	double bin_min = b * 0.70;	// use +-30% range
 	double bin_max = b * 1.30;
 
@@ -359,21 +362,56 @@ runstats_inithist(stat_hist ** h, double b){
 }
 
 /*
- * runstats_addhist: inits the histogram data structure
+ * runstats_shapehist: adjust the value to stay in histogram range
+ *
+ * Arguments: - pointer to the histogram
+ * 			  - value to check
+ *
+ * Return value: returns the adjusted value
+ */
+double
+runstats_shapehist(stat_hist * h, double b){
+	// reshape into LIMIT -> refactor!
+	if (b > gsl_histogram_max(h))
+		b = gsl_histogram_max(h);
+	if (b < gsl_histogram_min(h))
+		b = gsl_histogram_min(h);
+	return b;
+}
+
+/*
+ * runstats_verifyparam: check if the two coincide in range
+ *
+ * Arguments: - pointer to the histogram
+ * 			  - pointer to the parameter vector
+ *
+ * Return value: success or error code
+ */
+int
+runstats_verifyparam(stat_hist * h, stat_param * x){
+	double b = gsl_vector_get(x, 1);
+	double c = gsl_vector_get(x, 2);
+
+	double min = gsl_histogram_min(h);
+	double max = gsl_histogram_max(h);
+
+	return ( min > b || max < b					// center out of range
+			 || (min <= b-c && max >= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
+			?  GSL_FAILURE : GSL_SUCCESS;
+}
+
+/*
+ * runstats_addhist: increases the count of an occurrence value
  *
  * Arguments: - pointer to the memory location for storage
- * 			  - expected center of distribution
+ * 			  - occurrence value
  *
  * Return value: success or error code
  */
 int
 runstats_addhist(stat_hist * h, double b){
-//	// reshape into LIMIT -> refactor!
-//	if (b > gsl_histogram_max(h))
-//		b = gsl_histogram_max(h);
-//	if (b < gsl_histogram_min(h))
-//		b = gsl_histogram_min(h);
-	return gsl_histogram_increment(h, b);
+	return gsl_histogram_increment(h,
+			runstats_shapehist(h, b));
 }
 
 /*
@@ -568,6 +606,29 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
+
+/*
+ * runstats_printparam: adjust the value to stay in histogram range
+ *
+ * Arguments: - pointer to the histogram
+ * 			  - value to check
+ *
+ * Return value: returns the adjusted value
+ */
+int
+runstats_printparam(stat_param * x, char * str, size_t len){
+
+	if (!str || len <= 42) // total length of format string TODO: better way?
+		return GSL_FAILURE; // TODO verify correct return value
+
+	double a = gsl_vector_get(x, 0);
+	double b = gsl_vector_get(x, 1);
+	double c = gsl_vector_get(x, 2);
+	(void)sprintf(str, "%3.9f %3.9f %3.9f");
+
+	return GSL_SUCCESS;
+}
+
 
 /*
  * runstats_freeparam() : free parameter vector
