@@ -824,11 +824,9 @@ static int updateStats ()
 
 		/*  Curve Fitting from here, for now every second (default) */
 
-		// histogram already initialized?
-		if (!(scount%(prgset->loops*100)))
+		// histogram already initialized? // TODO: unlink from update -> high computation all in parallel
+		if (!(scount%(prgset->loops*10)))
 			if (item->mon.pdf_hist){
-
-
 
 			if ((!item->mon.pdf_parm)
 				||	runstats_verifyparam(item->mon.pdf_hist, item->mon.pdf_parm)){
@@ -839,9 +837,11 @@ static int updateStats ()
 				// TODO: fix value sure in the range of the histogram
 				double mn = (double)item->mon.rt_avg;
 				if (!mn)
-				  mn = (double)item->attr.sched_runtime/NSEC_PER_SEC;
+				  mn = (double)item->attr.sched_runtime;
 				if (!mn && item->param && item->param->attr)
-  				  mn = (double)item->attr.sched_runtime/NSEC_PER_SEC;
+  				  mn = (double)item->attr.sched_runtime;
+				mn/=(double)NSEC_PER_SEC; // format to secs
+
 				// if still 0, don't know what to do.. -> at least bind it to range
 				mn = runstats_shapehist(item->mon.pdf_hist, mn);
 
@@ -910,12 +910,16 @@ static void dumpStats (){
 				break;
 
 			case SCHED_DEADLINE:
-				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+				;
+				char * curve = malloc(50);
+				int  ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
 					abs(item->pid), item->pid<0 ? '*' : ' ',
 					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 					item->mon.dl_count, item->mon.dl_scanfail,
 					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
+					ret ? "none" : curve );
 				break;
 			}
 }
