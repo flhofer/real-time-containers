@@ -22,6 +22,7 @@
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"	// common definitions and functions
 #include "kbuffer.h"	// ring-buffer management from trace-event
+#include "resmgnt.h"	// PID and resource management
 
 #include <numa.h>		// NUMA node identification
 
@@ -385,12 +386,12 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 
 		// TODO: call only if Need-Resched is set
 		{
-			// check stats and add value
+			// check statistics and add value
 			if (!(item->mon.pdf_hist)){
 				// base for histogram, runtime parameter
 				double b = (double)item->attr.sched_runtime;
 				// --, try prefix if none loaded
-				if (!b && item->param)
+				if (!b && item->param && item->param->attr)
 					b = (double)item->param->attr->sched_runtime;
 				// -- fall-back to last runtime
 				if (!b)
@@ -818,46 +819,34 @@ static int updateStats ()
 
 		// update only when defaulting -> new entry, or every 100th scan
 		if (!(scount%prgset->loops)
-			|| (SCHED_NODATA == item->attr.sched_policy)) {
+			|| (SCHED_NODATA == item->attr.sched_policy))
+			updatePidAttr(item);
 
-			struct sched_attr attr_act;
-			if (sched_getattr (item->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0) {
-
-				warn("Unable to read parameters for PID %d: %s", item->pid, strerror(errno));
-			}
-
-			if (memcmp(&(item->attr), &attr_act, sizeof(struct sched_attr))) {
-
-				if (SCHED_NODATA != item->attr.sched_policy)
-					info("scheduling attributes changed for pid %d", item->pid);
-				item->attr = attr_act;
-			}
-
-			// set the flag for GRUB reclaim operation if not enabled yet
-			if ((prgset->setdflag)
-				&& (SCHED_DEADLINE == item->attr.sched_policy)
-				&& (KV_413 <= prgset->kernelversion)
-				&& !(SCHED_FLAG_RECLAIM == (item->attr.sched_flags & SCHED_FLAG_RECLAIM))){
-
-				cont("Set dl_overrun flag for PID %d", item->pid);
-
-				// TODO: DL_overrun flag is set to inform running process of it's overrun
-				// could actually be a problem for the process itself if it doesn't handle
-				// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
-				// May need to set a parameter
-				item->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN;
-				if (sched_setattr (item->pid, &(item->attr), 0U))
-					err_msg_n(errno, "Can not set overrun flag");
-			}
-		} // end % Loops
 		/*  Curve Fitting from here, for now every second (default) */
 
 		// histogram already initialized?
 		if (!(scount%(prgset->loops*100)))
 			if (item->mon.pdf_hist){
 
-			if (!item->mon.pdf_parm)
-				runstats_initparam(&item->mon.pdf_parm, (double)item->attr.sched_runtime/NSEC_PER_SEC);
+
+
+			if ((!item->mon.pdf_parm)
+				||	runstats_verifyparam(item->mon.pdf_hist, item->mon.pdf_parm)){
+
+				if (item->mon.pdf_parm)	// if re-instantiate, free first
+					runstats_freeparam(item->mon.pdf_parm);
+
+				// TODO: fix value sure in the range of the histogram
+				double mn = (double)item->mon.rt_avg;
+				if (!mn)
+				  mn = (double)item->attr.sched_runtime/NSEC_PER_SEC;
+				if (!mn && item->param && item->param->attr)
+  				  mn = (double)item->attr.sched_runtime/NSEC_PER_SEC;
+				// if still 0, don't know what to do.. -> at least bind it to range
+				mn = runstats_shapehist(item->mon.pdf_hist, mn);
+
+				runstats_initparam(&item->mon.pdf_parm, mn);
+			}
 
 			if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
 				warn("Curve fitting solver error for PID %d", item->pid);
