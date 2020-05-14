@@ -297,6 +297,9 @@ static int pickPidCommon(void * addr, uint64_t ts) {
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
+	if (pFrame->common_flags > 1)
+		{ int i = 1; i++; }
+
 	return sizeof(*pFrame); // TODO: not always the case!! +8; // TODO 8 zeros?
 }
 
@@ -351,30 +354,58 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// TODO: AAAA leak with *item -> disappears from list after drop-> update inquiry!
+	// working item
 	node_t * item = NULL;
-	if (item){
-		// compute runtime
-		item->mon.dl_rt = ts - item->mon.last_ts;
-		// check stats and add value
-		if (!(item->mon.pdf_hist)){
-			double b = (double)item->attr.sched_runtime;
-			if (!b && item->param)
-				b = (double)item->param->attr->sched_runtime;
-			if (!b)
-				b = (double)item->mon.dl_rt;
-			if (!b)
-				b = NSEC_PER_SEC; // failsafe
-			b/= NSEC_PER_SEC;
-			(void)runstats_inithist(&(item->mon.pdf_hist), b); // TODO return value
+
+	// find previous pid switching from
+	for (node_t * citem = nhead; ((citem)); citem=citem->next )
+		// skip deactivated tracking items
+		if (abs(citem->pid)==pFrame->prev_pid){
+			item = citem;
+			break;
 		}
 
-		double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
-		(void)runstats_addhist(item->mon.pdf_hist, b); // TODO return value
+	// pid in list, update data
+	if (item){
+		// compute runtime - limit between 1ns and 1 sec TODO fix that! no constants
+		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
 
-		// consolidate other values
-		pickPidCons(item, ts);
+		// TODO: call only if Need-Resched is set
+		{
+			// check stats and add value
+			if (!(item->mon.pdf_hist)){
+				// base for histogram, runtime parameter
+				double b = (double)item->attr.sched_runtime;
+				// --, try prefix if none loaded
+				if (!b && item->param)
+					b = (double)item->param->attr->sched_runtime;
+				// -- fall-back to last runtime
+				if (!b)
+					b = (double)item->mon.dl_rt; // at least 1ns
+
+				if ((runstats_inithist(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
+					warn("Curve fitting parameter init failure for PID %d", item->pid);
+			}
+
+			double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+			int ret;
+			if ((ret = runstats_addhist(item->mon.pdf_hist, b)))
+				if (ret != 1) // GSL_EDOM
+					warn("Curve fitting histogram increment error for PID %d", item->pid);
+
+			// consolidate other values
+			pickPidCons(item, ts);
+		}
 	}
+
+	// find mext pid and put ts
+	for (node_t * citem = nhead; ((citem)); citem=citem->next )
+		// skip deactivated tracking items
+		if (abs(citem->pid)==pFrame->next_pid){
+			citem->mon.last_ts = ts;
+			break;
+		}
+
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_switch);

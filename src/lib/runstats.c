@@ -368,11 +368,11 @@ runstats_inithist(stat_hist ** h, double b){
  */
 int
 runstats_addhist(stat_hist * h, double b){
-	// reshape into LIMIT
-	if (b > gsl_histogram_max_val(h))
-		b = gsl_histogram_max_val(h);
-	if (b < gsl_histogram_min_val(h))
-		b = gsl_histogram_min_val(h);
+//	// reshape into LIMIT -> refactor!
+//	if (b > gsl_histogram_max(h))
+//		b = gsl_histogram_max(h);
+//	if (b < gsl_histogram_min(h))
+//		b = gsl_histogram_min(h);
 	return gsl_histogram_increment(h, b);
 }
 
