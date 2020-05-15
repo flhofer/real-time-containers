@@ -912,7 +912,9 @@ static void dumpStats (){
 			case SCHED_DEADLINE:
 				;
 				char * curve = malloc(50);
-				int  ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+				int  ret = -1; // default not present
+				if (item->mon.pdf_parm)
+					ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
 				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
 					abs(item->pid), item->pid<0 ? '*' : ' ',
 					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
@@ -920,6 +922,7 @@ static void dumpStats (){
 					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
 					ret ? "none" : curve );
+				free (curve);
 				break;
 			}
 }
