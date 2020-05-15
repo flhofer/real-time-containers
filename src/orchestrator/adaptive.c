@@ -20,7 +20,6 @@
 #undef PFX
 #define PFX "[adapt] "
 
-
 typedef struct resAlloc { 		// resource allocations mapping
 	struct resAlloc *	next;		//
 	struct bitmask * 	affinity;	// computed affinity candidates
@@ -105,12 +104,12 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	uint64_t used = res->usedPeriod;
 	uint64_t basec = par->sched_period;
 	int rv = 3; // perfect match -> all cases max value default
+	int rvbonus = 1;
 
-	// TODO: case areas are NOT a new scope
-	// TODO: generic checks for 0 base, basec
 	switch (par->sched_policy) {
 
 	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	// TODO: sched_runtime == 0, no value, why reset to 1 second?
 	default:
 		if (0 == base || 0 == par->sched_runtime){
 			base = 1000000000; // default to 1 second)
@@ -167,15 +166,12 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 */
 	case SCHED_FIFO:
 
-		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;
 			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
 			break;
 		}
-
-		int rvbonus = 1;
 
 		// if unused, set to this period
 		if (0 == basec){
@@ -222,17 +218,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		used += par->sched_runtime * base/basec;
 		break;
 
-	/* TODO: review
+	/*
 	 *	RR return values for different situations
-	 *	1000 .. perfect match desired repetition matches period of resources
-	 *	   2 .. empty CPU, = perfect fit on new CPU
-	 *     1 .. recalculation of period, but new is perfect fit to both
-	 *     0 .. recompute needed
+	 *	 3 .. perfect match desired repetition matches period of resources
+	 *	 2 .. empty CPU, = perfect fit on new CPU
+	 *   1 .. recalculation of period, but new is perfect fit to both
+	 *   0 .. recompute needed
 	 *  all with +1 bonus if runtime fits remaining UL
 	 */
 	case SCHED_RR:
 
-		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;

@@ -98,6 +98,7 @@ void setPidResources(node_t * node) {
 		if (DM_CGRP == prgset->use_cgroup) {
 			if (0 <= (node->param->rscs->affinity)) {
 
+				// TODO: Function reallocate container
 				char *contp = NULL;
 				char affinity[11];
 				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
