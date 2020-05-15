@@ -202,12 +202,14 @@ void updatePidAttr(node_t * node){
 		&& !(SCHED_FLAG_RECLAIM == (node->attr.sched_flags & SCHED_FLAG_RECLAIM))){	// flag not set yet
 
 		cont("Set dl_overrun flag for PID %d", node->pid);
-
+		node->attr.sched_flags |= SCHED_FLAG_RECLAIM;
 		// TODO: DL_overrun flag is set to inform running process of it's overrun
 		// could actually be a problem for the process itself if it doesn't handle
 		// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
 		// May need to set a parameter
-		node->attr.sched_flags |= SCHED_FLAG_RECLAIM | SCHED_FLAG_DL_OVERRUN; // TODO test if 4.15 has DL_overrun
+		if (KV_416 <= prgset->kernelversion ) // works only on newer versions
+			node->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
+
 		if (sched_setattr (node->pid, &(node->attr), 0U))
 			err_msg_n(errno, "Can not set overrun flag");
 	}
