@@ -340,11 +340,12 @@ struct bitmask *parse_cpumask(const char *option)
 ///
 /// Arguments: - pointer to bitmask
 /// 		   - returning string
+///			   - size of string
 ///
 /// Return value: error code if present
 ///
-// TODO: size of string!
-int parse_bitmask(struct bitmask *mask, char * str){
+/// TODO: WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
+int parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	// base case check
 	if (!mask || !str)
 		return -1;
@@ -355,6 +356,10 @@ int parse_bitmask(struct bitmask *mask, char * str){
 	str [0] = '\0';
 
 	for (int i=0; i<sz; i++){
+		if (!len){
+			err_msg("String too small for data");
+			return -1;
+		}
 		if (numa_bitmask_isbitset(mask, i)){
 			// set bit found
 
@@ -362,12 +367,15 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				// first of sequence?
 
 				fd = i; // found and start range bit number
+				len-=2;	// remaining space decreases
 				if (!strlen(str))
 					// first at all?
 					(void)sprintf(str, "%d", fd);
+
 				else{
 					(void)sprintf(num, ",%d", fd);
 					(void)strcat(str, num);
+					len--; // 1 decrease more, comma
 				}
 				rg = fd; // end range bit number 
 			}
@@ -380,11 +388,12 @@ int parse_bitmask(struct bitmask *mask, char * str){
 				// end of 1-bit sequence, print end of range
 				(void)sprintf(num, "-%d",rg);
 				(void)strcat(str, num);
+				len-=3; // 3 character string
 			}
 			fd = rg = -1; // reset range
 		}
 	}
-	printDbg("Parsed bitmask: %s\n", str);
+	printDbg("Parsed bit-mask: %s\n", str);
 	return 0;
 }
 

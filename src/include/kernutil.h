@@ -26,7 +26,7 @@
 	int getkernvar(const char *prefix, const char *name, char *value, int size);
 
 	// affinity and CPU bit-masks
-	int parse_bitmask(struct bitmask *mask, char * str);
+	int parse_bitmask(struct bitmask *mask, char * str, size_t len);
 	struct bitmask *parse_cpumask(const char *option);
 
 	// customized pipe operations
