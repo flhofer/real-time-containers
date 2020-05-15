@@ -25,6 +25,7 @@
 // Custom includes
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and std error print functions
+#include "cmnutil.h"	// common definitions and functions
 
 // Things that should be needed only here
 #include <pthread.h>// used for thread management
@@ -177,8 +178,8 @@ int prepareEnvironment(prgset_t *set) {
 	int maxcpu = get_nprocs();
 	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
 
-	char cpus[10]; // cpu allocation string
-	char constr[10]; // cpu online string
+	char cpus[CPUSTRLEN]; // cpu allocation string
+	char constr[CPUSTRLEN]; // cpu online string
 	char str[100]; // generic string...
 
 	info("This system has %d processors configured and "
@@ -333,7 +334,7 @@ int prepareEnvironment(prgset_t *set) {
 
 
 	// parse to string
-	if (parse_bitmask (naffinity, cpus))
+	if (parse_bitmask (naffinity, cpus, CPUSTRLEN))
 		err_exit ("can not determine inverse affinity mask!");
 
 	// verify our capability mask

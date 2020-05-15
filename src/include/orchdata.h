@@ -13,7 +13,6 @@
 	#define MAXCMDLINE 1024		// maximum command line signature buffer
 	// limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
-	#define SCHED_FAFMSK 0xE000	// flexible affinity mask
 
 	#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 	#define MIN(x, y) (((x) < (y)) ? (x) : (y))

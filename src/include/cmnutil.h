@@ -12,6 +12,8 @@
 	#define NSEC_PER_SEC		1000000000
 	#define TIMER_RELTIME		0
 
+	#define CPUSTRLEN			64	// max length of a bit-mask CPU string
+
 	// Included in kernel 4.13
 	#ifndef SCHED_FLAG_RECLAIM
 		#define SCHED_FLAG_RECLAIM		0x02
