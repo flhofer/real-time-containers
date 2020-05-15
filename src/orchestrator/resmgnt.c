@@ -54,6 +54,65 @@ static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t typ
 	}
 }
 
+/*
+ *	setPidAffinity: sets the affinity of a PID
+ *
+ *	Arguments: - pointer to node with data
+ *			   - bit-mask for affinity
+ *
+ *	Return value: -
+ */
+static void
+setPidAffinity (node_t * node, struct bitmask * cset){
+	// add PID to docker CGroup
+	char pid[6]; // PID is 5 digits + \0
+	(void)sprintf(pid, "%d", node->pid);
+
+	if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
+		printDbg( "Warn! Can not move task %s\n", pid);
+	}
+
+	// Set affinity
+	if (numa_sched_setaffinity(node->pid, cset))
+		err_msg_n(errno,"setting affinity for PID %d",
+			node->pid);
+	else
+		cont("PID %d reassigned to CPU%d", node->pid,
+			node->param->rscs->affinity);
+}
+
+/*
+ *	setContainerAffinity: sets the affinity of a container
+ *
+ *	Arguments: - pointer to node with data
+ *			   - bit-mask for affinity
+ *
+ *	Return value: -
+ */
+static void
+setContainerAffinity(node_t * node, struct bitmask * cset){
+	char *contp = NULL;
+	char affinity[CPUSTRLEN];
+
+	if (parse_bitmask (cset, affinity, CPUSTRLEN))
+			err_msg("Can not determine inverse affinity mask!");
+
+	cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
+	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
+		contp[0] = '\0';   // ensures the memory is an empty string
+		// copy to new prefix
+		contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);
+
+		if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+			warn("Can not set CPU-affinity");
+		}
+	}
+	else
+		warn("malloc failed!");
+
+	free (contp);
+}
+
 /// setPidResources(): set PID resources at first detection
 /// Arguments: - pointer to PID item (node_t)
 ///
@@ -78,10 +137,10 @@ void setPidResources(node_t * node) {
 		if (0 <= node->param->rscs->affinity) {
 			// CPU affinity defined to one CPU? set!
 			(void)numa_bitmask_clearall(cset);
-			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity & ~(SCHED_FAFMSK)); // TODO: ?? FAFMSK
+			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
 		}
 		else
-			// CPU affinity to all enabled CPU's
+			// affinity < 0 = CPU affinity to all enabled CPU's
 			copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
 
 
@@ -96,48 +155,13 @@ void setPidResources(node_t * node) {
 		// TODO: change to consider multiple PIDs with different affinity
 		// update CGroup setting of container if in CGROUP mode
 		if (DM_CGRP == prgset->use_cgroup) {
-			if (0 <= (node->param->rscs->affinity)) {
-
-				// TODO: Function reallocate container
-				char *contp = NULL;
-				char affinity[11];
-				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
-
-				cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
-				if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
-					contp[0] = '\0';   // ensures the memory is an empty string
-					// copy to new prefix
-					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);
-
-					if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-						warn("Can not set CPU-affinity");
-					}
-				}
-				else
-					warn("malloc failed!");
-
-				free (contp);
-			}
+			if (0 <= (node->param->rscs->affinity))
+				setContainerAffinity(node, cset);
 		}
 		// should it be else??
-		else {
+		else
+			setPidAffinity(node, cset);
 
-			// add PID to docker CGroup
-			char pid[6]; // PID is 5 digits + \0
-			(void)sprintf(pid, "%d", node->pid);
-
-			if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
-				printDbg( "Warn! Can not move task %s\n", pid);
-			}
-
-			// Set affinity
-			if (numa_sched_setaffinity(node->pid, cset))
-				err_msg_n(errno,"setting affinity for PID %d",
-					node->pid);
-			else
-				cont("PID %d reassigned to CPU%d", node->pid,
-					node->param->rscs->affinity);
-		}
 
 		if (0 == node->pid) // PID 0 = detected containers
 			return;
@@ -173,7 +197,7 @@ void setPidResources(node_t * node) {
 }
 
 /*
- * updatePidAttr () : update PID scheduling attributes and check for flags (update)
+ * updatePidAttr : update PID scheduling attributes and check for flags (update)
  *
  * Arguments: - node_t item
  *
