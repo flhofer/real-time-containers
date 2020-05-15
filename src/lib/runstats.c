@@ -442,7 +442,7 @@ runstats_fithist(stat_hist **h)
 	double N = gsl_histogram_sum(*h);
 
 	if (N< MINCOUNT)
-		return GSL_FAILURE; // TODO to fix with skipped
+		return GSL_SUCCESS; // TODO to fix with skipped
 
 	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 10% of mean
 		sd = mn * 0.01;
@@ -500,7 +500,7 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 	double N = gsl_histogram_sum(h);
 
 	if (N< MINCOUNT)
-		return GSL_FAILURE; // TODO to fix with skipped
+		return GSL_SUCCESS; // TODO to fix with skipped
 
 	/*
 	 * 	Starting from here, fitting method setup, TRS
