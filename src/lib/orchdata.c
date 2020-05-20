@@ -1,4 +1,5 @@
-#include "orchdata.h" // memory structure to store information
+#include "orchdata.h"	// memory structure to store information
+#include "cmnutil.h"	// general definitions
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 

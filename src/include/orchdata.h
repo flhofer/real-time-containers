@@ -14,9 +14,6 @@
 	// limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 
-	#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-	#define MIN(x, y) (((x) < (y)) ? (x) : (y))
-
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value

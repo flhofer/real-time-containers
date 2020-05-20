@@ -14,6 +14,9 @@
 
 	#define CPUSTRLEN			64	// max length of a bit-mask CPU string
 
+	#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+	#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 	// Included in kernel 4.13
 	#ifndef SCHED_FLAG_RECLAIM
 		#define SCHED_FLAG_RECLAIM		0x02
