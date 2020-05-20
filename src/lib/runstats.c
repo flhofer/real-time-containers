@@ -375,8 +375,7 @@ runstats_shapehist(stat_hist * h, double b){
 	// reshape into LIMIT
 	if (b >= gsl_histogram_max(h)){
 		double dummy;
-		// TODO: check return value, and if NULL is acceptable
-		(void)gsl_histogram_get_range(h, h->n, &b, &dummy);
+		(void)gsl_histogram_get_range(h, h->n-1, &b, &dummy);
 	}
 	if (b < gsl_histogram_min(h))
 		b = gsl_histogram_min(h);
