@@ -80,6 +80,12 @@ static void getContPids (node_t **pidlst)
 					// Scan through string and put in array
 					int nleft = 0, got;
 					while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
+						if (0 > got){
+							if (EINTR == errno) // retry on interrupt
+								continue;
+							warn("kernel tasks read error!");
+							break;
+						}
 						nleft += got;
 						printDbg("%s: PID string return %s\n", __func__, pidline);
 						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
@@ -325,7 +331,8 @@ static void updateDocker() {
 		}
 	}
 
-	// scan for pid updates
+	// scan for PID updates // TODO: Selective update in scanNew if container mode on (less to do)
+	// .. might be a problem if not matchin -> update comparison of list!!
 	scanNew(); 
 }
 

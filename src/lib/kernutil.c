@@ -217,12 +217,12 @@ int check_kernel(void)
 
 /// kernvar(): sets/gets a kernel virtual fs parameter, internal
 ///
-/// Arguments: - filesystem prefix -> folder
+/// Arguments: - file system prefix -> folder
 /// 		   - parameter name to write read
 ///			   - input value
 ///			   - variable buffer size
 ///
-/// Return value: return num of written/read chars.
+/// Return value: return number of written/read chars.
 ///					-1= error and errno is set
 ///
 static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
@@ -247,23 +247,24 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	memcpy(filename, prefix, len_prefix);
 	memcpy(filename + len_prefix, name, len_name + 1);
 
+	// TODO: read and write on kernel vfs parameters should always be successful!
 	path = open(filename, mode);
 	if (0 <= path) {
 		if (O_RDONLY == mode) {
 			int got;
 			// if = 0, no change
-			if ((got = read(path, value, sizeofvalue)) > 0) {
-				value[got-1] = '\0';
+			if ((got = read(path, value, sizeofvalue)) >= 0) {
+				value[MAX(got-1, 0)] = '\0';
 				close(path);
 				return got;
 			}
-		} else if (O_WRONLY == mode) {
+			// if < 0 there is something wrong
+
+		} else if (O_WRONLY == mode)
 			if (write(path, value, sizeofvalue) == sizeofvalue){
 				close(path);
-				return sizeofvalue;				
+				return sizeofvalue;
 			}
-			
-		}
 		close(path);
 	}
 //  errno = ... pass errno from open, read or write

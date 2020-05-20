@@ -698,8 +698,14 @@ int prepareEnvironment(prgset_t *set) {
 			// prepare literal and open pipe request
 			int path = open(nfileprefix,O_RDONLY);
 
-			// Scan through string and put in array, leave one byte extra, needed for strtok to work
+			// Scan through string and put in array, stops on EOF
 			while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
+				if (0 > got){
+					if (EINTR == errno) // retry on interrupt
+						continue;
+					warn("kernel tasks read error!");
+					break;
+				}
 				nleft += got;
 				printDbg("%s: Pid string return %s\n", __func__, pidline);
 				pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
