@@ -22,7 +22,8 @@
 #include <errno.h>			// system error management (LIBC)
 #include <string.h>			// strerror print
 
-#include "error.h"
+#include "error.h"		// error print definitions
+#include "cmnutil.h"	// general definitions
 
 #define NUMINT 20
 #define MINCOUNT 100
@@ -371,11 +372,13 @@ runstats_inithist(stat_hist ** h, double b){
  */
 double
 runstats_shapehist(stat_hist * h, double b){
-	// reshape into LIMIT -> refactor!
-	if (b >= gsl_histogram_max(h))
-		b = gsl_histogram_max(h) * 0.97; // TODO: fix border thing
+	// reshape into LIMIT
+	if (b >= gsl_histogram_max(h)){
+		// TODO: check return value, and if NULL is acceptable
+		(void)gsl_histogram_get_range(h, h->n, &b, NULL);
+	}
 	if (b < gsl_histogram_min(h))
-		b = gsl_histogram_min(h) * 1.03; // TODO: fix border thing
+		b = gsl_histogram_min(h);
 	return b;
 }
 
@@ -468,7 +471,7 @@ runstats_fithist(stat_hist **h)
 	}
 
 	// adjust margins bin limits
-	double bin_min = mn - ((double)n/2.0)*W;
+	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
 	double bin_max = mn + ((double)n/2.0)*W;
 	int ret;
 	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
