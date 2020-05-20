@@ -23,16 +23,18 @@
 // Should be needed only here
 #include <sys/resource.h>
 
-/// setPidRlimit(): sets given resource limits
-///
-/// Arguments: - PID node
-///			   - soft resource limit
-///			   - hard resource limit
-///			   - resource limit tag
-///			   - resource limit string-name for prints
-///
-/// Return value: ---
-static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
+/*
+ * setPidRlimit(): sets given resource limits
+ *
+ * Arguments: - PID node
+ *			   - soft resource limit
+ *			   - hard resource limit
+ *			   - resource limit tag
+ *			   - resource limit string-name for prints
+ * Return value: ---
+ */
+static inline void
+setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 
 	struct rlimit rlim;
 	if (-1 != rls || -1 != rlh) {
@@ -113,12 +115,15 @@ setContainerAffinity(node_t * node, struct bitmask * cset){
 	free (contp);
 }
 
-/// setPidResources(): set PID resources at first detection
-/// Arguments: - pointer to PID item (node_t)
-///
-/// Return value: --
-///
-void setPidResources(node_t * node) {
+/*
+ * setPidResources(): set PID resources at first detection
+ *
+ * Arguments: - pointer to PID item (node_t)
+ *
+ * Return value: --
+ */
+void
+setPidResources(node_t * node) {
 
 	struct bitmask * cset = numa_allocate_cpumask();
 
@@ -203,7 +208,8 @@ void setPidResources(node_t * node) {
  *
  * Return value: -
  */
-void updatePidAttr(node_t * node){
+void
+updatePidAttr(node_t * node){
 	// storage for actual attributes
 	struct sched_attr attr_act;
 
@@ -238,4 +244,42 @@ void updatePidAttr(node_t * node){
 		if (sched_setattr (node->pid, &(node->attr), 0U))
 			err_msg_n(errno, "Can not set overrun flag");
 	}
+}
+
+/*
+ * updatePidCmdline : update PID command line
+ *
+ * Arguments: - node_t item
+ *
+ * Return value: -
+ */
+void
+updatePidCmdline(node_t * node){
+	char * cmdline;
+	char kparam[15]; // pid{x}/cmdline read string
+
+	if ((cmdline = malloc(MAXCMDLINE))) { // alloc memory for strings
+
+		(void)sprintf(kparam, "%d/cmdline", node->pid);
+		if (0 > getkernvar("/proc/", kparam, cmdline, MAXCMDLINE))
+			// try to read cmdline of pid
+			warn("can not read pid %d's command line: %s", node->pid, strerror(errno));
+
+		// cut to exact (reduction = no issue)
+		cmdline=realloc(cmdline,
+			strlen(cmdline)+1);
+
+		// check for change.. NULL or different
+		if (!(node->psig) || (strcmp(cmdline, node->psig))){
+			// PIDs differ, update
+			if (node->psig)
+				free (node->psig);
+			// assign
+			node->psig = cmdline;
+		}
+		else
+			free(cmdline);
+	}
+	else // FATAL, exit and execute atExit
+		err_msg("Could not allocate memory!");
 }
