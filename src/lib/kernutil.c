@@ -312,6 +312,7 @@ kernvar(int mode, const char *prefix, const char *name, char *value, size_t size
 
 		} else if (O_WRONLY == mode)
 			if (write(path, value, sizeofvalue) == sizeofvalue){
+				printDbg(PFX "Setting value for '%s' to '%s'\n", filename, value);
 				close(path);
 				return sizeofvalue;
 			}
@@ -642,114 +643,6 @@ get_debugfileprefix(void)
 
 out:
 	return debugfileprefix;
-}
-
-/*
- * setevent: enable event trace-point for ftrace
- *
- * Arguments: - relative path to event, ex. 'events/sched_switch/enable'
- *
- * Return value: return num of written chars.
- * 					-1= error and errno is set
- */
-static int
-setevent(char *event, char *val)
-{
-	char *prefix = get_debugfileprefix();
-
-	if (!event || !val) // null pointers
-		return -1;
-
-	printDbg(PFX "Setting event for tracer '%s' to '%s'\n", event, val);
-
-	return setkernvar(prefix, event, val, 0); // no dryrun here. lib does not know about it
-}
-
-/*
- * event_enable_all: enable all trace events
- *
- * Arguments: -
- *
- * Return value: return num of written chars.
- * 					-1= error and errno is set
- */
-int
-event_enable_all(void)
-{
-	return setevent("events/enable", "1");
-}
-
-/*
- * event_disable_all: disable all trace events
- *
- * Arguments: -
- *
- * Return value: return num of written chars.
- * 					-1= error and errno is set
- */
-int
-event_disable_all(void)
-{
-	return setevent("events/enable", "0");
-}
-
-/*
- * event_getid: read out event value, id
- *
- * Arguments: - name of the event to access
- *
- * Return value: return num of read chars.
- * 					-1= error and errno is set
- */
-int
-event_getid(char *event)
-{
-	if (!event) // null pointers
-		return -1;
-
-	char *prefix = get_debugfileprefix();
-	char path[_POSIX_PATH_MAX];
-	char val[5];
-
-	(void)sprintf(path, "events/%s/id", event);
-	if (getkernvar(prefix, event, val, 5) > 0)
-		return atoi(val);
-
-	return -1;
-}
-
-/*
- * event_enable: enable trace event
- *
- * Arguments: - name of the event to access
- *
- * Return value: return num of written chars.
- * 					-1= error and errno is set
- */
-int
-event_enable(char *event)
-{
-	char path[_POSIX_PATH_MAX];
-
-	sprintf(path, "events/%s/enable", event);
-	return setevent(path, "1");
-}
-
-/*
- * event_disable: disable  trace event
- *
- * Arguments: - name of the event to access
- *
- * Return value: return num of written chars.
- * 					-1= error and errno is set
- */
-int
-event_disable(char *event)
-{
-	char path[_POSIX_PATH_MAX];
-
-	sprintf(path, "events/%s/enable", event);
-	return setevent(path, "0");
 }
 
 /*

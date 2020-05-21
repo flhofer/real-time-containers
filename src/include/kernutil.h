@@ -33,17 +33,7 @@
 	FILE * popen2(const char * command, const char * type, pid_t * pid);
 	int pclose2(FILE * fp, pid_t pid, int dokill);
 
-	// EX RT-UTILS
-	#define _STR(x) #x
-	#define STR(x) _STR(x)
-
 	char *get_debugfileprefix(void);
-
-	int event_enable(char *event);
-	int event_getid(char *event);
-	int event_disable(char *event);
-	int event_enable_all(void);
-	int event_disable_all(void);
 
 	const int policy_is_realtime(int policy);
 	const char *policy_to_string(int policy);
