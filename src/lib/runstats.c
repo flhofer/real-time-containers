@@ -392,15 +392,36 @@ runstats_shapehist(stat_hist * h, double b){
  */
 int
 runstats_verifyparam(stat_hist * h, stat_param * x){
+	if (!h || !x)
+		return GSL_FAILURE;
+
+	double a = gsl_vector_get(x, 0);
 	double b = gsl_vector_get(x, 1);
 	double c = gsl_vector_get(x, 2);
 
 	double min = gsl_histogram_min(h);
 	double max = gsl_histogram_max(h);
 
-	return ( min > b || max < b					// center out of range
+	// TODO: check why it is there are negative values
+	return ( a < 1.0
+			 || min > b || max < b					// center out of range
 			 || (min > b-c && max <= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
 			?  GSL_FAILURE : GSL_SUCCESS;
+}
+
+/*
+ * runstats_checkhist: check if minimum amount for bin fitting is met
+ *
+ * Arguments: - pointer to the memory location for storage
+ *
+ * Return value: success or error code
+ */
+int
+runstats_checkhist(stat_hist * h){
+	if (!h)
+		return GSL_FAILURE;
+	return (gsl_histogram_sum(h) < MINCOUNT)
+		?  GSL_FAILURE : GSL_SUCCESS;
 }
 
 /*
@@ -630,6 +651,7 @@ runstats_printparam(stat_param * x, char * str, size_t len){
 	double a = gsl_vector_get(x, 0);
 	double b = gsl_vector_get(x, 1);
 	double c = gsl_vector_get(x, 2);
+
 	(void)sprintf(str, "%12.9f %12.9f %12.9f", a, b, c);
 
 	return GSL_SUCCESS;
