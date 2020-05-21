@@ -8,8 +8,6 @@
 
 #include "../../src/include/kernutil.h"
 
-// TODO: msr test functions!
-
 START_TEST(kernutil_check_kernel)
 {	
 	char buf[256];
@@ -72,7 +70,7 @@ END_TEST
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
 		{"/proc/","version", "test", -1, EIO},				// write protected
-		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO: implement
+		{"/dev/", "null", "", 0, 0},						// write empty -> special case
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
 	}; 
@@ -85,8 +83,6 @@ START_TEST(kernutil_setkernvar)
 	ck_assert_int_eq(errno, setkernvar_var[_i].errcode);
 }
 END_TEST
-
-// TODO: bit mask test functions!
 
 void library_kernutil (Suite * s) {
 

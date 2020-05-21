@@ -39,7 +39,7 @@
 #undef PFX
 #define PFX "[rt-utils] "
 
-static char debugfileprefix[MAX_PATH];
+static char debugfileprefix[_POSIX_PATH_MAX];
 
 #if (defined(__i386__) || defined(__x86_64__))
 	#define ARCH_HAS_SMI_COUNTER
@@ -345,7 +345,7 @@ struct bitmask *parse_cpumask(const char *option)
 ///
 /// Return value: error code if present
 ///
-/// TODO: WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
+/// WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
 int parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	// base case check
 	if (!mask || !str)
@@ -444,13 +444,12 @@ FILE * popen2(const char * command, const char * type, pid_t * pid)
             dup2(fd[WRITE], STDOUT_FILENO); //Redirect stdout to pipe
         }
 
-		// TODO: fix this
-		if (strstr(command, "&&")){ // temporay, if we have a && combination, use sh
+		if (strstr(command, "&&")){ // Temporary, if we have a && combination, use sh
 	        setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
 		    execl("/bin/sh", "/bin/sh", "-c", command, NULL);
 		}
 		else {
-			// parse string according to posix expansion
+			// parse string according to POSIX expansion
 			wordexp_t argvt;
 			if (wordexp(command, &argvt, 0))
 				err_exit("Error parsing POSIX 'sh' expansion!");
@@ -508,9 +507,16 @@ int pclose2(FILE * fp, pid_t pid, int killsig)
 }
 
 /*
- * Finds the tracing directory in a mounted debugfs
+ * get_debugfileprefix : Finds the tracing directory in a mounted debugfs
+ *
+ * Arguments: -
+ *
+ * Return Value: pointer to null-terminated string containing the path
+ * 				Returns \0 on failure
+ *
+ * Original from: rt-tests librt (cyclictest) https://github.com/clrkwllms/rt-tests
  */
-char *get_debugfileprefix(void)
+char * get_debugfileprefix(void)
 {
 	char type[100];
 	FILE *fp;
@@ -538,7 +544,7 @@ char *get_debugfileprefix(void)
 		goto out;
 
 	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
+		      STR(_POSIX_PATH_MAX)
 		      "s %99s %*s %*d %*d\n",
 		      debugfileprefix, type) == 2) {
 		if (strcmp(type, "debugfs") == 0) {
@@ -569,7 +575,7 @@ out:
 int mount_debugfs(char *path)
 {
 	char *mountpoint = path;
-	char cmd[MAX_PATH];
+	char cmd[_POSIX_PATH_MAX];
 	char *prefix;
 	int ret;
 
@@ -740,7 +746,7 @@ int event_disable_all(void)
 
 int event_getid(char *event)
 {
-	char path[MAX_PATH];
+	char path[_POSIX_PATH_MAX];
 
 	sprintf(path, "events/%s/id", event);
 	return getevent(path);
@@ -748,7 +754,7 @@ int event_getid(char *event)
 
 int event_enable(char *event)
 {
-	char path[MAX_PATH];
+	char path[_POSIX_PATH_MAX];
 
 	sprintf(path, "events/%s/enable", event);
 	return setevent(path, "1");
@@ -756,7 +762,7 @@ int event_enable(char *event)
 
 int event_disable(char *event)
 {
-	char path[MAX_PATH];
+	char path[_POSIX_PATH_MAX];
 
 	sprintf(path, "events/%s/enable", event);
 	return setevent(path, "0");

@@ -254,16 +254,17 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 	/* initialize solver */
 	if (!(ret = gsl_multifit_nlinear_init(x, fdf, work))){
 		/* store initial cost */
-		gsl_blas_ddot(f, f, &chisq0);
+		(void)gsl_blas_ddot(f, f, &chisq0); // TODO use return value
 
 		/* iterate until convergence */
-		gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
+		(void)gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
 #ifdef DEBUG
 									  callback,
 #else
 									  NULL,
 #endif
 									  NULL, &info, work);
+		// TODO: use return value
 
 		/* store final cost = x^T*x */
 		if ((ret = gsl_blas_ddot(f, f, &chisq))){
