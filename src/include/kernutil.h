@@ -51,7 +51,5 @@
 
 	uint32_t string_to_affinity(const char *str);
 
-	pid_t gettid(void);
-
 #endif
 

@@ -348,7 +348,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
-			if (string_to_policy(optarg, &set->policy) == 0)
+			if (optarg == NULL
+				|| string_to_policy(optarg, &set->policy) == 0)
 				err_exit("Invalid policy %s", optarg);
 
 			break;

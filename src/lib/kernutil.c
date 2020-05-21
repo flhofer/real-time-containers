@@ -566,6 +566,7 @@ pclose2(FILE * fp, pid_t pid, int killsig)
 		kill(pid, killsig);
 
     fclose(fp);
+
     while (waitpid(pid, &stat, 0) == -1)
     {
         if (errno != EINTR)
@@ -776,7 +777,7 @@ policy_to_string(int policy)
 		return "SCHED_DEADLINE";
 	}
 
-	return "unknown";
+	return "-UNKNOWN-";
 }
 
 /*
@@ -810,6 +811,8 @@ policy_is_realtime(int policy)
  *  Arguments: - string identifying policy
  *
  *  Return value: returns scheduling enumeration constant, -1 if failed
+ *
+ *  WARN! NO NULL-CHECK ON POLICY_NAME!!
  */
 int
 string_to_policy(const char *policy_name, uint32_t *policy)
@@ -849,19 +852,7 @@ string_to_affinity(const char *str)
 		return AFFINITY_SPECIFIED;
 	else if (!strcmp(str, "useall"))
 		return AFFINITY_USEALL;
-	warn("Unrecongnized value '%s' for affinity setting", str);
+	warn("Unrecognized value '%s' for affinity setting", str);
 	return 0; // default to other
 }
 
-/*
- *  gettid(): gets the thread id from scheduler/kernel
- *
- *  Arguments: - none
- *
- *  Return value: pid_t thread identifier, always successful
- */
-pid_t
-gettid(void)
-{
-	return syscall(SYS_gettid);
-}
