@@ -42,6 +42,7 @@
 #undef PFX
 #define PFX "[rt-utils] "
 
+// Statically allocated prefix
 static char debugfileprefix[_POSIX_PATH_MAX];
 
 #if (defined(__i386__) || defined(__x86_64__))
@@ -52,11 +53,19 @@ static char debugfileprefix[_POSIX_PATH_MAX];
 #define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
 #ifdef ARCH_HAS_SMI_COUNTER
+
+/*
+ * open_msr_file: open file descriptor of MSR counters
+ *
+ * Arguments: - CPU number to test for
+ *
+ * Return value: fd, or error code
+ */
 int
 open_msr_file(int cpu)
 {
 	int fd;
-	char pathname[24]; // path + 10 max for number + \0
+	char pathname[_POSIX_PATH_MAX];
 
 	/* SMI needs thread affinity */
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
@@ -68,11 +77,21 @@ open_msr_file(int cpu)
 	return fd;
 }
 
+/*
+ * get_msr: read from MSR
+ *
+ * Arguments: - MSR CPU file descriptor
+ * 			  - offset to read from
+ * 			  - address to write value to
+ *
+ * Return value: 0 on success, 1 on mismatch, error code otherwise
+ */
 static int
 get_msr(int fd, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
 
+	// WARN, does not handle EINTR
 	retval = pread(fd, msr, sizeof *msr, offset);
 
 	if (retval != sizeof *msr)
@@ -81,6 +100,15 @@ get_msr(int fd, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
+/*
+ * get_smi_counter: read MSR counter
+ *
+ * Arguments: - MSR CPU file descriptor
+ * 			  - address to write counter to
+ *
+ * Return value: counter (positive) on success
+ * 				 error code (negative) on failure
+ */
 int
 get_smi_counter(int fd, unsigned long *counter)
 {
@@ -97,6 +125,14 @@ get_smi_counter(int fd, unsigned long *counter)
 }
 
 /* Based on turbostat's check */
+
+/*
+ * has_smi_counter: check if CPU model has a MSR-SMI counter
+ *
+ * Arguments: -
+ *
+ * Return value: 1 if present, 0 otherwise
+ */
 int
 has_smi_counter(void)
 {
@@ -161,6 +197,7 @@ has_smi_counter(void)
 	return 1;
 }
 #else
+// Dummy functions
 static int open_msr_file(int cpu)
 {
 	return -1;
@@ -187,38 +224,40 @@ int
 check_kernel(void)
 {
 	struct utsname kname;
-	int maj, min, sub, kv;
+	int maj, min, sub;
+	int kv = KV_NOT_SUPPORTED;
 
 	if (uname(&kname)) {
 		err_msg_n (errno, "Assuming not 2.6. uname failed");
-		return KV_NOT_SUPPORTED;
+		return kv;
 	}
-	sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub);
-	if (3 == maj) {
-		if (14  >min)
-			// EDF not implemented 
-			kv = KV_NOT_SUPPORTED;
-		else
-		// kernel 3.x standard LT kernel for embedded
-		kv = KV_314;
 
-	} else if (4 == maj) { // fil
+	if (3 == sscanf(kname.release, "%d.%d.%d", &maj, &min, &sub)){
+		// sscanf successful
 
-		// kernel 4.x introduces Deadline scheduling
-		if (13 > min)
-			// standard
-			kv = KV_40;
-		else if (16 > min)
-			// full EDF
-			kv = KV_413;
-		else 
-			// full EDF -PA
-			kv = KV_416;
-	} else if (5 == maj) { // fil
-		// full EDF -PA, newest kernel
-		kv = KV_50;
-	} else
-		kv = KV_NOT_SUPPORTED;
+		if (3 == maj  && 14 <= min){
+			// kernel 3.x standard LT kernel for embedded, EDF implemented
+			kv = KV_314;
+			// else EDF not implemented
+
+		} else if (4 == maj) {
+			// kernel 4.x introduces Deadline scheduling
+			if (13 > min)
+				// standard
+				kv = KV_40;
+			else if (16 > min)
+				// full EDF
+				kv = KV_413;
+			else
+				// full EDF -PA
+				kv = KV_416;
+		} else if (5 == maj) {
+			// full EDF -PA, newest kernel
+			kv = KV_50;
+		}
+	}
+	else
+		warn("Error parsing kernel version.");
 
 	return kv;
 }
@@ -237,7 +276,7 @@ check_kernel(void)
 static int
 kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
-	char filename[128];
+	char filename[_POSIX_PATH_MAX];
 	int path;
 
 	if (!prefix || !name || !value) {
@@ -247,7 +286,7 @@ kernvar(int mode, const char *prefix, const char *name, char *value, size_t size
 
 	size_t len_prefix = strlen(prefix), len_name = strlen(name);
 
-	if (len_prefix + len_name + 1 > sizeof(filename)) {
+	if (len_prefix + len_name + 1 > _POSIX_PATH_MAX) {
 		errno = ENOMEM;
 		return -1;
 	}
@@ -257,7 +296,8 @@ kernvar(int mode, const char *prefix, const char *name, char *value, size_t size
 	memcpy(filename, prefix, len_prefix);
 	memcpy(filename + len_prefix, name, len_name + 1);
 
-	// TODO: read and write on kernel vfs parameters should always be successful!
+	// Read and write on kernel /sys and /proc should always be successful and w/o EINTR
+	// However, we do not deal with EINTR here, might be source of error
 	path = open(filename, mode);
 	if (0 <= path) {
 		if (O_RDONLY == mode) {
@@ -362,7 +402,7 @@ parse_cpumask(const char *option)
  *
  *  Return value: error code if present
  *
- *  WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
+ *  WARN, assume 2 digit CPU numbers, no more than 100 cpus allowed
  */
 int
 parse_bitmask(struct bitmask *mask, char * str, size_t len){
@@ -371,48 +411,57 @@ parse_bitmask(struct bitmask *mask, char * str, size_t len){
 		return -1;
  
 	char num[12];
-	int sz= numa_bitmask_nbytes(mask) *8,rg =-1,fd = -1;
+	int mask_sz = numa_bitmask_nbytes(mask) *8;
+	int first_found = -1;
+	int last_found =-1;
 
+	// init.. use len as counter for remaining space
 	str [0] = '\0';
+	len--;	// \0 needs 1 byte
 
-	for (int i=0; i<sz; i++){
+	for (int i=0; i<mask_sz; i++){
+
 		if (!len){
 			err_msg("String too small for data");
 			return -1;
 		}
+
 		if (numa_bitmask_isbitset(mask, i)){
 			// set bit found
 
-			if (fd<0) {
+			if (0 > first_found) {
 				// first of sequence?
 
-				fd = i; // found and start range bit number
+				first_found = i; // found and start range bit number
 				len-=2;	// remaining space decreases
 				if (!strlen(str))
 					// first at all?
-					(void)sprintf(str, "%d", fd);
+					(void)sprintf(str, "%d", first_found);
 
 				else{
-					(void)sprintf(num, ",%d", fd);
+					(void)sprintf(num, ",%d", first_found);
 					(void)strcat(str, num);
 					len--; // 1 decrease more, comma
 				}
-				rg = fd; // end range bit number 
+				last_found = first_found; // end range bit number 
 			}
 			else 
+
 				// not first in sequence, add to end-range value
-				rg++;
+				last_found++;
 		}
 		else {
-			if (rg != fd){
+			// Do we have a range that we scanned.. then add '-last_found'
+			if (last_found != first_found){
 				// end of 1-bit sequence, print end of range
-				(void)sprintf(num, "-%d",rg);
+				(void)sprintf(num, "-%d",last_found);
 				(void)strcat(str, num);
 				len-=3; // 3 character string
 			}
-			fd = rg = -1; // reset range
+			first_found = last_found = -1; // reset range
 		}
 	}
+
 	printDbg("Parsed bit-mask: %s\n", str);
 	return 0;
 }
@@ -592,144 +641,6 @@ get_debugfileprefix(void)
 
 out:
 	return debugfileprefix;
-}
-
-int
-mount_debugfs(char *path)
-{
-	char *mountpoint = path;
-	char cmd[_POSIX_PATH_MAX];
-	char *prefix;
-	int ret;
-
-	/* if it's already mounted just return */
-	prefix = get_debugfileprefix();
-	if (strlen(prefix) != 0) {
-		info("debugfs mountpoint: %s\n", prefix);
-		return 0;
-	}
-	if (!mountpoint)
-		mountpoint = "/sys/kernel/debug";
-
-	sprintf(cmd, "mount -t debugfs debugfs %s", mountpoint);
-	ret = system(cmd);
-	if (ret != 0) {
-		fprintf(stderr, PFX "Error mounting debugfs at %s: %s\n",
-			mountpoint, strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
-static char **tracer_list;
-static char *tracer_buffer;
-static int num_tracers;
-#define CHUNKSZ   1024
-
-/*
- *  get_tracers(): get available function tracers in kernel
- *
- *  Arguments: - pointer to the resulting string array
- *
- *  Return value: no of found traces, 0 = none
- * 					-1= error and errno is set
- */
-int
-get_tracers(char ***list)
-{
-	/* if we've already parse it, return what we have */
-	if (tracer_list) {
-		*list = tracer_list;
-		return num_tracers;
-	}
-
-	int ret;
-	FILE *fp;
-	char buffer[CHUNKSZ];
-	char *prefix = get_debugfileprefix(); //  find debug path
-
-	errno = 0; // reset global error number
-
-	/* open the tracing file available_tracers */
-	sprintf(buffer, "%savailable_tracers", prefix);
-	if ((fp = fopen(buffer, "r")) == NULL){
-		err_msg_n(errno, "Can't open %s for reading", buffer);
-		return -1; // pass error number from open, read or write
-	}
-
-	char *tmpbuf = NULL;
-	char *ptr, *ptr_p;
-
-	/* allocate initial buffer */
-	if (!(ptr = tmpbuf = malloc(CHUNKSZ))){
-		err_msg_n(errno, "error allocating initial space for tracer list");
-		return -1; // pass error number from open, read or write
-	}
-
-	int tmpsz = 0;
-
-	/* read in the list of available tracers */
-	while ((ret = fread(buffer, sizeof(char), CHUNKSZ, fp))) {
-		if ((ptr+ret+1) > (tmpbuf+tmpsz)) {
-			if (!(tmpbuf = realloc(tmpbuf, tmpsz + CHUNKSZ))){
-				err_msg("error allocating space for list of valid tracers");
-
-			}
-			tmpsz += CHUNKSZ;
-		}
-		strncpy(ptr, buffer, ret);
-		ptr += ret;
-	}
-	fclose(fp);
-	if (0 == tmpsz){
-		err_msg("error reading available tracers. Empty buffer.");
-		errno = EIO;
-		return -1;	// pass error number from open, read or write
-	}
-
-	// copy temporary buffer to local static - keeps string array
-	tracer_buffer = tmpbuf;
-
-	/* get a buffer for the pointers to tracers */
-	if (!(tracer_list = malloc(sizeof(char *)))){
-		err_msg("error allocating tracer list buffer");
-		return -1;  // pass error number from open, read or write
-	}
-
-	/* parse the buffer */
-	ptr = strtok_r(tmpbuf, " \t\n\r", &ptr_p);
-	do {
-		tracer_list[num_tracers++] = ptr;
-		tracer_list = realloc(tracer_list, sizeof(char*)*(num_tracers+1));
-		tracer_list[num_tracers] = NULL;
-	} while ((ptr = strtok_r(NULL, " \t\n\r", &ptr_p)) != NULL);
-
-	/* return the list and number of tracers */
-	*list = tracer_list;
-	return num_tracers;
-}
-
-/*
- *  valid_tracer(): test if kernel tracer is available
- *
- *  Arguments: - string with tracer name
- *
- *  Return value: zero if invalid name, one if present
- */
-int
-valid_tracer(char *tracername)
-{
-	char **list;
-	int ntracers;
-	int i;
-
-	ntracers = get_tracers(&list);
-	if (ntracers == 0 || tracername == NULL)
-		return 0;
-	for (i = 0; i < ntracers; i++)
-		if (strncmp(list[i], tracername, strlen(list[i])) == 0)
-			return 1;
-	return 0;
 }
 
 /*

@@ -38,9 +38,6 @@
 	#define STR(x) _STR(x)
 
 	char *get_debugfileprefix(void);
-	int mount_debugfs(char *);
-	int get_tracers(char ***);
-	int valid_tracer(char *);
 
 	int event_enable(char *event);
 	int event_getid(char *event);

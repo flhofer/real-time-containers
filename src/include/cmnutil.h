@@ -8,6 +8,8 @@
 #ifndef _CMNUTIL_H_
 	#define _CMNUTIL_H_
 
+	#include <limits.h>		// Posix char limits
+
 	#define USEC_PER_SEC		1000000
 	#define NSEC_PER_SEC		1000000000
 	#define TIMER_RELTIME		0
