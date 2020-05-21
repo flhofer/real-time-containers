@@ -42,7 +42,6 @@
 	int get_tracers(char ***);
 	int valid_tracer(char *);
 
-	int setevent(char *event, char *val);
 	int event_enable(char *event);
 	int event_getid(char *event);
 	int event_disable(char *event);

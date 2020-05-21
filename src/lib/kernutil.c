@@ -1,14 +1,17 @@
 /*
  * Copyright (C) 2019 Florian Hofer <info@florianhofer.it>
  *
- * based on functions from rt-test that has
+ * based on functions from rt-test with the following authors
+ *
  * Copyright (C) 2009 Carsten Emde <carsten.emde@osadl.org>
  * Copyright (C) 2010 Clark Williams <williams@redhat.com>
  * Copyright (C) 2015 John Kacur <jkacur@redhat.com>
  *
- * based on functions from cyclictest that has
+ * based on functions from cyclictest with the following authors
  * (C) 2008-2009 Clark Williams <williams@redhat.com>
  * (C) 2005-2007 Thomas Gleixner <tglx@linutronix.de>
+ *
+ * https://github.com/clrkwllms/rt-tests
  */
 
 
@@ -49,7 +52,8 @@ static char debugfileprefix[_POSIX_PATH_MAX];
 #define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
 #ifdef ARCH_HAS_SMI_COUNTER
-int open_msr_file(int cpu)
+int
+open_msr_file(int cpu)
 {
 	int fd;
 	char pathname[24]; // path + 10 max for number + \0
@@ -64,7 +68,8 @@ int open_msr_file(int cpu)
 	return fd;
 }
 
-static int get_msr(int fd, off_t offset, unsigned long long *msr)
+static int
+get_msr(int fd, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
 
@@ -76,7 +81,8 @@ static int get_msr(int fd, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
-int get_smi_counter(int fd, unsigned long *counter)
+int
+get_smi_counter(int fd, unsigned long *counter)
 {
 	int retval;
 	unsigned long long msr;
@@ -91,7 +97,8 @@ int get_smi_counter(int fd, unsigned long *counter)
 }
 
 /* Based on turbostat's check */
-int has_smi_counter(void)
+int
+has_smi_counter(void)
 {
 	unsigned int ebx, ecx, edx, max_level;
 	unsigned int fms, family, model;
@@ -169,13 +176,15 @@ static int has_smi_counter(void)
 }
 #endif
 
-
-/// check_kernel(): check the kernel version,
-///
-/// Arguments: - 
-///
-/// Return value: detected kernel version (enum)
-int check_kernel(void)
+/*
+ *  check_kernel(): check the kernel version,
+ *
+ *  Arguments: -
+ *
+ *  Return value: detected kernel version (enum)
+ */
+int
+check_kernel(void)
 {
 	struct utsname kname;
 	int maj, min, sub, kv;
@@ -214,18 +223,19 @@ int check_kernel(void)
 	return kv;
 }
 
-
-/// kernvar(): sets/gets a kernel virtual fs parameter, internal
-///
-/// Arguments: - file system prefix -> folder
-/// 		   - parameter name to write read
-///			   - input value
-///			   - variable buffer size
-///
-/// Return value: return number of written/read chars.
-///					-1= error and errno is set
-///
-static int kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
+/*
+ *  kernvar(): sets/gets a kernel virtual fs parameter, internal
+ *
+ *  Arguments: - file system prefix -> folder
+ *  		   - parameter name to write read
+ * 			   - input value
+ * 			   - variable buffer size
+ *
+ *  Return value: return number of written/read chars.
+ * 					-1= error and errno is set
+ */
+static int
+kernvar(int mode, const char *prefix, const char *name, char *value, size_t sizeofvalue)
 {
 	char filename[128];
 	int path;
@@ -271,17 +281,19 @@ static int kernvar(int mode, const char *prefix, const char *name, char *value, 
 	return -1;  // return number read/written => -1 = error
 }
 
-/// setkernvar(): sets a kernel virtual fs parameter
-///
-/// Arguments: - filesystem prefix -> folder
-/// 		   - parameter name to write
-///			   - input value
-///			   - dry run? 1 = do nothing
-///
-/// Return value: return num of written chars.
-///					-1= error and errno is set
-///
-int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
+ /*
+ *  setkernvar(): sets a kernel virtual fs parameter
+ *
+ *  Arguments: - filesystem prefix -> folder
+ *  		   - parameter name to write
+ * 			   - input value
+ * 			   - dry run? 1 = do nothing
+ *
+ *  Return value: return num of written chars.
+ * 					-1= error and errno is set
+ */
+int
+setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 {
 	if (!value) {
 		errno = EINVAL;
@@ -295,31 +307,35 @@ int setkernvar(const char *prefix, const char *name, char *value, int dryrun)
 
 }
 
-/// getkernvar(): reads a kernel virtual fs parameter
-///
-/// Arguments: - filesystem prefix -> folder
-/// 		   - parameter name to read
-///			   - value storage location
-///			   - storage buffer size
-///
-/// Return value: return num of read chars.
-///					-1= error and errno is set
-///
-int getkernvar(const char *prefix, const char *name, char *value, int size)
+/*
+ *  getkernvar(): reads a kernel virtual fs parameter
+ *
+ *  Arguments: - filesystem prefix -> folder
+ *  		   - parameter name to read
+ * 			   - value storage location
+ * 			   - storage buffer size
+ *
+ *  Return value: return num of read chars.
+ * 					-1= error and errno is set
+ */
+int
+getkernvar(const char *prefix, const char *name, char *value, int size)
 {
 
 	return (kernvar(O_RDONLY, prefix, name, value, size));
 
 }
 
-/// parse_cpumask(): parses and checks if the CPU bit-mask is OK
-///		w/ similar to numa_parse_cpustring_all()
-///
-/// Arguments: - pointer to bitmask
-///
-/// Return value: the parsed bitmask, returns null if empty cpuset
-///
-struct bitmask *parse_cpumask(const char *option)
+/*
+ *  parse_cpumask(): parses and checks if the CPU bit-mask is OK
+ * 		w/ similar to numa_parse_cpustring_all()
+ *
+ *  Arguments: - pointer to bitmask
+ *
+ *  Return value: the parsed bitmask, returns null if empty cpuset
+ */
+struct bitmask *
+parse_cpumask(const char *option)
 {
 	struct bitmask * mask = numa_parse_cpustring_all(option);
 
@@ -337,16 +353,19 @@ struct bitmask *parse_cpumask(const char *option)
 	return mask;
 }
 
-/// parse_bitmask(): returns the matching bitmask string
-///
-/// Arguments: - pointer to bitmask
-/// 		   - returning string
-///			   - size of string
-///
-/// Return value: error code if present
-///
-/// WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
-int parse_bitmask(struct bitmask *mask, char * str, size_t len){
+/*
+ *  parse_bitmask(): returns the matching bitmask string
+ *
+ *  Arguments: - pointer to bitmask
+ *  		   - returning string
+ * 			   - size of string
+ *
+ *  Return value: error code if present
+ *
+ *  WARN, assume 2 digit cpu numbers, no more than 100 cpus allowed
+ */
+int
+parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	// base case check
 	if (!mask || !str)
 		return -1;
@@ -398,19 +417,21 @@ int parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	return 0;
 }
 
-/// popen2(): customized pipe open command
-///
-/// Arguments: - command string
-/// 		   - read or write (r/w) and non blocking with 'x'
-/// 		   - address of pid_t variable to store launched PID
-///
-/// Return value: returns file descriptor
-///
+/*
+ *  popen2(): customized pipe open command
+ *
+ *  Arguments: - command string
+ *  		   - read or write (r/w) and non blocking with 'x'
+ *  		   - address of pid_t variable to store launched PID
+ *
+ *  Return value: returns file descriptor
+ */
 
 #define READ   0 // pipe position
 #define WRITE  1 
 
-FILE * popen2(const char * command, const char * type, pid_t * pid)
+FILE *
+popen2(const char * command, const char * type, pid_t * pid)
 {
     pid_t child_pid;
     int fd[2];
@@ -478,15 +499,17 @@ FILE * popen2(const char * command, const char * type, pid_t * pid)
 	return pfl;
 }
 
-/// pclose2(): customized pipe close command
-///
-/// Arguments: - pipe file descriptor
-/// 		   - associated process PID
-/// 		   - (optional) signal to send to task before closing pipe
-///
-/// Return value: returns last known PID status (waitpid), -1 for error
-///
-int pclose2(FILE * fp, pid_t pid, int killsig)
+/*
+ *  pclose2(): customized pipe close command
+ *
+ *  Arguments: - pipe file descriptor
+ *  		   - associated process PID
+ *  		   - (optional) signal to send to task before closing pipe
+ *
+ *  Return value: returns last known PID status (waitpid), -1 for error
+ */
+int
+pclose2(FILE * fp, pid_t pid, int killsig)
 {
     int stat;
 
@@ -513,10 +536,9 @@ int pclose2(FILE * fp, pid_t pid, int killsig)
  *
  * Return Value: pointer to null-terminated string containing the path
  * 				Returns \0 on failure
- *
- * Original from: rt-tests librt (cyclictest) https://github.com/clrkwllms/rt-tests
  */
-char * get_debugfileprefix(void)
+char *
+get_debugfileprefix(void)
 {
 	char type[100];
 	FILE *fp;
@@ -572,7 +594,8 @@ out:
 	return debugfileprefix;
 }
 
-int mount_debugfs(char *path)
+int
+mount_debugfs(char *path)
 {
 	char *mountpoint = path;
 	char cmd[_POSIX_PATH_MAX];
@@ -603,13 +626,16 @@ static char *tracer_buffer;
 static int num_tracers;
 #define CHUNKSZ   1024
 
-/// get_tracers(): get available function tracers in kernel
-///
-/// Arguments: - pointer to the resulting string array
-///
-/// Return value: no of found traces, 0 = none
-///					-1= error and errno is set
-int get_tracers(char ***list)
+/*
+ *  get_tracers(): get available function tracers in kernel
+ *
+ *  Arguments: - pointer to the resulting string array
+ *
+ *  Return value: no of found traces, 0 = none
+ * 					-1= error and errno is set
+ */
+int
+get_tracers(char ***list)
 {
 	/* if we've already parse it, return what we have */
 	if (tracer_list) {
@@ -620,7 +646,7 @@ int get_tracers(char ***list)
 	int ret;
 	FILE *fp;
 	char buffer[CHUNKSZ];
-	char *prefix = get_debugfileprefix(); //  find debug path TODO: integrate to system for file path detection
+	char *prefix = get_debugfileprefix(); //  find debug path
 
 	errno = 0; // reset global error number
 
@@ -683,14 +709,15 @@ int get_tracers(char ***list)
 	return num_tracers;
 }
 
-
-/// valid_tracer(): test if kernel tracer is available
-///
-/// Arguments: - string with tracer name
-///
-/// Return value: zero if invalid name, one if present
-///
-int valid_tracer(char *tracername)
+/*
+ *  valid_tracer(): test if kernel tracer is available
+ *
+ *  Arguments: - string with tracer name
+ *
+ *  Return value: zero if invalid name, one if present
+ */
+int
+valid_tracer(char *tracername)
 {
 	char **list;
 	int ntracers;
@@ -706,9 +733,15 @@ int valid_tracer(char *tracername)
 }
 
 /*
- * enable event tracepoint
+ * setevent: enable event trace-point for ftrace
+ *
+ * Arguments: - relative path to event, ex. 'events/sched_switch/enable'
+ *
+ * Return value: return num of written chars.
+ * 					-1= error and errno is set
  */
-int setevent(char *event, char *val)
+static int
+setevent(char *event, char *val)
 {
 	char *prefix = get_debugfileprefix();
 
@@ -717,42 +750,72 @@ int setevent(char *event, char *val)
 
 	printDbg(PFX "Setting event for tracer '%s' to '%s'\n", event, val);
 
-	return setkernvar(prefix, event, val, 0);
+	return setkernvar(prefix, event, val, 0); // no dryrun here. lib does not know about it
 }
 
-static int getevent(char *event)
+/*
+ * event_enable_all: enable all trace events
+ *
+ * Arguments: -
+ *
+ * Return value: return num of written chars.
+ * 					-1= error and errno is set
+ */
+int
+event_enable_all(void)
 {
-	char *prefix = get_debugfileprefix();
-	char val[5];
+	return setevent("events/enable", "1");
+}
 
+/*
+ * event_disable_all: disable all trace events
+ *
+ * Arguments: -
+ *
+ * Return value: return num of written chars.
+ * 					-1= error and errno is set
+ */
+int
+event_disable_all(void)
+{
+	return setevent("events/enable", "0");
+}
+
+/*
+ * event_getid: read out event value, id
+ *
+ * Arguments: - name of the event to access
+ *
+ * Return value: return num of read chars.
+ * 					-1= error and errno is set
+ */
+int
+event_getid(char *event)
+{
 	if (!event) // null pointers
 		return -1;
 
+	char *prefix = get_debugfileprefix();
+	char path[_POSIX_PATH_MAX];
+	char val[5];
+
+	(void)sprintf(path, "events/%s/id", event);
 	if (getkernvar(prefix, event, val, 5) > 0)
 		return atoi(val);
 
 	return -1;
 }
 
-int event_enable_all(void)
-{
-	return setevent("events/enable", "1");
-}
-
-int event_disable_all(void)
-{
-	return setevent("events/enable", "0");
-}
-
-int event_getid(char *event)
-{
-	char path[_POSIX_PATH_MAX];
-
-	sprintf(path, "events/%s/id", event);
-	return getevent(path);
-}
-
-int event_enable(char *event)
+/*
+ * event_enable: enable trace event
+ *
+ * Arguments: - name of the event to access
+ *
+ * Return value: return num of written chars.
+ * 					-1= error and errno is set
+ */
+int
+event_enable(char *event)
 {
 	char path[_POSIX_PATH_MAX];
 
@@ -760,7 +823,16 @@ int event_enable(char *event)
 	return setevent(path, "1");
 }
 
-int event_disable(char *event)
+/*
+ * event_disable: disable  trace event
+ *
+ * Arguments: - name of the event to access
+ *
+ * Return value: return num of written chars.
+ * 					-1= error and errno is set
+ */
+int
+event_disable(char *event)
 {
 	char path[_POSIX_PATH_MAX];
 
@@ -768,13 +840,15 @@ int event_disable(char *event)
 	return setevent(path, "0");
 }
 
-/// policy_to_string(): change policy code to string value
-///
-/// Arguments: - scheduling enumeration constant (int) identifying policy
-///
-/// Return value: returns a string identifying the scheduler
-///
-const char *policy_to_string(int policy)
+/*
+ *  policy_to_string(): change policy code to string value
+ *
+ *  Arguments: - scheduling enumeration constant (int) identifying policy
+ *
+ *  Return value: returns a string identifying the scheduler
+ */
+const char *
+policy_to_string(int policy)
 {
 	switch (policy) {
 	case SCHED_OTHER:
@@ -794,13 +868,15 @@ const char *policy_to_string(int policy)
 	return "unknown";
 }
 
-/// policy_is_realtime(): verify if given policy is a real-time policy
-///
-/// Arguments: - scheduling enumeration constant (int) identifying policy
-///
-/// Return value: returns 1 if real-time, 0 otherwise
-///
-const int policy_is_realtime(int policy)
+/*
+ *  policy_is_realtime(): verify if given policy is a real-time policy
+ *
+ *  Arguments: - scheduling enumeration constant (int) identifying policy
+ *
+ *  Return value: returns 1 if real-time, 0 otherwise
+ */
+const int
+policy_is_realtime(int policy)
 {
 	switch (policy) {
 	case SCHED_FIFO:
@@ -817,13 +893,15 @@ const int policy_is_realtime(int policy)
 	return 0;
 }
 
-/// string_to_policy(): match string with a scheduling policy
-///
-/// Arguments: - string identifying policy
-///
-/// Return value: returns scheduling enumeration constant, -1 if failed
-///
-int string_to_policy(const char *policy_name, uint32_t *policy)
+/*
+ *  string_to_policy(): match string with a scheduling policy
+ *
+ *  Arguments: - string identifying policy
+ *
+ *  Return value: returns scheduling enumeration constant, -1 if failed
+ */
+int
+string_to_policy(const char *policy_name, uint32_t *policy)
 {
 	if (strcmp(policy_name, "SCHED_OTHER") == 0)
 		*policy = SCHED_OTHER;
@@ -844,13 +922,15 @@ int string_to_policy(const char *policy_name, uint32_t *policy)
 	return 0;
 }
 
-/// string_to_affinity(): match string with a affinity policy
-///
-/// Arguments: - string identifying affinity
-///
-/// Return value: returns affinity enumeration constant, 0 (other) if failed
-///
-uint32_t string_to_affinity(const char *str)
+/*
+ *  string_to_affinity(): match string with a affinity policy
+ *
+ *  Arguments: - string identifying affinity
+ *
+ *  Return value: returns affinity enumeration constant, 0 (other) if failed
+ */
+uint32_t
+string_to_affinity(const char *str)
 {
 	if (!strcmp(str, "unspecified"))
 		return AFFINITY_UNSPECIFIED;
@@ -862,13 +942,15 @@ uint32_t string_to_affinity(const char *str)
 	return 0; // default to other
 }
 
-/// gettid(): gets the thread id from scheduler/kernel
-///
-/// Arguments: - none
-///
-/// Return value: pid_t thread identifier, always successful
-///
-pid_t gettid(void)
+/*
+ *  gettid(): gets the thread id from scheduler/kernel
+ *
+ *  Arguments: - none
+ *
+ *  Return value: pid_t thread identifier, always successful
+ */
+pid_t
+gettid(void)
 {
 	return syscall(SYS_gettid);
 }
