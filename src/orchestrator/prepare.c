@@ -692,25 +692,30 @@ int prepareEnvironment(prgset_t *set) {
 
 			int mtask = 0;
 
-			char pidline[BUFRD];
+			char buf[BUFRD];
 			char *pid, *pid_ptr;
-			int nleft=0, got; // reading left counter
+			int nleft=0;	// parsing left counter
+			int ret;
+
 			// prepare literal and open pipe request
-			int path = open(nfileprefix,O_RDONLY);
+			int path = open(nfileprefix, O_RDONLY);
 
 			// Scan through string and put in array, stops on EOF
-			while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
-				if (0 > got){
+			while((ret = read(path, buf+nleft,BUFRD-nleft-1))) {
+
+				if (0 > ret){
 					if (EINTR == errno) // retry on interrupt
 						continue;
 					warn("kernel tasks read error!");
 					break;
 				}
-				nleft += got;
-				printDbg("%s: Pid string return %s\n", __func__, pidline);
-				pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
-				pid = strtok_r (pidline,"\n", &pid_ptr);
-				while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+
+				nleft += ret;
+
+				printDbg("%s: Pid string return %s\n", __func__, buf);
+				buf[nleft] = '\0'; // end of read check, nleft = max 1023;
+				pid = strtok_r (buf,"\n", &pid_ptr);
+				while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 					// DO STUFF
 
 					// file prefix still pointing to CSET_SYS
@@ -722,7 +727,7 @@ int prepareEnvironment(prgset_t *set) {
 					pid = strtok_r (NULL,"\n", &pid_ptr);
 				}
 				if (pid) // copy leftover chars to beginning of string buffer
-					memcpy(pidline, pidline+BUFRD-nleft-1, nleft);
+					memcpy(buf, buf+BUFRD-nleft-1, nleft);
 			}
 
 			close(path);

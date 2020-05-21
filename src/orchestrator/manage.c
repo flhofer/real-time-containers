@@ -128,66 +128,59 @@ void clearEventConf(){
 ///
 /// Arguments: - none
 ///
-/// Return value: (-) no of missing traces, 0 = success
+/// Return value: 0 = success, TODO: to review
 ///
 static int configureTracers(){
-	// TODO: fix tracers poll
-	int notrace = valid_tracer("wakeup_rt") +
-			valid_tracer("wakeup_dl");
-
-	printDbg(PFX "Present tracers, status %d\n", notrace);
-
 	// TODO enable affinity cpus only
 
-	if (2 == notrace) {
-		char * dbgpfx = get_debugfileprefix();
+	char * dbgpfx = get_debugfileprefix();
 
-		if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
-			warn("Can not disable kernel function tracing");
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
+		warn("Can not disable kernel function tracing");
 
-		if (0 > event_disable_all())
-			warn("Unable to clear kernel fTrace event list");
+	if (0 > event_disable_all())
+		warn("Unable to clear kernel fTrace event list");
 
-		// sched_stat_runtime tracer seems to need sched_stats
-		if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
-			warn("Unable to activate schedstat probe");
+	// sched_stat_runtime tracer seems to need sched_stats
+	if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
+		warn("Unable to activate schedstat probe");
 
 /* FIXME: it seems that I only need sched switch
-		if (0 < event_enable("sched/sched_stat_runtime")) {
-			push((void**)&elist_head, sizeof(struct ftrace_elist));
-			elist_head->eventid = event_getid("sched/sched_stat_runtime");
-			elist_head->event = "sched_stat_runtime";
-			elist_head->eventcall = pickPidInfoR;
-		}
-		else
-			warn("Unable to set event for 'sched_stat_runtime'");
+	if (0 < event_enable("sched/sched_stat_runtime")) {
+		push((void**)&elist_head, sizeof(struct ftrace_elist));
+		elist_head->eventid = event_getid("sched/sched_stat_runtime");
+		elist_head->event = "sched_stat_runtime";
+		elist_head->eventcall = pickPidInfoR;
+	}
+	else
+		warn("Unable to set event for 'sched_stat_runtime'");
 
-		if (0 < event_enable("sched/sched_wakeup")) {
-			push((void**)&elist_head, sizeof(struct ftrace_elist));
-			elist_head->eventid = event_getid("sched/sched_wakeup");
-			elist_head->event = "sched_wakeup";
-			elist_head->eventcall = pickPidInfoW;
-		}
-		else
-			warn("Unable to set event for 'sched_wakeup'");
+	if (0 < event_enable("sched/sched_wakeup")) {
+		push((void**)&elist_head, sizeof(struct ftrace_elist));
+		elist_head->eventid = event_getid("sched/sched_wakeup");
+		elist_head->event = "sched_wakeup";
+		elist_head->eventcall = pickPidInfoW;
+	}
+	else
+		warn("Unable to set event for 'sched_wakeup'");
 */
 
-		if (0 < event_enable("sched/sched_switch")) {
-			push((void**)&elist_head, sizeof(struct ftrace_elist));
-			elist_head->eventid = event_getid("sched/sched_switch");
-			elist_head->event = "sched_switch";
-			elist_head->eventcall = pickPidInfoS;
-		}
-		else
-			warn("Unable to set event for 'sched_switch'");
-
-		if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun))
-			warn("Can not enable kernel function tracing");
-
-		printDbg("\n");
+	if (0 < event_enable("sched/sched_switch")) {
+		push((void**)&elist_head, sizeof(struct ftrace_elist));
+		elist_head->eventid = event_getid("sched/sched_switch");
+		elist_head->event = "sched_switch";
+		elist_head->eventcall = pickPidInfoS;
 	}
+	else
+		warn("Unable to set event for 'sched_switch'");
+
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun))
+		warn("Can not enable kernel function tracing");
+
+	printDbg("\n");
+
 	// TODO: review this return value
-	return notrace-2; // return number found versus needed
+	return 0; // return number found versus needed
 }
 
 /// resetTracers(): reset kernel function trace system

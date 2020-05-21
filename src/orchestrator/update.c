@@ -58,9 +58,9 @@ static void getContPids (node_t **pidlst)
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
 	if (d) {
-		char *fname = NULL; // clear pointer again
-		char pidline[BUFRD];
-		char *pid, *pid_ptr;
+		char *fname = NULL;
+		char buf[BUFRD];	// read buffer
+		char *pid, *pid_ptr;	// strtok_r variables
 
 		printDbg( "\nContainer detection!\n");
 
@@ -74,23 +74,30 @@ static void getContPids (node_t **pidlst)
 					fname = strcat(fname,"/tasks");
 
 					// prepare literal and open pipe request
-					int path = open(fname,O_RDONLY);
+					int fd = open(fname, O_RDONLY);
 
+					int nleft = 0;	// number of bytes left to parse
+					int	ret;		// return value number of bytes read, or error code
 					// Scan through string and put in array
-					int nleft = 0, got;
-					while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
-						if (0 > got){
+					while((ret = read(fd, buf+nleft,BUFRD-nleft-1))) {
+
+						if (0 > ret){ // error..
 							if (EINTR == errno) // retry on interrupt
 								continue;
 							warn("kernel tasks read error!");
 							break;
 						}
-						nleft += got;
-						printDbg("%s: PID string return %s\n", __func__, pidline);
-						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
-						pid = strtok_r (pidline,"\n", &pid_ptr);	
+
+						// read success, update bytes to parse
+						nleft += ret;
+
+						printDbg("%s: PID string return %s\n", __func__, buf);
+
+						buf[nleft] = '\0'; // end of read check, nleft = max BUFRD-1;
+						pid = strtok_r (buf,"\n", &pid_ptr);	
+
 						printDbg("%s: processing ", __func__);
-						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+						while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
 
 							node_push(pidlst);
@@ -108,9 +115,10 @@ static void getContPids (node_t **pidlst)
 						}
 						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
+							memcpy(buf, buf+BUFRD-nleft-1, nleft); 
 					}
-					close(path);
+					close(fd);
+
 				}
 				else // FATAL, exit and execute atExit
 					fatal("Could not allocate memory!");
