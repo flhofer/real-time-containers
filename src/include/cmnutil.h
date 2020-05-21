@@ -19,6 +19,10 @@
 	#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 	#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
+	// EX RT-UTILS
+	#define _STR(x) #x
+	#define STR(x) _STR(x)
+
 	// Included in kernel 4.13
 	#ifndef SCHED_FLAG_RECLAIM
 		#define SCHED_FLAG_RECLAIM		0x02
