@@ -61,7 +61,6 @@ static void getContPids (node_t **pidlst)
 		char *fname = NULL; // clear pointer again
 		char pidline[BUFRD];
 		char *pid, *pid_ptr;
-		char kparam[15]; // pid+/cmdline read string
 
 		printDbg( "\nContainer detection!\n");
 
@@ -100,20 +99,8 @@ static void getContPids (node_t **pidlst)
 							printDbg("->%d ",(*pidlst)->pid);
 							(*pidlst)->det_mode = DM_CGRP;
 
-							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
-								((*pidlst)->contid = strdup(dir->d_name))) {
-								// alloc memory for strings
-
-								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
-								if (0 > getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
-									// try to read cmdline of pid
-									warn("can not read pid %d's command line: %s", (*pidlst)->pid, strerror(errno));
-
-								// cut to exact (reduction = no issue)
-								(*pidlst)->psig=realloc((*pidlst)->psig, 
-									strlen((*pidlst)->psig)+1);
-							}
-							else // FATAL, exit and execute atExit
+							updatePidCmdline(*pidlst); // checks and updates..
+							if (!(( (*pidlst)->contid = strdup(dir->d_name) )))
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
@@ -265,7 +252,7 @@ static int stopDockerThread(){
 		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
 			perror("Failed to send signal to docker_link thread");
 		ret |= iret_dlink;
-		if ((iret_dlink = pthread_join( thread_dlink, NULL))) // wait until end
+		if ((iret_dlink = pthread_join (thread_dlink, NULL))) // wait until end
 			perror("Could not join with docker_link thread");
 		ret |= iret_dlink;
 		(void)printf(PFX "Threads stopped\n");

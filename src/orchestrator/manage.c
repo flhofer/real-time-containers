@@ -586,7 +586,7 @@ void *thread_ftrace(void *arg){
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
 			while ((pEvent)  && (!ftrace_stop)) {
-				int (*eventcall)(void *, uint64_t) = pickPidCommon; // TODO: default to common? still needed?
+				int (*eventcall)(void *, uint64_t) = pickPidCommon; // default to common for unknown formats
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					// check for ID, first value is 16 bit ID
@@ -824,35 +824,39 @@ static int updateStats ()
 
 		/*  Curve Fitting from here, for now every second (default) */
 
-		// histogram already initialized? // TODO: unlink from update -> high computation all in parallel
-		if (!(scount%(prgset->loops*10)))
-			if (item->mon.pdf_hist){
+		if (!(( scount % (prgset->loops*10) ))){
+			// update CMD-line once out of 10 (less often..)
+			updatePidCmdline(item);
 
-			if ((!item->mon.pdf_parm)
-				||	runstats_verifyparam(item->mon.pdf_hist, item->mon.pdf_parm)){
+			if (!(runstats_checkhist(item->mon.pdf_hist))){
+				// if histogram is set and count is ok, update and fit curve
 
-				if (item->mon.pdf_parm)	// if re-instantiate, free first
-					runstats_freeparam(item->mon.pdf_parm);
+				// check if old parameters are fine, else reset
+				if (runstats_verifyparam(item->mon.pdf_hist,
+						item->mon.pdf_parm)){
 
-				// TODO: fix value sure in the range of the histogram
-				double mn = (double)item->mon.rt_avg;
-				if (!mn)
-				  mn = (double)item->attr.sched_runtime;
-				if (!mn && item->param && item->param->attr)
-  				  mn = (double)item->attr.sched_runtime;
-				mn/=(double)NSEC_PER_SEC; // format to secs
+					if (item->mon.pdf_parm)	// if re-instantiate, free first
+						runstats_freeparam(item->mon.pdf_parm);
 
-				// if still 0, don't know what to do.. -> at least bind it to range
-				mn = runstats_shapehist(item->mon.pdf_hist, mn);
+					double mn = (double)item->mon.rt_avg;
+					if (!mn)
+						mn = (double)item->attr.sched_runtime;
+					if (!mn && item->param && item->param->attr)
+						mn = (double)item->attr.sched_runtime;
+					mn/=(double)NSEC_PER_SEC; // re-format to seconds
 
-				runstats_initparam(&item->mon.pdf_parm, mn);
+					// if still 0, don't know what to do.. -> at least bind it to range
+					mn = runstats_shapehist(item->mon.pdf_hist, mn);
+
+					runstats_initparam(&item->mon.pdf_parm, mn);
+				}
+
+				if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
+					warn("Curve fitting solver error for PID %d", item->pid);
+
+				if ((runstats_fithist(&item->mon.pdf_hist)))
+					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
 			}
-
-			if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
-				warn("Curve fitting solver error for PID %d", item->pid);
-
-			if ((runstats_fithist(&item->mon.pdf_hist)))
-				warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
 		}
 
 		// get runtime value
@@ -863,8 +867,6 @@ static int updateStats ()
 					err_msg ("reading thread debug details %d", ret);
 				}
 			}
-
-
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex); 
