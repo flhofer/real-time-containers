@@ -61,12 +61,13 @@ static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 #define CAPMASK_IPC		0x4
 static int capMask = CAPMASK_ALL;
 
-/// setPidMask(): utility function to set all pids of a certain mask's affinity
-/// Arguments: - tag to search for
-///			   - bit mask to set
-///
-/// Return value: --
-///
+/*
+ *  setPidMask(): utility function to set all PIDs of a certain CMD mask's affinity
+ *  Arguments: - tag to search for
+ * 			   - bit mask to set
+ *
+ *  Return value: --
+ */
 static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 {
 	FILE *fp;
@@ -96,7 +97,7 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
 
 		if (numa_sched_setaffinity(mpid, amask))
-			warn("could not set pid %d-'%s' affinity: %s", mpid, pid, strerror(errno));
+			warn("could not set PID %d-'%s' affinity: %s", mpid, pid, strerror(errno));
 		else
 			cont("PID %d-'%s' reassigned to CPU's %s", mpid, pid, cpus);
     }
@@ -104,14 +105,16 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	pclose(fp);
 }
 
-/// getCapMask(): utility function get our capability mask
-///
-/// Arguments: - program settings structure
-///
-/// Return value: --
-///
-static int getCapMask(prgset_t *set) {
-	/// verify executable permissions - needed for dry run, not blind run
+/*
+ *  getCapMask(): utility function get our capability mask
+ *
+ *  Arguments: - program settings structure
+ *
+ *  Return value: --
+ */
+static int
+getCapMask(prgset_t *set) {
+	//  verify executable permissions - needed for dry run, not blind run
 
 	int capMask = 0;
 
@@ -156,16 +159,18 @@ static int getCapMask(prgset_t *set) {
 	return capMask;
 }
 
-/// prepareEnvironment(): prepares the runtime environment for real-time
-/// operation. Creates CPU shield and configures the affinity of system
-/// processes and interrupts to reduce off-load on RT resources
-///
-/// Arguments: - structure with parameter set
-///
-/// Return value: Error code
-/// 				Only valid if the function returns
-///
-int prepareEnvironment(prgset_t *set) {
+/*
+ *  prepareEnvironment(): prepares the runtime environment for real-time
+ *  operation. Creates CPU shield and configures the affinity of system
+ *  processes and interrupts to reduce off-load on RT resources
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+int
+prepareEnvironment(prgset_t *set) {
 
 	// TODO: CPU number vs CPU enabling mask
 	// TODO: check maxcpu vs last cpu!
@@ -764,12 +769,13 @@ sysend: // jumped here if not possible to create system
 	return 0;
 }
 
-/// cleanupEnvironment(): Cleanup of some system settings before exiting
-///
-/// Arguments: - structure with parameter set
-///
-/// Return value: -
-///
+/*
+ *  cleanupEnvironment(): Cleanup of some system settings before exiting
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: -
+ */
 void cleanupEnvironment(prgset_t *set){
 
 	// reset and read counters

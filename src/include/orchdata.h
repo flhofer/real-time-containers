@@ -14,6 +14,10 @@
 	// limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 
+	// masks for the status of PIDs (node_t)
+	#define MSK_STATUPD			0x1	// scheduling parameters update done
+	#define	MSK_STATNMTCH		0x2 // no parameter match
+
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
