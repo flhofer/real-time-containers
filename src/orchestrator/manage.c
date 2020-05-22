@@ -130,17 +130,19 @@ static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
 
 	char path[_POSIX_PATH_MAX];
-	(void)sprintf(path, "%s/events/%s/", dbgpfx, event);
+	(void)sprintf(path, "%sevents/%s/", dbgpfx, event);
 
 	// maybe put it in a function??
 	if (0 < setkernvar(path, "enable", "0", prgset->dryrun)) {
 		push((void**)&elist_head, sizeof(struct ftrace_elist));
 		{
 			char val[5];
-			if (0< getkernvar(dbgpfx, "id", val, 5))
+			if ( 0 < getkernvar(path, "id", val, 5))
 				elist_head->eventid = atoi(val);
-			else
+			else{
+				warn("Unable to get event id '%s'", event);
 				return -1;
+			}
 		}
 		elist_head->event = strdup(event);
 		elist_head->eventcall = fun;
@@ -169,7 +171,7 @@ static int configureTracers(){
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
 		warn("Can not disable kernel function tracing");
 
-	if (0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun))
+	if ( 0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun))
 		warn("Unable to clear kernel fTrace event list");
 
 	// Setup and enabling of events must work
@@ -178,10 +180,10 @@ static int configureTracers(){
 	if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
 		warn("Unable to activate schedstat probe");
 
-	if ((appendEvent(dbgpfx, "sched_stat_runtime", pickPidInfoR))
-		|| (appendEvent(dbgpfx, "sched_wakeup", sched_wakeup))
+	if ((appendEvent(dbgpfx, "sched/sched_stat_runtime", pickPidInfoR))
+		|| (appendEvent(dbgpfx, "sched/sched_wakeup", sched_wakeup))
 */
-	if (appendEvent(dbgpfx, "sched_switch", pickPidInfoS))
+	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
 		return -1;
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
