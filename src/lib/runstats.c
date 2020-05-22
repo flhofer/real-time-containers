@@ -25,11 +25,19 @@
 #include "error.h"		// error print definitions
 #include "cmnutil.h"	// general definitions
 
-#define NUMINT 20
-#define MINCOUNT 100
-#define STARTBINS 30
+#define NUMINT 20			// Number of iterations max for fitting
+#define MINCOUNT 100		// Minimum number of samples in histogram
+
+#define STARTBINS 30		// default bin number
+#define BIN_DEFMIN 0.70		// default range: - offset * x
+#define BIN_DEFMAX 1.30 	// default range: + offset * x
+
+#define MODEL_DEFAMP 100.0	// default model amplitude
+#define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
+#define MODEL_DEFSTD 0.01	// default model stddev: runtime (b) * x
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
+
 
 /*
  *  runstats_gaussian(): function to calculate Normal (Gaussian) distribution values
@@ -254,17 +262,22 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 	/* initialize solver */
 	if (!(ret = gsl_multifit_nlinear_init(x, fdf, work))){
 		/* store initial cost */
-		(void)gsl_blas_ddot(f, f, &chisq0); // TODO use return value
+		if ((ret = gsl_blas_ddot(f, f, &chisq0))){
+			err_msg("unable to compute initial cost function: %s", gsl_strerror(ret));
+			return ret;
+		}
 
 		/* iterate until convergence */
-		(void)gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
+		if ((ret =gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
 #ifdef DEBUG
 									  callback,
 #else
 									  NULL,
 #endif
-									  NULL, &info, work);
-		// TODO: use return value
+									  NULL, &info, work))){
+			err_msg("unable to compute trust region approximation: %s", gsl_strerror(ret));
+			return ret;
+		}
 
 		/* store final cost = x^T*x */
 		if ((ret = gsl_blas_ddot(f, f, &chisq))){
@@ -323,11 +336,10 @@ runstats_initparam(stat_param ** x, double b){
 		return GSL_ENOMEM;
 	}
 
-	// TODO:  make configurable through external values
 	/* (Gaussian) fitting model starting parameters, updated through iterations */
-	gsl_vector_set(*x, 0, 100.0);  		/* amplitude */
-	gsl_vector_set(*x, 1, b * 1.02); 	/* center */
-	gsl_vector_set(*x, 2, b * 0.01); 	/* width */
+	gsl_vector_set(*x, 0, MODEL_DEFAMP);  		/* amplitude */
+	gsl_vector_set(*x, 1, b * MODEL_DEFOFS); 	/* center */
+	gsl_vector_set(*x, 2, b * MODEL_DEFSTD); 	/* width */
 
 	return GSL_SUCCESS;
 }
@@ -343,10 +355,9 @@ runstats_initparam(stat_param ** x, double b){
 int
 runstats_inithist(stat_hist ** h, double b){
 
-	// TODO:  make configurable through external values
-	size_t n = STARTBINS;		// number of bins to fit
-	double bin_min = b * 0.70;	// use +-30% range
-	double bin_max = b * 1.30;
+	size_t n = STARTBINS;				// number of bins to fit
+	double bin_min = b * BIN_DEFMIN;	// default ranges
+	double bin_max = b * BIN_DEFMAX;
 
 	/* Allocate memory, histogram data for RTC accumulation */
 	*h = gsl_histogram_alloc (n);
@@ -403,7 +414,6 @@ runstats_verifyparam(stat_hist * h, stat_param * x){
 	double min = gsl_histogram_min(h);
 	double max = gsl_histogram_max(h);
 
-	// TODO: check why it is there are negative values
 	return ( a < 1.0
 			 || min > b || max < b					// center out of range
 			 || (min > b-c && max <= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
@@ -466,9 +476,6 @@ runstats_fithist(stat_hist **h)
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 	double N = gsl_histogram_sum(*h);
 
-	if (N< MINCOUNT)
-		return GSL_SUCCESS; // TODO to fix with skipped
-
 	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 10% of mean
 		sd = mn * 0.01;
 
@@ -489,7 +496,6 @@ runstats_fithist(stat_hist **h)
 			err_msg("Unable to allocate memory for histogram");
 			return GSL_ENOMEM;
 		}
-
 	}
 
 	// adjust margins bin limits
@@ -521,11 +527,6 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 			h->range,
 			h->bin,
 			h->n};
-
-	double N = gsl_histogram_sum(h);
-
-	if (N< MINCOUNT)
-		return GSL_SUCCESS; // TODO to fix with skipped
 
 	/*
 	 * 	Starting from here, fitting method setup, TRS
@@ -646,13 +647,14 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 int
 runstats_printparam(stat_param * x, char * str, size_t len){
 
-	if (!str || len < 40) // total length of format string TODO: better way?
-		return GSL_FAILURE; // TODO verify correct return value
+	if (!str || len < 42) // total length of format string
+		return GSL_EINVAL;
 
 	double a = gsl_vector_get(x, 0);
 	double b = gsl_vector_get(x, 1);
 	double c = gsl_vector_get(x, 2);
 
+	// length = 12+(.) x3 + ' ' x2 + \0 = 42
 	(void)sprintf(str, "%12.9f %12.9f %12.9f", a, b, c);
 
 	return GSL_SUCCESS;
