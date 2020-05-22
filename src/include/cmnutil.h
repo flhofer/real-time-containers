@@ -16,6 +16,10 @@
 
 	#define CPUSTRLEN			64	// max length of a bit-mask CPU string
 
+	// masks for the status of PIDs (node_t)
+	#define MSK_STATUPD			0x1	// scheduling parameters update done
+	#define	MSK_STATNMTCH		0x2 // no parameter match
+
 	#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 	#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 

@@ -335,7 +335,7 @@ void freeParm(cont_t ** head, struct sched_attr * attr,
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, 0, NULL, NULL, NULL,			// PID, det_mode, *psig, *contid, *imgid
+						0, 0, NULL, NULL, NULL,			// PID, status, *psig, *contid, *imgid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max

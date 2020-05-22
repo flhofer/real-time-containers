@@ -62,25 +62,31 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
  *	Arguments: - pointer to node with data
  *			   - bit-mask for affinity
  *
- *	Return value: -
+ *	Return value: 0 on success, -1 otherwise
  */
-static void
+static int
 setPidAffinity (node_t * node, struct bitmask * cset){
 	// add PID to docker CGroup
 	char pid[6]; // PID is 5 digits + \0
 	(void)sprintf(pid, "%d", node->pid);
+	int ret = 0;
 
 	if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
 		printDbg( "Warn! Can not move task %s\n", pid);
+		ret = -1;
 	}
 
 	// Set affinity
-	if (numa_sched_setaffinity(node->pid, cset))
+	if (numa_sched_setaffinity(node->pid, cset)){
 		err_msg_n(errno,"setting affinity for PID %d",
 			node->pid);
+		ret = -1;
+	}
 	else
 		cont("PID %d reassigned to CPU%d", node->pid,
 			node->param->rscs->affinity);
+
+	return ret;
 }
 
 /*
@@ -89,30 +95,120 @@ setPidAffinity (node_t * node, struct bitmask * cset){
  *	Arguments: - pointer to node with data
  *			   - bit-mask for affinity
  *
- *	Return value: -
+ *	Return value: 0 on success, -1 otherwise
  */
-static void
+static int
 setContainerAffinity(node_t * node, struct bitmask * cset){
 	char *contp = NULL;
 	char affinity[CPUSTRLEN];
+	char affinity_old[CPUSTRLEN];
+	int ret = 0;
 
-	if (parse_bitmask (cset, affinity, CPUSTRLEN))
+	if (parse_bitmask (cset, affinity, CPUSTRLEN)){
 			err_msg("Can not determine inverse affinity mask!");
+			return -1;
+	}
 
-	cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
 	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
 		contp[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
 		contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);
 
-		if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-			warn("Can not set CPU-affinity");
+		// read old, then compare -> update if different
+		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN))
+			warn("Can not read %.12s's CGroups CPU's", node->contid);
+
+		if (strcmp(affinity, affinity_old)){
+			cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
+			if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+				warn("Can not set CPU-affinity");
+				ret = -1;
+			}
 		}
 	}
-	else
+	else{
 		warn("malloc failed!");
+		ret = -1;
+	}
 
 	free (contp);
+
+	return ret;
+}
+
+/*
+ * setPidResources_u(): set PID resources at first detection (after check)
+ *
+ * Arguments: - pointer to PID item (node_t)
+ *
+ * Return value: --
+ */
+static void
+setPidResources_u(node_t * node) {
+
+	// pre-compute affinity
+	struct bitmask * cset = numa_allocate_cpumask();
+
+	if (0 <= node->param->rscs->affinity) {
+		// CPU affinity defined to one CPU? set!
+		(void)numa_bitmask_clearall(cset);
+		(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
+	}
+	else
+		// affinity < 0 = CPU affinity to all enabled CPU's
+		copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
+
+
+	if (!node->psig)
+		node->psig = node->param->psig;
+
+	if (!node->contid && node->param->cont){
+		node->contid = node->param->cont->contid;
+		warn("Container search resulted in empty container ID!");
+	}
+
+	// change to consider multiple PIDs with different affinity,
+	// however.. each PID should have it's OWN container -> Concept
+
+	// update CGroup setting of container if in CGROUP mode
+	// save if not successful
+	if (DM_CGRP == prgset->use_cgroup) {
+		if (0 <= (node->param->rscs->affinity))
+			node->status |= !(setContainerAffinity(node, cset)) & MSK_STATUPD;
+	}
+	else
+		node->status |= !(setPidAffinity(node, cset)) & MSK_STATUPD;
+
+	if (0 == node->pid) // PID 0 = detected containers
+		return;
+
+	// only do if different than -1, <- not set values = keep default
+	if (SCHED_NODATA != node->param->attr->sched_policy) {
+		cont("Setting Scheduler of PID %d to '%s'", node->pid,
+			policy_to_string(node->param->attr->sched_policy));
+
+		// set the flag right away, if set..
+		if ((prgset->setdflag)
+			&& (SCHED_DEADLINE == node->param->attr->sched_policy)
+			&& (KV_413 <= prgset->kernelversion)) {
+
+			cont("Set dl_overrun flag for PID %d", node->pid);
+			node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
+		}
+
+		if (sched_setattr (node->pid, node->param->attr, 0U))
+			err_msg_n(errno, "setting attributes for PID %d",
+				node->pid);
+	}
+	else
+		cont("Skipping setting of scheduler for PID %d", node->pid);
+
+	// controlling resource limits
+	setPidRlimit(node->pid, node->param->rscs->rt_timew,  node->param->rscs->rt_time,
+		RLIMIT_RTTIME, "RT-Limit" );
+
+	setPidRlimit(node->pid, node->param->rscs->mem_dataw,  node->param->rscs->mem_data,
+		RLIMIT_DATA, "Data-Limit" );
 }
 
 /*
@@ -125,8 +221,6 @@ setContainerAffinity(node_t * node, struct bitmask * cset){
 void
 setPidResources(node_t * node) {
 
-	struct bitmask * cset = numa_allocate_cpumask();
-
 	// parameters unassigned
 	if (!prgset->quiet)
 		(void)printf("\n");
@@ -137,68 +231,10 @@ setPidResources(node_t * node) {
 	else
 		warn("SetPidResources: Container not specified");
 
-	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
-		// pre-compute affinity
-		if (0 <= node->param->rscs->affinity) {
-			// CPU affinity defined to one CPU? set!
-			(void)numa_bitmask_clearall(cset);
-			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
-		}
-		else
-			// affinity < 0 = CPU affinity to all enabled CPU's
-			copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
-
-
-		if (!node->psig)
-			node->psig = node->param->psig;
-		// TODO: fix once containers are managed properly
-		if (!node->contid && node->param->cont)
-			node->contid = node->param->cont->contid;
-
-		// TODO: track failed scheduling update?
-
-		// TODO: change to consider multiple PIDs with different affinity
-		// update CGroup setting of container if in CGROUP mode
-		if (DM_CGRP == prgset->use_cgroup) {
-			if (0 <= (node->param->rscs->affinity))
-				setContainerAffinity(node, cset);
-		}
-		// should it be else??
-		else
-			setPidAffinity(node, cset);
-
-
-		if (0 == node->pid) // PID 0 = detected containers
-			return;
-
-		// only do if different than -1, <- not set values = keep default
-		if (SCHED_NODATA != node->param->attr->sched_policy) {
-			cont("Setting Scheduler of PID %d to '%s'", node->pid,
-				policy_to_string(node->param->attr->sched_policy));
-
-			// set the flag right away, if set..
-			if ((prgset->setdflag)
-				&& (SCHED_DEADLINE == node->param->attr->sched_policy)
-				&& (KV_413 <= prgset->kernelversion)) {
-
-				cont("Set dl_overrun flag for PID %d", node->pid);
-				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
-			}
-
-			if (sched_setattr (node->pid, node->param->attr, 0U))
-				err_msg_n(errno, "setting attributes for PID %d",
-					node->pid);
-		}
-		else
-			cont("Skipping setting of scheduler for PID %d", node->pid);
-
-		// controlling resource limits
-		setPidRlimit(node->pid, node->param->rscs->rt_timew,  node->param->rscs->rt_time,
-			RLIMIT_RTTIME, "RT-Limit" );
-
-		setPidRlimit(node->pid, node->param->rscs->mem_dataw,  node->param->rscs->mem_data,
-			RLIMIT_DATA, "Data-Limit" );
-	}
+	if (!node_findParams(node, contparm))  // parameter set found in list -> assign and update
+		setPidResources_u(node);
+	else
+		node->status |= MSK_STATUPD | MSK_STATNMTCH;
 }
 
 /*
@@ -210,6 +246,13 @@ setPidResources(node_t * node) {
  */
 void
 updatePidAttr(node_t * node){
+
+	// parameters still to upload?
+	if (!(node->status & MSK_STATUPD)){
+		setPidResources_u(node);
+		return;
+	}
+
 	// storage for actual attributes
 	struct sched_attr attr_act;
 
@@ -234,16 +277,11 @@ updatePidAttr(node_t * node){
 
 		cont("Set dl_overrun flag for PID %d", node->pid);
 		node->attr.sched_flags |= SCHED_FLAG_RECLAIM;
-		// TODO: DL_overrun flag is set to inform running process of it's overrun
-		// could actually be a problem for the process itself if it doesn't handle
-		// signals properly (causes SIGXCPU) -> could terminate process, depends on task.
-		// May need to set a parameter
-		if (KV_416 <= prgset->kernelversion ) // works only on newer versions
-			node->attr.sched_flags |= SCHED_FLAG_DL_OVERRUN;
 
 		if (sched_setattr (node->pid, &(node->attr), 0U))
 			err_msg_n(errno, "Can not set overrun flag");
 	}
+
 }
 
 /*

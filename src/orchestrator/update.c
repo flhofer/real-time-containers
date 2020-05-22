@@ -104,7 +104,6 @@ static void getContPids (node_t **pidlst)
 							// PID found
 							(*pidlst)->pid = atoi(pid);
 							printDbg("->%d ",(*pidlst)->pid);
-							(*pidlst)->det_mode = DM_CGRP;
 
 							updatePidCmdline(*pidlst); // checks and updates..
 							if (!(( (*pidlst)->contid = strdup(dir->d_name) )))
@@ -172,7 +171,6 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
         printDbg("processing->%d",(*pidlst)->pid);
-		(*pidlst)->det_mode = mode;
 
 		// find command string and copy to new allocation
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?

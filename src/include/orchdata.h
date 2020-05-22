@@ -131,8 +131,8 @@
 
 	typedef struct sched_pid { // PID management and monitoring info
 		struct sched_pid * next;
-		pid_t pid;		// runtime pid number
-		int det_mode;	// detection mode used for the pid 
+		pid_t pid;		// runtime PID number
+		int status;		// generic status info
 		char * psig;	// temp char, then moves to entry in pidparam. identifying signature
 		// usually at least one of two is set
 		char * contid; 	// temp char, then moves to entry in pidparam. identifying container

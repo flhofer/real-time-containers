@@ -426,7 +426,7 @@ int main(int argc, char **argv)
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
 	(void)printf("This software comes with no warranty. Please be careful\n");
 
-	{ // preprocessing and configuration readout
+	{ // pre-processing and configuration readout
 		prgset_t *tmpset;
 		if (!(tmpset = malloc (sizeof(prgset_t))))
 			err_exit("Unable to allocate memory");
