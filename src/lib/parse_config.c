@@ -435,8 +435,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		*set->cpusetdfileprefix = '\0'; // set first chat to null
 		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
 
-
-		// affinity default setting // TODO: duplicate -> function
+		// affinity default setting
 		if (!set->affinity){
 			char *defafin;
 			if (!(defafin = malloc(22))) // has never been set
@@ -447,7 +446,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			set->affinity = strdup(defafin);
 			free(defafin);
 		}
-
 		return;
 	}
 
