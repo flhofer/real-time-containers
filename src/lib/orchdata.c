@@ -164,7 +164,7 @@ int node_findParams(node_t* node, struct containers * conts){
 	struct cont_parm * cont = NULL;
 	// check for image match first
 	while (NULL != img) {
-		// 12 is standard docker short signature
+
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			conts_t * imgcont = img->conts;	
@@ -172,7 +172,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
-					// 12 is standard docker short signature
+
 					if  (!strncmp(imgcont->cont->contid, node->contid,
 							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
 						cont = imgcont->cont;
@@ -199,7 +199,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// check for container match
 		while (NULL != cont) {
-			// 12 is standard docker short signature
+
 			if(cont->contid && node->contid) {
 				if (!strncmp(cont->contid, node->contid,
 						MIN(strlen(cont->contid), strlen(node->contid))))
@@ -215,28 +215,38 @@ int node_findParams(node_t* node, struct containers * conts){
 		}
 	}
 
-	// did we find a container match?
+	// did we find a container or image match?
 	if (img || cont) {
-		// read all associated pids. Is it there?
+		// read all associated PIDs. Is it there?
 
-		// TODO: if container has no settings, use image. Even just for one
-
-		// assign pids from cont or img, depending whats found
+		// assign pids from cont or img, depending what is found
 		int useimg = (img && !cont);
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
+		// check the first result
 		while (NULL != curr) {
 			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
 				// found a matching pid inc root container
 				node->param = curr->pid;
 				return 0;
 			}
-			curr = curr->next; 
+			curr = curr->next;
 		}
 
-		// TODO: - Expand to double check also image.
+		// if both were found, check again in image
+		if (img && cont){
+			curr = img->pids;
+			while (NULL != curr) {
+				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+					// found a matching pid inc root container
+					node->param = curr->pid;
+					return 0;
+				}
+				curr = curr->next;
+			}
+		}
 
-		// found? if not, create entry
+		// found? if not, create PID parameter entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
@@ -252,7 +262,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
-		// add to container pids
+		// add to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
 		conts->pids->rscs = cont->rscs;
@@ -267,12 +277,10 @@ int node_findParams(node_t* node, struct containers * conts){
 		return 0;
 	}
 	else{ 
-		// no match found. an now?
+		// no match found. and now?
 		printDbg("... container not found, trying PID scan\n");
 
-		// TODO: if containerid is valid, create entry?
-
-		// start from scratch in the pid config list only. Maybe ID is new?
+		// start from scratch in the PID config list only. Maybe Container ID is new
 		struct pidc_parm * curr = conts->pids;
 
 		while (NULL != curr) {
@@ -287,27 +295,6 @@ int node_findParams(node_t* node, struct containers * conts){
 	printDbg("... PID not found. Ignoring\n");
 
 	return -1;
-	// TODO: what if NULL?
-/*
-	// didnt find it anywhere  -> plant an empty container and pidc
-	push((void**)&conts->cont, sizeof(cont_t));
-	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
-	conts->cont->rscs = conts->rscs;
-	conts->cont->attr = conts->attr;
-
-	push((void**)&conts->pids, sizeof(pidc_t));
-	push((void**)&cont->pids, sizeof(pids_t));
-	cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-
-	conts->pids->rscs = conts->rscs;
-	conts->pids->attr = conts->attr;
-	node->param = conts->pids;
-
-	// update counters
-	conts->nthreads++;
-	conts->num_cont++;		
-	return -1;
-*/
 }
 
 /* -------------------- special for Param structures --------------------- */
@@ -409,8 +396,6 @@ void node_pop(node_t ** head) {
 		runstats_freehist((*head)->mon.pdf_hist);
 	if ((*head)->mon.pdf_parm)
 		runstats_freeparam((*head)->mon.pdf_parm);
-
-	// TODO: configuration of PID and container maybe as well?
 
 	pop((void**)head);
 }

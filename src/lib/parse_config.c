@@ -409,7 +409,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		if (!(set->logdir = strdup("./")) || 
 			!(set->logbasename = strdup("orchestrator.txt")))
 			err_exit_n(errno, "Can not set parameter");
-		set->logsize = 0;
 
 		// signatures and folders
 		if (!set->cont_ppidc)
@@ -519,7 +518,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	// force, cli only
 	set->smi = get_bool_value_from(global, "smi", TRUE, set->smi);
 	set->rrtime = get_int_value_from(global, "rrtime", TRUE, set->rrtime);
-	set->use_fifo = get_bool_value_from(global, "use_fifo", TRUE, set->use_fifo);
 	//kernelversion -> runtime parameter
 
 	{ // affinity selection switch block
@@ -556,9 +554,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		free(defafin);
 	} // END default affinity block 
 
-
-	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, set->gnuplot);
-	set->logsize = get_bool_value_from(global, "logsize", TRUE, set->logsize);
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
 
 }
@@ -573,7 +568,6 @@ void parse_config_set_default(prgset_t *set) {
 	// logging
 	set->logdir = NULL; 
 	set->logbasename = NULL;
-	set->logsize = 0;
 
 	set->cont_ppidc = NULL;
 	set->cont_pidc = NULL;
@@ -599,7 +593,7 @@ void parse_config_set_default(prgset_t *set) {
 	set->runtime = 0;
 	set->psigscan = 0;
 	set->trackpids = 0;
-	//set->negiszero = 0;
+
 	set->dryrun = 0;
 	set->blindrun = 0;
 	set->lock_pages = 0;
@@ -633,7 +627,7 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 	if (!set) {
 		// empty pointer, create and init structure
 		if ((set=malloc(sizeof(prgset_t))))
-			err_msg("Error allocatinging memory!"); 
+			err_msg("Error allocating memory!");
 		parse_config_set_default(set);	
 	}
 
@@ -757,9 +751,9 @@ void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
 	js = json_tokener_parse(buf);
 	parse_config(js, set, conts);
 
-	// end parsing JSON TODO: fix memory leak?? changes first long string
-//	if (!json_object_put(js))
-//		err_exit(PFX "Could not free objects!");
+	// end parsing JSON
+	if (!json_object_put(js))
+		err_exit(PFX "Could not free objects!");
 }
 
 /// parse_config_stdin(): parse the JSON configuration from stdin until EOF
@@ -785,8 +779,8 @@ void parse_config_file (const char *filename, prgset_t *set, containers_t *conts
 	free(fn);
 	parse_config(js, set, conts);
 
-	// end parsing JSON TODO: fix memory leak?? changes first long string
-//	if (!json_object_put(js))
-//		err_exit(PFX "Could not free objects!");
+	// end parsing JSON
+	if (!json_object_put(js))
+		err_exit(PFX "Could not free objects!");
 }
 

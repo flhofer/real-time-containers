@@ -48,7 +48,6 @@
 		int32_t rt_time;  // RT execution time hard limit
 		int32_t mem_dataw; // Data memory soft limit
 		int32_t mem_data;  // Data memory time hard limit
-		// TODO: fill with other values, i.e. memory bounds ecc.
 	} rscs_t;
 
 	// ############################  WARN -- DO NOT CHANGE ##########################3
@@ -110,7 +109,6 @@
 		float	 U;				// utilization factor
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
-		// TODO: fill with other values, i.e. memory amounts ecc
 	} resTracer_t;
 
 	typedef struct sched_mon { // actual values for monitoring
@@ -147,8 +145,8 @@
 	typedef struct prg_settings {
 
 		// filepaths
-		char *logdir;				// TODO: path to put log data in
-		char *logbasename;			// TODO: file prefix for logging data
+		char *logdir;				// path to put log data in
+		char *logbasename;			// file prefix for logging data
 
 		// signatures and folders
 		char * cont_ppidc;
@@ -174,14 +172,12 @@
 		int runtime;				// total orchestrator runtime, 0 is infinite
 		int psigscan;				// scan for child threads, -n option only
 		int trackpids;				// keep track of left pids, do not delete from list
-		//int negiszero;
 		int dryrun;					// test only, no changes to environment
 		int blindrun;				// blind run of orchestrator, avoid settings (extension of dryrun)
 		int lock_pages;				// memory lock on startup
 		int force;					// force environment changes if needed
 		int smi;					// enable smi counter check
 		int rrtime;					// round robin slice time. 0=no change
-		int use_fifo;				// TODO: use fifo buffer for output
 
 		// runtime values
 		int kernelversion; // kernel version -> opts based on this
@@ -190,11 +186,8 @@
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
 
-		int logsize;				// TODO: limit for logsize
-		int gnuplot; 				// TODO: enable gnuplot output at the end
-		int ftrace; 				// TODO: enable ftrace kernel trace output at the end
-
 		// runtime settings
+		int ftrace; 				// enable Kernel ftrace for run-time statistics
 		int use_cgroup;				// identify processes via cgroup
 
 	} prgset_t;
