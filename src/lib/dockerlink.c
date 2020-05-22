@@ -212,14 +212,11 @@ void *dlink_thread_watch(void *arg) {
 		act.sa_handler = NULL; // On some architectures ---
 		act.sa_sigaction = &dlink_inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
-
-		/* blocking signal set */
-		(void)sigemptyset(&act.sa_mask);
-
 		act.sa_restorer = NULL;
 
-		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
-		{
+		/* blocking signal set */
+		if (((sigemptyset(&act.sa_mask)))
+			|| (sigaction(SIGHUP, &act, NULL) < 0))	{ // quit from caller
 			perror ("Setup of sigaction failed");
 			th_return = EXIT_FAILURE;
 			pthread_exit(&th_return);
@@ -230,10 +227,9 @@ void *dlink_thread_watch(void *arg) {
 		sigset_t set;
 		/* Block all signals except SIGHUP */
 
-		(void)sigfillset(&set);
-		(void)sigdelset(&set, SIGHUP);
-		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{
+		if ( ((sigfillset(&set)))
+			|| ((sigdelset(&set, SIGHUP)))
+			|| (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
 			perror ("Setup of sigmask failed");
 			th_return = EXIT_FAILURE;
 			pthread_exit(&th_return);

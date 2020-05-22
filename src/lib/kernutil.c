@@ -42,9 +42,6 @@
 #undef PFX
 #define PFX "[rt-utils] "
 
-// Statically allocated prefix
-static char debugfileprefix[_POSIX_PATH_MAX];
-
 #if (defined(__i386__) || defined(__x86_64__))
 	#define ARCH_HAS_SMI_COUNTER
 #endif
@@ -53,6 +50,9 @@ static char debugfileprefix[_POSIX_PATH_MAX];
 #define MSR_SMI_COUNT_MASK	0xFFFFFFFF
 
 #ifdef ARCH_HAS_SMI_COUNTER
+
+// Debug prefix allocated first time, used for all further calls
+static char debugfileprefix[_POSIX_PATH_MAX];
 
 /*
  * open_msr_file: open file descriptor of MSR counters

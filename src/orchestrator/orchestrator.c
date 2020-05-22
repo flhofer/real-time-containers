@@ -501,12 +501,12 @@ int main(int argc, char **argv)
 		act.sa_sigaction = &inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
 
-		/* blocking signal set */
+		/* blocking signal set during handler */
 		sigemptyset(&act.sa_mask);
 		sigaddset(&act.sa_mask, SIGINT);
 		sigaddset(&act.sa_mask, SIGTERM);
 		sigaddset(&act.sa_mask, SIGQUIT);
-		sigaddset(&act.sa_mask, SIGUSR1);
+		sigaddset(&act.sa_mask, SIGHUP);
 
 		act.sa_restorer = NULL;
 
@@ -520,15 +520,15 @@ int main(int argc, char **argv)
 	{ // signal blocking set
 
 		 sigset_t set;
-	   /* Block SIGQUIT and SIGUSR1; other threads created by main()
+	   /* Block SIGQUIT and SIGHUP; other threads created by main()
 		  will inherit a copy of the signal mask. */
 
 	   // allow all to be handled by Main, except
-	   sigemptyset(&set);
-	   sigaddset(&set, SIGQUIT);	// used in manage thread
-	   sigaddset(&set, SIGHUP);		// used in docker_link
-	   if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{ // INT signal, stop from main prg
+	   if ( ((sigemptyset(&set)))
+			   || ((sigaddset(&set, SIGQUIT)))	// used in manage thread
+			   || ((sigaddset(&set, SIGHUP)))	// used in docker_link
+			   || (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
+		   // INT signal, stop from main prg
 			perror ("Setup of sigmask failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}

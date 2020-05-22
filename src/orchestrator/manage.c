@@ -130,7 +130,7 @@ static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
 
 	char path[_POSIX_PATH_MAX];
-	(void)sprintf(path, "%sevents/%s/", dbgpfx, event);
+	(void)sprintf(path, "%s/events/%s/", dbgpfx, event);
 
 	// maybe put it in a function??
 	if (0 < setkernvar(path, "enable", "0", prgset->dryrun)) {
@@ -518,12 +518,10 @@ void *thread_ftrace(void *arg){
 	{
 		 sigset_t set;
 		/* Block all signals except SIGQUIT */
-
-		(void)sigfillset(&set);
-		(void)sigdelset(&set, SIGQUIT);
-		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{
-			perror ("Setup of sigmask failed");// TODO fix that
+		if ( ((sigfillset(&set)))
+			|| ((sigdelset(&set, SIGQUIT)))
+			|| (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
+			perror ("Setup of sigmask failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	}
