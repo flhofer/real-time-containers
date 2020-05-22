@@ -36,14 +36,11 @@ pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
 node_t * nhead = NULL;
 
-// TODO configuration read file -- TEMP public, -> then change to static
-char * config = "config.json";
+// configuration read file
+static char * config = "config.json";
 
 // -------------- LOCAL variables for all the functions  ------------------
 
-// TODO:  implement fifo thread as in cyclic-test for readout
-//static pthread_t fifo_threadid;
-//static char fifopath[MAX_PATH];
 static int adaptive = 0;
 
 // signal to keep status of triggers ext SIG
@@ -89,7 +86,6 @@ static void display_help(int error)
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
-//	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-k                         keep track of ended PIDs\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
@@ -108,12 +104,6 @@ static void display_help(int error)
 	       "                           optional CMD parameter specifies ppid command\n"
 #ifdef ARCH_HAS_SMI_COUNTER
                "         --smi             Enable SMI counting\n"
-#endif
-//	       "-t NUM   --threads=NUM     number of threads for resource management\n"
-//	       "                           default = 1 (not changeable for now)\n"
-	       "-u       --unbuffered      force unbuffered output for live processing (FIFO)\n"
-#ifdef NUMA
-//	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
 #ifdef DEBUG
 	       "-v       --verbose         verbose output for debug purposes\n"
@@ -135,18 +125,17 @@ static void display_help(int error)
 
 enum option_values {
 	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
-	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
+	OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET, 
-	OPT_RRTIME, OPT_THREADS, OPT_UNBUFFERED, OPT_RTIME, 
-	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, 
-	OPT_HELP, OPT_VERSION
+	OPT_RRTIME, OPT_RTIME, OPT_SMI, OPT_VERBOSE,
+	OPT_WCET, OPT_POLICY, OPT_HELP, OPT_VERSION
 };
 
 /// process_options(): Process commandline options 
 ///
 /// Arguments: - structure with parameter set
 ///			   - passed command line variables
-///			   - number of cpus
+///			   - number of CPUs
 ///
 /// Return value: -
 static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus)
@@ -163,7 +152,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	parse_config_set_default(set);
 
 	for (;;) {
-		//option_index = 0;
 		/*
 		 * Options for getopt
 		 * Ordered alphabetically by single letter name
@@ -173,7 +161,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"bind",     		 no_argument,       NULL, OPT_BIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"dflag",            no_argument,		NULL, OPT_DFLAG },
-			{"fifo",             required_argument, NULL, OPT_FIFO },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
 			{"mlockall",         no_argument,       NULL, OPT_MLOCKALL },
@@ -181,8 +168,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"quiet",            no_argument,       NULL, OPT_QUIET },
 			{"runtime",          required_argument, NULL, OPT_RTIME },
 			{"rr",               required_argument, NULL, OPT_RRTIME },
-			{"threads",          required_argument, NULL, OPT_THREADS },
-			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
@@ -192,7 +177,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
+		int c = getopt_long(argc, argv, "a:Abc:C:dDfhi:kl:mn::p:Pqr:s:vw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -257,11 +242,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->dryrun = 1; break;
 		case 'f':
 			set->force = 1; break;
-		case 'F':
-		case OPT_FIFO:
-			set->use_fifo = 1;
-			//TODO: strncpy(fifopath, optarg, strlen(optarg));
-			break;
 		case 'i':
 		case OPT_INTERVAL:
 			set->interval = atoi(optarg); break;
@@ -290,7 +270,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			if (SCHED_FIFO != set->policy && SCHED_RR != set->policy) {
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO");
 				set->policy = SCHED_FIFO;
-}
+			}
 			break;
 		case 'P':
 			set->psigscan = 1; break;
@@ -325,9 +305,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				optargs++;
 			}
 			break;
-		case 'u':
-		case OPT_UNBUFFERED:
-			setvbuf(stdout, NULL, _IONBF, 0); break;
 #ifdef DEBUG
 		case 'v':
 		case OPT_VERBOSE: 
@@ -390,7 +367,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		// parse json configuration
 		parse_config_file(config, set, contparm);
 
-	if (set->smi) { // TODO: verify this statements, I just put them all
+	if (set->smi) { // verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)
 			err_exit("SMI counter relies on thread affinity");
 
@@ -491,7 +468,6 @@ int main(int argc, char **argv)
 	(void)pthread_setname_np(thrUpdate, "update");
 #endif
 
-	// TODO: consider moving these two before the thread creation -> inheritance
 	{ // setup interrupt handler block
 		struct sigaction act;
 
@@ -555,5 +531,5 @@ int main(int argc, char **argv)
     info("exiting safely");
     cleanupEnvironment(prgset);
 
-    return EXIT_SUCCESS; // TODO: verify correct return code
+    return EXIT_SUCCESS;
 }

@@ -28,7 +28,7 @@ static void orchestrator_update_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
-	prgset->affinity= "0"; // TODO detect
+	prgset->affinity= "0";
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
 
@@ -137,11 +137,10 @@ START_TEST(orchestrator_update_findprocs)
 	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
 	sleep(1);
 
-	// verify pids
+	// verify PIDs
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid3);
 
-	// TODO: verify if threads remain defunct
 	pclose(fd1); // close pipe of sleep instance = HUP
 	pclose(fd3); // close pipe of sleep instance = HUP
 

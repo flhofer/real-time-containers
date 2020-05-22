@@ -405,8 +405,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!global) {
 		printDbg(PFX " No global section Found: Use default value\n");
 
-		// TODO set only if NULL
-
 		// logging
 		if (!(set->logdir = strdup("./")) || 
 			!(set->logbasename = strdup("orchestrator.txt")))
@@ -610,7 +608,6 @@ void parse_config_set_default(prgset_t *set) {
 	set->force = 0;
 	set->smi = 0;
 	set->rrtime = 0;
-	set->use_fifo=0; // TODO FIFO implementation
 
 	// runtime values
 	set->kernelversion = KV_NOT_SUPPORTED;
@@ -620,7 +617,6 @@ void parse_config_set_default(prgset_t *set) {
 	set->affinity_mask = NULL;
 
 
-	set->gnuplot = 0; // TODO: GNU-plot?
 	set->ftrace = 0;
 
 	set->use_cgroup = DM_CGRP;

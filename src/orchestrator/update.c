@@ -326,8 +326,7 @@ static void updateDocker() {
 		}
 	}
 
-	// scan for PID updates // TODO: Selective update in scanNew if container mode on (less to do)
-	// .. might be a problem if not matchin -> update comparison of list!!
+	// scan for PID updates
 	scanNew(); 
 }
 
@@ -660,7 +659,7 @@ void *thread_update (void *arg)
 	}
 
 	(void)printf(PFX "Stopped\n");
-	// TODO: Start using return value
+	// Start using return value
 	return NULL;
 }
 

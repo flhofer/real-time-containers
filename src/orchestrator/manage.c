@@ -1001,7 +1001,7 @@ void *thread_manage (void *arg)
 	}
 
 	(void)printf(PFX "Stopped\n");
-	// TODO: Start using return value
+	// Start using return value
 	return NULL;
 }
 
