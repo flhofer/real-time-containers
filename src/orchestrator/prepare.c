@@ -447,12 +447,11 @@ prepareEnvironment(prgset_t *set) {
 			warn("could not set orchestrator scheduling attributes, %s", strerror(errno));
 	}
 
-	if (AFFINITY_USEALL != set->setaffinity){ // set affinity only if not useall
-		if (numa_sched_setaffinity(mpid, naffinity))
-			warn("could not set orchestrator affinity: %s", strerror(errno));
-		else
-			cont("Orchestrator's PID reassigned to CPU's %s", cpus);
-	}
+	// set affinity only if not use-all
+	if (numa_sched_setaffinity(mpid, naffinity))
+		warn("could not set orchestrator affinity: %s", strerror(errno));
+	else
+		cont("Orchestrator's PID reassigned to CPU's %s", cpus);
 
 	/// --------------------
 	/// Docker CGROUP setup - detection if present
@@ -525,101 +524,99 @@ prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// CGroup present, fix CPU-sets of running containers
-	if (AFFINITY_USEALL != set->setaffinity){ // TODO: useall = ignore setting of exclusive
+	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
 
-		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(set->cpusetdfileprefix);// -> pointing to global
+	if (d) {
 
-		DIR *d;
-		struct dirent *dir;
-		d = opendir(set->cpusetdfileprefix);// -> pointing to global
-		if (d) {
+		// CLEAR exclusive flags in all existing containers
+		{
+			char *contp = NULL; // clear pointer
+			while ((dir = readdir(d)) != NULL) {
+			// scan trough docker CGroup, find container IDs
+				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
+					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1))) {
+						contp[0] = '\0';   // ensures the memory is an empty string
+						// copy to new prefix
+						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
 
-			// CLEAR exclusive flags in all existing containers
-			{
-				char *contp = NULL; // clear pointer
-				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker CGroup, find container IDs
-					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
-						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							contp[0] = '\0';   // ensures the memory is an empty string
-							// copy to new prefix
-							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
-
-							// remove exclusive!
-							if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-								warn("Can not remove CPU exclusive : %s", strerror(errno));
-							}
+						// remove exclusive!
+						if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+							warn("Can not remove CPU exclusive : %s", strerror(errno));
 						}
-						else // realloc error
-							err_exit("could not allocate memory!");
 					}
-				}
-				free (contp);
-			}
-
-			// clear Docker CGroup settings and affinity first..
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
-				warn("Can not remove CPU exclusive : %s", strerror(errno));
-			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
-				// global reset failed, try affinity only
-				if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-					warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
+					else // realloc error
+						err_exit("could not allocate memory!");
 				}
 			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
-			}
+			free (contp);
+		}
 
-			// rewind, stard configuring
-			rewinddir(d);
-
-
-			{
-				char *contp = NULL; // clear pointer
-				/// Reassigning pre-existing containers?
-				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker CGroup, find them?
-					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
-						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							contp[0] = '\0';   // ensures the memory is an empty string
-							// copy to new prefix
-							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
-
-							if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-								warn("Can not set CPU-affinity");
-							}
-							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set NUMA memory nodes"); // TODO: separate NUMA settings
-							}
-						}
-						else // realloc error
-							err_exit("could not allocate memory!");
-					}
-				}
-				free (contp);
-			}
-
-			// Docker CGroup settings and affinity
+		// clear Docker CGroup settings and affinity first..
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+			warn("Can not remove CPU exclusive : %s", strerror(errno));
+		}
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+			// global reset failed, try affinity only
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-				warn("Can not set CPU-affinity");
+				warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
 			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
+		}
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+			warn("Can not set NUMA memory nodes");
+		}
+
+		// rewind, start configuring
+		rewinddir(d);
+
+
+		{
+			char *contp = NULL; // clear pointer
+			/// Reassigning pre-existing containers?
+			while ((dir = readdir(d)) != NULL) {
+			// scan trough docker CGroup, find them?
+				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
+					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1))) {
+						contp[0] = '\0';   // ensures the memory is an empty string
+						// copy to new prefix
+						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+
+						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
+							warn("Can not set CPU-affinity");
+						}
+						if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
+							warn("Can not set NUMA memory nodes");
+						}
+					}
+					else // realloc error
+						err_exit("could not allocate memory!");
+				}
 			}
+			free (contp);
+		}
+
+		// Docker CGroup settings and affinity
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+			warn("Can not set CPU-affinity");
+		}
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+			warn("Can not set NUMA memory nodes");
+		}
+		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 				warn("Can not set CPU exclusive");
 			}
 
-			closedir(d);
-		}
+		closedir(d);
 	}
+
 
 	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
 	// we know of, so set it up-front
-	// TODO: simplify code using single function for all -> internal CG library?
 	cont("creating CGroup entries for configured CIDs");
 	{
 		char * fileprefix = NULL;
@@ -646,7 +643,7 @@ prepareEnvironment(prgset_t *set) {
 					warn("Can not set CPU-affinity");
 				}
 				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
-					warn("Can not set NUMA memory nodes"); // TODO: separte NUMA settings
+					warn("Can not set NUMA memory nodes");
 				}
 			}
 			else //realloc issues
@@ -684,9 +681,10 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
-		if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-			warn("Can not set CPU exclusive");
-		}
+		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
+			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+				warn("Can not set CPU exclusive");
+			}
 
 		cont( "moving tasks..");
 

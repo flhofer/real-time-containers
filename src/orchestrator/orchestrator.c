@@ -193,6 +193,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				set->affinity = argv[optind];
 				optargs++;
 				set->setaffinity = AFFINITY_SPECIFIED;
+			// flag -a with no range = all
 			} else {
 				set->affinity = malloc(14);
 				if (!set->affinity){
