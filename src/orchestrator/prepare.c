@@ -172,31 +172,35 @@ getCapMask(prgset_t *set) {
 int
 prepareEnvironment(prgset_t *set) {
 
-	// TODO: CPU number vs CPU enabling mask
-	// TODO: check maxcpu vs last cpu!
-	// Important when many are disabled from the beginning
-	// TODO: numa_allocate_cpumask vs malloc!! -> Allocates the size!!
+	if (numa_available())
+		err_exit( "NUMA is not available but mandatory for the orchestration");
 
-	/// --------------------
-	/// verify CPU topology and distribution
-	// TODO: global update maxCPU -> max CPU number of last installed CPU, could be higher number than expected
-	int maxcpu = get_nprocs();
-	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
+	{	// System CPU info, allocate SMI counters based on CPU numbers
+
+		// numa_num_configured_cpus() seems to be the same, parsing /sys
+		int maxcpu = get_nprocs(); 			// sysconf(_SC_NPROCESSORS_ONLN);
+		int maxccpu = get_nprocs_conf();	// sysconf(_SC_NPROCESSORS_CONF);
+
+		info("This system has %d processors configured and "
+			"%d processors available.",
+			maxccpu, maxcpu);
+
+		smi_counter = calloc (maxccpu, sizeof(long));	// alloc to 0
+		smi_msr_fd 	= calloc (maxccpu, sizeof(int));	// alloc to 0
+		if (!smi_counter || !smi_msr_fd)
+			err_exit("could not allocate memory!");
+	}
 
 	char cpus[CPUSTRLEN]; // cpu allocation string
 	char constr[CPUSTRLEN]; // cpu online string
 	char str[100]; // generic string...
 
-	info("This system has %d processors configured and "
-        "%d processors available.",
-        maxccpu, maxcpu);
-
-	if (numa_available())
-		err_exit( "NUMA is not available but mandatory for the orchestration");
-
 	info("Starting environment setup");
 
-	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
+	/// --------------------
+	/// verify CPU topology and distribution
+
+	// verify if SMT is disabled -> now force = disable
 	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
 		// value read OK
 		if (!strcmp(str, "on")) {
@@ -211,8 +215,6 @@ prepareEnvironment(prgset_t *set) {
 					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
 			else
 				cont("SMT is now disabled, as required. Refresh configurations..");
-			sleep(1); // leave time to refresh conf buffers -> immediate query fails
-			maxcpu = get_nprocs();	// update
 		}
 		else
 			cont("SMT is disabled, as required");
@@ -225,20 +227,24 @@ prepareEnvironment(prgset_t *set) {
 	if (!set->affinity_mask)
 		return -1; // return to display help
 
-	smi_counter = calloc (maxccpu, sizeof(long));
-	smi_msr_fd = calloc (maxccpu, sizeof(int));
-	if (!smi_counter || !smi_msr_fd)
-		err_exit("could not allocate memory!");
-
 	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
 		err_exit("could not allocate memory!");
 
+	// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
+	// and avoid to fall into the CPU numbering trap
+	int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
+
 	// get online cpu's
 	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
 		struct bitmask * con = numa_parse_cpustring_all(constr);
+		if (!con)
+			err_exit("Can not parse online CPUs");
+
 		// mask affinity and invert for system map / readout of smi of online CPUs
-		for (int i=0;i<maxccpu;i++) {
+		int smi_cpu = 0;
+
+		for (int i=0;i<mask_sz;i++) {
 
 			/* ---------------------------------------------------------*/
 			/* Configure online CPUs - HT, SMT and performance settings */
@@ -318,11 +324,14 @@ prepareEnvironment(prgset_t *set) {
 					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
 						err_exit("Could not read SMI counter, errno: %d",
 							0, errno);
+					// next CPU
+					smi_cpu++;
 				}
 
 				// invert affinity for available CPUs only -> for system
 				if (!numa_bitmask_isbitset(set->affinity_mask, i))
 					numa_bitmask_setbit(naffinity, i);
+
 			}
 
 			// if CPU not online
@@ -359,7 +368,7 @@ prepareEnvironment(prgset_t *set) {
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 
-	if (SCHED_RR == set->policy && 0 < set->rrtime) { // TODO: maybe change to global as now used for adapt
+	if (SCHED_RR == set->policy && 0 < set->rrtime) {
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
 		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
@@ -387,15 +396,14 @@ prepareEnvironment(prgset_t *set) {
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 
 	// ksoftirqd -> offline, online again
-	// TODO: dryrun?? print and show ?
 	cont("Trying to push CPU's interrupts");
 	if (!set->blindrun && !set->dryrun)
 	{
 		char fstring[50]; // cpu string
 		// bring all affinity except 0 off-line
-		for (int i=maxccpu-1;i>0;i--) {
+		for (int i=mask_sz-1;i>0;i--) {
 
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
@@ -406,9 +414,9 @@ prepareEnvironment(prgset_t *set) {
 			}
 		}
 		// bring all back online
-		for (int i=1;i<maxccpu;i++) {
+		for (int i=1;i<mask_sz;i++) {
 
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
 
 				// verify if CPU-frequency is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
@@ -429,7 +437,6 @@ prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// running settings for scheduler
-	// TODO: detect possible CPU alignment cat /proc/$$/cpuset, maybe change it once all is done
 	struct sched_attr attr;
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
@@ -507,7 +514,7 @@ prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/// --------------------
-	/// detect NUMA configuration TODO: adapt for full support
+	/// detect NUMA configuration, sets all nodes to active (for now)
 	char * numastr = malloc (5);
 	if (!(numastr))
 			err_exit("could not allocate memory!");
@@ -753,7 +760,6 @@ sysend: // jumped here if not possible to create system
 	numa_free_cpumask(naffinity);
 	free(numastr);
 
-	// TODO: check if it makes sense to do this before or after starting threads
 	/* lock all memory (prevent swapping) -- do here */
 	if (set->lock_pages) {
 		// find lock configuration - depending on CAPS
