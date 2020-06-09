@@ -555,6 +555,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	} // END default affinity block 
 
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
+	set->ptresh = get_double_value_from(global, "ptresh", TRUE, set->ptresh);
 
 }
 
@@ -612,6 +613,8 @@ void parse_config_set_default(prgset_t *set) {
 	set->ftrace = 0;
 
 	set->use_cgroup = DM_CGRP;
+
+	set->ptresh = 0.9;
 }
 
 /// parse_config(): parse the JSON configuration and push back results

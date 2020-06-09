@@ -28,7 +28,21 @@
 	#define set_default_if_needed(key, value, have_def, def_value) do {	\
 		if (!value) {							\
 			if (have_def) {						\
-				printDbg(PIN "key: %s <default> %d\n", key, def_value);\
+				printDbg(PIN "key: %s <default> %ld\n", key, (int64_t)def_value);\
+				return def_value;				\
+			} else {						\
+				err_msg(PFX "Key %s not found", key);	\
+				exit(EXIT_INV_CONFIG);	\
+			}							\
+		}								\
+	} while(0)
+
+	/* this macro set a default if key not present, or give an error and exit
+	 * if key is present but does not have a default */
+	#define set_default_if_needed_double(key, value, have_def, def_value) do {	\
+		if (!value) {							\
+			if (have_def) {						\
+				printDbg(PIN "key: %s <default> %f\n", key, def_value);\
 				return def_value;				\
 			} else {						\
 				err_msg(PFX "Key %s not found", key);	\
@@ -163,5 +177,22 @@
 		printDbg(PIN "key: %s, value: %ld, type <int64>\n", key, i_value);
 		return i_value;
 	}
+
+	static inline double
+	get_double_value_from(struct json_object *where,
+			   const char *key,
+			   int have_def,
+			   double def_value)
+	{
+		struct json_object *value;
+		double i_value;
+		value = get_in_object(where, key, have_def);
+		set_default_if_needed_double(key, value, have_def, def_value);
+		assure_type_is(value, where, key, json_type_double);
+		i_value = json_object_get_double(value);
+		printDbg(PIN "key: %s, value: %f, type <double>\n", key, i_value);
+		return i_value;
+	}
+
 
 #endif /* _PARSE_FUNC_H_ */

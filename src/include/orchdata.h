@@ -176,7 +176,7 @@
 		int affother;				// set affinity of parent as well
 		int setdflag;				// set deadline overrun flag
 		int interval;				// scan interval
-		int update_wcet;			// wcet for sched deadline
+		int update_wcet;			// WCET for sched deadline
 		int loops;					// repetition loop count for container check
 		int runtime;				// total orchestrator runtime, 0 is infinite
 		int psigscan;				// scan for child threads, -n option only
@@ -193,13 +193,14 @@
 		int status;					// generic status flags
 
 		// affinity specification for system vs RT
-		int setaffinity;			// affinty mode enumeration
+		int setaffinity;			// affinity mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
 
 		// runtime settings
 		int ftrace; 				// enable Kernel ftrace for run-time statistics
-		int use_cgroup;				// identify processes via cgroup
+		int use_cgroup;				// identify processes via CGroup
+		double ptresh;				// probability threshold for resource switching
 
 	} prgset_t;
 
