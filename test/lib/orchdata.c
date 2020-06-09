@@ -23,7 +23,7 @@ START_TEST(orchdata_ndpush)
 
 	ck_assert_ptr_eq(nhead->next, NULL);
 	ck_assert_int_eq(nhead->pid, 0);
-	ck_assert_int_eq(nhead->det_mode, 0);
+	ck_assert_int_eq(nhead->status, 0);
 	ck_assert_ptr_eq(nhead->psig, NULL);
 	ck_assert_ptr_eq(nhead->contid, NULL);
 	ck_assert_ptr_eq(nhead->imgid, NULL);

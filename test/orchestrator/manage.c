@@ -147,7 +147,7 @@ START_TEST(orchestrator_manage_readftrace)
 	prgset->ftrace = 1;
 
 
-	const int pid[] = { 1, 2, 3	}; // TODO: setup
+	const int pid[] = { 1, 2, 3	}; // to do setup
 
 	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
 		node_push(&nhead);

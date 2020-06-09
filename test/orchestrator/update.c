@@ -34,7 +34,6 @@ static void orchestrator_update_setup() {
 
 	prgset->logdir = strdup("./");
 	prgset->logbasename = strdup("orchestrator.txt");
-	prgset->logsize = 0;
 	prgset->ftrace = 1;
 
 	// signatures and folders
