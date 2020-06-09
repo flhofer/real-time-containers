@@ -705,85 +705,93 @@ static int get_sched_info(node_t * item)
 		(void)sscanf(s,"%s %*c %ld", ltag, &num);
 
 		// ---------- SCHED_FIFO/RR --------------
-		if (strncasecmp(ltag, "se.exec_start", 4) == 0)	{
-			// execution time since start, reread
-			int64_t nanos = 0; // value after the dot
-			(void)sscanf(s,"%s %*c %ld.%ld", ltag, &num, &nanos);
-			num *= 1000000; // push left for values after comma
-			num += nanos;
+		if ((SCHED_RR == item->attr.sched_policy)
+			|| (SCHED_FIFO == item->attr.sched_policy)){
+			if (strncasecmp(ltag, "se.exec_start", 4) == 0)	{
+				// execution time since start, reread
+				int64_t nanos = 0; // value after the dot
+				(void)sscanf(s,"%s %*c %ld.%ld", ltag, &num, &nanos);
+				num *= 1000000; // push left for values after comma
+				num += nanos;
 
-			// compute difference
-			diff = (int64_t)(num - item->mon.dl_rt);
-			item->mon.dl_rt = num; 	// store last seen runtime
-		}
-		if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
-			// computation loop end
-
-			if ((item->mon.dl_count != num)
-					&& (0 != item->mon.dl_count)) {
-				// new switches detected
-				item->mon.rt_min = MIN (item->mon.rt_min, diff);
-				item->mon.rt_max = MAX (item->mon.rt_max, diff);
-				item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+				// compute difference
+				diff = (int64_t)(num - item->mon.dl_rt);
+				item->mon.dl_rt = num; 	// store last seen runtime
 			}
+			if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
+				// computation loop end
 
-			// store last seen switch number
-			item->mon.dl_count = num;
+				if ((item->mon.dl_count != num)
+						&& (0 != item->mon.dl_count)) {
+					// new switches detected
+					item->mon.rt_min = MIN (item->mon.rt_min, diff);
+					item->mon.rt_max = MAX (item->mon.rt_max, diff);
+					item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+				}
+
+				// store last seen switch number
+				item->mon.dl_count = num;
+			}
 		}
 
 		// ---------- SCHED_DEADLINE --------------
-		if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
-			// store last seen runtime
-			ltrt = num;
-			if (num != item->mon.dl_rt)
-				item->mon.dl_count++;
-		}
-		if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
-			if (0 == item->mon.dl_deadline) 
-				item->mon.dl_deadline = num;
-			else if (num != item->mon.dl_deadline) {
-				// it's not, updated deadline found
+		if (SCHED_DEADLINE == item->attr.sched_policy) {
 
-				// calculate difference to last reading, should be 1 period
-				diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
+			if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
+				// store last seen runtime
+				ltrt = num;
+				if (num != item->mon.dl_rt)
+					item->mon.dl_count++;
+			}
+			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
+				if (0 == item->mon.dl_deadline)
+					item->mon.dl_deadline = num;
+				else if (num != item->mon.dl_deadline) {
+					// it's not, updated deadline found
 
-				// difference is very close to multiple of period we might have a scan fail
-				// in addition to the overshoot
-				while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) { 
-					item->mon.dl_scanfail++;
-					diff -= (int64_t)item->attr.sched_period;
+					// calculate difference to last reading, should be 1 period
+					diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
+
+					// difference is very close to multiple of period we might have a scan fail
+					// in addition to the overshoot
+					while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) {
+						item->mon.dl_scanfail++;
+						diff -= (int64_t)item->attr.sched_period;
+					}
+
+					// overrun-GRUB handling statistics -- ?
+					if (diff)  {
+						item->mon.dl_overrun++;
+
+						// usually: we have jitter but execution stays constant -> more than a slot?
+						printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
+							item->pid, diff, item->mon.dl_diff);
+					}
+
+					item->mon.dl_diff += diff;
+					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+
+					// exponentially weighted moving average, alpha = 0.9
+					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
+
+					// runtime replenished - deadline changed: old value may be real RT ->
+					// Works only if scan time < slack time
+					diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+					item->mon.rt_min = MIN (item->mon.rt_min, diff);
+					item->mon.rt_max = MAX (item->mon.rt_max, diff);
+					item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+
+					item->mon.dl_deadline = num;
 				}
 
-				// overrun-GRUB handling statistics -- ?
-				if (diff)  {
-					item->mon.dl_overrun++;
-
-					// usually: we have jitter but execution stays constant -> more than a slot?
-					printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
-						item->pid, diff, item->mon.dl_diff); 
-				}
-
-				item->mon.dl_diff += diff;
-				item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
-				item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
-
-				// exponentially weighted moving average, alpha = 0.9
-				item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
-
-				// runtime replenished - deadline changed: old value may be real RT ->
-				// Works only if scan time < slack time 
-				diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
-				item->mon.rt_min = MIN (item->mon.rt_min, diff);
-				item->mon.rt_max = MAX (item->mon.rt_max, diff);
-				item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
-
-				item->mon.dl_deadline = num;
-			}	
-
-			// update last seen runtime
-			item->mon.dl_rt = ltrt;
-			break; // we're done reading
+				// update last seen runtime
+				item->mon.dl_rt = ltrt;
+				break; // we're done reading
+			}
 		}
+
+		// Advanve with token
 		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
 
@@ -954,6 +962,7 @@ void *thread_manage (void *arg)
 	  case 0: // setup thread
 		*pthread_state=1; // first thing
 		if (prgset->ftrace) {
+			(void)printf(PFX "Starting CPU tracing threads\n");
 			if (configureTracers())
 				warn("Kernel function tracers not available");
 
@@ -1003,7 +1012,7 @@ void *thread_manage (void *arg)
 		break;
 
 	  // TODO: change to timer and settings based loop
-	  usleep(10000);
+	  usleep(1000);
 	}
 
 	(void)printf(PFX "Stopped\n");
