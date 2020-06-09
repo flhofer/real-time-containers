@@ -408,7 +408,7 @@ parse_cpumask(const char *option)
 int
 parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	// base case check
-	if (!mask || !str)
+	if (!mask || !str || !len)
 		return -1;
  
 	char num[12];
