@@ -18,7 +18,12 @@
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
 
-	// default values, changeable via cli
+	// masks for the status of orchestrator (prgset_t)
+	#define MSK_STATTRTL		0x1	// setting RT throttle was successful done
+	#define	MSK_STATRUNC		0x2 // startup running containers present
+
+
+// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
@@ -184,7 +189,9 @@
 		int rrtime;					// round robin slice time. 0=no change
 
 		// runtime values
-		int kernelversion; // kernel version -> opts based on this
+		int kernelversion;			// kernel version -> opts based on this
+		int status;					// generic status flags
+
 		// affinity specification for system vs RT
 		int setaffinity;			// affinty mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
