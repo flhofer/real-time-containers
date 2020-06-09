@@ -432,3 +432,22 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 		closedir(d);
 	}
 }
+
+/*
+ * resetRTthrottle : reset RT throttle system-wide (works only with present tasks)
+ *
+ * Arguments: - configuration parameter structure
+ *
+ * Return value: -
+ */
+void
+resetRTthrottle (prgset_t *set){
+	cont( "Set real-time bandwidth limit to (unconstrained)..");
+	// disable bandwidth control and real-time throttle
+	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
+		warn("RT-throttle still enabled. Limitations apply.");
+	}
+	else
+		set->status |= MSK_STATTRTL;
+}
+

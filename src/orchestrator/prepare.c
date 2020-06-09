@@ -162,6 +162,82 @@ getCapMask(prgset_t *set) {
 }
 
 /*
+ *  getRRslice(): reads the round-robin slice and or sets defaults for system
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: -
+ */
+static void
+getRRslice(prgset_t * set){
+	char str[100]; // generic string...
+
+	if (SCHED_RR == set->policy && 0 < set->rrtime) {
+		cont( "Set round robin interval to %dms..", set->rrtime);
+		(void)sprintf(str, "%d", set->rrtime);
+		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
+			warn("RR time slice not changed!");
+		}
+	}
+	else{
+		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
+			warn("Could not read RR time slice! Setting to default 100ms");
+			set->rrtime=100; // default to 100ms
+		}
+		else{
+			set->rrtime = atoi(str);
+			info("RR slice is set to %d ms", set->rrtime);
+		}
+	}
+}
+
+/*
+ *  pushCPUirqs(): pushes affine CPU's offline and online again to force-move IRQs
+ *
+ *  Arguments: - structure with parameter set
+ *  		   - bit-size of CPU-masks
+ *
+ *  Return value: -
+ */
+static void
+pushCPUirqs (prgset_t *set, int mask_sz){
+	cont("Trying to push CPU's interrupts");
+	if (!set->blindrun && !set->dryrun)
+	{
+		char fstring[50]; // cpu string
+		// bring all affinity except 0 off-line
+		for (int i=mask_sz-1;i>0;i--) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d off-line", i);
+			}
+		}
+		// bring all back online
+		for (int i=1;i<mask_sz;i++) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+				// verify if CPU-frequency is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d online", i);
+			}
+		}
+	}
+	else
+		if (set->dryrun)
+			cont("skipped.");
+}
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
@@ -362,31 +438,10 @@ prepareEnvironment(prgset_t *set) {
 	set->kernelversion = check_kernel();
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
-		warn("Running on unknown kernel version...YMMVTrying generic configuration..");
+		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	cont( "Set real-time bandwidth limit to (unconstrained)..");
-	// disable bandwidth control and real-time throttle
-	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
-		warn("RT-throttle still enabled. Limitations apply.");
-	}
-
-	if (SCHED_RR == set->policy && 0 < set->rrtime) {
-		cont( "Set round robin interval to %dms..", set->rrtime);
-		(void)sprintf(str, "%d", set->rrtime);
-		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
-			warn("RR time slice not changed!");
-		}
-	}
-	else{
-		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
-			warn("Could not read RR time slice! Setting to default 100ms");
-			set->rrtime=100; // default to 100ms
-		}
-		else{
-			set->rrtime = atoi(str);
-			info("RR slice is set to %d ms", set->rrtime);
-		}
-	}
+	resetRTthrottle (set);
+	getRRslice(set);
 
 	// here.. off-line messes up CSET
 	cont("moving kernel thread affinity");
@@ -398,40 +453,7 @@ prepareEnvironment(prgset_t *set) {
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 
 	// ksoftirqd -> offline, online again
-	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun && !set->dryrun)
-	{
-		char fstring[50]; // cpu string
-		// bring all affinity except 0 off-line
-		for (int i=mask_sz-1;i>0;i--) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
-
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d off-line", i);
-			}
-		}
-		// bring all back online
-		for (int i=1;i<mask_sz;i++) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
-
-				// verify if CPU-frequency is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d online", i);
-			}
-		}
-	}
-	else
-		if (set->dryrun)
-			cont("skipped.");
+	pushCPUirqs(set, mask_sz);
 
 	// lockup detector
 	// echo 0 >  /proc/sys/kernel/watchdog
