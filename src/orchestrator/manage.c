@@ -777,10 +777,13 @@ static int get_sched_info(node_t * item)
 
 					// runtime replenished - deadline changed: old value may be real RT ->
 					// Works only if scan time < slack time
+					// and if not, this here filters the hole (maybe)
 					diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
-					item->mon.rt_min = MIN (item->mon.rt_min, diff);
-					item->mon.rt_max = MAX (item->mon.rt_max, diff);
-					item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+					if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
+						item->mon.rt_min = MIN (item->mon.rt_min, diff);
+						item->mon.rt_max = MAX (item->mon.rt_max, diff);
+						item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+					}
 
 					item->mon.dl_deadline = num;
 				}
