@@ -62,7 +62,7 @@ static void getContPids (node_t **pidlst)
 		char buf[BUFRD];	// read buffer
 		char *pid, *pid_ptr;	// strtok_r variables
 
-		printDbg( "\nContainer detection!\n");
+		printDbg( "\n" PFX "Container detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
@@ -91,12 +91,12 @@ static void getContPids (node_t **pidlst)
 						// read success, update bytes to parse
 						nleft += ret;
 
-						printDbg("%s: PID string return %s\n", __func__, buf);
+						printDbg(PFX "%s: PID string return %s\n", __func__, buf);
 
 						buf[nleft] = '\0'; // end of read check, nleft = max BUFRD-1;
 						pid = strtok_r (buf,"\n", &pid_ptr);	
 
-						printDbg("%s: processing ", __func__);
+						printDbg(PFX "%s: processing ", __func__);
 						while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
 
@@ -165,12 +165,12 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	char *pid, *pid_ptr;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg("%s: Pid string return %s\n", __func__, pidline);
+		printDbg(PFX "%s: Pid string return %s\n", __func__, pidline);
 		pid = strtok_r (pidline," ", &pid_ptr);					
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
-        printDbg("processing->%d",(*pidlst)->pid);
+        printDbg(PFX "processing->%d",(*pidlst)->pid);
 
 		// find command string and copy to new allocation
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
@@ -366,13 +366,13 @@ static void scanNew () {
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
-	printDbg("\nResult update pid: ");
+	printDbg("\n" PFX "Result update pid: ");
 	for (node_t * curr = lnew; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
 
-	printDbg("\nEntering node update");		
+	printDbg("\n" PFX "Entering node update");
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -383,7 +383,7 @@ static void scanNew () {
 
 		// insert a missing item		
 		if (lnew->pid > abs(tail->next->pid)) {
-			printDbg("\n... Insert new PID %d", lnew->pid);		
+			printDbg("\n" PFX "... Insert new PID %d", lnew->pid);
 
 			node_t * tmp = tail->next;
 			tail->next = lnew;
@@ -405,7 +405,7 @@ static void scanNew () {
 				continue; 
 			}
 
-			printDbg("\n... Delete %d", tail->next->pid);		
+			printDbg("\n" PFX "... Delete %d", tail->next->pid);
 			if (prgset->trackpids){ // deactivate only
 				tail->next->pid*=-1;
 				tail = tail->next;
@@ -415,7 +415,7 @@ static void scanNew () {
 		} 
 		// ok, they're equal, skip to next
 		else {
-			printDbg("\nNo change");		
+			printDbg("\n" PFX "No change");
 			// free allocated items, no longer needed
 			node_pop(&lnew);
 			tail = tail->next;
@@ -424,7 +424,7 @@ static void scanNew () {
 
 	while (NULL != tail->next) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n... Delete at end %d", tail->next->pid);// tail->next->pid);		
+		printDbg("\n" PFX "... Delete at end %d", tail->next->pid);// tail->next->pid);
 		// get next item, then drop old
 		if (prgset->trackpids)// deactivate only
 			tail->next->pid = abs(tail->next->pid)*-1;
@@ -433,7 +433,7 @@ static void scanNew () {
 	}
 
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end, starting from PID %d - on\n", lnew->pid);		
+		printDbg("\n" PFX "... Insert at end, starting from PID %d - on\n", lnew->pid);
 		tail->next = lnew;
 		while (tail->next){
 			setPidResources(tail->next); // find match and set resources
@@ -446,10 +446,10 @@ static void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("\nExiting node update\n");
+	printDbg("\n" PFX "Exiting node update\n");
 
 #ifdef DEBUG
-	printDbg("\nResult list: ");
+	printDbg("\n" PFX "Result list: ");
 	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
