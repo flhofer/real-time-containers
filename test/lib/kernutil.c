@@ -46,7 +46,9 @@ static const struct kernvar_test getkernvar_var[6] = {
 		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
-		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
+		// _POSIX_PATHMAX = 256
+		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/sys/sys/"
+		 "/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
 			"devices1", "", -1, ENOMEM},						// too long filename+varname > 128
 		{"/sys/devices/system/cpu/isolated/",
 			"thread_siblings_list", "", -1, ENOTDIR}			// not a valid dir string
