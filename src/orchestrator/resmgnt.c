@@ -396,7 +396,8 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			/// Reassigning pre-existing containers?
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find them?
-				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
+				if  ((DT_DIR == dir->d_type)
+					 && (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						contp[0] = '\0';   // ensures the memory is an empty string

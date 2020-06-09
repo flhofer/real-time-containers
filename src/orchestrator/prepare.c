@@ -233,8 +233,70 @@ pushCPUirqs (prgset_t *set, int mask_sz){
 		}
 	}
 	else
-		if (set->dryrun)
-			cont("skipped.");
+		cont("skipped.");
+}
+
+/*
+ * countCGroupTasks : count the number of tasks in the cpu-set docker
+ *
+ * Arguments: - configuration parameter structure
+ *
+ * Return value: int with number of tasks, error if < 0
+ */
+static int
+countCGroupTasks(prgset_t *set) {
+
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(set->cpusetdfileprefix);// -> pointing to global
+	if (d) {
+		int count= 0;
+
+		// CLEAR exclusive flags in all existing containers
+		{
+			char *contp = NULL; // clear pointer
+			while ((dir = readdir(d)) != NULL) {
+			// scan trough docker CGroup, find container IDs
+				if  ((DT_DIR == dir->d_type)
+					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
+					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1+6))) { // \0 + /tasks
+						contp[0] = '\0';   // ensures the memory is an empty string
+						// copy to new prefix
+						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+						contp = strcat(contp,"/tasks");
+
+						// Open the file
+						FILE * fp = fopen(contp, "r");
+						char c;
+
+						// Check if file exists
+						if (fp == NULL)
+						{
+							warn("Could not open file %s", contp);
+							return -1;
+						}
+
+						// Extract characters from file and store in character c
+						for (c = getc(fp); c != EOF; c = getc(fp))
+							if (c == '\n') // Increment count if this character is newline
+								count = count + 1;
+
+						// Close the file
+						fclose(fp);
+						printDbg(PFX "The file %s has %d lines\n ", contp, count);
+
+					}
+					else // realloc error
+						err_exit("could not allocate memory!");
+				}
+			}
+			free (contp);
+		}
+		closedir(d);
+		return count;
+	}
+	return -1;
 }
 
 /*
@@ -324,9 +386,11 @@ prepareEnvironment(prgset_t *set) {
 
 		for (int i=0;i<mask_sz;i++) {
 
-			/* ---------------------------------------------------------*/
-			/* Configure online CPUs - HT, SMT and performance settings */
-			/* ---------------------------------------------------------*/
+			/*
+			 * ---------------------------------------------------------*
+			 * Configure online CPUs - HT, SMT and performance settings *
+			 * ---------------------------------------------------------*
+			 */
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
 				char fstring[50]; 	// cpu string
@@ -432,35 +496,10 @@ prepareEnvironment(prgset_t *set) {
 	// verify our capability mask
 	capMask = getCapMask(set);
 
-	/// --------------------
-	/// Kernel variables, disable bandwidth management and RT-throttle
-	/// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
-	set->kernelversion = check_kernel();
-
-	if (KV_NOT_SUPPORTED == set->kernelversion)
-		warn("Running on unknown kernel version; Trying generic configuration..");
-
-	resetRTthrottle (set);
-	getRRslice(set);
-
-	// here.. off-line messes up CSET
-	cont("moving kernel thread affinity");
-	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
-
-	// ksoftirqd -> offline, online again
-	pushCPUirqs(set, mask_sz);
-
-	// lockup detector
-	// echo 0 >  /proc/sys/kernel/watchdog
-	// or echo 9999 >  /proc/sys/kernel/watchdog
-
-	/// --------------------
-	/// running settings for scheduler
+	/* --------------------
+	 * running settings for scheduler
+	 * --------------------
+	 */
 	struct sched_attr attr;
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
@@ -484,8 +523,10 @@ prepareEnvironment(prgset_t *set) {
 	else
 		cont("Orchestrator's PID reassigned to CPU's %s", cpus);
 
-	/// --------------------
-	/// Docker CGROUP setup - detection if present
+	/* --------------------
+	 * Docker CGROUP setup - detection if present
+	 * --------------------
+	 */
 
 	{ // start environment detection CGroup
 	struct stat s;
@@ -537,8 +578,10 @@ prepareEnvironment(prgset_t *set) {
 	}
 	} // end environment detection CGroup
 
-	/// --------------------
-	/// detect NUMA configuration, sets all nodes to active (for now)
+	/* --------------------
+	 * detect NUMA configuration, sets all nodes to active (for now)
+	 * --------------------
+	 */
 	char * numastr = malloc (5);
 	if (!(numastr))
 			err_exit("could not allocate memory!");
@@ -553,13 +596,49 @@ prepareEnvironment(prgset_t *set) {
 		sprintf(numastr, "0");
 	}
 
-	/// --------------------
-	/// CGroup present, fix CPU-sets of running containers
+	/* --------------------
+	 * CGroup present, fix CPU-sets of running containers
+	 * --------------------
+	 */
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
 	resetContCGroups(set, constr, numastr);
 
-	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
-	// we know of, so set it up-front
+	/* --------------------
+	 * Kernel variables, disable bandwidth management and RT-throttle
+	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
+	 * --------------------
+	 */
+	set->kernelversion = check_kernel();
+
+	if (KV_NOT_SUPPORTED == set->kernelversion)
+		warn("Running on unknown kernel version; Trying generic configuration..");
+
+	resetRTthrottle (set);
+	getRRslice(set);
+
+	// here.. off-line messes up CSET
+	cont("moving kernel thread affinity");
+	// kernel interrupt threads affinity
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+
+	if (0 == countCGroupTasks(set))
+		// ksoftirqd -> offline, online again
+		pushCPUirqs(set, mask_sz);
+	else
+		info("Running container tasks present, skipping CPU hot-plug");
+
+	// lockup detector
+	// echo 0 >  /proc/sys/kernel/watchdog
+	// or echo 9999 >  /proc/sys/kernel/watchdog
+
+	/*------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
+	 * we know of, so set it up-front
+	 * --------------------
+	 */
 	cont("creating CGroup entries for configured CIDs");
 	{
 		char * fileprefix = NULL;
@@ -595,9 +674,10 @@ prepareEnvironment(prgset_t *set) {
 	}
 
 
-	//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
-	// system CGroup, possible tasks are moved -> do for all
-
+	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
+	 * system CGroup, possible tasks are moved -> do for all
+	 * --------------------
+	 */
 	char *fileprefix = NULL;
 
 	cont("creating CGroup for system on %s", cpus);
@@ -666,7 +746,7 @@ prepareEnvironment(prgset_t *set) {
 
 					// file prefix still pointing to CSET_SYS
 					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
-						printDbg( "Warn! Can not move task %s\n", pid);
+						//printDbg( "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}
 					nleft-=strlen(pid)+1;
@@ -706,6 +786,7 @@ sysend: // jumped here if not possible to create system
 			err_exit_n(errno, "MLockall failed");
 	}
 
+	info("Environment setup complete, starting orchestration...");
 	return 0;
 }
 
