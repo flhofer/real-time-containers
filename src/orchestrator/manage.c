@@ -161,7 +161,6 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 /// Return value: 0 = success, else error
 ///
 static int configureTracers(){
-	// TODO enable affinity cpus only
 
 	char * dbgpfx = get_debugfileprefix();
 
@@ -173,6 +172,13 @@ static int configureTracers(){
 
 	if ( 0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun))
 		warn("Unable to clear kernel fTrace event list");
+
+	{ // get CPU-set in hex for tracing
+		char trcpuset[129]; // enough for 512 CPUs
+		if (parse_bitmask_hex(prgset->affinity_mask, trcpuset, sizeof(trcpuset)))
+			if (0> setkernvar(dbgpfx, "tracing_cpumask", trcpuset, prgset->dryrun) )
+				warn("Unable to set tracing CPU-set");
+	}
 
 	// Setup and enabling of events must work
 /* FIXME: it seems that I only need sched_switch
@@ -368,7 +374,6 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 //						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
 						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
 
-	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -383,9 +388,9 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 			break;
 		}
 
-	// pid in list, update data
+	// PID in list, update data
 	if (item){
-		// compute runtime - limit between 1ns and 1 sec TODO fix that! no constants
+		// compute runtime - limit between 1ns and 1 sec
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
 
 		// TODO: call only if Need-Resched is set
@@ -451,7 +456,6 @@ static int pickPidInfoR(void * addr, uint64_t ts) {
 	printDbg( "    comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
 			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
 
-	// TODO: change to RW locks
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -465,7 +469,6 @@ static int pickPidInfoR(void * addr, uint64_t ts) {
 			break;
 		}
 
-	// item deactivated -> TODO actually an error!
 	if (item && item->pid > 0) {
 		item->mon.dl_rt += pFrame->runtime;
 		item->mon.last_ts = ts;
@@ -512,7 +515,7 @@ void *thread_ftrace(void *arg){
 
 		if (sigaction(SIGQUIT, &act, NULL) < 0)		 // quit from caller
 		{
-			perror ("Setup of sigaction failed");// TODO fix that
+			perror ("Setup of sigaction failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
 	} // END interrupt handler block
@@ -897,38 +900,41 @@ static void dumpStats (){
 		return;
 	}
 
-	for (;((item)); item=item->next)
-//		TODO: commented out, for tests only
-//		if (policy_is_realtime(item->attr.sched_policy))
-			switch(item->attr.sched_policy){
-			default:
-			case SCHED_FIFO:
-			case SCHED_RR:
-				// TODO: cleanup print-out
-				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
-					abs(item->pid), item->pid<0 ? '*' : ' ',
-					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
-					item->mon.dl_count, item->mon.dl_scanfail,
-					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-					policy_to_string(item->attr.sched_policy));
-				break;
 
-			case SCHED_DEADLINE:
-				;
-				char * curve = malloc(50);
-				int  ret = -1; // default not present
-				if (item->mon.pdf_parm)
-					ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
-				(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
-					abs(item->pid), item->pid<0 ? '*' : ' ',
-					item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
-					item->mon.dl_count, item->mon.dl_scanfail,
-					item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-					item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
-					ret ? "none" : curve );
-				free (curve);
-				break;
-			}
+	char * curve = malloc(50);
+	int  ret = -1; // default not present
+
+	for (;((item)); item=item->next)
+		switch(item->attr.sched_policy){
+		default:
+		case SCHED_FIFO:
+		case SCHED_RR:
+			// TODO: cleanup print-out
+			if (item->mon.pdf_parm)
+				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+
+			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n\t%s\n",
+				abs(item->pid), item->pid<0 ? '*' : ' ',
+				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.dl_count, item->mon.dl_scanfail,
+				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+				policy_to_string(item->attr.sched_policy),
+				ret ? "none" : curve );
+			break;
+
+		case SCHED_DEADLINE:
+			if (item->mon.pdf_parm)
+				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
+				abs(item->pid), item->pid<0 ? '*' : ' ',
+				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.dl_count, item->mon.dl_scanfail,
+				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
+				ret ? "none" : curve );
+			free (curve);
+			break;
+		}
 }
 
 /// thread_manage(): thread function call to manage schedule list

@@ -23,7 +23,7 @@
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
 	parse_config_set_default(prgset);
-	prgset->affinity= TESTCPU; // TODO, detect?
+	prgset->affinity= TESTCPU;
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
 	prgset->procfileprefix = strdup("/proc/sys/kernel/");
