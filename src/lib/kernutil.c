@@ -468,6 +468,45 @@ parse_bitmask(struct bitmask *mask, char * str, size_t len){
 }
 
 /*
+ *  parse_bitmask_hex(): returns the matching bitmask as lowercase hexadecimal string
+ *
+ *  Arguments: - pointer to bitmask
+ *  		   - returning string
+ * 			   - size of string
+ *
+ *  Return value: error code if present
+ *
+ */
+int
+parse_bitmask_hex(struct bitmask *mask, char * str, size_t len){
+	// base case check
+	if (!mask || !str || !len)
+		return -1;
+
+	char num[sizeof(unsigned long)*2+1];
+	int mask_sz = numa_bitmask_nbytes(mask)/sizeof(unsigned long);
+
+	// init.. use len as counter for remaining space
+	str [0] = '\0';
+	len--;	// \0 needs 1 byte
+
+	for (int i=mask_sz-1; i>=0; i--, len -= sizeof(unsigned long)*2){
+
+		if ( sizeof(unsigned long)*2 > len ){
+			err_msg("String too small for data");
+			return -1;
+		}
+
+		(void)sprintf(num, "%0*lx", (int)sizeof(unsigned long)*2, *(mask->maskp+i));
+		(void)strcat(str, num);
+	}
+
+	printDbg("Parsed bit-mask: %s\n", str);
+	return 0;
+}
+
+
+/*
  *  popen2(): customized pipe open command
  *
  *  Arguments: - command string

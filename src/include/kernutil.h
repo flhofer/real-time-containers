@@ -27,6 +27,7 @@
 
 	// affinity and CPU bit-masks
 	int parse_bitmask(struct bitmask *mask, char * str, size_t len);
+	int parse_bitmask_hex(struct bitmask *mask, char * str, size_t len);
 	struct bitmask *parse_cpumask(const char *option);
 
 	// customized pipe operations

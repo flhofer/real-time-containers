@@ -84,6 +84,56 @@ START_TEST(kernutil_setkernvar)
 }
 END_TEST
 
+
+START_TEST(kernutil_parse_bitmask_hex)
+{
+	struct bitmask * test = NULL;
+	int ret;
+
+	{
+		char str[18];
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+		ck_assert_int_eq(ret, -1);
+
+		test = numa_bitmask_alloc(40);
+
+		ret = parse_bitmask_hex(test, NULL, sizeof(str));
+		ck_assert_int_eq(ret, -1);
+
+		ret = parse_bitmask_hex(test, str, 0);
+		ck_assert_int_eq(ret, -1);
+
+
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,33);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "0000000200000003");
+	}
+
+	numa_bitmask_free(test);
+
+	test = numa_bitmask_alloc(67);
+
+	{
+		char str[33];
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,32);
+		numa_bitmask_setbit(test,66);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "00000000000000040000000100000003");
+	}
+	numa_bitmask_free(test);
+}
+END_TEST
+
 void library_kernutil (Suite * s) {
 
 	TCase *tc1 = tcase_create("kernutil");
@@ -91,6 +141,7 @@ void library_kernutil (Suite * s) {
     tcase_add_loop_test(tc1, kernutil_getkernvar, 0, 6);
     tcase_add_loop_test(tc1, kernutil_setkernvar, 0, 5);
 	tcase_add_test(tc1, kernutil_check_kernel);
+	tcase_add_test(tc1, kernutil_parse_bitmask_hex);
 
     suite_add_tcase(s, tc1);
 
