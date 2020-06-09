@@ -177,7 +177,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:Abc:C:dDfhi:kl:mn::p:Pqr:s:vw:",
+		int c = getopt_long(argc, argv, "a:AbBc:C:dDfhi:kl:mn::p:Pqr:s:vw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
