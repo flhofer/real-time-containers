@@ -26,6 +26,7 @@
 
 #define RTLIM_UNL	"-1"		// out of 10000000 = 95%
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
+#define RTLIM_PERC	95			// percentage limitation for calculus
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -184,8 +185,15 @@ setPidResources_u(node_t * node) {
 		if (0 <= (node->param->rscs->affinity))
 			node->status |= !(setContainerAffinity(node, cset)) & MSK_STATUPD;
 	}
-	else
-		node->status |= !(setPidAffinity(node, cset)) & MSK_STATUPD;
+	else{
+		if ((SCHED_DEADLINE == node->attr.sched_policy)
+				&& (SM_DYNSYSTEM == prgset->sched_mode)){
+			warn ("Can not set DL task to PID affinity when using G-EDF!");
+			node->status |= MSK_STATUPD;
+		}
+		else
+			node->status |= !(setPidAffinity(node, cset)) & MSK_STATUPD;
+	}
 
 	if (0 == node->pid) // PID 0 = detected containers
 		return;
@@ -442,9 +450,9 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
  *
  * Arguments: - configuration parameter structure
  *
- * Return value: -
+ * Return value: returns 0 on success, -1 on failure
  */
-void
+int
 resetRTthrottle (prgset_t *set){
 	char * value;	// pointer to value to write
 	char buf[10];	// temporary stack buffer
@@ -457,7 +465,7 @@ resetRTthrottle (prgset_t *set){
 
 	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
 	else{
-		cont( "Set real-time bandwidth limit to 95%..");
+		cont( "Set real-time bandwidth limit to %d%%..", RTLIM_PERC);
 		// on error use default
 		value = RTLIM_DEF;
 
@@ -466,19 +474,26 @@ resetRTthrottle (prgset_t *set){
 			warn("Could not read throttle limit. Use default" RTLIM_DEF ".");
 		else{
 			// compute 95% of period
-			long period = atol(value);
+			long period = atol(buf);
 			if (period){
-				(void)sprintf(buf, "%ld", period*100/95);
+				(void)sprintf(buf, "%ld", period*RTLIM_PERC/100);
 				value = buf;
 			}
+			else
+				warn("Could not parse throttle limit. Use default" RTLIM_DEF ".");
 		}
 	}
 
 	// set bandwidth and throttle control to value/unconstrained
 	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun)){
-		warn("RT-throttle still enabled. Limitations apply.");
+		warn("Could not write RT-throttle value. Limitations apply.");
 	}
-	else
+	else{
 		set->status |= MSK_STATTRTL;
+		// maybe more detailed?
+		return 0;
+	}
+
+	return -1;
 }
 

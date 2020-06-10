@@ -20,7 +20,7 @@
 
 	void resetContCGroups(prgset_t *set, char * constr, char * numastr);
 											// loop through present container and reset to default
-	void resetRTthrottle (prgset_t *set); 	// reset the system RT throttle setting (run-time percentage to -1)
+	int resetRTthrottle (prgset_t *set); 	// reset the system RT throttle setting (run-time percentage to -1)
 
 	// WARN! node is assumed to be already locked!
 	void setPidResources(node_t * node);	// set resources of PID in memory (new or update)

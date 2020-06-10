@@ -579,6 +579,24 @@ prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/* --------------------
+	 * detect NUMA configuration, sets all nodes to active (for now)
+	 * --------------------
+	 */
+	char * numastr = malloc (5);
+	if (!(numastr))
+			err_exit("could not allocate memory!");
+	if (-1 != numa_available()) {
+		int numanodes = numa_max_node();
+
+		sprintf(numastr, "0-%d", numanodes);
+	}
+	else{
+		warn("NUMA not enabled, defaulting to memory node '0'");
+		// default NUMA string
+		sprintf(numastr, "0");
+	}
+
+	/* --------------------
 	 * Kernel variables, disable bandwidth management and RT-throttle
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
@@ -588,7 +606,14 @@ prepareEnvironment(prgset_t *set) {
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	resetRTthrottle (set);
+	if (resetRTthrottle (set)){
+		// reset failed, let's try a CGroup reset first?? partitioned should work
+		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
+		resetContCGroups(set, constr, numastr);
+
+		// retry
+		resetRTthrottle (set);
+	}
 	getRRslice(set);
 
 	// here.. off-line messes up CSET
@@ -606,24 +631,6 @@ prepareEnvironment(prgset_t *set) {
 		pushCPUirqs(set, mask_sz);
 	else
 		info("Running container tasks present, skipping CPU hot-plug");
-
-	/* --------------------
-	 * detect NUMA configuration, sets all nodes to active (for now)
-	 * --------------------
-	 */
-	char * numastr = malloc (5);
-	if (!(numastr))
-			err_exit("could not allocate memory!");
-	if (-1 != numa_available()) {
-		int numanodes = numa_max_node();
-
-		sprintf(numastr, "0-%d", numanodes);
-	}
-	else{
-		warn("NUMA not enabled, defaulting to memory node '0'");
-		// default NUMA string
-		sprintf(numastr, "0");
-	}
 
 	/* --------------------
 	 * CGroup present, fix CPU-sets of running containers
