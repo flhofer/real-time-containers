@@ -878,6 +878,23 @@ static int updateStats ()
 
 				if ((runstats_fithist(&item->mon.pdf_hist)))
 					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+
+				// if in dynamic sytem and we updated the curve, update WCET for system
+				if ((SM_DYNSYSTEM == prgset->sched_mode)
+						&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+
+					double newWCET;
+					double error;
+
+					// TODO; check attributes are fine!
+
+					// compute new WCET
+					runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh,
+							0, item->attr.sched_deadline, &error);
+
+					updatePidWCET(item, newWCET);
+				}
+
 			}
 		}
 
