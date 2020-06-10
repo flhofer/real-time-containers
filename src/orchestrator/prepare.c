@@ -579,6 +579,35 @@ prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/* --------------------
+	 * Kernel variables, disable bandwidth management and RT-throttle
+	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
+	 * --------------------
+	 */
+	set->kernelversion = check_kernel();
+
+	if (KV_NOT_SUPPORTED == set->kernelversion)
+		warn("Running on unknown kernel version; Trying generic configuration..");
+
+	resetRTthrottle (set);
+	getRRslice(set);
+
+	// here.. off-line messes up CSET
+	cont("moving kernel thread affinity");
+	// kernel interrupt threads affinity
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+
+
+	if (0 == countCGroupTasks(set))
+		// ksoftirqd -> offline, online again
+		pushCPUirqs(set, mask_sz);
+	else
+		info("Running container tasks present, skipping CPU hot-plug");
+
+	/* --------------------
 	 * detect NUMA configuration, sets all nodes to active (for now)
 	 * --------------------
 	 */
@@ -603,33 +632,6 @@ prepareEnvironment(prgset_t *set) {
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
 	resetContCGroups(set, constr, numastr);
 
-	/* --------------------
-	 * Kernel variables, disable bandwidth management and RT-throttle
-	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
-	 * --------------------
-	 */
-	set->kernelversion = check_kernel();
-
-	if (KV_NOT_SUPPORTED == set->kernelversion)
-		warn("Running on unknown kernel version; Trying generic configuration..");
-
-	resetRTthrottle (set);
-	getRRslice(set);
-
-	// here.. off-line messes up CSET
-	cont("moving kernel thread affinity");
-	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
-
-	if (0 == countCGroupTasks(set))
-		// ksoftirqd -> offline, online again
-		pushCPUirqs(set, mask_sz);
-	else
-		info("Running container tasks present, skipping CPU hot-plug");
 
 	// lockup detector
 	// echo 0 >  /proc/sys/kernel/watchdog
