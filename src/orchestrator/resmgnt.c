@@ -24,6 +24,9 @@
 #include <sys/resource.h>
 #include <dirent.h>
 
+#define RTLIM_UNL	"-1"		// out of 10000000 = 95%
+#define RTLIM_DEF	"950000"	// out of 10000000 = 95%
+
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
  */
@@ -443,9 +446,36 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
  */
 void
 resetRTthrottle (prgset_t *set){
-	cont( "Set real-time bandwidth limit to (unconstrained)..");
-	// disable bandwidth control and real-time throttle
-	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
+	char * value;	// pointer to value to write
+	char buf[10];	// temporary stack buffer
+
+	// all modes except  Dynamic, set to -1 = unconstrained
+	if (SM_DYNSYSTEM != set->sched_mode){
+		cont( "Set real-time bandwidth limit to (unconstrained)..");
+		value = RTLIM_UNL;
+	}
+
+	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
+	else{
+		cont( "Set real-time bandwidth limit to 95%..");
+		// on error use default
+		value = RTLIM_DEF;
+
+		// read period
+		if (0 > getkernvar(set->procfileprefix, "sched_rt_period_us", buf, sizeof(buf)))
+			warn("Could not read throttle limit. Use default" RTLIM_DEF ".");
+		else{
+			// compute 95% of period
+			long period = atol(value);
+			if (period){
+				(void)sprintf(buf, "%ld", period*100/95);
+				value = buf;
+			}
+		}
+	}
+
+	// set bandwidth and throttle control to value/unconstrained
+	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun)){
 		warn("RT-throttle still enabled. Limitations apply.");
 	}
 	else
