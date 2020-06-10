@@ -17,6 +17,7 @@
 	// masks for the status of PIDs (node_t)
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
+	#define MSK_STATWCUD		0x3	// WCET changed for PID
 
 	// masks for the status of orchestrator (prgset_t)
 	#define MSK_STATTRTL		0x1	// setting RT throttle was successful done

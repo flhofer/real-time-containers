@@ -300,6 +300,26 @@ updatePidAttr(node_t * node){
 
 }
 
+
+/*
+ * updatePidWCET : update PID WCET parameter to computed value
+ *
+ * Arguments: - node_t item
+ * 			  - wcet to set
+ *
+ * Return value: -
+ */
+void
+updatePidWCET(node_t * node, uint64_t wcet){
+
+	node->attr.sched_runtime = wcet;
+
+	if (sched_setattr (node->pid, &(node->attr), 0U))
+		err_msg_n(errno, "Can not set overrun flag");
+	else
+		node->status |= MSK_STATWCUD;
+}
+
 /*
  * updatePidCmdline : update PID command line
  *
