@@ -824,10 +824,16 @@ static int updateStats ()
 
 	scount++; // increase scan-count
 
+	if (!(( scount % (prgset->loops*10) ))){
+		// test disabling throttle again if it didn't work.
+		if (!(prgset->status & MSK_STATTRTL))
+			resetRTthrottle(prgset);
+	}
+
 	// for now does only a simple update
 	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
-		// skip pid 0, = undefined or ROOT PID (swapper/sched)
+		// skip PID 0, = undefined or ROOT PID (swapper/sched)
 		if (item->pid<=0){
 			item=item->next; 
 			continue;
