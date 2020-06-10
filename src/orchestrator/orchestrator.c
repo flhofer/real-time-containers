@@ -17,6 +17,7 @@
 #include "parse_config.h"	// header file of configuration parser
 #include "kernutil.h"		// generic kernel utilities
 #include "error.h"			// error and std error print functions
+#include "cmnutil.h"		// common definitions and functions
 
 // Things that should be needed only here
 #include <sys/mman.h>		// memory lock
@@ -40,8 +41,6 @@ node_t * nhead = NULL;
 static char * config = "config.json";
 
 // -------------- LOCAL variables for all the functions  ------------------
-
-static int adaptive = 0;
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t main_stop;
@@ -73,8 +72,9 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-A                         activate Adaptive Static Schedule (ASS)\n"
+	       "-A       --adaptive        activate Adaptive Static Schedule (ASS)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
+	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
@@ -86,6 +86,7 @@ static void display_help(int error)
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
+	       "-F       --ftrace          start run-time analysis using kernel fTrace\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-k                         keep track of ended PIDs\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
@@ -102,6 +103,7 @@ static void display_help(int error)
 	       "         --rr=RRTIME       set a SCHED_RR interval time in ms, default=100\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
+	       "-S       --system          activate Dynamic System Schedule (DSS), requires \n"
 #ifdef ARCH_HAS_SMI_COUNTER
                "         --smi             Enable SMI counting\n"
 #endif
@@ -124,10 +126,10 @@ static void display_help(int error)
 }
 
 enum option_values {
-	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
-	OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
+	OPT_AFFINITY=1, OPT_ADAPTIVE, OPT_BIND, OPT_BLIND, OPT_CLOCK,
+	 OPT_DFLAG, OPT_FTRACE, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET, 
-	OPT_RRTIME, OPT_RTIME, OPT_SMI, OPT_VERBOSE,
+	OPT_RRTIME, OPT_RTIME, OPT_SYSTEM, OPT_SMI, OPT_VERBOSE,
 	OPT_WCET, OPT_POLICY, OPT_HELP, OPT_VERSION
 };
 
@@ -158,9 +160,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		 */
 		static struct option long_options[] = {
 			{"affinity",         required_argument, NULL, OPT_AFFINITY},
+			{"adaptive",         no_argument,       NULL, OPT_ADAPTIVE },
 			{"bind",     		 no_argument,       NULL, OPT_BIND },
+			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"dflag",            no_argument,		NULL, OPT_DFLAG },
+			{"ftrace",           no_argument,		NULL, OPT_FTRACE },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
 			{"mlockall",         no_argument,       NULL, OPT_MLOCKALL },
@@ -170,6 +175,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"rr",               required_argument, NULL, OPT_RRTIME },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
+			{"system",           no_argument,       NULL, OPT_SYSTEM },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
@@ -177,7 +183,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfhi:kl:mn::p:Pqr:s:vw:",
+		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:Svw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -205,12 +211,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			}
 			break;
 		case 'A':
-			adaptive = 1;
+		case OPT_ADAPTIVE:
+			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
 			break;
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
 		case 'B':
+		case OPT_BLIND:
 			set->blindrun = 1; break;
 		case 'c':
 		case OPT_CLOCK:
@@ -243,6 +251,9 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->dryrun = 1; break;
 		case 'f':
 			set->force = 1; break;
+		case 'F':
+		case OPT_FTRACE:
+			set->ftrace = 1; break;
 		case 'i':
 		case OPT_INTERVAL:
 			set->interval = atoi(optarg); break;
@@ -305,6 +316,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				set->cont_ppidc = argv[optind];
 				optargs++;
 			}
+			break;
+		case 'S':
+		case OPT_SYSTEM:
+			set->sched_mode = MAX(set->sched_mode, SM_DYNSYSTEM);
 			break;
 #ifdef DEBUG
 		case 'v':
@@ -442,7 +457,7 @@ int main(int argc, char **argv)
 		prgset = tmpset;
 	}
 
-	if (adaptive){
+	if (SM_ADAPTIVE == prgset->sched_mode){
 		// adaptive scheduling active? Clean prepare, execute, free
 		adaptPrepareSchedule();
 		adaptExecute();

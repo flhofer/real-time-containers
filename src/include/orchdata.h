@@ -39,16 +39,26 @@
 
 	// definition of container detection modes
 	enum det_mode {
-		DM_CMDLINE,	// use command line signature for detection
+		DM_CMDLINE = 0,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect PIDs
 		DM_CGRP,	// Use CGroup to detect PIDs of processes
 		DM_DLEVNT	// docker link event
 	};
 
-	enum {
-		AFFINITY_UNSPECIFIED,	// use default settings
+	enum aff_mode {
+		AFFINITY_UNSPECIFIED =0,// use default settings
 		AFFINITY_SPECIFIED,	 	// user defined settings
 		AFFINITY_USEALL			// go for all!!
+	};
+
+	// definition of container detection modes
+	enum sched_mode {
+		SM_STATIC = 0,	// use static allocation only (NO RESCHEDULING)
+		SM_ADAPTIVE,	// use adaptive slot allocation at startup (NO RESCHEDULING)
+		SM_PADAPTIVE,	// use progressive adaptive slot allocation (NO RESCHEDULING)
+		SM_DYNSYSTEM,	// use system (Linux) based dynamic rescheduling technique
+		SM_DYNSIMPLE,	// use the simple affinity based dynamic scheduling (like adaptive)
+		SM_DYNMCBIN		// use monte carlo bin allocation style algorithm
 	};
 
 	typedef struct sched_rscs { // resources 
@@ -193,13 +203,14 @@
 		int status;					// generic status flags
 
 		// affinity specification for system vs RT
-		int setaffinity;			// affinity mode enumeration
+		enum aff_mode setaffinity;	// affinity mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
 
 		// runtime settings
 		int ftrace; 				// enable Kernel ftrace for run-time statistics
-		int use_cgroup;				// identify processes via CGroup
+		enum det_mode use_cgroup;	// identify processes via CGroup
+		enum sched_mode sched_mode;	// scheduling control mode
 		double ptresh;				// probability threshold for resource switching
 
 	} prgset_t;

@@ -296,6 +296,7 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 			return ret;
 		}
 
+#ifdef DEBUG
 		/* print summary */
 		printDbg("NITER         = %zu\n", gsl_multifit_nlinear_niter(work));
 		printDbg("NFEV          = %zu\n", fdf->nevalf);
@@ -307,6 +308,7 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 			  gsl_vector_get(x, 0), gsl_vector_get(x, 1), gsl_vector_get(x, 2));
 		printDbg("final cond(J) = %.12e\n", 1.0 / rcond);
 		fflush(dbg_out);
+#endif
 	}
 	else
 		err_msg("failed to initialize solver: %s", gsl_strerror(ret));
