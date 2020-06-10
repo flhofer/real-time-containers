@@ -18,6 +18,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_histogram.h>
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_roots.h>
 
 #include <errno.h>			// system error management (LIBC)
 #include <string.h>			// strerror print
@@ -596,7 +597,7 @@ uniparm_copy(stat_param ** x){
  * runstats_mdlpdf() : Integrate area under curve between a-b
  *
  * Arguments: - pointer to the parameter vector
- * 			  - parameter a, b of the model
+ * 			  - bounds a, b of the integral
  * 			  - address probability value (return)
  * 			  - address of error value (return)
  *
@@ -605,7 +606,7 @@ uniparm_copy(stat_param ** x){
 int
 runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 
-	if (!x)
+	if (!x || !p || !error)
 		return GSL_EINVAL;
 
 	int ret;
@@ -636,6 +637,107 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 	gsl_integration_workspace_free (w);
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+}
+
+struct func_integmdl_par {
+	stat_param * x;
+	double a;
+	double *error;
+};
+
+static double func_integmdl (double b, void * params)
+{
+  struct func_integmdl_par * p = (struct func_integmdl_par *)params;
+  stat_param * x = (p->x);
+  double a = (p->a);
+  double r;
+  double * error = (p->error);
+
+  if (runstats_mdlpdf(x, a, b, &r, error))
+		  return 0;
+
+  return r;
+}
+
+/*
+ * runstats_mdlUpb() : Compute the bound b that integrates the area under curve to p
+ *
+ * Arguments: - pointer to the parameter vector
+ * 			  - bounds a (input), and address to b of the integral (return)
+ * 			  - probability value that is needed
+ * 			  - min and max value for b to look for
+ * 			  - address of error value (return)
+ *
+ * Return value: success or error code
+ */
+int
+runstats_mdlUpb(stat_param * x, double a, double * b, double p, double bmin, double bmax, double * error){
+
+	if (!x || !b || !error)
+		return GSL_EINVAL;
+
+	int ret;
+
+	// create a normalized clone
+	if ((ret = uniparm_copy(&x))) {
+		err_msg("unable to clone values: %s", gsl_strerror(ret));
+		return ret;
+	}
+
+
+	int status;
+
+	int iter = 0, max_iter = 10;
+
+	const gsl_root_fsolver_type *T;
+	gsl_root_fsolver *s;
+
+	double r = 0;
+	double x_lo = 0.0, x_hi = 5.0; // from mean to deadline
+
+	gsl_function F;
+	struct func_integmdl_par params = { x, a, error};
+
+	F.function = &func_integmdl;
+	F.params = &params;
+
+	T = gsl_root_fsolver_brent;
+	s = gsl_root_fsolver_alloc (T);
+	gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+
+	printf ("using %s method\n",
+		  gsl_root_fsolver_name (s));
+
+	printf ("%5s [%9s, %9s] %9s %10s %9s\n",
+		  "iter", "lower", "upper", "root",
+		  "err", "err(est)");
+
+	do
+	{
+	  iter++;
+	  status = gsl_root_fsolver_iterate (s);
+	  r = gsl_root_fsolver_root (s);
+	  x_lo = gsl_root_fsolver_x_lower (s);
+	  x_hi = gsl_root_fsolver_x_upper (s);
+	  status = gsl_root_test_interval (x_lo, x_hi,
+									   0, 0.001);
+
+	  if (status == GSL_SUCCESS)
+		printf ("Converged:\n");
+
+	  printf ("%5d [%.7f, %.7f] %.7f %.7f\n",
+			  iter, x_lo, x_hi,
+			  r,
+			  x_hi - x_lo);
+	}
+	while (status == GSL_CONTINUE && iter < max_iter);
+
+	gsl_root_fsolver_free (s);
+
+	return status;
+
+
+//	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
 
 /*
