@@ -888,11 +888,18 @@ static int updateStats ()
 
 					// TODO; check attributes are fine!
 
-					// compute new WCET
-					runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh,
-							0, item->attr.sched_deadline, &error);
+					// compute new WCET, eventually skip lower 50% :)
+					if (runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh, &error)){
+						// something went wrong...
 
-					updatePidWCET(item, newWCET);
+					}
+					else{
+						// OK, let's check the error
+						if (error < 0.001)
+							updatePidWCET(item, newWCET);
+						else
+							warn ("Estimation error too high, can not update WCET");
+					}
 				}
 
 			}
