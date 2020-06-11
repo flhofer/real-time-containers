@@ -39,8 +39,7 @@ int runstats_mdlpdf(stat_param * x, double a,		// compute integral from a to b, 
 		double b, double * p, double * error);
 
 int runstats_mdlUpb(stat_param * x, double a,		// compute upper bound b that obtains probability p
-		double * b, double p, double bmin,
-		double bmax, double * error);
+		double * b, double p, double * error);
 
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);

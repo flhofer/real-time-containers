@@ -26,8 +26,14 @@
 #include "error.h"		// error print definitions
 #include "cmnutil.h"	// general definitions
 
-#define NUMINT 20			// Number of iterations max for fitting
-#define MINCOUNT 100		// Minimum number of samples in histogram
+#define INT_NUMITER	20		// Number of iterations max for fitting
+#define INT_EPSABS	0		// max error absolute value (p)
+#define INT_EPSREL	1e-7	// max error relative value min (a|b)
+#define SAMP_MINCNT 100		// Minimum number of samples in histogram
+
+#define ROOT_NUMITR	20		// number of iterations max
+#define ROOT_EPSABS	0		// max error absolute value (p)
+#define ROOT_EPSREL	1e-7	// max error relative value min (a|b)
 
 #define STARTBINS 30		// default bin number
 #define BIN_DEFMIN 0.70		// default range: - offset * x
@@ -39,6 +45,7 @@
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
+// TODO: return value from iterator for better evaluations
 
 /*
  *  runstats_gaussian(): function to calculate Normal (Gaussian) distribution values
@@ -434,7 +441,7 @@ int
 runstats_checkhist(stat_hist * h){
 	if (!h)
 		return GSL_FAILURE;
-	return (gsl_histogram_sum(h) < MINCOUNT)
+	return (gsl_histogram_sum(h) < SAMP_MINCNT)
 		?  GSL_FAILURE : GSL_SUCCESS;
 }
 
@@ -618,7 +625,7 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 	}
 
 	gsl_integration_workspace * w
-		= gsl_integration_workspace_alloc (NUMINT);
+		= gsl_integration_workspace_alloc (INT_NUMITER);
 	if (!w){
 		err_msg("unable to allocate workspace memory");
 		return GSL_ENOMEM;
@@ -626,7 +633,8 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 
 	gsl_function F = { &func_gaussian, x }; // function , parameters
 
-	if ((ret = gsl_integration_qags (&F, a, b, 0, 1e-7, NUMINT,
+	if ((ret = gsl_integration_qags (&F, a, b,
+						INT_EPSABS, INT_EPSREL, INT_NUMITER,
 						w, p, error)))
 		err_msg ("curve integration failed : %s", gsl_strerror(ret));
 
@@ -635,6 +643,7 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 	printDbg("intervals       = %zu\n", w->size);
 
 	gsl_integration_workspace_free (w);
+	gsl_vector_free(x);
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
@@ -642,6 +651,7 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 struct func_integmdl_par {
 	stat_param * x;
 	double a;
+	double p;
 	double *error;
 };
 
@@ -650,28 +660,29 @@ static double func_integmdl (double b, void * params)
   struct func_integmdl_par * p = (struct func_integmdl_par *)params;
   stat_param * x = (p->x);
   double a = (p->a);
+  double pdes = (p->p);
   double r;
   double * error = (p->error);
 
   if (runstats_mdlpdf(x, a, b, &r, error))
-		  return 0;
+		  return 0; // stops immediately
 
-  return r;
+  return r-pdes; // 0 = f(x) - desiredP, the closer the better
 }
 
 /*
  * runstats_mdlUpb() : Compute the bound b that integrates the area under curve to p
+ * Uses Root finding algorithm, by approximating f(x)-p = 0
  *
  * Arguments: - pointer to the parameter vector
  * 			  - bounds a (input), and address to b of the integral (return)
  * 			  - probability value that is needed
- * 			  - min and max value for b to look for
  * 			  - address of error value (return)
  *
  * Return value: success or error code
  */
 int
-runstats_mdlUpb(stat_param * x, double a, double * b, double p, double bmin, double bmax, double * error){
+runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 
 	if (!x || !b || !error)
 		return GSL_EINVAL;
@@ -684,60 +695,90 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double bmin, dou
 		return ret;
 	}
 
+	// 68–95–99.7 rule on normalized Gaussian to shorten the search range
+	// https://en.wikipedia.org/wiki/68–95–99.7_rule
+	double bmin, bmax;
+	double gb = gsl_vector_get(x, 1);
+	double gc = gsl_vector_get(x, 2);
 
+	// we ignore everything below 0.5
+	if (p-0.68 < 0){
+		// 0.5..0.68
+		bmin = gb;
+		bmax = gb +  gc;
+	}
+	else if (p-0.95 < 0) {
+		// 0.68..0.95
+		bmin = gb + gc;
+		bmax = gb + 2 * gc;
+	}
+	else if (p-0.997 < 0) {
+		// 0.95..0.997
+		bmin = gb + 2 * gc;
+		bmax = gb + 3 * gc;
+	}
+	else {
+		// beyond 0.997
+		bmin = gb + 3 * gc;
+		bmax = gb + 10 * gc;
+	}
+	// fix overlap margins +-1%
+	bmin *= 0.99;
+	bmax *= 1.01;
+
+	// Start code from GNU sample
 	int status;
-
-	int iter = 0, max_iter = 10;
+	int iter = 0;
 
 	const gsl_root_fsolver_type *T;
 	gsl_root_fsolver *s;
 
-	double r = 0;
-	double x_lo = 0.0, x_hi = 5.0; // from mean to deadline
+	gsl_function F; // define function to solve for
+	{
+		struct func_integmdl_par params = { x, a, p, error};
+		F.function = &func_integmdl;
+		F.params = &params;
+	}
 
-	gsl_function F;
-	struct func_integmdl_par params = { x, a, error};
 
-	F.function = &func_integmdl;
-	F.params = &params;
+	{	// solver type and initialization
+		T = gsl_root_fsolver_brent;
+		s = gsl_root_fsolver_alloc (T);
+		gsl_root_fsolver_set (s, &F, bmin, bmax);
+	}
 
-	T = gsl_root_fsolver_brent;
-	s = gsl_root_fsolver_alloc (T);
-	gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-
-	printf ("using %s method\n",
+	printDbg ("using %s method\n",
 		  gsl_root_fsolver_name (s));
 
-	printf ("%5s [%9s, %9s] %9s %10s %9s\n",
+	printDbg ("%5s [%9s, %9s] %9s %9s\n",
 		  "iter", "lower", "upper", "root",
-		  "err", "err(est)");
+		  "err(est)");
 
+	// Root solver iteration
 	do
 	{
 	  iter++;
 	  status = gsl_root_fsolver_iterate (s);
-	  r = gsl_root_fsolver_root (s);
-	  x_lo = gsl_root_fsolver_x_lower (s);
-	  x_hi = gsl_root_fsolver_x_upper (s);
-	  status = gsl_root_test_interval (x_lo, x_hi,
-									   0, 0.001);
+	  *b = gsl_root_fsolver_root (s);
+	  bmin = gsl_root_fsolver_x_lower (s);
+	  bmax = gsl_root_fsolver_x_upper (s);
+	  status = gsl_root_test_interval (bmin, bmax,
+			  	  	  	  ROOT_EPSABS, ROOT_EPSREL); // absolute + relative error
 
 	  if (status == GSL_SUCCESS)
-		printf ("Converged:\n");
+		  printDbg ("Converged:\n");
 
-	  printf ("%5d [%.7f, %.7f] %.7f %.7f\n",
-			  iter, x_lo, x_hi,
-			  r,
-			  x_hi - x_lo);
+	  printDbg ("%5d [%.7f, %.7f] %.7f %.7f\n",
+			  iter, bmin, bmax,
+			  *b,
+			  bmax - bmin);
 	}
-	while (status == GSL_CONTINUE && iter < max_iter);
+	while (status == GSL_CONTINUE && iter < ROOT_NUMITR);
 
 	gsl_root_fsolver_free (s);
+	gsl_vector_free(x);
 
 	return status;
-
-
-//	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
 
 /*
