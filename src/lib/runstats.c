@@ -26,10 +26,17 @@
 #include "error.h"		// error print definitions
 #include "cmnutil.h"	// general definitions
 
+
+#define FIT_NUMITR	20		// trust region number of iterations originally set to 200
+#define FIT_XTOL	1e-08 	// fitting tolerance step, originally set to -8
+#define FIT_GTOL	1e-08	// fitting tolerance gradient, originally set to -8
+#define FIT_FTOL	1e-08	// fitting tolerance originally set to -8
+
+#define SAMP_MINCNT 1000	// Minimum number of samples in histogram
+
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
 #define INT_EPSREL	1e-7	// max error relative value min (a|b)
-#define SAMP_MINCNT 100		// Minimum number of samples in histogram
 
 #define ROOT_NUMITR	20		// number of iterations max
 #define ROOT_EPSABS	0		// max error absolute value (p)
@@ -247,62 +254,60 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 	// x, fdf and params have been checked
 
 	const gsl_multifit_nlinear_type *T = gsl_multifit_nlinear_trust;
-	const size_t max_iter = 40;  // originally set to 200
-	const double xtol = 1.0e-64; // originally set to -8
-	const double gtol = 1.0e-64; // originally set to -8
-	const double ftol = 1.0e-64; // originally set to -8
-
-	const size_t n = fdf->n;
-	const size_t p = fdf->p;
 	gsl_multifit_nlinear_workspace *work =
-			gsl_multifit_nlinear_alloc(T, params, n, p);
+			gsl_multifit_nlinear_alloc(T, params, fdf->n, fdf->p);
 
 	if (!work){
 		err_msg("Unable to allocate memory for workspace");
 		return GSL_ENOMEM;
 	}
 
-	gsl_vector * f = gsl_multifit_nlinear_residual(work);
-	gsl_vector * y = gsl_multifit_nlinear_position(work);
-	int info, ret;
+#ifdef DEBUG
 	double chisq0, chisq, rcond;
+	gsl_vector * f_res = gsl_multifit_nlinear_residual(work);
+#endif
+	gsl_vector * x_fit = gsl_multifit_nlinear_position(work);
+	int ret; 	// return value of calls
+	int info;	// convergence info (X test or G test)
 
 	/* initialize solver */
 	if (!(ret = gsl_multifit_nlinear_init(x, fdf, work))){
+
+#ifdef DEBUG
 		/* store initial cost */
-		if ((ret = gsl_blas_ddot(f, f, &chisq0))){
-			err_msg("unable to compute initial cost function: %s", gsl_strerror(ret));
-			return ret;
-		}
+		if ((ret = gsl_blas_ddot(f_res, f_res, &chisq0)))
+			warn("unable to compute initial cost function: %s", gsl_strerror(ret));
+#endif
 
 		/* iterate until convergence */
-		if ((ret =gsl_multifit_nlinear_driver(max_iter, xtol, gtol, ftol,
+		if ((ret=gsl_multifit_nlinear_driver(FIT_NUMITR, FIT_XTOL, FIT_GTOL, FIT_FTOL,
 #ifdef DEBUG
-									  callback,
+									  callback, NULL,	// iteration callback & parameters
 #else
-									  NULL,
+									  NULL, NULL,		// no callback and parameters
 #endif
-									  NULL, &info, work))){
+									  &info, work))){
 			err_msg("unable to compute trust region approximation: %s", gsl_strerror(ret));
+			gsl_multifit_nlinear_free(work);
+			// return, parameters remain unchanged
 			return ret;
 		}
+
+#ifdef DEBUG
+		// FOR PRINTING ONLY
 
 		/* store final cost = x^T*x */
-		if ((ret = gsl_blas_ddot(f, f, &chisq))){
-			err_msg("unable to compute scalar product: %s", gsl_strerror(ret));
-			return ret;
-		}
+		if ((ret = gsl_blas_ddot(f_res, f_res, &chisq)))
+			warn("unable to compute scalar product: %s", gsl_strerror(ret));
 
 		/* store cond(J(x)) */
-		if ((ret = gsl_multifit_nlinear_rcond(&rcond, work))){
-			err_msg("unable to compute reciprocal condition number : %s", gsl_strerror(ret));
-			return ret;
-		}
+		if ((ret = gsl_multifit_nlinear_rcond(&rcond, work)))
+			warn("unable to compute reciprocal condition number : %s", gsl_strerror(ret));
+#endif
 
-		if ((ret = gsl_vector_memcpy(x, y))){
+		// copy best fit parameters to x vector position
+		if ((ret = gsl_vector_memcpy(x, x_fit)))
 			err_msg("unable to copy vector: %s", gsl_strerror(ret));
-			return ret;
-		}
 
 #ifdef DEBUG
 		/* print summary */
@@ -322,7 +327,6 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 		err_msg("failed to initialize solver: %s", gsl_strerror(ret));
 
 	gsl_multifit_nlinear_free(work);
-
 	return ret;
 }
 
@@ -424,9 +428,9 @@ runstats_verifyparam(stat_hist * h, stat_param * x){
 	double min = gsl_histogram_min(h);
 	double max = gsl_histogram_max(h);
 
-	return ( a < 1.0
-			 || min > b || max < b					// center out of range
-			 || (min > b-c && max <= b+c) ) 	// or left and right width are out of range (at least one wing must be in)
+	return ( 1.0 > a  || 0 > b || 0 > c		// avoid negative (or cnt <1) values
+			 || min > b || max < b			// center out of range
+			 || (min > b-c && max <= b+c)) 	// or left and right width are out of range (at least one wing must be in)
 			?  GSL_FAILURE : GSL_SUCCESS;
 }
 
