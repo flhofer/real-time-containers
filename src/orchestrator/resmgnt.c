@@ -285,6 +285,7 @@ updatePidAttr(node_t * node){
 		node->attr = attr_act;
 	}
 
+	// With Throttle active, doesn't work
 	// set the flag for GRUB reclaim operation if not enabled yet
 	if ((prgset->setdflag)															// set flag parameter enabled
 		&& (SCHED_DEADLINE == node->attr.sched_policy)								// deadline scheduling task
@@ -315,7 +316,7 @@ updatePidWCET(node_t * node, uint64_t wcet){
 	node->attr.sched_runtime = wcet;
 
 	if (sched_setattr (node->pid, &(node->attr), 0U))
-		err_msg_n(errno, "Can not set overrun flag");
+		err_msg_n(errno, "Can not set new WCET");
 	else
 		node->status |= MSK_STATWCUD;
 }
@@ -478,12 +479,12 @@ resetRTthrottle (prgset_t *set){
 	char buf[10];	// temporary stack buffer
 
 	// all modes except  Dynamic, set to -1 = unconstrained
-	if (SM_DYNSYSTEM != set->sched_mode){
+//	if (SM_DYNSYSTEM != set->sched_mode){
 		cont( "Set real-time bandwidth limit to (unconstrained)..");
 		value = RTLIM_UNL;
-	}
+//	}
 
-	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
+/*	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
 	else{
 		cont( "Set real-time bandwidth limit to %d%%..", RTLIM_PERC);
 		// on error use default
@@ -503,7 +504,7 @@ resetRTthrottle (prgset_t *set){
 				warn("Could not parse throttle limit. Use default" RTLIM_DEF ".");
 		}
 	}
-
+*/
 	// set bandwidth and throttle control to value/unconstrained
 	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun)){
 		warn("Could not write RT-throttle value. Limitations apply.");
