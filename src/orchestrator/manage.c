@@ -133,7 +133,7 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 	(void)sprintf(path, "%sevents/%s/", dbgpfx, event);
 
 	// maybe put it in a function??
-	if (0 < setkernvar(path, "enable", "0", prgset->dryrun)) {
+	if (0 < setkernvar(path, "enable", "1", prgset->dryrun)) {
 		push((void**)&elist_head, sizeof(struct ftrace_elist));
 		{
 			char val[5];
@@ -175,9 +175,12 @@ static int configureTracers(){
 
 	{ // get CPU-set in hex for tracing
 		char trcpuset[129]; // enough for 512 CPUs
-		if (parse_bitmask_hex(prgset->affinity_mask, trcpuset, sizeof(trcpuset)))
-			if (0> setkernvar(dbgpfx, "tracing_cpumask", trcpuset, prgset->dryrun) )
+		if (!parse_bitmask_hex(prgset->affinity_mask, trcpuset, sizeof(trcpuset))){
+			if (0 > setkernvar(dbgpfx, "tracing_cpumask", trcpuset, prgset->dryrun) )
 				warn("Unable to set tracing CPU-set");
+		}
+		else
+			warn("can not obtain HEX CPU mask");
 	}
 
 	// Setup and enabling of events must work
@@ -393,6 +396,7 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		// compute runtime - limit between 1ns and 1 sec
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
 
+		if (item->mon.last_ts > 0)
 		// TODO: call only if Need-Resched is set
 		{
 			// check statistics and add value
@@ -873,34 +877,40 @@ static int updateStats ()
 					runstats_initparam(&item->mon.pdf_parm, mn);
 				}
 
-				if ((runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm)))
-					warn("Curve fitting solver error for PID %d", item->pid);
+				// Try to solve for curve fitting
+				if (!(runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm))){
 
-				if ((runstats_fithist(&item->mon.pdf_hist)))
-					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
+					// if in dynamic system and we updated the curve, update WCET for system
+					if ((SM_DYNSYSTEM == prgset->sched_mode)
+							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
 
-				// if in dynamic sytem and we updated the curve, update WCET for system
-				if ((SM_DYNSYSTEM == prgset->sched_mode)
-						&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+						double newWCET;
+						double error;
 
-					double newWCET;
-					double error;
+						// compute new WCET, eventually skip lower 50% :)
+						if (runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh, &error)){
+							// something went wrong...
 
-					// TODO; check attributes are fine!
-
-					// compute new WCET, eventually skip lower 50% :)
-					if (runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh, &error)){
-						// something went wrong...
-
-					}
-					else{
-						// OK, let's check the error
-						if (error < 0.001)
-							updatePidWCET(item, newWCET);
-						else
-							warn ("Estimation error too high, can not update WCET");
+						}
+						else{
+							// OK, let's check the error
+							if (error < 0.001)
+								updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
+							else
+								warn ("Estimation error too high, can not update WCET");
+						}
 					}
 				}
+				else{
+					// something went wrong. Reset parameters
+					warn("Curve fitting solver error for PID %d", item->pid);
+					runstats_freeparam(item->mon.pdf_parm);
+					item->mon.pdf_parm = NULL; // explicitly set to fail tests
+				}
+
+				// finally readjusts the bin size
+				if ((runstats_fithist(&item->mon.pdf_hist)))
+					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
 
 			}
 		}
