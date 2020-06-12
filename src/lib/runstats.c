@@ -28,9 +28,9 @@
 
 
 #define FIT_NUMITR	20		// trust region number of iterations originally set to 200
-#define FIT_XTOL	1e-08 	// fitting tolerance step, originally set to -8
-#define FIT_GTOL	1e-08	// fitting tolerance gradient, originally set to -8
-#define FIT_FTOL	1e-08	// fitting tolerance originally set to -8
+#define FIT_XTOL	1e-5 	// fitting tolerance step, originally set to -8
+#define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
+#define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
 #define SAMP_MINCNT 1000	// Minimum number of samples in histogram
 
@@ -567,7 +567,12 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 	/*
 	* Call solver
 	*/
-	return solve_system(x, &fdf, &fdf_params);
+	int ret = solve_system(x, &fdf, &fdf_params);
+	if (!ret)
+		// even though successful, it happens that the gaussian contains negative pars
+		// check
+		return runstats_verifyparam(h, x);
+	return ret;
 }
 
 /*
