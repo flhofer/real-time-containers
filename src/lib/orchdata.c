@@ -1,5 +1,6 @@
 #include "orchdata.h"	// memory structure to store information
 #include "cmnutil.h"	// general definitions
+#include <numa.h>		// for numa free cpu-mask
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 
@@ -323,6 +324,8 @@ void freeParm(cont_t ** head, struct sched_attr * attr,
 				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
 
 	if (!copy){
+		if (item->rscs->affinity_mask)
+			numa_free_cpumask(item->rscs->affinity_mask);
 		free(item->rscs);
 		item->rscs = NULL;
 	}

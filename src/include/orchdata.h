@@ -64,6 +64,7 @@
 
 	typedef struct sched_rscs { // resources 
 		int32_t affinity; // exclusive CPU-numbers
+		struct bitmask * affinity_mask;	// computed affinity mask
 		int32_t rt_timew; // RT execution time soft limit
 		int32_t rt_time;  // RT execution time hard limit
 		int32_t mem_dataw; // Data memory soft limit
@@ -127,7 +128,6 @@
 
 	typedef struct resAlloc { 		// resource allocations mapping
 		struct resAlloc *	next;		//
-		struct bitmask * 	affinity;	// computed affinity candidates
 		struct cont_parm *	item; 		// default
 		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
 		int					readOnly;	// do not update resources = shared values
@@ -175,7 +175,7 @@
 		char * imgid; 	// temp char, then moves to entry in pidparam. identifying container
 		struct sched_attr attr;
 		struct sched_mon mon;
-		pidc_t * param;			// points to entry in pidparam, mutliple pid-same param
+		pidc_t * param;			// points to entry in pid-param, mutliple pid-same param
 	} node_t;
 
 	typedef struct prg_settings {
