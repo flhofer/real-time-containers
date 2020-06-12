@@ -7,14 +7,16 @@
 
 #include "adaptive.h"
 
-// Custom includes
-#include "orchestrator.h"
-#include "error.h"			// error and std error print functions
-#include "cmnutil.h"	// common definitions and functions
+// standard includes
 #include <numa.h>			// Numa node identification
 #include <linux/sched.h>
 #include <sched.h>
-#include "resmgnt.h"	// resource management for PIDs and Containers
+
+// Custom includes
+#include "orchestrator.h"	// Definitions of global variables
+#include "error.h"			// error and std error print functions
+#include "cmnutil.h"		// common definitions and functions
+#include "resmgnt.h"		// resource management for PIDs and Containers
 
 #undef PFX
 #define PFX "[adapt] "

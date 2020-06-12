@@ -469,6 +469,7 @@ int main(int argc, char **argv)
 	if (SM_ADAPTIVE == prgset->sched_mode){
 		// adaptive scheduling active? Clean prepare, execute, free
 		adaptPrepareSchedule();
+		adaptPlanSchedule();
 		adaptExecute();
 		adaptFreeTracer(); // free as we don't need it for the rest of the process
 	}

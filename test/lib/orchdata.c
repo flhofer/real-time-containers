@@ -6,7 +6,6 @@
 ###############################
 */
 
-//#include "../../src/orchestrator/update.h"
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"

@@ -100,6 +100,7 @@ START_TEST(orchestrator_adaptive_resources)
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();
+	adaptPlanSchedule();
 
 	// check result
 
@@ -134,6 +135,7 @@ START_TEST(orchestrator_adaptive_schedule)
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();
+	adaptPlanSchedule();
 	// apply to resources
 	adaptExecute();
 
@@ -182,6 +184,7 @@ START_TEST(orchestrator_adaptive_schedule2)
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();
+	adaptPlanSchedule();
 	// apply to resources
 	adaptExecute();
 
