@@ -467,25 +467,29 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 }
 
 /*
- * resetRTthrottle : reset RT throttle system-wide (works only with present tasks)
+ * resetRTthrottle : reset RT throttle system-wide
  *
  * Arguments: - configuration parameter structure
+ * 			  - percent amount value for throttle, -1 for unlimited
  *
  * Return value: returns 0 on success, -1 on failure
  */
 int
-resetRTthrottle (prgset_t *set){
+resetRTthrottle (prgset_t *set, int percent){
 	char * value;	// pointer to value to write
 	char buf[10];	// temporary stack buffer
 
 	// all modes except  Dynamic, set to -1 = unconstrained
-//	if (SM_DYNSYSTEM != set->sched_mode){
+	if (-1 == percent){
 		cont( "Set real-time bandwidth limit to (unconstrained)..");
 		value = RTLIM_UNL;
-//	}
+	}
 
-/*	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
+	// in Dynamic System Schedule, limit to 95% of period (a limit is requirement of G-EDF)
 	else{
+		// Limit value range
+		percent = MIN(MAX(percent, 10), 100);
+
 		cont( "Set real-time bandwidth limit to %d%%..", RTLIM_PERC);
 		// on error use default
 		value = RTLIM_DEF;
@@ -497,14 +501,14 @@ resetRTthrottle (prgset_t *set){
 			// compute 95% of period
 			long period = atol(buf);
 			if (period){
-				(void)sprintf(buf, "%ld", period*RTLIM_PERC/100);
+				(void)sprintf(buf, "%ld", period*percent/100);
 				value = buf;
 			}
 			else
 				warn("Could not parse throttle limit. Use default" RTLIM_DEF ".");
 		}
 	}
-*/
+
 	// set bandwidth and throttle control to value/unconstrained
 	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun)){
 		warn("Could not write RT-throttle value. Limitations apply.");

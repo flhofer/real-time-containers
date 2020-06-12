@@ -25,22 +25,31 @@
 
 /* --------------------------- Global variables for all the threads and programs ------------------ */
 
-containers_t * contparm; // container parameter settings
-prgset_t * prgset; // program settings structure
+// TODO containers has no lock-> verify single access only / RO
+containers_t * contparm;	// container parameter settings
+// TODO prgset has no lock -> verify single access only / RO
+prgset_t * prgset; 			// program settings structure
 
 #ifdef DEBUG
 // debug output file
 	FILE  * dbg_out;
 #endif
+
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
 node_t * nhead = NULL;
 
-// configuration read file
-static char * config = "config.json";
+// mutex to avoid read while updater fills or empties existing threads
+pthread_mutex_t resMutex; // UNUSED for now
+// heads of resource allocations for CPU and Tasks
+resAlloc_t * aHead = NULL;
+resTracer_t * rHead = NULL;
 
 // -------------- LOCAL variables for all the functions  ------------------
+
+// configuration read file
+static char * config = "config.json";
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t main_stop;

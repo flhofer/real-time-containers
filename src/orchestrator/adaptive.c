@@ -16,21 +16,8 @@
 #include <sched.h>
 #include "resmgnt.h"	// resource management for PIDs and Containers
 
-// TODO: standardize printing
 #undef PFX
 #define PFX "[adapt] "
-
-typedef struct resAlloc { 		// resource allocations mapping
-	struct resAlloc *	next;		//
-	struct bitmask * 	affinity;	// computed affinity candidates
-	struct cont_parm *	item; 		// default
-	struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
-	int					readOnly;	// do not update resources = shared values
-} resAlloc_t;
-
-static resAlloc_t * aHead = NULL;
-
-static struct resTracer * rHead;
 
 #define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 #define MAX_UL 0.90
@@ -49,25 +36,6 @@ static int cmpPidItem (const void * a, const void * b) {
 		return (int)((int64_t)(((resAlloc_t *)a)->item->attr->sched_runtime
 				- (int64_t)((resAlloc_t *)b)->item->attr->sched_runtime)  % INT32_MAX);
 	return (int)(diff % INT32_MAX); // reduce but keep sign
-}
-
-/// gcd(): greatest common divisor, iterative
-//
-/// Arguments: - candidate values in uint64_t
-///
-/// Return value: - greatest value that fits both
-///
-static uint64_t gcd(uint64_t a, uint64_t b)
-{
-	uint64_t temp;
-    while (b != 0)
-    {
-        temp = a % b;
-
-        a = b;
-        b = temp;
-    }
-    return a;
 }
 
 /// createResTracer(): create resource tracing memory elements
@@ -535,7 +503,16 @@ void adaptPrepareSchedule(){
 		// if fix assignment, add to tracer
 		addTracerFix(rTmp);
 	}
+}
 
+/// adaptPrepareSchedule(): Prepare adaptive schedule computation
+/// 	compute the resource allocation
+///
+/// Arguments: -
+///
+/// Return value: -
+///
+void adaptPlanSchedule(){
 	// ################## from here use resource masks ##############
 
 	// order by period and runtime
@@ -660,6 +637,12 @@ struct resTracer * adaptGetTracers(){
 	return rHead;
 }
 
+/// adaptFreeTracer(): free resoures
+///
+/// Arguments: -
+///
+/// Return value: -
+///
 void adaptFreeTracer(){
 	while (aHead){
 		numa_free_cpumask(aHead->affinity);

@@ -131,6 +131,14 @@
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 	} resTracer_t;
 
+	typedef struct resAlloc { 		// resource allocations mapping
+		struct resAlloc *	next;		//
+		struct bitmask * 	affinity;	// computed affinity candidates
+		struct cont_parm *	item; 		// default
+		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
+		int					readOnly;	// do not update resources = shared values
+	} resAlloc_t;
+
 	typedef struct sched_mon { // actual values for monitoring
 		int64_t rt_min;			// minimum run-time value
 		int64_t rt_avg;			// average run-time value

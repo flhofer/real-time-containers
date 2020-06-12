@@ -606,13 +606,13 @@ prepareEnvironment(prgset_t *set) {
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	if (resetRTthrottle (set)){
+	if (resetRTthrottle (set, -1)){
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, numastr);
 
 		// retry
-		resetRTthrottle (set);
+		resetRTthrottle (set, -1);
 	}
 	getRRslice(set);
 

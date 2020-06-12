@@ -10,9 +10,9 @@
 	#define ADAPTIVE_H_
 
 	void adaptPrepareSchedule();
+	void adaptPlanSchedule();
 	void adaptScramble();
 	void adaptExecute();
-	struct resTracer * adaptGetTracers();
 	void adaptFreeTracer();
 
 #endif /* ADAPTIVE_H_ */

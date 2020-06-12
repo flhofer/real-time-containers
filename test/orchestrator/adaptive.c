@@ -7,6 +7,7 @@
 */
 
 #include "../../src/orchestrator/adaptive.h"
+#include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
@@ -100,23 +101,20 @@ START_TEST(orchestrator_adaptive_resources)
 	// prepare and compute schedule
 	adaptPrepareSchedule();
 
-	// get result
-	struct resTracer * rhead = adaptGetTracers();
-
 	// check result
 
 	// valid and exact 3 elements, CPU 1 and 2
-	ck_assert((rhead));
-	ck_assert((rhead->next));
-	ck_assert(!(rhead->next->next));
+	ck_assert((rHead));
+	ck_assert((rHead->next));
+	ck_assert(!(rHead->next->next));
 
 	// check CPU assignments
-	ck_assert_int_eq(1, rhead->affinity);
-	ck_assert_int_eq(2, rhead->next->affinity);
+	ck_assert_int_eq(1, rHead->affinity);
+	ck_assert_int_eq(2, rHead->next->affinity);
 
 	// check element initialization values
-	ck_assert_int_eq(0, rhead->basePeriod);
-	ck_assert_int_eq(0, rhead->usedPeriod);
+	ck_assert_int_eq(0, rHead->basePeriod);
+	ck_assert_int_eq(0, rHead->usedPeriod);
 
 	numa_bitmask_free(prgset->affinity_mask);
 	free(prgset);
@@ -160,18 +158,15 @@ START_TEST(orchestrator_adaptive_schedule)
 	// first pid in container on 2 -> stays
 	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
 
-	// get result
-	struct resTracer * rhead = adaptGetTracers();
-
 	// check result of CPU assignments
-	ck_assert_int_eq(5000000, rhead->basePeriod);
-	ck_assert_int_eq(900000, rhead->usedPeriod);
+	ck_assert_int_eq(5000000, rHead->basePeriod);
+	ck_assert_int_eq(900000, rHead->usedPeriod);
 	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)900000/(double)5000000) == rhead->U);
+	ck_assert((float)((double)900000/(double)5000000) == rHead->U);
 
-	ck_assert_int_eq(4000000, rhead->next->basePeriod);
-	ck_assert_int_eq(3000000, rhead->next->usedPeriod);
-	ck_assert((float)((double)3000000/(double)4000000) == rhead->next->U);
+	ck_assert_int_eq(4000000, rHead->next->basePeriod);
+	ck_assert_int_eq(3000000, rHead->next->usedPeriod);
+	ck_assert((float)((double)3000000/(double)4000000) == rHead->next->U);
 
 }
 END_TEST
@@ -219,21 +214,20 @@ START_TEST(orchestrator_adaptive_schedule2)
 
 
 	// get result
-	struct resTracer * rhead = adaptGetTracers();
 
 	// check result of CPU assignments
-	ck_assert_int_eq(1000000000, rhead->basePeriod);
-	ck_assert_int_eq(220000000, rhead->usedPeriod);
+	ck_assert_int_eq(1000000000, rHead->basePeriod);
+	ck_assert_int_eq(220000000, rHead->usedPeriod);
 	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)220000000/(double)1000000000) == rhead->U);
+	ck_assert((float)((double)220000000/(double)1000000000) == rHead->U);
 
-	ck_assert_int_eq(500000000, rhead->next->basePeriod);
-	ck_assert_int_eq(100000000, rhead->next->usedPeriod);
-	ck_assert((float)((double)100000000/(double)500000000) == rhead->next->U);  // 90+10
+	ck_assert_int_eq(500000000, rHead->next->basePeriod);
+	ck_assert_int_eq(100000000, rHead->next->usedPeriod);
+	ck_assert((float)((double)100000000/(double)500000000) == rHead->next->U);  // 90+10
 
-	ck_assert_int_eq(400000000, rhead->next->next->basePeriod);
-	ck_assert_int_eq(220000000, rhead->next->next->usedPeriod);
-	ck_assert((float)((double)22000000/(double)40000000) == rhead->next->next->U);
+	ck_assert_int_eq(400000000, rHead->next->next->basePeriod);
+	ck_assert_int_eq(220000000, rHead->next->next->usedPeriod);
+	ck_assert((float)((double)22000000/(double)40000000) == rHead->next->next->U);
 
 }
 END_TEST

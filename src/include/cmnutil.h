@@ -9,6 +9,7 @@
 	#define _CMNUTIL_H_
 
 	#include <limits.h>		// Posix char limits
+	#include <stdint.h>		// variable definitions
 
 	#define USEC_PER_SEC		1000000
 	#define NSEC_PER_SEC		1000000000
@@ -49,12 +50,33 @@
 	/// Arguments: pointer to timespec to check
 	///
 	/// Return value: -
-	static inline void tsnorm(struct timespec *ts)
+	static inline void
+	tsnorm(struct timespec *ts)
 	{
 		while (ts->tv_nsec >= NSEC_PER_SEC) {
 			ts->tv_nsec -= NSEC_PER_SEC;
 			ts->tv_sec++;
 		}
+	}
+
+	/// gcd(): greatest common divisor, iterative
+	//
+	/// Arguments: - candidate values in uint64_t
+	///
+	/// Return value: - greatest value that fits both
+	///
+	static inline uint64_t
+	gcd(uint64_t a, uint64_t b)
+	{
+		uint64_t temp;
+	    while (b != 0)
+	    {
+	        temp = a % b;
+
+	        a = b;
+	        b = temp;
+	    }
+	    return a;
 	}
 
 #endif /* _CMNUTIL_H_ */
