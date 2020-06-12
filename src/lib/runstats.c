@@ -46,7 +46,7 @@
 #define BIN_DEFMIN 0.70		// default range: - offset * x
 #define BIN_DEFMAX 1.30 	// default range: + offset * x
 
-#define MODEL_DEFAMP 100.0	// default model amplitude
+#define MODEL_DEFAMP 1/(sqrt(2*M_PI)*b*MODEL_DEFSTD)	// default model amplitude
 #define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
 #define MODEL_DEFSTD 0.01	// default model stddev: runtime (b) * x
 
@@ -237,6 +237,26 @@ callback(const size_t iter, void *params,
 		  gsl_blas_dnrm2(f));
 }
 #endif
+
+/*
+ *  resamplehist(): resample/scale histogram to sum up to 1 (uniform)
+ *
+ *  Arguments: - pointer holding the histogram pointer
+ *
+ *  Return value: - status, success or error in computing value
+ */
+static int
+resamplehist (stat_hist *h){
+
+	double a,b;
+
+	if (gsl_histogram_get_range(h, 0, &a, &b))
+		return GSL_EINVAL;
+
+	double scale =  1/MAX(gsl_histogram_sum(h)*(b-a), 100);
+
+	return gsl_histogram_scale(h,scale);
+}
 
 /*
  *  solve_system(): solver setup and parameters, Gaussian fit
@@ -542,9 +562,16 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 			h->bin,
 			h->n};
 
+	// Normalize histogram
+
+
 	/*
 	 * 	Starting from here, fitting method setup, TRS
 	 */
+	if (resamplehist(h)){
+		err_msg("Unable to resample histogram!");
+		return GSL_EINVAL;
+	}
 
 	// function definition setup for solver ->
 	// pointers to f (model function), df (model differential), and fvv (model acceleration)
@@ -562,7 +589,8 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 	fdf.params = &fit_data;	// data-vector for the n functions
 
 	// enable Levenberg-Marquardt Geodesic acceleration method for trust-region subproblem
-	fdf_params.trs = gsl_multifit_nlinear_trs_lmaccel;
+	fdf_params.trs = //gsl_multifit_nlinear_trs_lm;
+				gsl_multifit_nlinear_trs_lmaccel;
 
 	/*
 	* Call solver
@@ -707,33 +735,32 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 	// 68–95–99.7 rule on normalized Gaussian to shorten the search range
 	// https://en.wikipedia.org/wiki/68–95–99.7_rule
 	double bmin, bmax;
-	double gb = gsl_vector_get(x, 1);
-	double gc = gsl_vector_get(x, 2);
+	{
+		double gb = gsl_vector_get(x, 1);
+		double gc = gsl_vector_get(x, 2);
 
-	// we ignore everything below 0.5
-	if (p-0.68 < 0){
-		// 0.5..0.68
-		bmin = gb;
-		bmax = gb +  gc;
+		// we ignore everything below 0.5
+		if (p < 0.68){
+			// 0.5..0.68
+			bmin = gb - 0.03 * gc;
+			bmax = gb + 1.03 * gc;
+		}
+		else if (p < 0.95) {
+			// 0.68..0.95
+			bmin = gb + 0.97 * gc;
+			bmax = gb + 2.03 * gc;
+		}
+		else if (p < 0.997) {
+			// 0.95..0.997
+			bmin = gb + 1.97 * gc;
+			bmax = gb + 3.03 * gc;
+		}
+		else {
+			// beyond 0.997
+			bmin = gb + 2.97 * gc;
+			bmax = gb + 10 * gc;
+		}
 	}
-	else if (p-0.95 < 0) {
-		// 0.68..0.95
-		bmin = gb + gc;
-		bmax = gb + 2 * gc;
-	}
-	else if (p-0.997 < 0) {
-		// 0.95..0.997
-		bmin = gb + 2 * gc;
-		bmax = gb + 3 * gc;
-	}
-	else {
-		// beyond 0.997
-		bmin = gb + 3 * gc;
-		bmax = gb + 10 * gc;
-	}
-	// fix overlap margins +-1%
-	bmin *= 0.99;
-	bmax *= 1.01;
 
 	// Start code from GNU sample
 	int status;
