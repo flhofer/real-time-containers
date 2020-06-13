@@ -477,7 +477,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 int
 resetRTthrottle (prgset_t *set, int percent){
 	char * value;	// pointer to value to write
-	char buf[10];	// temporary stack buffer
+	char buf[20];	// temporary stack buffer
 
 	// all modes except  Dynamic, set to -1 = unconstrained
 	if (-1 == percent){
