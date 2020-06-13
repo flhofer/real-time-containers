@@ -387,13 +387,13 @@ freePrgSet(prgset_t * prgset){
  *  Return value: -
  */
 void
-freeTracer(resTracer_t * rHead, resAlloc_t * aHead){
-	while (aHead){
-		pop((void**)&aHead);
+freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead){
+	while (*aHead){
+		pop((void**)aHead);
 	}
 
-	while (rHead)
-		pop((void**)&rHead);
+	while (*rHead)
+		pop((void**)rHead);
 }
 
 

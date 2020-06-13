@@ -34,7 +34,7 @@ static void orchestrator_adaptive_setup() {
 
 static void orchestrator_adaptive_teardown() {
 
-	freeTracer(rHead, aHead);
+	freeTracer(&rHead, &aHead);
 	freePrgSet(prgset);
 	freeContParm(contparm);
 }
@@ -67,7 +67,7 @@ START_TEST(orchestrator_adaptive_resources)
 	ck_assert_int_eq(0, rHead->basePeriod);
 	ck_assert_int_eq(0, rHead->usedPeriod);
 
-	freeTracer(rHead, aHead);
+	freeTracer(&rHead, &aHead);
 	freePrgSet(prgset);
 	freeContParm(contparm);
 }
