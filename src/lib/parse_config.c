@@ -87,7 +87,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 		pidc_t *data, cont_t *cont, img_t * img, containers_t *conts)
 {
 
-	printDbg(PIN "Parsing pid [%d]\n", index);
+	printDbg(PIN "Parsing PID [%d]\n", index);
 
 	if (!cont) 
 		cont = (cont_t *) img; // overwrite default reference if no cont set
@@ -103,10 +103,17 @@ static void parse_pid_data(struct json_object *obj, int index,
 		else if (cont) {
 			// set to container default
 			data->attr = cont->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to container scheduling settings\n");
+		}
+		else if (img) {
+			data->attr = img->attr;
+			data->status |= MSK_STATSHAT;
+			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -119,10 +126,17 @@ static void parse_pid_data(struct json_object *obj, int index,
 		else if (cont) { 
 			// set to container default
 			data->rscs = cont->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to container resource settings\n");
+		}
+		else if (img) {
+			data->rscs = img->rscs;
+			data->status |= MSK_STATSHRC;
+			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -155,10 +169,12 @@ static void parse_container_data(struct json_object *obj, int index,
 			parse_scheduling_data(attr,	&data->attr);
 		else if (img) {
 			data->attr = img->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -170,10 +186,12 @@ static void parse_container_data(struct json_object *obj, int index,
 			parse_resource_data(rscs, &data->rscs);
 		else if (img) { 
 			data->rscs = img->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -284,6 +302,7 @@ static void parse_image_data(struct json_object *obj, int index,
 			parse_scheduling_data(attr,	&data->attr);
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -295,6 +314,7 @@ static void parse_image_data(struct json_object *obj, int index,
 			parse_resource_data(rscs, &data->rscs);
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
