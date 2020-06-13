@@ -17,12 +17,15 @@
 	// masks for the status of PIDs (node_t)
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
-	#define MSK_STATWCUD		0x3	// WCET changed for PID
+	#define MSK_STATWCUD		0x4	// WCET changed for PID
+
+	// masks for the status of PIDs (node_t) and configurations
+	#define MSK_STATSHAT		0x10// shared attribute configuration
+	#define MSK_STATSHRC		0x20// shared resource configuration
 
 	// masks for the status of orchestrator (prgset_t)
 	#define MSK_STATTRTL		0x1	// setting RT throttle was successful done
 	#define	MSK_STATRUNC		0x2 // startup running containers present
-
 
 // default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
@@ -78,6 +81,7 @@
 	typedef struct pidc_parm {
 		struct pidc_parm *next; 
 		char *psig; 			// matching signatures -> container IDs
+		int 			 status;// generic status info
 		struct sched_attr *attr;// standard Linux PID attributes
 		struct sched_rscs *rscs;// additional resource settings 
 		struct cont_parm  *cont;// pointer to the container settings
@@ -92,6 +96,7 @@
 	typedef struct cont_parm {
 		struct cont_parm  *next; 
 		char			*contid;// matching signatures -> container IDs
+		int 			 status;// generic status info
 		struct sched_attr *attr;// container sched attributes, default
 		struct sched_rscs *rscs;// container default & max resource settings 
 		struct pids_parm  *pids;// linked list pointing to the pids	
@@ -106,6 +111,7 @@
 	typedef struct img_parm {
 		struct img_parm  *next; 
 		char 			 *imgid;// matching signatures -> image IDs
+		int 			 status;// generic status info
 		struct sched_attr *attr;// container sched attributes, default
 		struct sched_rscs *rscs;// container default & max resource settings 
 		struct pids_parm  *pids;// linked list pointing to the pids for this img	
@@ -238,8 +244,9 @@
 	void qsortll(void **head, int (*compar)(const void *, const void*) );
 
 	// special - free structure
-	void freeParm(cont_t ** head,struct sched_attr * attr,
-			struct sched_rscs * rscs, int depth);
+	void freeContParm(containers_t * contparm);
+	void freePrgSet(prgset_t * prgset);
+	void freeTracer(resTracer_t * rHead, resAlloc_t * aHead);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs

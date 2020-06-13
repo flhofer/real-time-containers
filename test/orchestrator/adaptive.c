@@ -34,59 +34,9 @@ static void orchestrator_adaptive_setup() {
 
 static void orchestrator_adaptive_teardown() {
 
-	adaptFreeTracer();
-
-	free(prgset->logdir);
-	free(prgset->logbasename);
-
-	// signatures and folders
-	free(prgset->cont_ppidc);
-	free(prgset->cont_pidc);
-	free(prgset->cont_cgrp);
-
-	// filepaths virtual file system
-	free(prgset->procfileprefix);
-	free(prgset->cpusetfileprefix);
-	free(prgset->cpusystemfileprefix);
-
-	free(prgset->cpusetdfileprefix);
-
-	free(prgset);
-
-
-	// free resources!!
-	while (contparm->img){
-		while (contparm->img->conts) {
-			while (contparm->img->conts->cont->pids){
-				// free and pop
-				freeParm ((cont_t**)&contparm->img->conts->cont->pids->pid, contparm->attr, contparm->rscs, 2);
-				pop((void**)&contparm->img->conts->cont->pids);
-			}
-			// free and pop
-			freeParm (&contparm->img->conts->cont, contparm->attr, contparm->rscs, 1);
-			pop((void**)&contparm->img->conts);
-		}
-		while (contparm->img->pids){
-			freeParm ((cont_t**)&contparm->img->pids->pid, contparm->attr, contparm->rscs, 1);
-			pop ((void**)&contparm->img->pids);
-		}
-		freeParm ((cont_t**)&contparm->img, contparm->attr, contparm->rscs, 0);
-	}
-
-	while (contparm->cont){
-		while (contparm->cont->pids){
-			freeParm ((cont_t**)&contparm->cont->pids->pid, contparm->attr, contparm->rscs, 1);
-			pop ((void**)&contparm->cont->pids);
-		}
-		freeParm (&contparm->cont, contparm->attr, contparm->rscs, 0);
-	}
-
-	while (contparm->pids)
-		freeParm ((cont_t**)&contparm->pids, contparm->attr, contparm->rscs, 0);
-
-	free(contparm->attr);
-	free(contparm->rscs);
-	free(contparm);
+	freeTracer(rHead, aHead);
+	freePrgSet(prgset);
+	freeContParm(contparm);
 }
 
 /// TEST CASE -> create resources for the adaptive schedule
@@ -117,10 +67,9 @@ START_TEST(orchestrator_adaptive_resources)
 	ck_assert_int_eq(0, rHead->basePeriod);
 	ck_assert_int_eq(0, rHead->usedPeriod);
 
-	numa_bitmask_free(prgset->affinity_mask);
-	free(prgset);
-	free(contparm);
-	adaptFreeTracer();
+	freeTracer(rHead, aHead);
+	freePrgSet(prgset);
+	freeContParm(contparm);
 }
 END_TEST
 
@@ -264,7 +213,7 @@ void orchestrator_adaptive (Suite * s) {
 
 	TCase *tc2 = tcase_create("adaptive_schedule");
 	tcase_add_checked_fixture(tc2, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
-    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
+//    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
     tcase_add_test(tc2, orchestrator_adaptive_schedule);
     tcase_add_test(tc2, orchestrator_adaptive_schedule2);
 

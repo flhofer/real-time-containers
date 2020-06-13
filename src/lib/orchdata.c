@@ -300,40 +300,102 @@ int node_findParams(node_t* node, struct containers * conts){
 
 /* -------------------- special for Param structures --------------------- */
 
-void freeParm(cont_t ** head, struct sched_attr * attr,
-		struct sched_rscs * rscs, int depth){
-	cont_t * item = *head;
+static void
+freeParm(cont_t * item){
 
-	{ // attributes check
-	int copy = (item->attr == attr) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->attr == item->img->attr))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->attr == ((pidc_t*)item)->cont->attr));
-
-	if (!copy){
+	if (!(item->status & MSK_STATSHAT))
+#ifdef DEBUG
+	{
 		free(item->attr);
 		item->attr = NULL;
 	}
-	}
-	{ // resources check
-	int copy = (item->rscs == rscs) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->rscs == item->img->rscs))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
+#else
+		free(item->attr);
+#endif
 
-	if (!copy){
+	if ((item->rscs) && !(item->status & MSK_STATSHRC)){
 		if (item->rscs->affinity_mask)
 			numa_free_cpumask(item->rscs->affinity_mask);
 		free(item->rscs);
+#ifdef DEBUG
 		item->rscs = NULL;
+#endif
 	}
+}
+
+void
+freeContParm(containers_t * contparm){
+	// free resources!!
+	while (contparm->img){
+		while (contparm->img->conts)
+			pop((void**)&contparm->img->conts);
+		while (contparm->img->pids)
+			pop ((void**)&contparm->img->pids);
+
+		freeParm ((cont_t*)contparm->img);
+		pop ((void**)&contparm->img);
 	}
 
-	if (0==depth)
-		pop((void **)head);
+	while (contparm->cont){
+		while (contparm->cont->pids)
+			pop ((void**)&contparm->cont->pids);
+		freeParm (contparm->cont);
+		pop((void**)&contparm->cont);
+	}
+
+	while (contparm->pids){
+		freeParm ((cont_t*)contparm->pids);
+		pop ((void**)&contparm->pids);
+	}
+
+	free(contparm->attr);
+	contparm->attr = NULL;
+	numa_free_cpumask(contparm->rscs->affinity_mask);
+	contparm->rscs->affinity_mask = NULL;
+	free(contparm->rscs);
+	contparm->rscs = NULL;
+	free(contparm);
 }
+
+void
+freePrgSet(prgset_t * prgset){
+
+	numa_bitmask_free(prgset->affinity_mask);
+	free(prgset->logdir);
+	free(prgset->logbasename);
+
+	// signatures and folders
+	free(prgset->cont_ppidc);
+	free(prgset->cont_pidc);
+	free(prgset->cont_cgrp);
+
+	// filepaths virtual file system
+	free(prgset->procfileprefix);
+	free(prgset->cpusetfileprefix);
+	free(prgset->cpusystemfileprefix);
+
+	free(prgset->cpusetdfileprefix);
+
+	free(prgset);
+}
+
+/*
+ *  adaptFreeTracer(): free resources
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
+void
+freeTracer(resTracer_t * rHead, resAlloc_t * aHead){
+	while (aHead){
+		pop((void**)&aHead);
+	}
+
+	while (rHead)
+		pop((void**)&rHead);
+}
+
 
 /* -------------------- default PID values structure ----------------------*/
 

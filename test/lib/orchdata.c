@@ -106,7 +106,7 @@ START_TEST(orchdata_ndpop2)
 
 	cont_t d = {NULL, b};
 	img_t e = {NULL, c};
-	pidc_t f = {NULL, a, NULL, NULL, &d, &e};
+	pidc_t f = {NULL, a, 0, NULL, NULL, &d, &e};
 	
 	node_push(&nhead);
 	nhead->psig= a;
@@ -140,7 +140,7 @@ START_TEST(orchdata_ndpop3)
 
 	cont_t d = {NULL, "sss"};
 	img_t e = {NULL, "xxx"};
-	pidc_t f = {NULL, "ss", NULL, NULL, &d, &e};
+	pidc_t f = {NULL, "ss", 0, NULL, NULL, &d, &e};
 	
 	node_push(&nhead);
 	nhead->psig= a;
