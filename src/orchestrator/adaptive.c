@@ -374,18 +374,43 @@ static void addTracerFix(resAlloc_t * res) {
 			err_exit("The resource plan does not fit your system!");
 }
 
+
+/*
+ *  createAffinityMask():create affinity mask based on configuration
+ *
+ *  Arguments: - resource structure
+ * 			   - dependent bit-mask (hierarchy upper)
+ *
+ *  Return value: returns the created resource info for hierarchical
+ * 					matching and combining */
+static void
+createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
+	// Create CPU mask only if not shared
+	if (rscs->affinity > 0) {
+		char  affstr[11];
+		(void)sprintf(affstr, "%d", rscs->affinity);
+		rscs->affinity_mask = numa_parse_cpustring_all(affstr);
+	}
+	else{
+		rscs->affinity_mask = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(prgset->affinity_mask, rscs->affinity_mask);
+		if (bDep)
+			numa_and_cpumask(bDep, rscs->affinity_mask);
+	}
+}
+
 /*
  *  pushResource(): append resource to resource task list with mask
  *
  *  Arguments: - item is container, image or pid
  * 				(they're equal for attr and rscs )
- * 			   - depth 0 = image, 1 = container, 2 - pid
+ * 			   - dependent bit-mask (hierarchy upper)
  *
  *  Return value: returns the created resource info for hierarchical
  * 					matching and combining
  */
 //FIXME: 1
-static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
+static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
 
 	// add item
 	push((void**)&aHead, sizeof (resAlloc_t));
@@ -393,19 +418,7 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 	if (item->status & MSK_STATSHRC)
 		return aHead;
 
-	// Create CPU mask only if not shared
-	if (item->rscs->affinity > 0) {
-		char  affstr[11];
-		(void)sprintf(affstr, "%d", item->rscs->affinity);
-		item->rscs->affinity_mask = numa_parse_cpustring_all(affstr);
-	}
-	else{
-		item->rscs->affinity_mask = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(prgset->affinity_mask, item->rscs->affinity_mask);
-		if (bDep)
-			numa_and_cpumask(bDep, item->rscs->affinity_mask);
-	}
-
+	createAffinityMask (item->rscs, bDep);
 	return aHead;
 }
 
@@ -420,19 +433,8 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 //FIXME: -> use hierarchy
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
-	(void)createResTracer();
-
-
-	// Create global CPU mask :)
-	if (contparm->rscs->affinity > 0) {
-		char  affstr[11];
-		(void)sprintf(affstr, "%d", contparm->rscs->affinity);
-		contparm->rscs->affinity_mask = numa_parse_cpustring_all(affstr);
-	}
-	else{
-		contparm->rscs->affinity_mask = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
-	}
+	createResTracer();
+	createAffinityMask(contparm->rscs, NULL);
 
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
@@ -440,7 +442,7 @@ void adaptPrepareSchedule(){
 		resAlloc_t * rTmp, * rImg;
 
 		// add reserve image, keep reference
-		rImg = pushResource((cont_t *)img, NULL, 0);
+		rImg = pushResource((cont_t *)img, NULL);
 
 		// depending containers
 		for (conts_t * conts = img->conts; ((conts)); conts=conts->next){
@@ -449,13 +451,13 @@ void adaptPrepareSchedule(){
 
 			// add reserve container, keep
 			// TODO: test null
-			rCont = pushResource(conts->cont, rImg->item->rscs->affinity_mask, 1);
+			rCont = pushResource(conts->cont, rImg->item->rscs->affinity_mask);
 
 			// container's PIDs
 			for (pids_t * pids = conts->cont->pids; ((pids)); pids=pids->next){
 
 				// TODO: test null
-				rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask, 2);
+				rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask);
 				// TODO: test null
 				numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmPids);
 
@@ -480,7 +482,7 @@ void adaptPrepareSchedule(){
 		for (pids_t * pids = img->pids; ((pids)); pids=pids->next){
 
 			// TODO: null check
-			rTmp = pushResource((cont_t*)pids->pid, rImg->item->rscs->affinity_mask, 1);
+			rTmp = pushResource((cont_t*)pids->pid, rImg->item->rscs->affinity_mask);
 			// TODO: null check
 			numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmConts);
 
@@ -499,7 +501,7 @@ void adaptPrepareSchedule(){
 	}
 
 	// transform all masks, solo containers
-	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
+	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next){
 		if (cont->img) // part of tree, skip
 			continue;
 
@@ -507,13 +509,13 @@ void adaptPrepareSchedule(){
 		resAlloc_t * rTmp, * rCont;
 
 		// add reserve container, keep
-		rCont = pushResource(cont, NULL, 1);
+		rCont = pushResource(cont, NULL);
 
 		// container's PIDs
 		for (pids_t * pids = cont->pids; ((pids)); pids=pids->next){
 
 			// TODO null check
-			rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask, 2);
+			rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask);
 			// TODO: null check
 			numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmPids);
 
@@ -537,7 +539,7 @@ void adaptPrepareSchedule(){
 		if (pid->img || pid->cont) // part of tree, skip
 			continue;
 
-		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL, 2);
+		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL);
 
 		// if fix assignment, add to tracer
 		addTracerFix(rTmp);

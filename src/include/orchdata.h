@@ -134,7 +134,7 @@
 
 	typedef struct resAlloc { 		// resource allocations mapping
 		struct resAlloc *	next;		//
-		struct cont_parm *	item; 		// default
+		struct cont_parm *	item; 		// default, could be any element (img, cont, pid)
 		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
 	} resAlloc_t;
 

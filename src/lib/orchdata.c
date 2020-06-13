@@ -260,12 +260,14 @@ int node_findParams(node_t* node, struct containers * conts){
 
 			// assign values
 			cont->contid = node->contid;
+			img->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
 		// add to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 		conts->pids->rscs = cont->rscs;
 		conts->pids->attr = cont->attr;
 
