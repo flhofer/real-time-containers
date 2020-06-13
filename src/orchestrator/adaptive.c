@@ -33,7 +33,6 @@
  *
  *  Return value: difference
  */
-//FIXME: do I need to quicksort? can I quicksort items?
 static int cmpPidItem (const void * a, const void * b) {
 	int64_t diff = ((int64_t)((resAlloc_t *)a)->item->attr->sched_period
 			- (int64_t)((resAlloc_t *)b)->item->attr->sched_period);
@@ -340,11 +339,9 @@ static resTracer_t * grepTracer() {
  *
  *  Return value: error, or 0 if successful
  */
-//FIXME: 1
 static int addTracer(resAlloc_t * res, int cpu){
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (((-1 == cpu)
-				// TODO: test null
 			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, trc->affinity)))
 			|| (cpu == trc->affinity)){
 
@@ -366,12 +363,13 @@ static int addTracer(resAlloc_t * res, int cpu){
  *
  *  Return value:
  */
-//FIXME: 1
 static void addTracerFix(resAlloc_t * res) {
-	// TODO: test null
-	if (numa_bitmask_weight(res->item->rscs->affinity_mask) == 1)
+	if (numa_bitmask_weight(res->item->rscs->affinity_mask) == 1){
 		if (0 > addTracer(res, -1))
 			err_exit("The resource plan does not fit your system!");
+		else
+			res->item->status |= MSK_STATCFIX;
+	}
 }
 
 
@@ -409,7 +407,6 @@ createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
  *  Return value: returns the created resource info for hierarchical
  * 					matching and combining
  */
-//FIXME: 1
 static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
 
 	// add item
@@ -422,6 +419,47 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
 	return aHead;
 }
 
+/* --- SOME FUNCS TO EASE READABILITY ----- */
+static void
+ddPids(pids_t * pids, resAlloc_t * parAlloc, struct bitmask * bm){
+	resAlloc_t * rTmp;
+	// PIDs mask update and fill
+	for (;((pids)); pids=pids->next){
+
+		rTmp = pushResource((cont_t*)pids->pid, parAlloc->item->rscs->affinity_mask);
+		numa_or_cpumask(rTmp->item->rscs->affinity_mask,bm);
+
+		// if fix assignment, add to tracer
+		addTracerFix(rTmp);
+	}
+}
+
+static void
+ddConts(conts_t * conts, resAlloc_t * parAlloc, struct bitmask * bm){
+	// depending containers
+	for (; ((conts)); conts=conts->next){
+		struct bitmask *bmPids = numa_allocate_cpumask();
+		resAlloc_t * rCont;
+
+		// add reserve container, keep
+		rCont = pushResource(conts->cont, parAlloc->item->rscs->affinity_mask);
+
+		ddPids(conts->cont->pids,rCont, bmPids);
+
+		// update affinity values of container, keep only necessary
+		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
+
+		// merge mask to image shared, free unused
+		numa_or_cpumask(rCont->item->rscs->affinity_mask, bm);
+		numa_free_cpumask(bmPids);
+
+		// if fix assignment, add to tracer
+		addTracerFix(rCont);
+	}
+}
+/* --- END SOME FUNCS TO EASE READABILITY ----- */
+
+
 /*
  *  adaptPrepareSchedule(): Prepare adaptive schedule computation
  *  	compute the resource allocation
@@ -430,7 +468,6 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
  *
  *  Return value: -
  */
-//FIXME: -> use hierarchy
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
 	createResTracer();
@@ -439,59 +476,17 @@ void adaptPrepareSchedule(){
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
 		struct bitmask * bmConts = numa_allocate_cpumask();
-		resAlloc_t * rTmp, * rImg;
+		resAlloc_t * rImg;
 
 		// add reserve image, keep reference
 		rImg = pushResource((cont_t *)img, NULL);
 
-		// depending containers
-		for (conts_t * conts = img->conts; ((conts)); conts=conts->next){
-			struct bitmask *bmPids = numa_allocate_cpumask();
-			resAlloc_t * rCont;
-
-			// add reserve container, keep
-			// TODO: test null
-			rCont = pushResource(conts->cont, rImg->item->rscs->affinity_mask);
-
-			// container's PIDs
-			for (pids_t * pids = conts->cont->pids; ((pids)); pids=pids->next){
-
-				// TODO: test null
-				rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask);
-				// TODO: test null
-				numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmPids);
-
-				// if fix assignment, add to tracer
-				addTracerFix(rTmp);
-			}
-
-			// update affinity values of container, keep only necessary
-			// TODO: check null
-			numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
-
-			// merge mask to image shared, free unused
-			// TODO: null check
-			numa_or_cpumask(rCont->item->rscs->affinity_mask,bmConts);
-			numa_free_cpumask(bmPids);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rCont);
-		}
-
-		// depending PIDs
-		for (pids_t * pids = img->pids; ((pids)); pids=pids->next){
-
-			// TODO: null check
-			rTmp = pushResource((cont_t*)pids->pid, rImg->item->rscs->affinity_mask);
-			// TODO: null check
-			numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmConts);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rTmp);
-		}
+		// continue Cont->PIDs
+		ddConts(img->conts, rImg, bmConts);
+		// continue PIDs
+		ddPids(img->pids,rImg, bmConts);
 
 		// update affinity values of image, keep only necessary
-		// TODO: null check
 		numa_and_cpumask(bmConts,rImg->item->rscs->affinity_mask);
 		// free unused
 		numa_free_cpumask(bmConts);
@@ -506,25 +501,15 @@ void adaptPrepareSchedule(){
 			continue;
 
 		struct bitmask *bmPids = numa_allocate_cpumask();
-		resAlloc_t * rTmp, * rCont;
+		resAlloc_t * rCont;
 
 		// add reserve container, keep
 		rCont = pushResource(cont, NULL);
 
-		// container's PIDs
-		for (pids_t * pids = cont->pids; ((pids)); pids=pids->next){
-
-			// TODO null check
-			rTmp = pushResource((cont_t*)pids->pid, rCont->item->rscs->affinity_mask);
-			// TODO: null check
-			numa_or_cpumask(rTmp->item->rscs->affinity_mask,bmPids);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rTmp);
-		}
+		// continue PIDs
+		ddPids(cont->pids, rCont, bmPids);
 
 		// update affinity values, keep only necessary
-		// TODO null check
 		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
 
 		//push container mask, and merge to image shared
@@ -533,6 +518,7 @@ void adaptPrepareSchedule(){
 		// if fix assignment, add to tracer
 		addTracerFix(rCont);
 	}
+
 
 	// transform all masks, PIDs
 	for (pidc_t * pid = contparm->pids; ((pid)); pid=pid->next ){
@@ -548,20 +534,18 @@ void adaptPrepareSchedule(){
 
 /*
  *  adaptPrepareSchedule(): Prepare adaptive schedule computation
- *  	compute the resource allocation
+ *  	compute the resource allocation, uses resoure masks only
  *
  *  Arguments: -
  *
  *  Return value: -
  */
-//FIXME: -> use hierarchy
 void adaptPlanSchedule(){
-	// ################## from here use resource masks ##############
 
 	// order by period and runtime
 	qsortll((void **)&aHead, cmpPidItem);
 
-	int unmatched = 0;
+	int unmatched = 0; // count unmatched
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
 		resTracer_t * trc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
@@ -605,6 +589,7 @@ void adaptPlanSchedule(){
 		}
 	} // END dedicated resources
 
+	printDbg("After pre-compute, un-match count %d\n", unmatched);
 	{ // compute flexible resources with undefined detail
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;

@@ -19,6 +19,9 @@
 	#define	MSK_STATNMTCH		0x2 // no parameter match
 	#define MSK_STATWCUD		0x4	// WCET changed for PID
 
+	// masks for the status of configurations
+	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
+
 	// masks for the status of PIDs (node_t) and configurations
 	#define MSK_STATSHAT		0x10// shared attribute configuration
 	#define MSK_STATSHRC		0x20// shared resource configuration
