@@ -276,6 +276,42 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	return rv;
 }
 
+
+/*
+ *  recomputeTimes(): recomputes base and utilization factor of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeTimes(struct resTracer * res) {
+
+	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
+
+	int rv;
+
+	for (resAlloc_t * alloc = aHead; ((alloc)); alloc=alloc->next){
+		if (alloc->assigned != res)
+			continue;
+
+		rv = checkUvalue(resNew, alloc->item->attr, 1);
+		if ( 0 > rv ){
+			free(resNew);
+			return rv; // stops here
+		}
+
+	}
+
+	res->basePeriod = resNew->basePeriod;
+	res->usedPeriod = resNew->usedPeriod;
+	res->U = resNew->U;
+
+	free(resNew);
+	return 0;
+}
+
+
 /*
  *  checkPeriod(): find a resource that fits period
  *
@@ -639,9 +675,10 @@ void adaptPlanSchedule(){
  *
  *  Return value: -
  */
-//FIXME: -> use hierarchy
 void adaptScramble(){
-	// TODO: implement!
+
+	recomputeTimes(rHead);
+
 }
 
 /*
