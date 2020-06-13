@@ -136,7 +136,6 @@
 		struct resAlloc *	next;		//
 		struct cont_parm *	item; 		// default
 		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
-		int					readOnly;	// do not update resources = shared values
 	} resAlloc_t;
 
 	typedef struct resAllocL{
@@ -246,7 +245,7 @@
 	// special - free structure
 	void freeContParm(containers_t * contparm);
 	void freePrgSet(prgset_t * prgset);
-	void freeTracer(resTracer_t * rHead, resAlloc_t * aHead);
+	void freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs

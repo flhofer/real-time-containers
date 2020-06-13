@@ -389,31 +389,22 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 
 	// add item
 	push((void**)&aHead, sizeof (resAlloc_t));
+	aHead->item = item;
+	if (item->status & MSK_STATSHRC)
+		return aHead;
+
+	// Create CPU mask only if not shared
 	if (item->rscs->affinity > 0) {
 		char  affstr[11];
 		(void)sprintf(affstr, "%d", item->rscs->affinity);
-		// TODO: test null
-		aHead->item->rscs->affinity_mask = numa_parse_cpustring_all(affstr);
+		item->rscs->affinity_mask = numa_parse_cpustring_all(affstr);
 	}
 	else{
-		// TODO: test null
-		aHead->item->rscs->affinity_mask = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(prgset->affinity_mask, aHead->item->rscs->affinity_mask);
+		item->rscs->affinity_mask = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(prgset->affinity_mask, item->rscs->affinity_mask);
 		if (bDep)
-			// TODO: test null
-			numa_and_cpumask(bDep, aHead->item->rscs->affinity_mask);
+			numa_and_cpumask(bDep, item->rscs->affinity_mask);
 	}
-
-	// TODO: before?
-	aHead->item = item;
-
-	// Set to read only if resources are copies of a parent
-	// TODO read-only before it?
-	aHead->readOnly = (item->rscs == contparm->rscs) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->rscs == item->img->rscs))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
 
 	return aHead;
 }
@@ -430,6 +421,18 @@ static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
 	(void)createResTracer();
+
+
+	// Create global CPU mask :)
+	if (contparm->rscs->affinity > 0) {
+		char  affstr[11];
+		(void)sprintf(affstr, "%d", contparm->rscs->affinity);
+		contparm->rscs->affinity_mask = numa_parse_cpustring_all(affstr);
+	}
+	else{
+		contparm->rscs->affinity_mask = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
+	}
 
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
@@ -664,26 +667,9 @@ void adaptScramble(){
  */
 //FIXME: -> use hierarchy
 void adaptExecute() {
+	// apply only if not shared and if fixed cpu is assigned
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
-		if (!(res->readOnly) && (res->assigned))
+		if (!(res->item->status & MSK_STATSHRC) && (res->assigned))
 			res->item->rscs->affinity = res->assigned->affinity;
-}
-
-/*
- *  adaptFreeTracer(): free resources
- *
- *  Arguments: -
- *
- *  Return value: -
- */
-void adaptFreeTracer(){
-	while (aHead){
-		// TODO: do I need to free the bit-mask?
-		numa_free_cpumask(aHead->item->rscs->affinity_mask);
-		pop((void**)&aHead);
-	}
-
-	while (rHead)
-		pop((void**)&rHead);
 }
 
