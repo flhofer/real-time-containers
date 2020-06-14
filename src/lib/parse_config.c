@@ -674,8 +674,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "global   : %s\n", json_object_to_json_string(global));
 		printDbg(PFX "Parsing global\n");
 		parse_global(global, set);
-		if (global && !json_object_put(global))
-			err_msg(PFX "Could not free object!");
 
 	} // END program settings block
 
@@ -688,9 +686,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		printDbg(PFX "Parsing scheduling\n");
 		parse_scheduling_data(scheduling, &conts->attr);
 
-		if (scheduling && !json_object_put(scheduling))
-			err_msg(PFX "Could not free object!");
-
 	} // END global scheduling parameters, default
 
 	{ // global resource limits block
@@ -702,9 +697,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		printDbg(PFX "Parsing resources\n");
 		parse_resource_data(resources, &conts->rscs);
 
-		if (resources && !json_object_put(resources))
-			err_msg(PFX "Could not free object!");
-
 	} // END resource limits block
 
 	{ // images settings block
@@ -715,8 +707,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "images    : %s\n", json_object_to_json_string(images));
 			printDbg(PFX "Parsing images\n");
 			parse_images(images, conts);
-			if (!json_object_put(images))
-				err_msg(PFX "Could not free object!");
 		}
 
 	} // END images settings block
@@ -729,8 +719,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
 			printDbg(PFX "Parsing containers\n");
 			parse_containers(containers, conts, NULL);
-			if (!json_object_put(containers))
-				err_msg(PFX "Could not free object!");
 		}
 
 	} // END container settings block
@@ -750,8 +738,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 				parse_pid_data(pidobj, idx, conts->pids, NULL, NULL, conts);
 				idx++;
 			}
-			if (!json_object_put(pidslist))
-				err_msg(PFX "Could not free object!");
 		}
 	} // END PIDs settings block
 
