@@ -471,7 +471,7 @@ int main(int argc, char **argv)
 		adaptPrepareSchedule();
 		adaptPlanSchedule();
 		adaptExecute();
-		adaptFreeTracer(); // free as we don't need it for the rest of the process
+		freeTracer(&rHead, &aHead); // free as we don't need it for the rest of the process
 	}
 
 	pthread_t thrManage, thrUpdate;
