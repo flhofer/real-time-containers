@@ -681,7 +681,7 @@ void adaptScramble(){
 
 	for (resAlloc_t * res= aHead; ((res)); res=res->next){
 
-		if (res->item->status & MSK_STATCFIX)
+		if (!(res->assigned) ||(res->item->status & MSK_STATCFIX))
 				continue;
 
 		trc = checkPeriod(res->item);

@@ -137,6 +137,8 @@ START_TEST(orchestrator_adaptive_schedule2)
 	// apply to resources
 	adaptExecute();
 
+	adaptScramble();
+
 	// verify memory result in parameters
 
 	// image 1, -1 -> 0 for empty cpu
