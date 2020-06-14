@@ -249,8 +249,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			if (!set->cpusetdfileprefix)
 				err_exit("could not allocate memory!");
 
-			*set->cpusetdfileprefix = '\0'; // set first chat to null
-			set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+			set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 
 			break;
 		case 'd':

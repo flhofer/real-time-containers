@@ -410,9 +410,8 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
-						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
-						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
 						// remove exclusive!
 						if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
@@ -453,9 +452,8 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 					 && (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
-						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
-						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
 						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
 							warn("Can not set CPU-affinity");

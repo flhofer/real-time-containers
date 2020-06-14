@@ -451,8 +451,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		if (!set->cpusetdfileprefix)
 			err_exit_n(errno, "Could not allocate memory");
 
-		*set->cpusetdfileprefix = '\0'; // set first chat to null
-		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 
 		// affinity default setting
 		if (!set->affinity){
@@ -504,8 +503,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		if (!set->cpusetdfileprefix)
 			err_exit_n(errno, "Could not allocate memory");
 
-		*set->cpusetdfileprefix = '\0'; // set first chat to null
-		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 	}
 
 	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);

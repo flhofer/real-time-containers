@@ -68,9 +68,8 @@ static void getContPids (node_t **pidlst)
 			// scan trough docker CGroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
-					fname[0] = '\0';   // ensures the memory is an empty string
 					// copy to new prefix
-					fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
+					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
 					fname = strcat(fname,"/tasks");
 
 					// prepare literal and open pipe request

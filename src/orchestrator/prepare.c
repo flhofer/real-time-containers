@@ -261,9 +261,8 @@ countCGroupTasks(prgset_t *set) {
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1+6))) { // \0 + /tasks
-						contp[0] = '\0';   // ensures the memory is an empty string
 						// copy to new prefix
-						contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
+						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 						contp = strcat(contp,"/tasks");
 
 						// Open the file
@@ -659,9 +658,8 @@ prepareEnvironment(prgset_t *set) {
 				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
-				fileprefix[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				fileprefix = strcat(strcat(fileprefix,set->cpusetdfileprefix), cont->contid);
+				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
 
 				// try to create directory
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
@@ -694,9 +692,8 @@ prepareEnvironment(prgset_t *set) {
 	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
 		char * nfileprefix = NULL;
 
-		fileprefix[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
-		fileprefix = strcat(strcat(fileprefix,set->cpusetfileprefix), CSET_SYS);
+		fileprefix = strcat(strcpy(fileprefix,set->cpusetfileprefix), CSET_SYS);
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -721,9 +718,8 @@ prepareEnvironment(prgset_t *set) {
 		cont( "moving tasks..");
 
 		if ((nfileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("tasks")+1))) {
-			nfileprefix[0] = '\0';   // ensures the memory is an empty string
 			// copy to new prefix
-			nfileprefix = strcat(strcat(nfileprefix,set->cpusetfileprefix),"tasks");
+			nfileprefix = strcat(strcpy(nfileprefix,set->cpusetfileprefix),"tasks");
 
 			int mtask = 0;
 
