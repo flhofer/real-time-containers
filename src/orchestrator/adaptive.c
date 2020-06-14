@@ -594,7 +594,7 @@ void adaptPlanSchedule(){
 					// allocate resources for flexible tasks
 					trc= checkPeriod(res->item);
 					if (trc){
-						checkUvalue(trc, res->item->attr, 1);
+						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
 					}
 					else
@@ -615,7 +615,7 @@ void adaptPlanSchedule(){
 					// allocate resources for flexible tasks
 					trc= checkPeriod(res->item);
 					if (trc){
-						checkUvalue(trc, res->item->attr, 1);
+						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
 					}
 					else
@@ -677,7 +677,24 @@ void adaptPlanSchedule(){
  */
 void adaptScramble(){
 
-	recomputeTimes(rHead);
+	resTracer_t * trc = NULL;
+
+	for (resAlloc_t * res= aHead; ((res)); res=res->next){
+
+		if (res->item->status & MSK_STATCFIX)
+				continue;
+
+		trc = checkPeriod(res->item);
+		// found a better option?
+		if (trc && (trc != res->assigned)){
+			// recompute and add
+			(void)checkUvalue(trc, res->item->attr, 1);
+			resTracer_t * trcOld = res->assigned;
+
+			res->assigned = trc;
+			recomputeTimes(trcOld); // reset times of old resource
+		}
+	}
 
 }
 
