@@ -67,6 +67,7 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 
 /*
  *	setPidAffinity: sets the affinity of a PID
+ *				the task is present in the common 'docker' CGroup
  *
  *	Arguments: - pointer to node with data
  *			   - bit-mask for affinity
@@ -74,27 +75,53 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setPidAffinity (node_t * node, struct bitmask * cset){
-	// add PID to docker CGroup
-	char pid[6]; // PID is 5 digits + \0
-	(void)sprintf(pid, "%d", node->pid);
+setPidAffinity (node_t * node){
+
 	int ret = 0;
 
-	if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
-		printDbg( "Warn! Can not move task %s\n", pid);
-		ret = -1;
+	{	// add PID to docker CGroup
+
+		char pid[6]; // PID is 5 digits + \0
+		(void)sprintf(pid, "%d", node->pid);
+
+		if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
+			printDbg( "Warn! Can not move task %s\n", pid);
+			ret = -1;
+		}
+
 	}
 
-	// Set affinity
-	if (numa_sched_setaffinity(node->pid, cset)){
-		err_msg_n(errno,"setting affinity for PID %d",
-			node->pid);
-		ret = -1;
+	if (!(node->param) || !(node->param->rscs->affinity_mask)){
+		err_msg("No valid parameters or bit-mask allocation!");
+		return -1;
 	}
-	else
-		cont("PID %d reassigned to CPU%d", node->pid,
-			node->param->rscs->affinity);
 
+	struct bitmask * bmold= numa_allocate_cpumask();
+
+	// get affinity
+	if (numa_sched_getaffinity(node->pid, bmold))
+		err_msg_n(errno,"getting affinity for PID %d", node->pid);
+
+	if (numa_bitmask_equal(node->param->rscs->affinity_mask, bmold)){
+
+		// get textual representation for log
+		char affinity[CPUSTRLEN];
+		if (parse_bitmask (node->param->rscs->affinity_mask, affinity, CPUSTRLEN)){
+				warn("Can not determine inverse affinity mask!");
+				(void)sprintf(affinity, "****");
+		}
+
+		// Set affinity
+		if (numa_sched_setaffinity(node->pid, node->param->rscs->affinity_mask)){
+			err_msg_n(errno,"setting affinity for PID %d",
+				node->pid);
+			ret = -1;
+		}
+		else
+			cont("PID %d reassigned to CPUs '%s'", node->pid, affinity);
+	}
+
+	numa_bitmask_free(bmold);
 	return ret;
 }
 
@@ -107,13 +134,13 @@ setPidAffinity (node_t * node, struct bitmask * cset){
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setContainerAffinity(node_t * node, struct bitmask * cset){
+setContainerAffinity(node_t * node){
 	char *contp = NULL;
 	char affinity[CPUSTRLEN];
 	char affinity_old[CPUSTRLEN];
 	int ret = 0;
 
-	if (parse_bitmask (cset, affinity, CPUSTRLEN)){
+	if (parse_bitmask (node->param->rscs->affinity_mask, affinity, CPUSTRLEN)){
 			err_msg("Can not determine inverse affinity mask!");
 			return -1;
 	}
@@ -156,16 +183,16 @@ static void
 setPidResources_u(node_t * node) {
 
 	// pre-compute affinity
-	struct bitmask * cset = numa_allocate_cpumask();
-
-	if (0 <= node->param->rscs->affinity) {
-		// CPU affinity defined to one CPU? set!
-		(void)numa_bitmask_clearall(cset);
-		(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
-	}
-	else
-		// affinity < 0 = CPU affinity to all enabled CPU's
-		copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
+//	struct bitmask * cset = numa_allocate_cpumask();
+//
+//	if (0 <= node->param->rscs->affinity) {
+//		// CPU affinity defined to one CPU? set!
+//		(void)numa_bitmask_clearall(cset);
+//		(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
+//	}
+//	else
+//		// affinity < 0 = CPU affinity to all enabled CPU's
+//		copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
 
 
 	if (!node->psig)
@@ -180,10 +207,10 @@ setPidResources_u(node_t * node) {
 	// however.. each PID should have it's OWN container -> Concept
 
 	// update CGroup setting of container if in CGROUP mode
-	// save if not successful
+	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		if (0 <= (node->param->rscs->affinity))
-			node->status |= !(setContainerAffinity(node, cset)) & MSK_STATUPD;
+			node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
 	}
 	else{
 		if ((SCHED_DEADLINE == node->attr.sched_policy)
@@ -192,7 +219,7 @@ setPidResources_u(node_t * node) {
 			node->status |= MSK_STATUPD;
 		}
 		else
-			node->status |= !(setPidAffinity(node, cset)) & MSK_STATUPD;
+			node->status |= !(setPidAffinity(node)) & MSK_STATUPD;
 	}
 
 	if (0 == node->pid) // PID 0 = detected containers
