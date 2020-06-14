@@ -96,7 +96,11 @@ setPidAffinity (node_t * node){
 		return -1;
 	}
 
-	struct bitmask * bmold= numa_allocate_cpumask();
+	struct bitmask * bmold = numa_allocate_cpumask();
+	if (!bmold){
+		err_msg("Could not allocate bit-mask for compare!");
+		return -1;
+	}
 
 	// get affinity
 	if (numa_sched_getaffinity(node->pid, bmold))
@@ -135,6 +139,12 @@ setPidAffinity (node_t * node){
  */
 static int
 setContainerAffinity(node_t * node){
+
+	if (!(node->param) || !(node->param->rscs->affinity_mask)){
+		err_msg("No valid parameters or bit-mask allocation!");
+		return -1;
+	}
+
 	char *contp = NULL;
 	char affinity[CPUSTRLEN];
 	char affinity_old[CPUSTRLEN];
@@ -146,9 +156,8 @@ setContainerAffinity(node_t * node){
 	}
 
 	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
-		contp[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
-		contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);
+		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), node->contid);
 
 		// read old, then compare -> update if different
 		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN))
@@ -182,19 +191,6 @@ setContainerAffinity(node_t * node){
 static void
 setPidResources_u(node_t * node) {
 
-	// pre-compute affinity
-//	struct bitmask * cset = numa_allocate_cpumask();
-//
-//	if (0 <= node->param->rscs->affinity) {
-//		// CPU affinity defined to one CPU? set!
-//		(void)numa_bitmask_clearall(cset);
-//		(void)numa_bitmask_setbit(cset, node->param->rscs->affinity);
-//	}
-//	else
-//		// affinity < 0 = CPU affinity to all enabled CPU's
-//		copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
-
-
 	if (!node->psig)
 		node->psig = node->param->psig;
 
@@ -203,14 +199,12 @@ setPidResources_u(node_t * node) {
 		warn("Container search resulted in empty container ID!");
 	}
 
-	// change to consider multiple PIDs with different affinity,
-	// however.. each PID should have it's OWN container -> Concept
+	// each PID should have it's OWN container -> Concept
 
 	// update CGroup setting of container if in CGROUP mode
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
-		if (0 <= (node->param->rscs->affinity))
-			node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
+		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
 	}
 	else{
 		if ((SCHED_DEADLINE == node->attr.sched_policy)
