@@ -52,8 +52,6 @@
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
-// TODO: return value from iterator for better evaluations
-
 /*
  *  runstats_gaussian(): function to calculate Normal (Gaussian) distribution values
  *

@@ -68,10 +68,10 @@ static void createResTracer(){
  *
  *  Arguments:  - resource entry for this CPU
  * 				- the `attr` structure of the task we are trying to fit in
- * 				- add or test, 0 = test, 1 = add to resources // TODO : variants, add-if
+ * 				- add or test, 0 = test, 1 = add to resources
  *
  *  Return value: a matching score, higher is better. Negative values return error
- * 				  -1 = no space; -2 error // TODO: maybe use ERRNO?
+ * 				  -1 = no space; -2 error
  */
 static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
@@ -82,14 +82,14 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 
 	switch (par->sched_policy) {
 
-	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
-	// TODO: sched_runtime == 0, no value, why reset to 1 second?
+	// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	// sched_runtime == 0, no value, reset to 1 second
 	default:
 		if (0 == base || 0 == par->sched_runtime){
 			base = 1000000000; // default to 1 second)
 			break;
 		}
-		// TODO : else fall through
+
 	/*
 	 * DEADLINE return values
 	 * 3 = OK, perfect period match;
@@ -111,7 +111,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			uint64_t new_base = gcd(base, par->sched_period);
 
 			if (new_base % 1000 != 0){
-				// TODO: warn or error if add is set?
 				warn("Check -> Nanosecond resolution periods not supported!");
 				return -2;
 			}
@@ -213,7 +212,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		if (0 == basec){
 			basec = 1000000000; // default to 1 second)
 		}
-		else // TODO: check that
+		else
 			// if the runtime doesn't fit into the preemption slice..
 			// reset base to slice as it will be preempted during run increasing task switching
 			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
@@ -706,7 +705,6 @@ void adaptScramble(){
  *
  *  Return value: -
  */
-//FIXME: -> use hierarchy
 void adaptExecute() {
 	// apply only if not shared and if fixed cpu is assigned
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
