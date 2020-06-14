@@ -45,8 +45,13 @@ START_TEST(orchestrator_adaptive_resources)
 {
 
 	prgset = calloc (sizeof(prgset_t),1);
-	contparm = calloc (sizeof(containers_t),1);
 	prgset->affinity_mask = parse_cpumask("1-2"); // limited by tester's cpu :/
+
+	contparm = calloc (sizeof(containers_t),1);
+	contparm->rscs = malloc(sizeof(struct sched_rscs));
+	contparm->rscs->affinity = -1;
+	contparm->rscs->affinity_mask = numa_allocate_cpumask();
+	copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();
@@ -54,7 +59,7 @@ START_TEST(orchestrator_adaptive_resources)
 
 	// check result
 
-	// valid and exact 3 elements, CPU 1 and 2
+	// valid and exact 3 elements, CPU 0, 1 and 2
 	ck_assert((rHead));
 	ck_assert((rHead->next));
 	ck_assert(!(rHead->next->next));
@@ -68,6 +73,7 @@ START_TEST(orchestrator_adaptive_resources)
 	ck_assert_int_eq(0, rHead->usedPeriod);
 
 	freeTracer(&rHead, &aHead);
+
 	freePrgSet(prgset);
 	freeContParm(contparm);
 }
@@ -215,7 +221,7 @@ void orchestrator_adaptive (Suite * s) {
 
 	TCase *tc2 = tcase_create("adaptive_schedule");
 	tcase_add_checked_fixture(tc2, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
-//    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
+    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
     tcase_add_test(tc2, orchestrator_adaptive_schedule);
     tcase_add_test(tc2, orchestrator_adaptive_schedule2);
 

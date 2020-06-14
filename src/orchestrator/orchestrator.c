@@ -465,12 +465,11 @@ int main(int argc, char **argv)
 		prgset = tmpset;
 	}
 
+	adaptPrepareSchedule(); // prepares masks, tracers and alike
 	if (SM_ADAPTIVE == prgset->sched_mode){
 		// adaptive scheduling active? Clean prepare, execute, free
-		adaptPrepareSchedule();
 		adaptPlanSchedule();
 		adaptExecute();
-		freeTracer(&rHead, &aHead); // free as we don't need it for the rest of the process
 	}
 
 	pthread_t thrManage, thrUpdate;

@@ -822,6 +822,8 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
+	freeTracer(&rHead, &aHead); // free
+
 	// unlock memory pages
 	if (set->lock_pages)
 		munlockall();
