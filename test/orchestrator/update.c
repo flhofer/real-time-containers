@@ -199,6 +199,7 @@ START_TEST(orchestrator_update_rscs)
 	// push sig to config	
 	contparm->rscs = malloc (sizeof(struct sched_rscs));
 	contparm->rscs->affinity=0;
+	contparm->rscs->affinity_mask = parse_cpumask("0");
 	contparm->rscs->rt_timew=95000;
 	contparm->rscs->rt_time=100000;
 	contparm->rscs->mem_dataw=100;
@@ -300,6 +301,8 @@ START_TEST(orchestrator_update_rscs)
 		free(contparm->pids->psig);
 		pop((void **)&contparm->pids);
 	}
+
+	numa_bitmask_free(contparm->rscs->affinity_mask);
 	free(contparm->rscs);
 	free(contparm->attr);
 }
