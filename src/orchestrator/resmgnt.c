@@ -102,8 +102,8 @@ setPidAffinity (node_t * node){
 		return -1;
 	}
 
-	// get affinity
-	if (numa_sched_getaffinity(node->pid, bmold))
+	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
+	if ((0 > numa_sched_getaffinity(node->pid, bmold)))
 		err_msg_n(errno,"getting affinity for PID %d", node->pid);
 
 	if (numa_bitmask_equal(node->param->rscs->affinity_mask, bmold)){
