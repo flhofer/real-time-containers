@@ -116,6 +116,7 @@ START_TEST(orchestrator_update_findprocs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
+	prgset->loops = 10; // shorten scan time
 	
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
