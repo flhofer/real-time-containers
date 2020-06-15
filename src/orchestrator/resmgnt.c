@@ -285,7 +285,8 @@ void
 updatePidAttr(node_t * node){
 
 	// parameters still to upload?
-	if (!(node->status & MSK_STATUPD)){
+	// TODO: change to flag for done parameter set!
+	if ((node->param) && !(node->status & MSK_STATUPD)){
 		setPidResources_u(node);
 		return;
 	}
