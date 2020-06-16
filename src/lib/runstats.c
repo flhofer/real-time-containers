@@ -826,14 +826,14 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 int
 runstats_createcdf(stat_hist **h, stat_cdf **c){
 
-	if (!c || h || *h)
+	if (!c || !h || !(*h))
 		return GSL_EINVAL;
 
 	int ret = GSL_SUCCESS;
 
 	// re-alloc if number of bins differs
 	if (*c && ((*c)->n != (*h)->n))
-		gsl_histogram_pdf_free(*c);
+		runstats_cdffree(c);
 
 	if (!*c)
 		*c = gsl_histogram_pdf_alloc((*h)->n);
@@ -845,6 +845,15 @@ runstats_createcdf(stat_hist **h, stat_cdf **c){
 
 	if ((ret = gsl_histogram_scale(*h, 0.9)))
 		err_msg ("CDF creation failed : %s", gsl_strerror(ret));
+
+	// finally readjusts the bin size
+	{
+		size_t maxbin = gsl_histogram_max_bin(*h);
+		if (((*h)->n * 2 > maxbin * 10)
+			|| ((*h)->n * 8 < maxbin * 10))
+				if ((runstats_fithist(h)))
+					warn("Curve fitting histogram bin adaptation error");
+	}
 
 	return ret;
 
@@ -860,8 +869,9 @@ runstats_createcdf(stat_hist **h, stat_cdf **c){
  */
 double
 runstats_cdfsample(const stat_cdf * c, double r){
-
-	return gsl_histogram_pdf_sample(* c, r);
+	if (!c)
+		return 0.0;
+	return gsl_histogram_pdf_sample(c, r);
 }
 
 /*
@@ -872,10 +882,10 @@ runstats_cdfsample(const stat_cdf * c, double r){
  * Return value: -
  */
 void
-runstats_cdffree(stat_cdf * c){
+runstats_cdffree(stat_cdf ** c){
 
-	void gsl_histogram_pdf_free(c);
-
+	gsl_histogram_pdf_free(*c);
+	*c = NULL;
 }
 
 /*

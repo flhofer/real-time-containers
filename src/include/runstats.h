@@ -48,7 +48,7 @@ int runstats_createcdf(stat_hist **h, stat_cdf **c);// transfer histogram data t
 double runstats_cdfsample(const stat_cdf * c, double r);
 													// compute time from CDF value
 
-void runstats_cdffree(stat_cdf * c);				// CDF free
+void runstats_cdffree(stat_cdf ** c);				// CDF free
 
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);

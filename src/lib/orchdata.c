@@ -461,8 +461,8 @@ void node_pop(node_t ** head) {
 	// curve fitting parameters
 	if ((*head)->mon.pdf_hist)
 		runstats_freehist((*head)->mon.pdf_hist);
-	if ((*head)->mon.pdf_parm)
-		runstats_freeparam((*head)->mon.pdf_parm);
+	if ((*head)->mon.pdf_cdf)
+		runstats_cdffree(&(*head)->mon.pdf_cdf);
 
 	pop((void**)head);
 }

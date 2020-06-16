@@ -164,7 +164,7 @@
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
-		stat_param * pdf_parm;	// PDF model parameters, estimated values
+		stat_cdf *  pdf_cdf;	// CDF data collection
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info

@@ -857,60 +857,25 @@ static int updateStats ()
 			if (!(runstats_checkhist(item->mon.pdf_hist))){
 				// if histogram is set and count is ok, update and fit curve
 
-				// check if old parameters are fine, else reset
-				if (runstats_verifyparam(item->mon.pdf_hist,
-						item->mon.pdf_parm)){
-
-					if (item->mon.pdf_parm)	// if re-instantiate, free first
-						runstats_freeparam(item->mon.pdf_parm);
-
-					double mn = (double)item->mon.rt_avg;
-					if (!mn)
-						mn = (double)item->attr.sched_runtime;
-					if (!mn && item->param && item->param->attr)
-						mn = (double)item->attr.sched_runtime;
-					mn/=(double)NSEC_PER_SEC; // re-format to seconds
-
-					// if still 0, don't know what to do.. -> at least bind it to range
-					mn = runstats_shapehist(item->mon.pdf_hist, mn);
-
-					runstats_initparam(&item->mon.pdf_parm, mn);
-				}
-
-				// Try to solve for curve fitting
-				if (!(runstats_solvehist(item->mon.pdf_hist, item->mon.pdf_parm))){
+				if (!runstats_createcdf(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
 					// if in dynamic system and we updated the curve, update WCET for system
 					if ((SM_DYNSYSTEM == prgset->sched_mode)
 							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
 
-						double newWCET;
-						double error;
+						double newWCET = runstats_cdfsample(item->mon.pdf_cdf, prgset->ptresh);
 
-						// compute new WCET, eventually skip lower 50% :)
-						if (runstats_mdlUpb(item->mon.pdf_parm, 0, &newWCET, prgset->ptresh, &error)){
-							// something went wrong...
-
-						}
-						else{
-							// OK, let's check the error
-							if (error < 0.001)
-								updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
-							else
-								warn ("Estimation error too high, can not update WCET");
-						}
+						// OK, let's check the error
+						if (newWCET > 0.000)
+							updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
+						else
+							warn ("Estimation error, can not update WCET");
 					}
 				}
 				else{
 					// something went wrong. Reset parameters
-					warn("Curve fitting solver error for PID %d", item->pid);
-					runstats_freeparam(item->mon.pdf_parm);
-					item->mon.pdf_parm = NULL; // explicitly set to fail tests
+					warn("CDF initialization error for PID %d", item->pid);
 				}
-
-				// finally readjusts the bin size
-				if ((runstats_fithist(&item->mon.pdf_hist)))
-					warn("Curve fitting histogram bin adaptation error for PID %d", item->pid);
 
 			}
 		}
@@ -953,6 +918,7 @@ static void dumpStats (){
 
 
 	char * curve = malloc(50);
+	*curve='\0';
 	int  ret = -1; // default not present
 
 	for (;((item)); item=item->next)
@@ -961,8 +927,8 @@ static void dumpStats (){
 		case SCHED_FIFO:
 		case SCHED_RR:
 			// TODO: cleanup print-out
-			if (item->mon.pdf_parm)
-				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+//			if (item->mon.pdf_parm)
+//				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
 
 			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n\t%s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
@@ -974,8 +940,8 @@ static void dumpStats (){
 			break;
 
 		case SCHED_DEADLINE:
-			if (item->mon.pdf_parm)
-				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
+//			if (item->mon.pdf_parm)
+//				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
 			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
