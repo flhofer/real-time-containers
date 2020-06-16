@@ -95,7 +95,7 @@ static int read_pipe(struct eventData * evnt){
 
 		// buf read successfully?
 		if ((!got) || '\0' == buf[0]) {
-			warn(PFX "Empty JSON buffer");
+			printDbg(PFX "Empty JSON buffer");
 			continue;
 		}
 
@@ -103,7 +103,7 @@ static int read_pipe(struct eventData * evnt){
 
 		// root read successfully?
 		if (NULL == root) {
-			warn(PFX "Empty JSON");
+			err_msg("Empty JSON");
 			th_return = EXIT_INV_CONFIG;
 			pthread_exit(&th_return);
 		}
@@ -292,6 +292,7 @@ void *dlink_thread_watch(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
+				printDbg(PFX "Stopped");
 				pthread_exit(&th_return);
 		}
 

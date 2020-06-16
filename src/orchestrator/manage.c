@@ -916,40 +916,27 @@ static void dumpStats (){
 		return;
 	}
 
-
-	char * curve = malloc(50);
-	*curve='\0';
-	int  ret = -1; // default not present
-
 	for (;((item)); item=item->next)
 		switch(item->attr.sched_policy){
 		default:
 		case SCHED_FIFO:
 		case SCHED_RR:
 			// TODO: cleanup print-out
-//			if (item->mon.pdf_parm)
-//				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
-
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n\t%s\n",
+			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				policy_to_string(item->attr.sched_policy),
-				ret ? "none" : curve );
+				policy_to_string(item->attr.sched_policy));
 			break;
 
 		case SCHED_DEADLINE:
-//			if (item->mon.pdf_parm)
-//				ret = runstats_printparam(item->mon.pdf_parm, curve, 50);
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n\t%s\n",
+			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
-				ret ? "none" : curve );
-			free (curve);
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 			break;
 		}
 }
