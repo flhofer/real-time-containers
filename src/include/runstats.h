@@ -14,6 +14,8 @@
 // types to abstract and export information
 typedef gsl_histogram stat_hist;
 typedef gsl_vector stat_param;
+typedef gsl_histogram_pdf stat_cdf;
+
 struct stat_data
 	{
 		double *t;
@@ -40,6 +42,13 @@ int runstats_mdlpdf(stat_param * x, double a,		// compute integral from a to b, 
 
 int runstats_mdlUpb(stat_param * x, double a,		// compute upper bound b that obtains probability p
 		double * b, double p, double * error);
+
+int runstats_createcdf(stat_hist **h, stat_cdf **c);// transfer histogram data to CDF and resort histogram
+
+double runstats_cdfsample(const stat_cdf * c, double r);
+													// compute time from CDF value
+
+void runstats_cdffree(stat_cdf * c);				// CDF free
 
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);

@@ -816,6 +816,69 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 }
 
 /*
+ * runstats_createcdf() : Compute the bound b that integrates the area under curve to p
+ *
+ * Arguments: - histogram addr pointer
+ * 			  - CDF destination pointer
+ *
+ * Return value: success or error code
+ */
+int
+runstats_createcdf(stat_hist **h, stat_cdf **c){
+
+	if (!c || h || *h)
+		return GSL_EINVAL;
+
+	int ret = GSL_SUCCESS;
+
+	// re-alloc if number of bins differs
+	if (*c && ((*c)->n != (*h)->n))
+		gsl_histogram_pdf_free(*c);
+
+	if (!*c)
+		*c = gsl_histogram_pdf_alloc((*h)->n);
+
+	if ((ret = gsl_histogram_pdf_init(*c, *h))){
+		err_msg ("CDF creation failed : %s", gsl_strerror(ret));
+		return ret;
+	}
+
+	if ((ret = gsl_histogram_scale(*h, 0.9)))
+		err_msg ("CDF creation failed : %s", gsl_strerror(ret));
+
+	return ret;
+
+}
+
+/*
+ * runstats_cdfsample() : CDF sample
+ *
+ * Arguments: - histogram addr pointer
+ * 			  - CDF destination pointer
+ *
+ * Return value: time value
+ */
+double
+runstats_cdfsample(const stat_cdf * c, double r){
+
+	return gsl_histogram_pdf_sample(* c, r);
+}
+
+/*
+ * runstats_cdffree() : CDF free
+ *
+ * Arguments: - CDF destination pointer
+ *
+ * Return value: -
+ */
+void
+runstats_cdffree(stat_cdf * c){
+
+	void gsl_histogram_pdf_free(c);
+
+}
+
+/*
  * runstats_printparam: adjust the value to stay in histogram range
  *
  * Arguments: - pointer to the histogram
