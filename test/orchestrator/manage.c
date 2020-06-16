@@ -18,7 +18,7 @@
 #include <linux/sched.h>	// Linux specific scheduling
 
 #define MAX_PATH 256
-#define TESTCPU "1"
+#define TESTCPU "0"
 
 static void orchestrator_manage_setup() {
 	prgset = malloc (sizeof(prgset_t));
