@@ -485,20 +485,25 @@ parse_bitmask_hex(struct bitmask *mask, char * str, size_t len){
 
 	char num[sizeof(unsigned long)*2+1];
 	int mask_sz = numa_bitmask_nbytes(mask)/sizeof(unsigned long);
+	int found = 0; // first occurrence has been found
 
 	// init.. use len as counter for remaining space
 	str [0] = '\0';
 	len--;	// \0 needs 1 byte
 
-	for (int i=mask_sz-1; i>=0; i--, len -= sizeof(unsigned long)*2){
+	for (int i=mask_sz-1; i>=0; i--){
 
 		if ( sizeof(unsigned long)*2 > len ){
 			err_msg("String too small for data");
 			return -1;
 		}
 
-		(void)sprintf(num, "%0*lx", (int)sizeof(unsigned long)*2, *(mask->maskp+i));
-		(void)strcat(str, num);
+		if (found || (*(mask->maskp+i) != 0)){
+			(void)sprintf(num, "%0*lx", (int)sizeof(unsigned long)*2, *(mask->maskp+i));
+			(void)strcat(str, num);
+			found = 1;
+			len -= sizeof(unsigned long)*2;
+		}
 	}
 
 	printDbg("Parsed bit-mask: %s\n", str);

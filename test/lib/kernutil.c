@@ -164,6 +164,22 @@ START_TEST(kernutil_parse_bitmask_hex)
 		ck_assert_str_eq(str, "00000000000000040000000100000003");
 	}
 	numa_bitmask_free(test);
+
+	test = numa_bitmask_alloc(167);
+
+	{
+		char str[33];
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,32);
+		numa_bitmask_setbit(test,66);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "00000000000000040000000100000003");
+	}
+	numa_bitmask_free(test);
 }
 END_TEST
 
