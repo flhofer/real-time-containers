@@ -409,6 +409,7 @@ static const node_t _node_default = { NULL,				// *next,
 							0, 0, 0, 0, 0,				//
 							0, 0,						//		dl rf, dl diff
 							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
+							0, 0,						//		computed values histogram
 							NULL , NULL					// 		*pointer to fitting data and vectors
 						},
 						NULL};							// *param structure pointer

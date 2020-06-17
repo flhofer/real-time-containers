@@ -20,9 +20,9 @@
 #include "orchdata.h"	// memory structure to store information
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
-#include "cmnutil.h"	// common definitions and functions
-#include "kbuffer.h"	// ring-buffer management from trace-event
-#include "resmgnt.h"	// PID and resource management
+#include "cmnutil.h"		// common definitions and functions
+#include "kbuffer.h"		// ring-buffer management from trace-event
+#include "resmgnt.h"		// PID and resource management
 
 #include <numa.h>		// NUMA node identification
 
@@ -88,9 +88,7 @@ static volatile sig_atomic_t ftrace_stop;
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
-static int pickPidInfoW(void * addr, uint64_t ts);
 static int pickPidInfoS(void * addr, uint64_t ts);
-static int pickPidInfoR(void * addr, uint64_t ts);
 
 /// ftrace_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
@@ -103,17 +101,6 @@ static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 
 void buildEventConf(){
 	push((void**)&elist_head, sizeof(struct ftrace_elist));
-	elist_head->eventid = 305;
-	elist_head->event = "sched_stat_runtime";
-	elist_head->eventcall = pickPidInfoR;
-
-	push((void**)&elist_head, sizeof(struct ftrace_elist));
-	elist_head->eventid = 319;
-	elist_head->event = "sched_wakeup";
-	elist_head->eventcall = pickPidInfoW;
-
-
-	push((void**)&elist_head, sizeof(struct ftrace_elist));
 	elist_head->eventid = 317;
 	elist_head->event = "sched_switch";
 	elist_head->eventcall = pickPidInfoS;
@@ -123,8 +110,6 @@ void clearEventConf(){
 	while (elist_head)
 		pop((void**)&elist_head);
 }
-
-
 
 static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
@@ -183,15 +168,6 @@ static int configureTracers(){
 			warn("can not obtain HEX CPU mask");
 	}
 
-	// Setup and enabling of events must work
-/* FIXME: it seems that I only need sched_switch
-	// sched_stat_runtime tracer seems to need sched_stats
-	if (0> setkernvar(prgset->procfileprefix, "sched_schedstats", "1", prgset->dryrun) )
-		warn("Unable to activate schedstat probe");
-
-	if ((appendEvent(dbgpfx, "sched/sched_stat_runtime", pickPidInfoR))
-		|| (appendEvent(dbgpfx, "sched/sched_wakeup", sched_wakeup))
-*/
 	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
 		return -1;
 
@@ -285,7 +261,24 @@ static int stopTraceRead() {
 
 // #################################### THREAD specific ############################################
 
-static void pickPidCons(node_t *item, uint64_t ts){
+/*
+ *  pickPidCheckBuffer(): process PID runtime overrun,
+ *
+ *  Arguments: - item to check
+ * 			   - required extra buffer time
+ *
+ *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
+ */
+static int
+pickPidCheckBuffer(node_t * item, uint64_t extra_rt){
+
+
+
+	return 0;
+}
+
+static void
+pickPidCons(node_t *item, uint64_t ts){
 
 	// -> what if we read the debug output here??
 
@@ -315,7 +308,8 @@ static void pickPidCons(node_t *item, uint64_t ts){
 ///
 /// Return value: error code, 0 = success
 ///
-static int pickPidCommon(void * addr, uint64_t ts) {
+static int
+pickPidCommon(void * addr, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
@@ -328,29 +322,6 @@ static int pickPidCommon(void * addr, uint64_t ts) {
 		}
 
 	return sizeof(*pFrame); // TODO: not always the case!! +8; // TODO 8 zeros?
-}
-
-/// pickPidInfoW(): process PID fTrace sched_wakeup
-///					update data with kernel tracer debug out
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
-static int pickPidInfoW(void * addr, uint64_t ts) {
-
-	int ret1 = pickPidCommon(addr, ts);
-	addr+= ret1;
-
-	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
-
-
-	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
-			pFrame->comm, pFrame->pid, pFrame->prio, pFrame->target_cpu);
-
-	return ret1 + sizeof(struct tr_wakeup);
 }
 
 /// pickPidInfoS(): process PID fTrace sched_switch
@@ -420,6 +391,12 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 				if (ret != 1) // GSL_EDOM
 					warn("Curve fitting histogram increment error for PID %d", item->pid);
 
+			if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
+				// check reschedule?
+				if (0 < pickPidCheckBuffer(item, item->mon.dl_rt - item->mon.cdf_runtime))
+					// reschedule
+					;
+
 			// consolidate other values
 			pickPidCons(item, ts);
 		}
@@ -436,53 +413,6 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_switch);
-}
-
-/// pickPidInfoR(): process PID fTrace sched_stat_runtime
-///					update data with kernel tracer debug out
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
-static int pickPidInfoR(void * addr, uint64_t ts) {
-
-	struct tr_common *pcFrame = (struct tr_common*)addr;
-
-	int ret1 = pickPidCommon( addr, ts);
-	addr+= ret1;
-
-	struct tr_runtime *pFrame = (struct tr_runtime*)addr;
-
-
-	printDbg( "    comm=%s pid=%d runtime=%lu [ns] vruntime=%lu [ns]\n",
-			pFrame->comm, pFrame->pid, pFrame->runtime, pFrame->vruntime);
-
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
-
-	// working item
-	node_t * item = NULL;
-	// for now does only a simple update of runtime
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->pid){
-			item = citem;
-			break;
-		}
-
-	if (item && item->pid > 0) {
-		item->mon.dl_rt += pFrame->runtime;
-		item->mon.last_ts = ts;
-		item->mon.dl_scanfail += pcFrame->common_preempt_count;
-		item->mon.dl_count++;
-	}
-
-	(void)pthread_mutex_unlock(&dataMutex);
-
-	return ret1 + sizeof(struct tr_runtime);
 }
 
 /// thread_ftrace(): parse kernel tracer output
@@ -863,11 +793,16 @@ static int updateStats ()
 					if ((SM_DYNSYSTEM == prgset->sched_mode)
 							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
 
-						double newWCET = runstats_cdfsample(item->mon.pdf_cdf, prgset->ptresh);
+						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
+								runstats_cdfsample(item->mon.pdf_cdf, prgset->ptresh));
 
 						// OK, let's check the error
-						if (newWCET > 0.000)
-							updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
+						if (newWCET > 0){
+//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference?
+								updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
+								item->mon.cdf_runtime = newWCET;
+//							}
+						}
 						else
 							warn ("Estimation error, can not update WCET");
 					}

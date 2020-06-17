@@ -150,19 +150,25 @@
 	};
 
 	typedef struct sched_mon { // actual values for monitoring
+		// runtime statistics
 		int64_t rt_min;			// minimum run-time value
 		int64_t rt_avg;			// average run-time value
 		int64_t rt_max;			// maximum run-time value
+		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task
 		uint64_t dl_count;		// deadline verification/change count
 		uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 		uint64_t dl_overrun;	// overrun count
-		uint64_t dl_deadline;	// deadline last absolute value
-		int64_t  dl_rt;			// deadline last runtime value
+		uint64_t dl_deadline;	// deadline last read absolute value (may approximate next iter)
+		int64_t  dl_rt;			// deadline last read runtime value
+		// Deadline diff - or runtime buffer (ftrace)
 		int64_t  dl_diff;		// overrun-GRUB handling : deadline diff sum!
 		int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
+		// CDF and distribution values
+		uint64_t cdf_runtime;	// CDF pthresh max runtime, trigger level
+		uint64_t cdf_period;	// ** RFU ** CDF computed periodic distance for non DL tasks
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
 		stat_cdf *  pdf_cdf;	// CDF data collection
 	} nodemon_t;

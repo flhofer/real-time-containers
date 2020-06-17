@@ -7,7 +7,7 @@
  *  initial source taken from https://www.gnu.org/software/gsl/doc/html/nls.html#weighted-nonlinear-least-squares
  */
 
-
+// TODO: refactor!
 
 #include "runstats.h"
 
