@@ -21,19 +21,18 @@
 #define TESTCPU "0"
 
 static void orchestrator_manage_setup() {
-	prgset = malloc (sizeof(prgset_t));
+	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 	prgset->affinity= TESTCPU;
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
 	prgset->procfileprefix = strdup("/proc/sys/kernel/");
 
-	contparm = malloc (sizeof(containers_t));
-	contparm->img = NULL; // locals are not initialized
-	contparm->pids = NULL;
-	contparm->cont = NULL;
-	contparm->nthreads = 0;
-	contparm->num_cont = 0;
+	contparm = calloc (1, sizeof(containers_t));
+	contparm->rscs = malloc(sizeof(struct sched_rscs));
+	contparm->rscs->affinity = -1;
+	contparm->rscs->affinity_mask = numa_allocate_cpumask();
+	copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
 }
 
 static void orchestrator_manage_teardown() {
@@ -41,9 +40,8 @@ static void orchestrator_manage_teardown() {
 	while (nhead)
 		node_pop(&nhead);
 
-	free(prgset->procfileprefix);
-	free(prgset);
-	free(contparm);
+	freePrgSet(prgset);
+	freeContParm(contparm);
 }
 
 static void orchestrator_manage_checkread(){
