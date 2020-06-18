@@ -25,15 +25,12 @@
 #endif
 
 static void orchestrator_update_setup() {
-	prgset = malloc (sizeof(prgset_t));
+	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
 	prgset->affinity= "0";
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
-
-	prgset->logdir = strdup("./");
-	prgset->logbasename = strdup("orchestrator.txt");
 	prgset->ftrace = 1;
 
 	// signatures and folders
@@ -47,36 +44,18 @@ static void orchestrator_update_setup() {
 	prgset->cpusystemfileprefix = strdup("/sys/devices/system/cpu/");
 
 	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
-	*prgset->cpusetdfileprefix = '\0'; // set first chat to null
-	prgset->cpusetdfileprefix = strcat(strcat(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
+	prgset->cpusetdfileprefix = strcat(strcpy(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
 
-	contparm = malloc (sizeof(containers_t));
-	contparm->img = NULL; // locals are not initialized
-	contparm->pids = NULL;
-	contparm->cont = NULL;
-	contparm->nthreads = 0;
-	contparm->num_cont = 0;
+	contparm = calloc (1, sizeof(containers_t));
 }
 
 static void orchestrator_update_teardown() {
-	free(prgset->logdir);
-	free(prgset->logbasename);
+	// free memory
+	while (nhead)
+		node_pop(&nhead);
 
-	// signatures and folders
-	free(prgset->cont_ppidc);
-	free(prgset->cont_pidc);
-	free(prgset->cont_cgrp);
-
-	// filepaths virtual file system
-	free(prgset->procfileprefix);
-	free(prgset->cpusetfileprefix);
-	free(prgset->cpusystemfileprefix);
-
-	free(prgset->cpusetdfileprefix);
-
-	free(prgset);
-
-	free(contparm);
+	freePrgSet(prgset);
+	freeContParm(contparm);
 }
 
 /// TEST CASE -> Stop update thread when setting status to -1
@@ -225,6 +204,7 @@ START_TEST(orchestrator_update_rscs)
 		contparm->pids->psig = strdup(*pidsig);
 		contparm->pids->attr = contparm->attr;
 		contparm->pids->rscs = contparm->rscs;
+		contparm->pids->status |= MSK_STATSHAT | MSK_STATSHRC;
 		pidsig++;
 	}
 
@@ -296,15 +276,6 @@ START_TEST(orchestrator_update_rscs)
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
 
-	// free
-	while (contparm->pids) {
-		free(contparm->pids->psig);
-		pop((void **)&contparm->pids);
-	}
-
-	numa_bitmask_free(contparm->rscs->affinity_mask);
-	free(contparm->rscs);
-	free(contparm->attr);
 }
 END_TEST
 

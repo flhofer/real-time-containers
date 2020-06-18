@@ -352,8 +352,10 @@ freeContParm(containers_t * contparm){
 
 	free(contparm->attr);
 	contparm->attr = NULL;
-	numa_free_cpumask(contparm->rscs->affinity_mask);
-	contparm->rscs->affinity_mask = NULL;
+	if (contparm->rscs){
+		numa_free_cpumask(contparm->rscs->affinity_mask);
+		contparm->rscs->affinity_mask = NULL;
+	}
 	free(contparm->rscs);
 	contparm->rscs = NULL;
 	free(contparm);

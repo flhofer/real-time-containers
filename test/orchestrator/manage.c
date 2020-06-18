@@ -67,9 +67,9 @@ START_TEST(orchestrator_manage_readdata)
 	int stat1 = 0;
 	prgset->ftrace = 0;
 
-	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
-								"chrt -r 2 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
-								"chrt -r 3 taskset -c " TESTCPU " sh -c \"while [ 1 ]; do echo 'test1'; done\"",
+	const char * pidsig[] = {	"chrt -r 1 taskset -c " TESTCPU " sh -c 'while [ 1 ]; do echo test1 ; done'",
+								"chrt -r 2 taskset -c " TESTCPU " sh -c 'while [ 1 ]; do echo test2 ; done'",
+								"chrt -r 3 taskset -c " TESTCPU " sh -c 'while [ 1 ]; do echo test3 ; done'",
 								NULL };
 
 	int sz_test = sizeof(pidsig)/sizeof(*pidsig)-1;
