@@ -30,6 +30,11 @@
 #define PFX "[manage] "
 
 #define PIPE_BUFFER			4096
+#if __x86_64__ || __ppc64__
+	#define WORDSIZE		KBUFFER_LSIZE_8
+#else
+	#define WORDSIZE		KBUFFER_LSIZE_4
+#endif
 
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
@@ -289,11 +294,17 @@ pickPidCons(node_t *item, uint64_t ts){
 
 	// -> what if we read the debug output here??
 
-	if (SCHED_DEADLINE == item->attr.sched_policy)
+	if (SCHED_DEADLINE == item->attr.sched_policy){
 		// did we skip a deadline update? TODO: check if we can sync it
-		while (item->mon.dl_deadline < ts)
-			// TODO: what if sched_deadline is not set?
-			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+		if (item->mon.dl_deadline){
+			while (item->mon.dl_deadline < ts)
+				item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+		}
+		else {
+			// TODO parse deadline from buffer
+			item->mon.dl_deadline = 0;
+		}
+	}
 
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
@@ -328,7 +339,7 @@ pickPidCommon(void * addr, uint64_t ts) {
 		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
 		}
 
-	return sizeof(*pFrame); // TODO: not always the case!! +8; // TODO 8 zeros?
+	return sizeof(*pFrame); // TODO: not always the case!! +8, .. 8 zeros?
 }
 
 /// pickPidInfoS(): process PID fTrace sched_switch
@@ -482,7 +493,7 @@ void *thread_ftrace(void *arg){
 		{
 		case 0:
 			// init buffer structure for page management
-			kbuf = kbuffer_alloc(KBUFFER_LSIZE_8, KBUFFER_ENDIAN_LITTLE); // FIXME: static setting
+			kbuf = kbuffer_alloc(WORDSIZE, KBUFFER_ENDIAN_LITTLE);
 
 			char* fn;
 			if (NULL != fthread->dbgfile)
@@ -864,7 +875,6 @@ static void dumpStats (){
 		default:
 		case SCHED_FIFO:
 		case SCHED_RR:
-			// TODO: cleanup print-out
 			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
