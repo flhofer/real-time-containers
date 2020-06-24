@@ -130,6 +130,8 @@ START_TEST(orchdata_ndpop2)
 }
 END_TEST
 
+#ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free elements, they differ from conf values
 START_TEST(orchdata_ndpop3)
@@ -141,7 +143,7 @@ START_TEST(orchdata_ndpop3)
 	cont_t d = {NULL, "sss"};
 	img_t e = {NULL, "xxx"};
 	pidc_t f = {NULL, "ss", 0, NULL, NULL, &d, &e};
-	
+
 	node_push(&nhead);
 	nhead->psig= a;
 	nhead->contid = b;
@@ -159,6 +161,7 @@ START_TEST(orchdata_ndpop3)
 	ck_assert(!p->imgid);
 }
 END_TEST
+#endif
 
 // for qsort, descending order
 static int cmpPidItem (const void * a, const void * b) {
