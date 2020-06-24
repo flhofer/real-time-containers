@@ -463,7 +463,7 @@ void node_pop(node_t ** head) {
 #endif
 	// curve fitting parameters
 	if ((*head)->mon.pdf_hist)
-		runstats_freehist((*head)->mon.pdf_hist);
+		runstats_histFree((*head)->mon.pdf_hist);
 	if ((*head)->mon.pdf_cdf)
 		runstats_cdffree(&(*head)->mon.pdf_cdf);
 

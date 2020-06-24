@@ -24,18 +24,18 @@ struct stat_data
 	};
 
 
-int runstats_initparam(stat_param ** x, double b);	// init parameter vector
-int runstats_inithist(stat_hist ** h, double b);	// init histogram data structure
+int runstats_paramInit(stat_param ** x, double b);	// init parameter vector
+int runstats_histInit(stat_hist ** h, double b);	// init histogram data structure
 
-int runstats_solvehist(stat_hist * h, stat_param * x);
+int runstats_histSolve(stat_hist * h, stat_param * x);
 													// fit model (gaussian) to histogram
-int runstats_verifyparam(stat_hist * h, stat_param * x);
+int runstats_paramVerify(stat_hist * h, stat_param * x);
 													// verify parameter and histogram areas match
-double runstats_shapehist(stat_hist * h, double b);	// shape value to histogram borders
-int runstats_addhist(stat_hist * h, double b);		// add value to histogram
-int runstats_checkhist(stat_hist * h);				// check prepared for fitting
+double runstats_histShape(stat_hist * h, double b);	// shape value to histogram borders
+int runstats_histAdd(stat_hist * h, double b);		// add value to histogram
+int runstats_histCheck(stat_hist * h);				// check prepared for fitting
 
-int runstats_fithist(stat_hist **h);				// fit histogram bins
+int runstats_histFit(stat_hist **h);				// fit histogram bins
 
 int runstats_mdlpdf(stat_param * x, double a,		// compute integral from a to b, to get probability p
 		double b, double * p, double * error);
@@ -43,7 +43,7 @@ int runstats_mdlpdf(stat_param * x, double a,		// compute integral from a to b, 
 int runstats_mdlUpb(stat_param * x, double a,		// compute upper bound b that obtains probability p
 		double * b, double p, double * error);
 
-int runstats_createcdf(stat_hist **h, stat_cdf **c);// transfer histogram data to CDF and resort histogram
+int runstats_cdfCreate(stat_hist **h, stat_cdf **c);// transfer histogram data to CDF and resort histogram
 
 double runstats_cdfsample(const stat_cdf * c, double r);
 													// compute time from CDF value
@@ -53,10 +53,10 @@ void runstats_cdffree(stat_cdf ** c);				// CDF free
 double runstats_gaussian(const double a, const double b,
 		const double c, const double t);
 
-int runstats_printparam(stat_param * x, char * str, size_t len);
+int runstats_paramPrint(stat_param * x, char * str, size_t len);
 													// "print" parameters to buffer
 
-void runstats_freeparam(stat_param * x);
-void runstats_freehist(stat_hist * h);
+void runstats_paramFree(stat_param * x);
+void runstats_histFree(stat_hist * h);
 
 #endif /* RUNSTATS_H_ */

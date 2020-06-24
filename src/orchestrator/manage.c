@@ -388,13 +388,13 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 				if (!b)
 					b = (double)item->mon.dl_rt; // at least 1ns
 
-				if ((runstats_inithist(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
+				if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
 					warn("Curve fitting parameter init failure for PID %d", item->pid);
 			}
 
 			double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
 			int ret;
-			if ((ret = runstats_addhist(item->mon.pdf_hist, b)))
+			if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 				if (ret != 1) // GSL_EDOM
 					warn("Curve fitting histogram increment error for PID %d", item->pid);
 
@@ -792,10 +792,10 @@ static int updateStats ()
 			// update CMD-line once out of 10 (less often..)
 			updatePidCmdline(item);
 
-			if (!(runstats_checkhist(item->mon.pdf_hist))){
+			if (!(runstats_histCheck(item->mon.pdf_hist))){
 				// if histogram is set and count is ok, update and fit curve
 
-				if (!runstats_createcdf(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
 					// if in dynamic system and we updated the curve, update WCET for system
 					if ((SM_DYNSYSTEM == prgset->sched_mode)

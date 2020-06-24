@@ -7,8 +7,6 @@
  *  initial source taken from https://www.gnu.org/software/gsl/doc/html/nls.html#weighted-nonlinear-least-squares
  */
 
-// TODO: refactor!
-
 #include "runstats.h"
 
 #include <gsl/gsl_matrix.h>
@@ -52,22 +50,26 @@
 
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
-/*
- *  runstats_gaussian(): function to calculate Normal (Gaussian) distribution values
- *
- *  Arguments: - amplitude of Normal
- * 			   - offset of Normal
- * 			   - width of Normal
- *
- *  Return value: curve value on that point
- *
- * model function: a * exp( -1/2 * [ (t - b) / c ]^2 )
- *  */
-double
-runstats_gaussian(const double a, const double b, const double c, const double t)
+struct func_integmdl_par {
+	stat_param * x;
+	double a;
+	double p;
+	double *error;
+};
+
+static double func_integmdl (double b, void * params)
 {
-	const double z = (t - b) / c;
-	return (a * exp(-0.5 * z * z));
+  struct func_integmdl_par * p = (struct func_integmdl_par *)params;
+  stat_param * x = (p->x);
+  double a = (p->a);
+  double pdes = (p->p);
+  double r;
+  double * error = (p->error);
+
+  if (runstats_mdlpdf(x, a, b, &r, error))
+		  return 0; // stops immediately
+
+  return r-pdes; // 0 = f(x) - desiredP, the closer the better
 }
 
 /*
@@ -349,7 +351,59 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 }
 
 /*
- * runstats_initparam: initializes the parameter vector
+ * uniparm_copy: uniform parameters to area of 1
+ *				 replaces the reference with a uniform copy, to be freed
+ *
+ * Arguments: - pointer to pointer to parameters
+ *
+ * Return value: success or error code
+ */
+static int
+uniparm_copy(stat_param ** x){
+
+	if (!x || !*x)
+		return GSL_EINVAL;
+
+	// clone vector
+	stat_param * x0 = gsl_vector_alloc(num_par);
+	if (!x0){
+		err_msg("unable to allocate parameter vector");
+		return GSL_ENOMEM;
+	}
+
+	int ret;
+	if ((ret = gsl_vector_memcpy(x0, *x)))
+		err_msg("unable to copy parameter vector : %s", gsl_strerror(ret));
+
+	// Update to uniform value
+	double c = gsl_vector_get(x0, 2);
+	gsl_vector_set(x0, 0, 1/(sqrt(2*M_PI)*c));
+
+	*x = x0;
+
+	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+}
+
+/*
+ *  runstats_gaussian(): function to calculate Normal (Gaussian) distribution values
+ *
+ *  Arguments: - amplitude of Normal
+ * 			   - offset of Normal
+ * 			   - width of Normal
+ *
+ *  Return value: curve value on that point
+ *
+ * model function: a * exp( -1/2 * [ (t - b) / c ]^2 )
+ *  */
+double
+runstats_gaussian(const double a, const double b, const double c, const double t)
+{
+	const double z = (t - b) / c;
+	return (a * exp(-0.5 * z * z));
+}
+
+/*
+ * runstats_paramInit: initializes the parameter vector
  *
  * Arguments: - pointer to pointer to the memory location for storage
  * 			  - expected center of distribution
@@ -357,7 +411,7 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
  * Return value: success or error code
  */
 int
-runstats_initparam(stat_param ** x, double b){
+runstats_paramInit(stat_param ** x, double b){
 
 	/*
 	 * fitting parameter vector and constant init
@@ -377,7 +431,7 @@ runstats_initparam(stat_param ** x, double b){
 }
 
 /*
- * runstats_inithist: inits the histogram data structure
+ * runstats_histInit: inits the histogram data structure
  *
  * Arguments: - pointer to pointer to the memory location for storage
  * 			  - expected center of distribution
@@ -385,7 +439,7 @@ runstats_initparam(stat_param ** x, double b){
  * Return value: success or error code
  */
 int
-runstats_inithist(stat_hist ** h, double b){
+runstats_histInit(stat_hist ** h, double b){
 
 	size_t n = STARTBINS;				// number of bins to fit
 	double bin_min = b * BIN_DEFMIN;	// default ranges
@@ -407,7 +461,7 @@ runstats_inithist(stat_hist ** h, double b){
 }
 
 /*
- * runstats_shapehist: adjust the value to stay in histogram range
+ * runstats_histShape: adjust the value to stay in histogram range
  *
  * Arguments: - pointer to the histogram
  * 			  - value to check
@@ -415,7 +469,7 @@ runstats_inithist(stat_hist ** h, double b){
  * Return value: returns the adjusted value
  */
 double
-runstats_shapehist(stat_hist * h, double b){
+runstats_histShape(stat_hist * h, double b){
 	// reshape into LIMIT
 	if (b >= gsl_histogram_max(h)){
 		double dummy;
@@ -427,7 +481,7 @@ runstats_shapehist(stat_hist * h, double b){
 }
 
 /*
- * runstats_verifyparam: check if the two coincide in range
+ * runstats_paramVerify: check if the two coincide in range
  *
  * Arguments: - pointer to the histogram
  * 			  - pointer to the parameter vector
@@ -435,7 +489,7 @@ runstats_shapehist(stat_hist * h, double b){
  * Return value: success or error code
  */
 int
-runstats_verifyparam(stat_hist * h, stat_param * x){
+runstats_paramVerify(stat_hist * h, stat_param * x){
 	if (!h || !x)
 		return GSL_FAILURE;
 
@@ -453,14 +507,14 @@ runstats_verifyparam(stat_hist * h, stat_param * x){
 }
 
 /*
- * runstats_checkhist: check if minimum amount for bin fitting is met
+ * runstats_histCheck: check if minimum amount for bin fitting is met
  *
  * Arguments: - pointer to the memory location for storage
  *
  * Return value: success or error code
  */
 int
-runstats_checkhist(stat_hist * h){
+runstats_histCheck(stat_hist * h){
 	if (!h)
 		return GSL_FAILURE;
 	return (gsl_histogram_sum(h) < SAMP_MINCNT)
@@ -468,7 +522,7 @@ runstats_checkhist(stat_hist * h){
 }
 
 /*
- * runstats_addhist: increases the count of an occurrence value
+ * runstats_histAdd: increases the count of an occurrence value
  *
  * Arguments: - pointer to the memory location for storage
  * 			  - occurrence value
@@ -476,20 +530,20 @@ runstats_checkhist(stat_hist * h){
  * Return value: success or error code
  */
 int
-runstats_addhist(stat_hist * h, double b){
+runstats_histAdd(stat_hist * h, double b){
 	return gsl_histogram_increment(h,
-			runstats_shapehist(h, b));
+			runstats_histShape(h, b));
 }
 
 /*
- * runstats_fithist: fit bin size to data in histogram and reset
+ * runstats_histFit: fit bin size to data in histogram and reset
  *
  * Arguments: - pointer holding the histogram pointer
  *
  * Return value: success or error code
  */
 int
-runstats_fithist(stat_hist **h)
+runstats_histFit(stat_hist **h)
 /*
  * Scott, D. 1979.
  * On optimal and data-based histograms.
@@ -541,7 +595,7 @@ runstats_fithist(stat_hist **h)
 }
 
 /*
- * runstats_solvehist: run least squares fitting with TRS and accel
+ * runstats_histSolve: run least squares fitting with TRS and accel
  *
  * Arguments: - pointer to the histogram
  * 			  - pointer to the parameter vector
@@ -549,7 +603,7 @@ runstats_fithist(stat_hist **h)
  * Return value: success or error code
  */
 int
-runstats_solvehist(stat_hist * h, stat_param * x)
+runstats_histSolve(stat_hist * h, stat_param * x)
 {
 	if ((!x) || (!h))
 		return GSL_EINVAL;
@@ -597,42 +651,8 @@ runstats_solvehist(stat_hist * h, stat_param * x)
 	if (!ret)
 		// even though successful, it happens that the gaussian contains negative pars
 		// check
-		return runstats_verifyparam(h, x);
+		return runstats_paramVerify(h, x);
 	return ret;
-}
-
-/*
- * uniparm_copy: uniform parameters to area of 1
- *				 replaces the reference with a uniform copy, to be freed
- *
- * Arguments: - pointer to pointer to parameters
- *
- * Return value: success or error code
- */
-static int
-uniparm_copy(stat_param ** x){
-
-	if (!x || !*x)
-		return GSL_EINVAL;
-
-	// clone vector
-	stat_param * x0 = gsl_vector_alloc(num_par);
-	if (!x0){
-		err_msg("unable to allocate parameter vector");
-		return GSL_ENOMEM;
-	}
-
-	int ret;
-	if ((ret = gsl_vector_memcpy(x0, *x)))
-		err_msg("unable to copy parameter vector : %s", gsl_strerror(ret));
-
-	// Update to uniform value
-	double c = gsl_vector_get(x0, 2);
-	gsl_vector_set(x0, 0, 1/(sqrt(2*M_PI)*c));
-
-	*x = x0;
-
-	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
 
 /*
@@ -681,28 +701,6 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 	gsl_vector_free(x);
 
 	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
-}
-
-struct func_integmdl_par {
-	stat_param * x;
-	double a;
-	double p;
-	double *error;
-};
-
-static double func_integmdl (double b, void * params)
-{
-  struct func_integmdl_par * p = (struct func_integmdl_par *)params;
-  stat_param * x = (p->x);
-  double a = (p->a);
-  double pdes = (p->p);
-  double r;
-  double * error = (p->error);
-
-  if (runstats_mdlpdf(x, a, b, &r, error))
-		  return 0; // stops immediately
-
-  return r-pdes; // 0 = f(x) - desiredP, the closer the better
 }
 
 /*
@@ -816,7 +814,7 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 }
 
 /*
- * runstats_createcdf() : Compute the bound b that integrates the area under curve to p
+ * runstats_cdfCreate() : Compute the bound b that integrates the area under curve to p
  *
  * Arguments: - histogram addr pointer
  * 			  - CDF destination pointer
@@ -824,7 +822,7 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
  * Return value: success or error code
  */
 int
-runstats_createcdf(stat_hist **h, stat_cdf **c){
+runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 
 	if (!c || !h || !(*h))
 		return GSL_EINVAL;
@@ -851,7 +849,7 @@ runstats_createcdf(stat_hist **h, stat_cdf **c){
 		size_t maxbin = gsl_histogram_max_bin(*h);
 		if (((*h)->n * 2 > maxbin * 10)
 			|| ((*h)->n * 8 < maxbin * 10))
-				if ((runstats_fithist(h)))
+				if ((runstats_histFit(h)))
 					warn("Curve fitting histogram bin adaptation error");
 	}
 
@@ -889,7 +887,7 @@ runstats_cdffree(stat_cdf ** c){
 }
 
 /*
- * runstats_printparam: adjust the value to stay in histogram range
+ * runstats_paramPrint: adjust the value to stay in histogram range
  *
  * Arguments: - pointer to the histogram
  * 			  - value to check
@@ -897,7 +895,7 @@ runstats_cdffree(stat_cdf ** c){
  * Return value: returns the adjusted value
  */
 int
-runstats_printparam(stat_param * x, char * str, size_t len){
+runstats_paramPrint(stat_param * x, char * str, size_t len){
 
 	if (!str || len < 42) // total length of format string
 		return GSL_EINVAL;
@@ -914,25 +912,25 @@ runstats_printparam(stat_param * x, char * str, size_t len){
 
 
 /*
- * runstats_freeparam() : free parameter vector
+ * runstats_paramFree() : free parameter vector
  *
  * Arguments: - pointer to the parameter vector
  *
  * Return value: -
  */
 void
-runstats_freeparam(stat_param * x){
+runstats_paramFree(stat_param * x){
 	gsl_vector_free(x);
 }
 
 /*
- * runstats_freehist() : free histogram structure
+ * runstats_histFree() : free histogram structure
  *
  * Arguments: - pointer to the histogram data
  *
  * Return value: success or error code
  */
 void
-runstats_freehist(stat_hist * h){
+runstats_histFree(stat_hist * h){
 	gsl_histogram_free(h);
 }
