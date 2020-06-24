@@ -239,6 +239,7 @@ static int startTraceRead() {
 static int stopTraceRead() {
 
 	int ret = 0;
+	void * retVal = NULL;
 	// loop through, existing list elements, and join
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
@@ -248,10 +249,16 @@ static int stopTraceRead() {
 				perror("Failed to send signal to fTrace thread");
 			ret |= ret1; // combine results in OR to detect one failing
 
-			ret1 = pthread_join( elist_thead->thread, NULL); // wait until end
+			ret1 = pthread_join( elist_thead->thread, &retVal); // wait until end
 			if (ret1)
 				perror("Could not join with fTrace thread");
-			ret |= ret1; // combine results in OR to detect one failing
+			ret |= ret1 | *(int*)retVal; // combine results in OR to detect one failing
+
+			if (retVal){ // return value assigned
+				if (*(int*)retVal)
+					err_msg_n(*(int*)retVal, "fTrace thread exited");
+				free (retVal); // free heap space of return value
+			}
 
 			free(elist_thead->dbgfile); // free it if defined
 			pop((void**)&elist_thead);
@@ -419,7 +426,7 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 ///
 /// Arguments: status trace
 ///
-/// Return value: error code, 0 = success
+/// Return value: pointer to error code, 0 = success
 ///
 void *thread_ftrace(void *arg){
 
@@ -427,6 +434,8 @@ void *thread_ftrace(void *arg){
 	int ret = 0;
 	FILE *fp = NULL;
 	const struct ftrace_thread * fthread = (struct ftrace_thread *)arg;
+	int * retVal = malloc (sizeof(int)); // Thread return value in heap
+	*retVal = 0;
 
 	unsigned char buffer[PIPE_BUFFER];
 	void *pEvent;
@@ -450,7 +459,8 @@ void *thread_ftrace(void *arg){
 		if (sigaction(SIGQUIT, &act, NULL) < 0)		 // quit from caller
 		{
 			perror ("Setup of sigaction failed");
-			exit(EXIT_FAILURE); // exit the software, not working
+			*retVal = errno;
+			return retVal;
 		}
 	} // END interrupt handler block
 
@@ -461,7 +471,8 @@ void *thread_ftrace(void *arg){
 			|| ((sigdelset(&set, SIGQUIT)))
 			|| (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
 			perror ("Setup of sigmask failed");
-			exit(EXIT_FAILURE); // exit the software, not working
+			*retVal = errno;
+			return retVal;
 		}
 	}
 
@@ -484,6 +495,7 @@ void *thread_ftrace(void *arg){
 				pstate = -1;
 				err_msg (PFX "Could not open trace pipe for CPU%d", fthread->cpuno);
 				err_msg (PIN "Tracing for CPU%d disabled", fthread->cpuno);
+				*retVal = errno;
 				free(fn);
 				break;
 			} /** if file doesn't exist **/
@@ -491,6 +503,7 @@ void *thread_ftrace(void *arg){
 			if ((fp = fopen (fn, "r")) == NULL) {
 				pstate = -1;
 				err_msg ("File open failed");
+				*retVal = errno;
 				free(fn);
 				break;
 			} /** IF_NULL **/
@@ -509,6 +522,7 @@ void *thread_ftrace(void *arg){
 			if (0 >= (ret = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
 				if (ret < -1) {
 					pstate = 2;
+					*retVal = errno;
 					err_msg ("File read failed");
 				} // else stay here
 
@@ -554,18 +568,12 @@ void *thread_ftrace(void *arg){
 			break;
 
 		case -1:
-			sleep(1); // TODO: safety, avoids to overload CPU in case of not shutting down correctly
-			break;
-		}
-		if (-1 == pstate) { // if  at the end, was ftrace_stop
-			break;
+			printf(PFX "Exit fTrace CPU%d thread\n", fthread->cpuno);
+			fflush(stderr);
+			return retVal;
 		}
 	}
 
-	printf(PFX "Exit fTrace CPU%d thread\n", fthread->cpuno);
-	fflush(stderr);
-
-	return NULL;
 }
 
 // #################################### THREAD specific END ############################################
