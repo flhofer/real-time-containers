@@ -71,7 +71,7 @@ END_TEST
 
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/proc/","version", "test", -1, EIO},				// write protected
+		{"/proc/","version", "test", -1, EACCES},			// write protected (if sudo), EACCESS if normal user
 		{"/dev/", "null", "", 0, 0},						// write empty -> special case
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
