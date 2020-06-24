@@ -32,8 +32,10 @@
 #define PIPE_BUFFER			4096
 #if __x86_64__ || __ppc64__
 	#define WORDSIZE		KBUFFER_LSIZE_8
+	#define CMNSPARE		0
 #else
 	#define WORDSIZE		KBUFFER_LSIZE_4
+	#define CMNSPARE		8
 #endif
 
 // total scan counter for update-stats
@@ -339,7 +341,7 @@ pickPidCommon(void * addr, uint64_t ts) {
 		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
 		}
 
-	return sizeof(*pFrame); // TODO: not always the case!! +8, .. 8 zeros?
+	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
 }
 
 /// pickPidInfoS(): process PID fTrace sched_switch
