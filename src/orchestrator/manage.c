@@ -905,65 +905,93 @@ void *thread_manage (void *arg)
 {
 	// be explicit!
 	int32_t* pthread_state = (int32_t *)arg;
+
+	int ret;
+	struct timespec intervaltv;
+
+	// get clock, use it as a future reference for update time TIMER_ABS*
+	ret = clock_gettime(clocksources[prgset->clocksel], &intervaltv);
+	if (0 != ret) {
+		if (EINTR != ret)
+			warn("clock_gettime() failed: %s", strerror(errno));
+		*pthread_state=-1;
+	}
+
 	// initialize the thread locals
 	while(1)
 	{
-	  switch( *pthread_state )
-	  {
-	  case 0: // setup thread
-		*pthread_state=1; // first thing
-		if (prgset->ftrace) {
-			(void)printf(PFX "Starting CPU tracing threads\n");
-			if (configureTracers())
-				warn("Kernel function tracers not available");
+		switch( *pthread_state )
+		{
+			case 0: // setup thread
+			*pthread_state=1; // first thing
+			if (prgset->ftrace) {
+				(void)printf(PFX "Starting CPU tracing threads\n");
+				if (configureTracers())
+					warn("Kernel function tracers not available");
 
-			if (startTraceRead()){
-				err_msg("Unable to start tracing, have to stop here now..");
-				// set stop signal
-				raise (SIGTERM); // tell main to stop
+				if (startTraceRead()){
+					err_msg("Unable to start tracing, have to stop here now..");
+					// set stop signal
+					raise (SIGTERM); // tell main to stop
+				}
+			}
+			//no break
+
+		  case 1: // normal thread loop, check and update data
+			if (!updateStats())
+				break;	// stop here if no updates are found
+			//no break
+
+		  case 2: //
+			// update resources
+			*pthread_state=1;
+			(void)manageSched();
+			break;
+
+		  case -1:
+			*pthread_state=-2;
+			// tidy or whatever is necessary
+			dumpStats();
+			// no break
+
+		  case -2:
+			*pthread_state=-99;
+			// set stop signal to dependent threads
+			if (prgset->ftrace) {
+				(void)printf(PFX "Stopping threads\n");
+				if (stopTraceRead())
+					warn("Unable to stop all fTrace threads");
+				resetTracers();
+				(void)printf(PFX "Threads stopped\n");
+			}
+			// no break
+		  case -99:
+			//		pthread_exit(0); // exit the thread signaling normal return
+			break;
+		}
+
+		// STOP Loop?
+		if (-99 == *pthread_state)
+		break;
+
+		{
+			// absolute time relative interval shift
+
+			// calculate next execution interval
+			intervaltv.tv_sec += prgset->interval / USEC_PER_SEC;
+			intervaltv.tv_nsec+= (prgset->interval % USEC_PER_SEC) * 1000;
+			tsnorm(&intervaltv);
+
+			// sleep for interval nanoseconds
+			ret = clock_nanosleep(clocksources[prgset->clocksel], TIMER_ABSTIME, &intervaltv, NULL);
+			if (0 != ret) {
+				// Set warning only.. shouldn't stop working
+				// probably overrun, restarts immediately in attempt to catch up
+				if (EINTR != ret) {
+					warn("clock_nanosleep() failed. errno: %s",strerror (ret));
+				}
 			}
 		}
-		//no break
-
-	  case 1: // normal thread loop, check and update data
-		if (!updateStats())
-			break;	// stop here if no updates are found
-		//no break
-
-	  case 2: //
-		// update resources
-		*pthread_state=1;
-		(void)manageSched();
-		break;
-
-	  case -1:
-		*pthread_state=-2;
-		// tidy or whatever is necessary
-		dumpStats();
-		// no break
-
-	  case -2:
-		*pthread_state=-99;
-		// set stop signal to dependent threads
-		if (prgset->ftrace) {
-			(void)printf(PFX "Stopping threads\n");
-			if (stopTraceRead())
-				warn("Unable to stop all fTrace threads");
-			resetTracers();
-			(void)printf(PFX "Threads stopped\n");
-		}
-		// no break
-	  case -99:
-		//		pthread_exit(0); // exit the thread signaling normal return
-		break;
-	  }
-
-	  // STOP Loop?
-	  if (-99 == *pthread_state)
-		break;
-
-	  // TODO: change to timer and settings based loop
-	  usleep(1000);
 	}
 
 	(void)printf(PFX "Stopped\n");
