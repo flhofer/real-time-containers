@@ -20,7 +20,7 @@ jobs:
     - name: "Install dependencies"
       run: |
             sudo apt-get update \
-            && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
+            && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg
 
     - name: "Build Orchestrator and Use cases"
       run: make
