@@ -25,9 +25,9 @@
 
 /* --------------------------- Global variables for all the threads and programs ------------------ */
 
-// TODO containers has no lock-> verify single access only / RO
+// containers has no lock-> verify single access only / RO
 containers_t * contparm;	// container parameter settings
-// TODO prgset has no lock -> verify single access only / RO
+// prgset has no lock -> verify single access only / RO
 prgset_t * prgset; 			// program settings structure
 
 #ifdef DEBUG

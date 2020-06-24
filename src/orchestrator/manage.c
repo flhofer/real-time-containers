@@ -926,14 +926,17 @@ void *thread_manage (void *arg)
 			*pthread_state=1; // first thing
 			if (prgset->ftrace) {
 				(void)printf(PFX "Starting CPU tracing threads\n");
-				if (configureTracers())
-					warn("Kernel function tracers not available");
-
-				if (startTraceRead()){
-					err_msg("Unable to start tracing, have to stop here now..");
-					// set stop signal
-					raise (SIGTERM); // tell main to stop
+				if (configureTracers()){
+					warn("Kernel function tracers not available, RESET!");
+					prgset->ftrace = 0; // reset (ok, not read elsewhere)
+					resetTracers();
 				}
+				else
+					if (startTraceRead()){
+						err_msg("Unable to start tracing, have to stop here now..");
+						// set stop signal
+						raise (SIGTERM); // tell main to stop
+					}
 			}
 			//no break
 
