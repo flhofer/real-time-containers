@@ -26,12 +26,6 @@
 
 // locally globals variables used here ->
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
-static int clocksources[] = {
-	CLOCK_MONOTONIC,
-	CLOCK_REALTIME,
-	CLOCK_PROCESS_CPUTIME_ID,
-	CLOCK_THREAD_CPUTIME_ID
-};
 
 #undef PFX
 #define PFX "[update] "

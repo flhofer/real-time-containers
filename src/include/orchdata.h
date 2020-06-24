@@ -240,6 +240,8 @@
 
 	} prgset_t;
 
+	extern int clocksources[];
+
 	// generic push pop
 	void push(void ** head, size_t size);
 	void pop(void ** head);

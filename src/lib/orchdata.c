@@ -1,8 +1,17 @@
 #include "orchdata.h"	// memory structure to store information
 #include "cmnutil.h"	// general definitions
 #include <numa.h>		// for numa free cpu-mask
+#include <time.h>		// time management and constants
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
+
+// Programmable clock source values
+int clocksources[] = {
+	CLOCK_MONOTONIC,
+	CLOCK_REALTIME,
+	CLOCK_PROCESS_CPUTIME_ID,
+	CLOCK_THREAD_CPUTIME_ID
+};
 
 ///	generic push pop, based on the fact that all structures have the next l.l
 /// pointer right as first element
