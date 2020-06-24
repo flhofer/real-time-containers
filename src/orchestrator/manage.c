@@ -97,6 +97,9 @@ void *thread_ftrace(void *arg);
 // functions to elaborate data for tracer frames
 static int pickPidInfoS(void * addr, uint64_t ts);
 
+static int get_sched_info(node_t * item);
+
+
 /// ftrace_inthand(): interrupt handler for infinite while loop, help
 /// this function is called from outside, interrupt handling routine
 /// Arguments: - signal number of interrupt calling
@@ -297,15 +300,12 @@ pickPidCons(node_t *item, uint64_t ts){
 	// -> what if we read the debug output here??
 
 	if (SCHED_DEADLINE == item->attr.sched_policy){
+		if (!item->mon.dl_deadline)
+			get_sched_info(item);
+
 		// did we skip a deadline update? TODO: check if we can sync it
-		if (item->mon.dl_deadline){
-			while (item->mon.dl_deadline < ts)
-				item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
-		}
-		else {
-			// TODO parse deadline from buffer
-			item->mon.dl_deadline = 0;
-		}
+		while (item->mon.dl_deadline < ts)
+			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
 	}
 
 	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
@@ -617,14 +617,28 @@ static int manageSched(){
 	return 0;
 }
 
-/// get_sched_info(): get scheduler debug output info
-///
-/// Arguments: the node to get info for
-///
-/// Return value: error code, 0 = success
-///
-static int get_sched_info(node_t * item)
+/*
+ *  get_sched_info(): get scheduler debug output info
+ *
+ *  Arguments: the node to get info for
+ *
+ *  Return value: error code, 0 = success
+ */
+static int
+get_sched_info(node_t * item)
 {
+#ifdef DEBUG
+	int ret;
+	struct timespec start, end;
+
+	// get clock, use it as a future reference for update time TIMER_ABS*
+	ret = clock_gettime(clocksources[prgset->clocksel], &start);
+	if (0 != ret) {
+		if (EINTR != ret)
+			warn("clock_gettime() failed: %s", strerror(errno));
+	}
+#endif
+
 	char szFileName [_POSIX_PATH_MAX];
 	char szStatBuff [PIPE_BUFFER];
 	char ltag [80]; // just tag of beginning, max length expected ~30
@@ -692,7 +706,8 @@ static int get_sched_info(node_t * item)
 		// ---------- SCHED_DEADLINE --------------
 		if (SCHED_DEADLINE == item->attr.sched_policy) {
 
-			if (strncasecmp(ltag, "dl.runtime", 4) == 0)	{
+			if (!prgset->ftrace // do not parse runtime if on ftrace
+					&& (strncasecmp(ltag, "dl.runtime", 4) == 0)) {
 				// store last seen runtime
 				ltrt = num;
 				if (num != item->mon.dl_rt)
@@ -752,6 +767,22 @@ static int get_sched_info(node_t * item)
 		// Advanve with token
 		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
+
+#ifdef DEBUG
+	// get clock, use it as a future reference for update time TIMER_ABS*
+	ret = clock_gettime(clocksources[prgset->clocksel], &end);
+	if (0 != ret) {
+		if (EINTR != ret)
+			warn("clock_gettime() failed: %s", strerror(errno));
+	}
+
+	// compute difference -> time needed
+	end.tv_sec -= start.tv_sec;
+	end.tv_nsec -= start.tv_nsec;
+	tsnorm(&end);
+
+	printDbg(PFX "%s parse time: %ld.%09ld\n", __func__, end.tv_sec, end.tv_nsec);
+#endif
 
   return 0;
 }
@@ -820,7 +851,7 @@ static int updateStats ()
 						// OK, let's check the error
 						if (newWCET > 0){
 //							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference?
-								updatePidWCET(item, (uint64_t)(newWCET*NSEC_PER_SEC));
+								updatePidWCET(item, newWCET);
 								item->mon.cdf_runtime = newWCET;
 //							}
 						}
