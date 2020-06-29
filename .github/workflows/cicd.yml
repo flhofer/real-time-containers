@@ -27,13 +27,13 @@ jobs:
       env: 
         DEBUG: ${{ !endsWith(github.ref, '/master') }}
       
-    - name: "Run test code - libcheck"
+    - name: "Run and build test code - libcheck"
       run: make -B test
 
     - name: "mv binaries to new folder"
       run: |
         mkdir bin \
-        && mv orchestrator check DataGenerator WorkerApp bin/
+        && mv orchestrator check_test DataGenerator WorkerApp bin/
 
     - name: Upload result for job
       uses: actions/upload-artifact@v1

@@ -175,11 +175,11 @@ plotData<-function(directory) {
 	}	  
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0(directory,"fdelay.pdf"), width = 6, height = 5)
+	png(file= paste0(directory,"fdelay.png"), width = 600, height = 500)
 	print (gplot)
 	dev.off()
 
-	pdf(file= paste0(directory,"FPS.pdf"), width = 6, height = 5)
+	png(file= paste0(directory,"FPS.png"), width = 600, height = 500)
 	print (gplot2)
 	dev.off()
 }
@@ -268,7 +268,7 @@ readDeadline<-function(directory) {
 	delays[,2]<- delays[,2]/1000 
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0(directory,"delay.pdf"), width = 7, height = 5)
+	png(file= paste0(directory,"delay.png"), width = 700, height = 500)
 
 	print (ggplot(delays, aes(x=dataD)) +
 		geom_histogram(aes(fill=name)) +
