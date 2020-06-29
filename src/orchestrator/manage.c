@@ -300,11 +300,21 @@ pickPidCons(node_t *item, uint64_t ts){
 	// -> what if we read the debug output here??
 
 	if (SCHED_DEADLINE == item->attr.sched_policy){
-		if (!item->mon.dl_deadline)
-			get_sched_info(item);
+		if (!item->attr.sched_period)
+			updatePidAttr(item);
+		// period should never be zero from here on
+		if (!item->mon.dl_deadline				 // no deadline set?
+				|| (item->mon.dl_deadline < ts)){// did we miss a deadline? check for update, sync
+			int is_null = (!item->mon.dl_deadline);
 
-		// did we skip a deadline update? TODO: check if we can sync it
-		while (item->mon.dl_deadline < ts)
+			get_sched_info(item);				 // update deadline from debug buffer
+			while (item->mon.dl_deadline < ts){	 // after update still not in line? (buffer updates 10ms)
+				item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
+			}
+		}
+		else
+			// just add a period, we rely on periodicity
 			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
 	}
 
