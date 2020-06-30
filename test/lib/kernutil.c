@@ -1,14 +1,12 @@
 /* 
 ###############################
 # test script by Florian Hofer
-# last change: 17/12/2019
+# last change: 08/06/2020
 # ©2019 all rights reserved ☺
 ###############################
 */
 
 #include "../../src/include/kernutil.h"
-
-// TODO: msr test functions!
 
 START_TEST(kernutil_check_kernel)
 {	
@@ -48,7 +46,9 @@ static const struct kernvar_test getkernvar_var[6] = {
 		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
-		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
+		// _POSIX_PATHMAX = 256
+		{"/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/sys/sys/"
+		 "/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/devices/system/cpu/sys/",
 			"devices1", "", -1, ENOMEM},						// too long filename+varname > 128
 		{"/sys/devices/system/cpu/isolated/",
 			"thread_siblings_list", "", -1, ENOTDIR}			// not a valid dir string
@@ -71,8 +71,8 @@ END_TEST
 
 static const struct kernvar_test setkernvar_var[5] = {
 		{"/dev/", "null", "Ubuntu", 6, 0},					// write to var
-		{"/proc/","version", "test", -1, EIO},				// write protected
-		{"/dev/", "null", "", 0, 0},						// write empty -> special case TODO: implement
+		{"/proc/","version", "test", -1, EACCES},			// write protected (if sudo), EACCESS if normal user
+		{"/dev/", "null", "", 0, 0},						// write empty -> special case
 		{"/dev/", "null", NULL, -1, EINVAL},					// write NULL
 		{"/dev/", NULL, "", -1, EINVAL},						// write to NULL
 	}; 
@@ -86,7 +86,102 @@ START_TEST(kernutil_setkernvar)
 }
 END_TEST
 
-// TODO: bit mask test functions!
+
+START_TEST(kernutil_parse_bitmask)
+{
+	struct bitmask * test = NULL;
+	int ret;
+
+	char str[18];
+	ret = parse_bitmask(test, str, sizeof(str));
+	ck_assert_int_eq(ret, -1);
+
+	test = numa_bitmask_alloc(40);
+
+	ret = parse_bitmask(test, NULL, sizeof(str));
+	ck_assert_int_eq(ret, -1);
+
+	ret = parse_bitmask(test, str, 0);
+	ck_assert_int_eq(ret, -1);
+
+
+	numa_bitmask_setbit(test,0);
+	numa_bitmask_setbit(test,1);
+	numa_bitmask_setbit(test,33);
+
+	ret = parse_bitmask(test, str, sizeof(str));
+
+	ck_assert_int_eq(ret, 0);
+	ck_assert_str_eq(str, "0-1,33");
+
+	numa_bitmask_free(test);
+}
+END_TEST
+
+START_TEST(kernutil_parse_bitmask_hex)
+{
+	struct bitmask * test = NULL;
+	int ret;
+
+	{
+		char str[18];
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+		ck_assert_int_eq(ret, -1);
+
+		test = numa_bitmask_alloc(40);
+
+		ret = parse_bitmask_hex(test, NULL, sizeof(str));
+		ck_assert_int_eq(ret, -1);
+
+		ret = parse_bitmask_hex(test, str, 0);
+		ck_assert_int_eq(ret, -1);
+
+
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,33);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "0000000200000003");
+	}
+
+	numa_bitmask_free(test);
+
+	test = numa_bitmask_alloc(67);
+
+	{
+		char str[33];
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,32);
+		numa_bitmask_setbit(test,66);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "00000000000000040000000100000003");
+	}
+	numa_bitmask_free(test);
+
+	test = numa_bitmask_alloc(167);
+
+	{
+		char str[33];
+		numa_bitmask_setbit(test,0);
+		numa_bitmask_setbit(test,1);
+		numa_bitmask_setbit(test,32);
+		numa_bitmask_setbit(test,66);
+
+		ret = parse_bitmask_hex(test, str, sizeof(str));
+
+		ck_assert_int_eq(ret, 0);
+		ck_assert_str_eq(str, "00000000000000040000000100000003");
+	}
+	numa_bitmask_free(test);
+}
+END_TEST
 
 void library_kernutil (Suite * s) {
 
@@ -95,6 +190,8 @@ void library_kernutil (Suite * s) {
     tcase_add_loop_test(tc1, kernutil_getkernvar, 0, 6);
     tcase_add_loop_test(tc1, kernutil_setkernvar, 0, 5);
 	tcase_add_test(tc1, kernutil_check_kernel);
+	tcase_add_test(tc1, kernutil_parse_bitmask);
+	tcase_add_test(tc1, kernutil_parse_bitmask_hex);
 
     suite_add_tcase(s, tc1);
 

@@ -1,0 +1,245 @@
+README for statsched v0.66
+
+==============
+ INTRODUCTION
+==============
+
+statsched is an orchestration application that tries to optimize real-time scheduled container alloocation. Its function is to maintain schedulability and determinism while reducing resource requirements.
+
+Code is currently maintained on GitHub:
+
+	git@github.com:ianno/real-time-containers.git
+
+The static version limits to configured allocation and does not reschedule processes once a slot has been allocated. For dynamic allocation, see dynsched. (future work :) )
+
+==============
+ REQUIREMENTS
+==============
+
+statsched runs on GNU/Linux. It needs bash, GNU make and a recent compiler (tested on: gcc) for basic features.
+** note - this will change once the package is complete **
+Furthermore, the following development packages should be installed:
+
+* rt-test package
+* libnuma-dev
+* libcap-dev
+* libsubunit-dev
+* libjson-c-dev
+* libgsl-dev
+* libgsl-dbg
+
+==================================
+ BUILDING AND INSTALLING statsched
+==================================
+
+No additional make and build targets defined yet.
+
+If defined, the DEBUG flag enables higly verbose terminal output.
+
+To compile, type
+
+$ make
+
+or, alternatively, with debug:
+
+$ make DEBUG=1
+(set default on development branch)
+No installation procedure is defined at the moment
+
+Without parameters make builds orchestrator and use cases. If you want to build check tests and execute the tests, use `make check`.
+
+For a reference on how to use specific tests only (environment vairables CK_RUN_SUITE, CK_RUN_CASE and CK_NO_FORK) refer to the check user manual. https://libcheck.github.io/check/doc/check_html/check_4.html
+
+=======
+ USAGE
+=======
+
+	Options available as of this version
+
+    $ ./statsched.o [-a <affinity range> -b -c <clock> -C <cgroup> -d -D -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] --smi -v -w <WCET>] [configuration-file]
+
+where:
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs. The affinity range can be specified as comma separated list and ranges, e.g. "0,4,7-10";
+* -b enables binding of non-realtime tasks to the same core as the real-time task of the container;
+* clock is the type of clock timer used for recurring threads; 
+* -C sets the CGroup based container detection mode. By default the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
+* -d enables the deadline overflow flag for all real-time deadline scheduled tasks;
+* -D sets the dry-run flag. No kernel or environemnt parameters will be changed;
+* -f forces execution, even if parameters are seen as risky;
+* interval is the update intervall of running statistics; 
+* loop count is the number of update loops until new containers are checked; 
+* -m enables memory page locking; 
+* -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
+* the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo or rr
+* -P, in case command line signature is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
+* a maximum runtime can be set with the r flag, in seconds. Default value is 0=unlimited
+* -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of docker containers;
+* --smi enables interrupt counters to be read for each CPU. This to track the effect of uncontrollable interrupts;
+* -v adds verbosity if the binary has been compiled with the DEBUG flag
+* -w details the worst case execution time needed for the deadline based scheduling of the metric update thread.
+The configuration fle specified is optional. By default 'config.json' will be used.
+
+===============
+ CONFIGURATION
+===============
+
+statsched reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation. The  file is usually found in the local working directory.
+The configuration file settings for this version consists of multiple sections and objects. These obects are connected in an hierarchy and can be present at different levels. The simplest is a PID configuration object. It's layout is as follows:
+
+{  								
+	"cmd" : "rt-app conf2.json",// process run signature identification, full or partial
+	"params" : {				// real-time parameters - optional
+		"policy" : "SCHED_OTHER",// required scheduling policy
+		"flags"  : 0,			// process flags -> inheritance
+		"nice"   : 0,			// niceness factor for CFS schedules
+		"prio"   : 0,			// priority for RT schedules, FIFO & RR
+		"runtime": 1000000,		// EDF runtime in us
+		"deadline": 4000000,	// EDF deadline in us
+		"period" : 4000000		// EDF period in us
+	},
+	"res" : {					// resouces to allocate for process, optional
+		"affinity" : -1,		// CPU affinity, -1 = all 
+		"rt-soft" : -1,			// real-time soft limit, execution time -> SIGXCPU
+		"rt-hard" : -1,			// real-time hard limit, execution time -> SIGKILL
+		"data-soft" : -1, 		// data/heap soft limit
+// -> not used	"data-hard" : -1,		// data/heap hard limit
+	},
+},
+
+The next object in hierarchy is a container. It is simialr to a PID configuration.
+
+{  								
+	"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+	"params" : { ... },			// real-time parameters - optional
+	"res" : { ... },			// resouces to allocate for process, optional
+	"pids" : [{ ... }],			// list of PID objects for this container
+},
+
+An image configuration, again is similar
+
+{  								
+	"imgid" : "1ede341dace5",	// full or partial (at least 12 characters) of img id
+	"params" : { ... }, 		// real-time parameters - optional
+	"res" : { ... },			// resouces to allocate for process, optional
+	"cont" : [{ ... }],			// list of containers that are based on this image
+	"pids" : [{ ... }],			// list of default PID objects for this image
+},
+
+All these objects are part of a global configuration. This configuration permits to set all settings for the program as well as specifying all the details above.
+
+{
+
+	"global" : {
+		"logdir" : "./",						// logging directory - TODO
+		"log_basename" : "orchestrator.txt",	// logging basename - TODO
+		"prc_kernel" : "/proc/sys/kernel/",		// kernel settings vfs
+		"sys_cpuset" : "/sys/fs/cgroup/cpuset/",// cgroup cpuset vfs
+		"sys_cpu" :	"/sys/devices/system/cpu/", // cpu settings, ol vfs
+		"cont_ppidc" : "containerd-shim",		// pid comm signature for container shim
+		"cont_pidc" : "",						// pid comm signature, opt, for filtering
+		"cont_cgrp" : "docker/",				// subdirectory in cgroups where containers are
+		"priority" : 0,							// priority of update thread
+		"clock" : 0,							// clock type to use for delays (not in deadline)
+		"default_policy" : "SCHED_OTHER",		// scheduling policy for update thread
+		"quiet" : 0, 							// quiet mode
+		"affother" : 0,							// tie non-RT tasks to same settings
+		"setdflag" : 0,							// sed dl-overrun flag for deadline tasks
+		"interval" : 5000,						// update scan interval in us
+		"dl_wcet": 100,							// runtime budget for update thread (deadline)
+		"loops" : 100,							// number of loops bf checking for new containers
+		"runtime" : 0,							// max runtime, 0 = infinite
+		"psigscan" : 0, 						// parent signature scan 
+		"trackpids" : 0,						// keep left pids in stat
+		"lock_pages" : 0,						// lock pages (memory) for orchestrator
+		"smi" : 0,								// smi optimizations - TODO
+		"rrtime" : 100,							// slice time for rr scheduling, 100us
+		"use_fifo" : 0,							// use fifo status output - TODO
+		"setaffinity" : "AFFINITY_UNSPECIFIED", // affinity area for containers *_UNSPECIFIED, _SPECIFIED and _USEALL
+		"affinity" : "1-2",						// cpu affinity for containers, coma separated cpu list
+		"gnuplot" : 0,							// print gnuplot of statistics - TODO
+		"logsize" : 0,							// log size in mb - TODO
+		"ftrace" : 0,							// enable kernel tracing - TODO
+	}
+
+	"images" : [						// list of images with matching containers and pds
+	{  								
+		"imgid" : "4efcb6c965de",	// full or partial (at least 12 characters) of img id
+		"params" : { ... }, 		// real-time parameters - default to globals
+		"res" : { ... },			// resouces to allocate for image, default to globals
+
+		"cont" : [					// list of containers that are based on this image
+		{  								
+				"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+				"params" : { ... },	// real-time parameters, default to image
+				"res" : { ... },	// resouces to allocate, default to image
+				"pids" : [{ 
+					"cmd" : "rt-app conf2.json",
+					"params" : { ... },	// real-time parameters, default to container
+					"res" : { ... },	// resouces to allocate, default to container
+				 }],	// list of PID objects for this container
+		}, ... ],
+
+		"pids" : [ 				// list of default PID objects for this image
+		{
+			"cmd" : "rt-app conf2.json",
+			"params" : { ... },	// real-time parameters, default to image
+			"res" : { ... },	// resouces to allocate, default to image
+		}, ... ],
+
+	}, ... ],
+
+	"containers" : [					// list of containers that are not based on known image
+	{  								
+		"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+		"params" : { ... },			// real-time parameters, defaults to global
+		"res" : { ... },			// resouces to allocate for container, defaults to global
+		"pids" : [{ ... }],			// list of PID objects for this container
+	}, ... ],
+
+	"pids" : [ 						// list of PID objects we dont know container or image
+	{
+		... 
+	}, ... ],
+
+	"scheduling" : {			// real-time parameters for global defaults
+		...
+	},
+	"resources" : {				// resouces to allocate for global defaults
+		...
+	},
+}
+
+This hierarchical setting allows thus specifying:
+* image specific settings and running pids of that image, valid for all containers using that image
+* exceptions to containers, changing settings for a few examles
+* exceptions and additions in the pid list of the image
+
+OR
+
+* container specific settings and running pids, without knowing the image name
+
+OR
+
+* pid specific settings if we know neiter the image nor the container, or if we want to apply certain settings to all instances of a pid in all containers
+
+The lookup hierarchy for PIDs is as follows: 
+
+1)	image->container->pid	, if not found
+2)	image->pid				, if not found
+3)	pid						, if not found
+4)	left unchanged
+
+Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
+Affinity might be a limiting factor as long as it is a single CPU setting. ** this might change in future versions **
+
+=============
+ EXAMPLE RUN
+=============
+
+The following command presents a possible running scenario:
+
+	$ ./orchestrator -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
+
+In this case, the orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with command 'rt-app' and verify also all their threads. All threads running in a container will be bound to the same affinity range, set up as 1-3. The scan will be performed with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles the orchestrator will look for new containers to realign.
+All other parameters are left default.
+

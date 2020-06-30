@@ -84,7 +84,7 @@ START_TEST(dockerlink_err_json)
 	int  iret1;
 	char buf[50] = "echo '";
 	strcat(strcat(buf, dockerlink_empty[_i]), "'");
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 	int * th_return;
 	if (!iret1) // thread started successfully
@@ -103,7 +103,7 @@ START_TEST(dockerlink_conf)
 	int  iret1;
 	char buf[1024] = "echo '";
 	strcat(strcat(buf, dockerlink_events[_i]), "'");
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 	checkContainer(&cntexpected[_i]);
 	if (!iret1) // thread started successfully
@@ -122,7 +122,7 @@ START_TEST(dockerlink_conf_att)
 	int  iret1;
 	char buf[1024] = "echo '";
 	strcat(strcat(buf, dockerlink_events[_i]), "' && sleep 1");
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 	checkContainer(&cntexpected[_i]);
 	if (!iret1) // thread started successfully
@@ -146,7 +146,7 @@ START_TEST(dockerlink_conf_dmp)
 		strcat(buf, "' && sleep 0.5 && echo '");
 	}		
 	strcat(buf, "'");
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 
 	checkContainer(&cntexpected[0]);
@@ -164,7 +164,7 @@ START_TEST(dockerlink_stop)
 	pthread_t thread1;
 	int  iret1;
 	char buf[10] = "sleep 10"; // Timeout is set to 4 secs by default
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 
 	sleep(2);
@@ -184,7 +184,7 @@ START_TEST(dockerlink_startfail)
 	pthread_t thread1;
 	int  iret1;
 	char buf[10] = "doucqeker"; // non existing command
-	iret1 = pthread_create( &thread1, NULL, thread_watch_docker, (void*) buf);
+	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
 
 	if (!iret1) // thread started successfully

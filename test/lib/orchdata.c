@@ -6,9 +6,6 @@
 ###############################
 */
 
-//TODO: all tests!!!
-
-//#include "../../src/orchestrator/update.h"
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
@@ -25,7 +22,7 @@ START_TEST(orchdata_ndpush)
 
 	ck_assert_ptr_eq(nhead->next, NULL);
 	ck_assert_int_eq(nhead->pid, 0);
-	ck_assert_int_eq(nhead->det_mode, 0);
+	ck_assert_int_eq(nhead->status, 0);
 	ck_assert_ptr_eq(nhead->psig, NULL);
 	ck_assert_ptr_eq(nhead->contid, NULL);
 	ck_assert_ptr_eq(nhead->imgid, NULL);
@@ -109,7 +106,7 @@ START_TEST(orchdata_ndpop2)
 
 	cont_t d = {NULL, b};
 	img_t e = {NULL, c};
-	pidc_t f = {NULL, a, NULL, NULL, &d, &e};
+	pidc_t f = {NULL, a, 0, NULL, NULL, &d, &e};
 	
 	node_push(&nhead);
 	nhead->psig= a;
@@ -133,6 +130,8 @@ START_TEST(orchdata_ndpop2)
 }
 END_TEST
 
+#ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free elements, they differ from conf values
 START_TEST(orchdata_ndpop3)
@@ -143,8 +142,8 @@ START_TEST(orchdata_ndpop3)
 
 	cont_t d = {NULL, "sss"};
 	img_t e = {NULL, "xxx"};
-	pidc_t f = {NULL, "ss", NULL, NULL, &d, &e};
-	
+	pidc_t f = {NULL, "ss", 0, NULL, NULL, &d, &e};
+
 	node_push(&nhead);
 	nhead->psig= a;
 	nhead->contid = b;
@@ -162,6 +161,7 @@ START_TEST(orchdata_ndpop3)
 	ck_assert(!p->imgid);
 }
 END_TEST
+#endif
 
 // for qsort, descending order
 static int cmpPidItem (const void * a, const void * b) {

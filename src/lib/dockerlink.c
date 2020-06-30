@@ -7,22 +7,16 @@
 
 #include "kernutil.h"	// used for custom pipes
 #include "error.h"		// error and stderr print functions
+#include "cmnutil.h"	// common definitions and functions
+#include "parse_func.h"
 
-#define USEC_PER_SEC		1000000
-#define NSEC_PER_SEC		1000000000
-#define TIMER_RELTIME		0
+
 #define INTERV_RFSH			1000
 
+#undef PFX
 #define PFX "[dockerlink] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
-
-#ifndef TRUE
-	#define TRUE true
-	#define FALSE false
-#endif
-
-#include "parse_func.h"
 
 int th_return = EXIT_SUCCESS;
 
@@ -37,19 +31,6 @@ static volatile sig_atomic_t dlink_stop;
 static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
 	dlink_stop = 1;
 }
-
-/// tsnorm(): verifies timespec for boundaries + fixes it
-///
-/// Arguments: pointer to timespec to check
-///
-/// Return value: -
-//static inline void tsnorm(struct timespec *ts)
-//{
-//	while (ts->tv_nsec >= NSEC_PER_SEC) {
-//		ts->tv_nsec -= NSEC_PER_SEC;
-//		ts->tv_sec++;
-//	}
-//}
 
 FILE * inpipe;
 pthread_mutex_t containerMutex; // data access mutex
@@ -93,12 +74,12 @@ enum dockerEvents {
     dkrevnt_update
 	};
 
-/// docker_read_pipe(): read from pipe and parse JSON
+/// read_pipe(): read from pipe and parse JSON
 ///
 /// Arguments: event structure to fill with data from JSON
 ///
 /// Return value: (void)
-static int docker_read_pipe(struct eventData * evnt){
+static int read_pipe(struct eventData * evnt){
 
 	char buf[JSON_FILE_BUF_SIZE];
 	struct json_object *root;
@@ -114,7 +95,7 @@ static int docker_read_pipe(struct eventData * evnt){
 
 		// buf read successfully?
 		if ((!got) || '\0' == buf[0]) {
-			warn(PFX "Empty JSON buffer");
+			printDbg(PFX "Empty JSON buffer");
 			continue;
 		}
 
@@ -122,7 +103,7 @@ static int docker_read_pipe(struct eventData * evnt){
 
 		// root read successfully?
 		if (NULL == root) {
-			warn(PFX "Empty JSON");
+			err_msg("Empty JSON");
 			th_return = EXIT_INV_CONFIG;
 			pthread_exit(&th_return);
 		}
@@ -157,18 +138,18 @@ static int docker_read_pipe(struct eventData * evnt){
 	return 0;
 }
 
-/// docker_check_event(): call pipe read and parse response
+/// check_event(): call pipe read and parse response
 ///
 /// Arguments: - 
 ///
 /// Return value: pointer to valid container event
-static contevent_t * docker_check_event() {
+static contevent_t * check_event() {
 
 	struct eventData evnt;
 	memset(&evnt, 0, sizeof(struct eventData)); // set all pointers to NULL -> init
 
 	// read next element from pipe
-	if (!docker_read_pipe(&evnt))
+	if (!read_pipe(&evnt))
 		return NULL; // return if empty
 
 	// parse element
@@ -211,12 +192,12 @@ static contevent_t * docker_check_event() {
 	return cntevent;
 }
 
-/// thread_watch_docker(): checks for docker events and signals new containers
+/// dlink_thread_watch(): checks for docker events and signals new containers
 ///
 /// Arguments: - 
 ///
 /// Return value: pointer to void (PID exits with error if needed)
-void *thread_watch_docker(void *arg) {
+void *dlink_thread_watch(void *arg) {
 
 	int pstate = 0;
 	pid_t pid;
@@ -231,14 +212,11 @@ void *thread_watch_docker(void *arg) {
 		act.sa_handler = NULL; // On some architectures ---
 		act.sa_sigaction = &dlink_inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
-
-		/* blocking signal set */
-		(void)sigemptyset(&act.sa_mask);
-
 		act.sa_restorer = NULL;
 
-		if (sigaction(SIGHUP, &act, NULL) < 0)		 // quit from caller
-		{
+		/* blocking signal set */
+		if (((sigemptyset(&act.sa_mask)))
+			|| (sigaction(SIGHUP, &act, NULL) < 0))	{ // quit from caller
 			perror ("Setup of sigaction failed");
 			th_return = EXIT_FAILURE;
 			pthread_exit(&th_return);
@@ -249,10 +227,9 @@ void *thread_watch_docker(void *arg) {
 		sigset_t set;
 		/* Block all signals except SIGHUP */
 
-		(void)sigfillset(&set);
-		(void)sigdelset(&set, SIGHUP);
-		if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{
+		if ( ((sigfillset(&set)))
+			|| ((sigdelset(&set, SIGHUP)))
+			|| (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
 			perror ("Setup of sigmask failed");
 			th_return = EXIT_FAILURE;
 			pthread_exit(&th_return);
@@ -291,7 +268,7 @@ void *thread_watch_docker(void *arg) {
 			case 1:
 				if (feof(inpipe))
 					pstate = 4;
-				else if ((cntevent = docker_check_event()))  // new event?
+				else if ((cntevent = check_event()))  // new event?
 					pstate = 2;
 				break;
 
@@ -315,6 +292,7 @@ void *thread_watch_docker(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
+				printDbg(PFX "Stopped");
 				pthread_exit(&th_return);
 		}
 

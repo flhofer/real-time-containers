@@ -1,6 +1,6 @@
-VERSION = 0.70
-VERSUFF = "-beta"
-GIT_VERSION := "$(shell git describe --abbrev=7 --always --tags)"
+VERSION = 0.75
+VERSUFF = -beta
+GIT_VERSION := $(shell git describe --abbrev=7 --always --tags)
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
 CPP?=$(CROSS_COMPILE)g++
@@ -11,10 +11,10 @@ CPP?=$(CROSS_COMPILE)g++
 OBJDIR = build
 
 sources = orchestrator.c
-orcbins = update.o manage.o prepare.o adaptive.o
+orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
-LIBS	= -lrt -lcap -lrttest -ljson-c
+LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
 # for tests
 TLIBS	= -lcheck -lm -lsubunit $(LIBS)
 
@@ -26,7 +26,7 @@ mandir	?= $(prefix)/share/man
 srcdir	?= $(prefix)/src
 
 CFLAGS ?= -Wall -Wno-nonnull -D _GNU_SOURCE
-LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread 
+LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
@@ -110,7 +110,7 @@ test:
 	./check_test
 
 # lib containing include lib in one binary file
-LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-get_cpu.o rt-sched.o rt-utils.o kernutil.o orchdata.o parse_config.o dockerlink.o)
+LIBOBJS =$(addprefix $(OBJDIR)/,error.o rt-sched.o kernutil.o orchdata.o parse_config.o dockerlink.o kbuffer.o runstats.o)
 $(OBJDIR)/librttest.a: $(LIBOBJS)
 	$(AR) rcs $@ $^
 

@@ -6,13 +6,13 @@
  */
 #include "orchdata.h"
 
-#ifndef __ADAPTIVE_H_
-	#define __ADAPTIVE_H_
+#ifndef ADAPTIVE_H_
+	#define ADAPTIVE_H_
 
 	void adaptPrepareSchedule();
+	void adaptPlanSchedule();
 	void adaptScramble();
 	void adaptExecute();
-	struct resTracer * adaptGetTracers();
 	void adaptFreeTracer();
 
-#endif /* _ADAPTIVE_H_ */
+#endif /* ADAPTIVE_H_ */

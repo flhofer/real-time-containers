@@ -20,20 +20,20 @@ jobs:
     - name: "Install dependencies"
       run: |
             sudo apt-get update \
-            && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev
+            && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg
 
     - name: "Build Orchestrator and Use cases"
       run: make
       env: 
         DEBUG: ${{ !endsWith(github.ref, '/master') }}
       
-    - name: "Run test code - libcheck"
+    - name: "Run and build test code - libcheck"
       run: make -B test
 
     - name: "mv binaries to new folder"
       run: |
         mkdir bin \
-        && mv orchestrator check DataGenerator WorkerApp bin/
+        && mv orchestrator check_test DataGenerator WorkerApp bin/
 
     - name: Upload result for job
       uses: actions/upload-artifact@v1

@@ -1,6 +1,6 @@
-#ifndef __UPDATE_H_
-	#define __UPDATE_H_
+#ifndef UPDATE_H_
+	#define UPDATE_H_
 
-	void *thread_update (void *arg); // thread that verifies status and allocates new threads
+	void *thread_update (void *arg); 		// thread that verifies status and allocates new threads
 
 #endif

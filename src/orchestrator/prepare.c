@@ -23,9 +23,10 @@
 #include <errno.h>			// error numbers and strings
 
 // Custom includes
-#include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and std error print functions
+#include "cmnutil.h"	// common definitions and functions
+#include "resmgnt.h"	// resource management
 
 // Things that should be needed only here
 #include <pthread.h>// used for thread management
@@ -61,13 +62,15 @@ static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
 #define CAPMASK_IPC		0x4
 static int capMask = CAPMASK_ALL;
 
-/// setPidMask(): utility function to set all pids of a certain mask's affinity
-/// Arguments: - tag to search for
-///			   - bit mask to set
-///
-/// Return value: --
-///
-static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
+/*
+ *  setPidMask(): utility function to set all PIDs of a certain CMD mask's affinity
+ *  Arguments: - tag to search for
+ * 			   - bit mask to set
+ *
+ *  Return value: --
+ */
+static void
+setPidMask (char * tag, struct bitmask * amask, char * cpus)
 {
 	FILE *fp;
 
@@ -96,7 +99,7 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
 
 		if (numa_sched_setaffinity(mpid, amask))
-			warn("could not set pid %d-'%s' affinity: %s", mpid, pid, strerror(errno));
+			warn("could not set PID %d-'%s' affinity: %s", mpid, pid, strerror(errno));
 		else
 			cont("PID %d-'%s' reassigned to CPU's %s", mpid, pid, cpus);
     }
@@ -104,14 +107,16 @@ static void setPidMask (char * tag, struct bitmask * amask, char * cpus)
 	pclose(fp);
 }
 
-/// getCapMask(): utility function get our capability mask
-///
-/// Arguments: - program settings structure
-///
-/// Return value: --
-///
-static int getCapMask(prgset_t *set) {
-	/// verify executable permissions - needed for dry run, not blind run
+/*
+ *  getCapMask(): utility function get our capability mask
+ *
+ *  Arguments: - program settings structure
+ *
+ *  Return value: --
+ */
+static int
+getCapMask(prgset_t *set) {
+	//  verify executable permissions - needed for dry run, not blind run
 
 	int capMask = 0;
 
@@ -156,42 +161,185 @@ static int getCapMask(prgset_t *set) {
 	return capMask;
 }
 
-/// prepareEnvironment(): prepares the runtime environment for real-time
-/// operation. Creates CPU shield and configures the affinity of system
-/// processes and interrupts to reduce off-load on RT resources
-///
-/// Arguments: - structure with parameter set
-///
-/// Return value: Error code
-/// 				Only valid if the function returns
-///
-int prepareEnvironment(prgset_t *set) {
-
-	// TODO: CPU number vs CPU enabling mask
-	// TODO: check maxcpu vs last cpu!
-	// Important when many are disabled from the beginning
-	// TODO: numa_allocate_cpumask vs malloc!! -> Allocates the size!!
-
-	/// --------------------
-	/// verify CPU topology and distribution
-	// TODO: global update maxCPU -> max CPU number of last installed CPU, could be higher number than expected
-	int maxcpu = get_nprocs();
-	int maxccpu = get_nprocs_conf(); // numa_num_configured_cpus();
-
-	char cpus[10]; // cpu allocation string
-	char constr[10]; // cpu online string
+/*
+ *  getRRslice(): reads the round-robin slice and or sets defaults for system
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: -
+ */
+static void
+getRRslice(prgset_t * set){
 	char str[100]; // generic string...
 
-	info("This system has %d processors configured and "
-        "%d processors available.",
-        maxccpu, maxcpu);
+	if (SCHED_RR == set->policy && 0 < set->rrtime) {
+		cont( "Set round robin interval to %dms..", set->rrtime);
+		(void)sprintf(str, "%d", set->rrtime);
+		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
+			warn("RR time slice not changed!");
+		}
+	}
+	else{
+		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
+			warn("Could not read RR time slice! Setting to default 100ms");
+			set->rrtime=100; // default to 100ms
+		}
+		else{
+			set->rrtime = atoi(str);
+			info("RR slice is set to %d ms", set->rrtime);
+		}
+	}
+}
+
+/*
+ *  pushCPUirqs(): pushes affine CPU's offline and online again to force-move IRQs
+ *
+ *  Arguments: - structure with parameter set
+ *  		   - bit-size of CPU-masks
+ *
+ *  Return value: -
+ */
+static void
+pushCPUirqs (prgset_t *set, int mask_sz){
+	cont("Trying to push CPU's interrupts");
+	if (!set->blindrun && !set->dryrun)
+	{
+		char fstring[50]; // cpu string
+		// bring all affinity except 0 off-line
+		for (int i=mask_sz-1;i>0;i--) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+				// verify if cpu-freq is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d off-line", i);
+			}
+		}
+		// bring all back online
+		for (int i=1;i<mask_sz;i++) {
+
+			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+				// verify if CPU-frequency is on performance -> set it
+				(void)sprintf(fstring, "cpu%d/online", i);
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+				else
+					cont("CPU%d online", i);
+			}
+		}
+	}
+	else
+		cont("skipped.");
+}
+
+/*
+ * countCGroupTasks : count the number of tasks in the cpu-set docker
+ *
+ * Arguments: - configuration parameter structure
+ *
+ * Return value: int with number of tasks, error if < 0
+ */
+static int
+countCGroupTasks(prgset_t *set) {
+
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(set->cpusetdfileprefix);// -> pointing to global
+	if (d) {
+		int count= 0;
+
+		// CLEAR exclusive flags in all existing containers
+		{
+			char *contp = NULL; // clear pointer
+			while ((dir = readdir(d)) != NULL) {
+			// scan trough docker CGroup, find container IDs
+				if  ((DT_DIR == dir->d_type)
+					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
+					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1+6))) { // \0 + /tasks
+						// copy to new prefix
+						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
+						contp = strcat(contp,"/tasks");
+
+						// Open the file
+						FILE * fp = fopen(contp, "r");
+						char c;
+
+						// Check if file exists
+						if (fp == NULL)
+						{
+							warn("Could not open file %s", contp);
+							return -1;
+						}
+
+						// Extract characters from file and store in character c
+						for (c = getc(fp); c != EOF; c = getc(fp))
+							if (c == '\n') // Increment count if this character is newline
+								count = count + 1;
+
+						// Close the file
+						fclose(fp);
+						printDbg(PFX "The file %s has %d lines\n ", contp, count);
+
+					}
+					else // realloc error
+						err_exit("could not allocate memory!");
+				}
+			}
+			free (contp);
+		}
+		closedir(d);
+		return count;
+	}
+	return -1;
+}
+
+/*
+ *  prepareEnvironment(): prepares the runtime environment for real-time
+ *  operation. Creates CPU shield and configures the affinity of system
+ *  processes and interrupts to reduce off-load on RT resources
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+int
+prepareEnvironment(prgset_t *set) {
 
 	if (numa_available())
 		err_exit( "NUMA is not available but mandatory for the orchestration");
 
+	{	// System CPU info, allocate SMI counters based on CPU numbers
+
+		// numa_num_configured_cpus() seems to be the same, parsing /sys
+		int maxcpu = get_nprocs(); 			// sysconf(_SC_NPROCESSORS_ONLN);
+		int maxccpu = get_nprocs_conf();	// sysconf(_SC_NPROCESSORS_CONF);
+
+		info("This system has %d processors configured and "
+			"%d processors available.",
+			maxccpu, maxcpu);
+
+		smi_counter = calloc (maxccpu, sizeof(long));	// alloc to 0
+		smi_msr_fd 	= calloc (maxccpu, sizeof(int));	// alloc to 0
+		if (!smi_counter || !smi_msr_fd)
+			err_exit("could not allocate memory!");
+	}
+
+	char cpus[CPUSTRLEN]; // cpu allocation string
+	char constr[CPUSTRLEN]; // cpu online string
+	char str[100]; // generic string...
+
 	info("Starting environment setup");
 
-	// verify if SMT is disabled -> now force = disable, TODO: may change to disable only concerned cores
+	/// --------------------
+	/// verify CPU topology and distribution
+
+	// verify if SMT is disabled -> now force = disable
 	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
 		// value read OK
 		if (!strcmp(str, "on")) {
@@ -206,8 +354,6 @@ int prepareEnvironment(prgset_t *set) {
 					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
 			else
 				cont("SMT is now disabled, as required. Refresh configurations..");
-			sleep(1); // leave time to refresh conf buffers -> immediate query fails
-			maxcpu = get_nprocs();	// update
 		}
 		else
 			cont("SMT is disabled, as required");
@@ -220,24 +366,30 @@ int prepareEnvironment(prgset_t *set) {
 	if (!set->affinity_mask)
 		return -1; // return to display help
 
-	smi_counter = calloc (maxccpu, sizeof(long));
-	smi_msr_fd = calloc (maxccpu, sizeof(int));
-	if (!smi_counter || !smi_msr_fd)
-		err_exit("could not allocate memory!");
-
 	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
 		err_exit("could not allocate memory!");
 
+	// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
+	// and avoid to fall into the CPU numbering trap
+	int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
+
 	// get online cpu's
 	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
 		struct bitmask * con = numa_parse_cpustring_all(constr);
-		// mask affinity and invert for system map / readout of smi of online CPUs
-		for (int i=0;i<maxccpu;i++) {
+		if (!con)
+			err_exit("Can not parse online CPUs");
 
-			/* ---------------------------------------------------------*/
-			/* Configure online CPUs - HT, SMT and performance settings */
-			/* ---------------------------------------------------------*/
+		// mask affinity and invert for system map / readout of smi of online CPUs
+		int smi_cpu = 0;
+
+		for (int i=0;i<mask_sz;i++) {
+
+			/*
+			 * ---------------------------------------------------------*
+			 * Configure online CPUs - HT, SMT and performance settings *
+			 * ---------------------------------------------------------*
+			 */
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
 				char fstring[50]; 	// cpu string
@@ -278,7 +430,7 @@ int prepareEnvironment(prgset_t *set) {
 
 				} // end block
 
-				// CPU-IDLE settings, added with Kernel 4_16
+				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
 				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
 				if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 					// value act read ok
@@ -298,7 +450,7 @@ int prepareEnvironment(prgset_t *set) {
 									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
 					}
 					else
-						cont("CPU-freq on CPU%d is set to \"" "n/a" "\" as required", i);
+						cont("CPU power-QoS on CPU%d is set to \"" "n/a" "\" as required", i);
 				}
 				else
 					warn("CPU%d power saving configuration not found. Skipping.", i);
@@ -313,11 +465,14 @@ int prepareEnvironment(prgset_t *set) {
 					if (get_smi_counter(*smi_msr_fd+i, smi_counter+i))
 						err_exit("Could not read SMI counter, errno: %d",
 							0, errno);
+					// next CPU
+					smi_cpu++;
 				}
 
 				// invert affinity for available CPUs only -> for system
 				if (!numa_bitmask_isbitset(set->affinity_mask, i))
 					numa_bitmask_setbit(naffinity, i);
+
 			}
 
 			// if CPU not online
@@ -334,97 +489,16 @@ int prepareEnvironment(prgset_t *set) {
 
 
 	// parse to string
-	if (parse_bitmask (naffinity, cpus))
+	if (parse_bitmask (naffinity, cpus, CPUSTRLEN))
 		err_exit ("can not determine inverse affinity mask!");
 
 	// verify our capability mask
 	capMask = getCapMask(set);
 
-	/// --------------------
-	/// Kernel variables, disable bandwidth management and RT-throttle
-	/// Kernel RT-bandwidth management must be disabled to allow deadline+affinity
-	set->kernelversion = check_kernel();
-
-	if (KV_NOT_SUPPORTED == set->kernelversion)
-		warn("Running on unknown kernel version...YMMVTrying generic configuration..");
-
-	cont( "Set real-time bandwidth limit to (unconstrained)..");
-	// disable bandwidth control and real-time throttle
-	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", "-1", set->dryrun)){
-		warn("RT-throttle still enabled. Limitations apply.");
-	}
-
-	if (SCHED_RR == set->policy && 0 < set->rrtime) { // TODO: maybe change to global as now used for adapt
-		cont( "Set round robin interval to %dms..", set->rrtime);
-		(void)sprintf(str, "%d", set->rrtime);
-		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
-			warn("RR time slice not changed!");
-		}
-	}
-	else{
-		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
-			warn("Could not read RR time slice! Setting to default 100ms");
-			set->rrtime=100; // default to 100ms
-		}
-		else{
-			set->rrtime = atoi(str);
-			info("RR slice is set to %d ms", set->rrtime);
-		}
-	}
-
-	// here.. off-line messes up CSET
-	cont("moving kernel thread affinity");
-	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
-
-	// ksoftirqd -> offline, online again
-	// TODO: dryrun?? print and show ?
-	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun && !set->dryrun)
-	{
-		char fstring[50]; // cpu string
-		// bring all affinity except 0 off-line
-		for (int i=maxccpu-1;i>0;i--) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
-
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d off-line", i);
-			}
-		}
-		// bring all back online
-		for (int i=1;i<maxccpu;i++) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing
-
-				// verify if CPU-frequency is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d online", i);
-			}
-		}
-	}
-	else
-		if (set->dryrun)
-			cont("skipped.");
-
-	// lockup detector
-	// echo 0 >  /proc/sys/kernel/watchdog
-	// or echo 9999 >  /proc/sys/kernel/watchdog
-
-	/// --------------------
-	/// running settings for scheduler
-	// TODO: detect possible CPU alignment cat /proc/$$/cpuset, maybe change it once all is done
+	/* --------------------
+	 * running settings for scheduler
+	 * --------------------
+	 */
 	struct sched_attr attr;
 	pid_t mpid = getpid();
 	if (sched_getattr (mpid, &attr, sizeof(attr), 0U))
@@ -442,15 +516,16 @@ int prepareEnvironment(prgset_t *set) {
 			warn("could not set orchestrator scheduling attributes, %s", strerror(errno));
 	}
 
-	if (AFFINITY_USEALL != set->setaffinity){ // set affinity only if not useall
-		if (numa_sched_setaffinity(mpid, naffinity))
-			warn("could not set orchestrator affinity: %s", strerror(errno));
-		else
-			cont("Orchestrator's PID reassigned to CPU's %s", cpus);
-	}
+	// set affinity only if not use-all
+	if (numa_sched_setaffinity(mpid, naffinity))
+		warn("could not set orchestrator affinity: %s", strerror(errno));
+	else
+		cont("Orchestrator's PID reassigned to CPU's %s", cpus);
 
-	/// --------------------
-	/// Docker CGROUP setup - detection if present
+	/* --------------------
+	 * Docker CGROUP setup - detection if present
+	 * --------------------
+	 */
 
 	{ // start environment detection CGroup
 	struct stat s;
@@ -502,8 +577,10 @@ int prepareEnvironment(prgset_t *set) {
 	}
 	} // end environment detection CGroup
 
-	/// --------------------
-	/// detect NUMA configuration TODO: adapt for full support
+	/* --------------------
+	 * detect NUMA configuration, sets all nodes to active (for now)
+	 * --------------------
+	 */
 	char * numastr = malloc (5);
 	if (!(numastr))
 			err_exit("could not allocate memory!");
@@ -518,103 +595,58 @@ int prepareEnvironment(prgset_t *set) {
 		sprintf(numastr, "0");
 	}
 
-	/// --------------------
-	/// CGroup present, fix CPU-sets of running containers
-	if (AFFINITY_USEALL != set->setaffinity){ // TODO: useall = ignore setting of exclusive
+	/* --------------------
+	 * Kernel variables, disable bandwidth management and RT-throttle
+	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
+	 * --------------------
+	 */
+	set->kernelversion = check_kernel();
 
-		cont( "reassigning Docker's CGroups CPU's to %s exclusively", set->affinity);
+	if (KV_NOT_SUPPORTED == set->kernelversion)
+		warn("Running on unknown kernel version; Trying generic configuration..");
 
-		DIR *d;
-		struct dirent *dir;
-		d = opendir(set->cpusetdfileprefix);// -> pointing to global
-		if (d) {
+	if (resetRTthrottle (set, -1)){
+		// reset failed, let's try a CGroup reset first?? partitioned should work
+		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
+		resetContCGroups(set, constr, numastr);
 
-			// CLEAR exclusive flags in all existing containers
-			{
-				char *contp = NULL; // clear pointer
-				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker CGroup, find container IDs
-					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
-						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							contp[0] = '\0';   // ensures the memory is an empty string
-							// copy to new prefix
-							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
-
-							// remove exclusive!
-							if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-								warn("Can not remove CPU exclusive : %s", strerror(errno));
-							}
-						}
-						else // realloc error
-							err_exit("could not allocate memory!");
-					}
-				}
-				free (contp);
-			}
-
-			// clear Docker CGroup settings and affinity first..
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
-				warn("Can not remove CPU exclusive : %s", strerror(errno));
-			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
-				// global reset failed, try affinity only
-				if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-					warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
-				}
-			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
-			}
-
-			// rewind, stard configuring
-			rewinddir(d);
-
-
-			{
-				char *contp = NULL; // clear pointer
-				/// Reassigning pre-existing containers?
-				while ((dir = readdir(d)) != NULL) {
-				// scan trough docker CGroup, find them?
-					if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
-						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							contp[0] = '\0';   // ensures the memory is an empty string
-							// copy to new prefix
-							contp = strcat(strcat(contp,set->cpusetdfileprefix),dir->d_name);
-
-							if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-								warn("Can not set CPU-affinity");
-							}
-							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set NUMA memory nodes"); // TODO: separate NUMA settings
-							}
-						}
-						else // realloc error
-							err_exit("could not allocate memory!");
-					}
-				}
-				free (contp);
-			}
-
-			// Docker CGroup settings and affinity
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-				warn("Can not set CPU-affinity");
-			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-				warn("Can not set NUMA memory nodes");// TODO: separate NUMA settings
-			}
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive");
-			}
-
-			closedir(d);
-		}
+		// retry
+		resetRTthrottle (set, -1);
 	}
+	getRRslice(set);
 
-	//------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
-	// we know of, so set it up-front
-	// TODO: simplify code using single function for all -> internal CG library?
+	// here.. off-line messes up CSET
+	cont("moving kernel thread affinity");
+	// kernel interrupt threads affinity
+	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+
+
+	if (0 == countCGroupTasks(set))
+		// ksoftirqd -> offline, online again
+		pushCPUirqs(set, mask_sz);
+	else
+		info("Running container tasks present, skipping CPU hot-plug");
+
+	/* --------------------
+	 * CGroup present, fix CPU-sets of running containers
+	 * --------------------
+	 */
+	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
+	resetContCGroups(set, constr, numastr);
+
+
+	// lockup detector
+	// echo 0 >  /proc/sys/kernel/watchdog
+	// or echo 9999 >  /proc/sys/kernel/watchdog
+
+	/*------- CREATE CGROUPs FOR CONFIGURED CONTAINER IDs ------------
+	 * we know of, so set it up-front
+	 * --------------------
+	 */
 	cont("creating CGroup entries for configured CIDs");
 	{
 		char * fileprefix = NULL;
@@ -626,9 +658,8 @@ int prepareEnvironment(prgset_t *set) {
 				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
-				fileprefix[0] = '\0';   // ensures the memory is an empty string
 				// copy to new prefix
-				fileprefix = strcat(strcat(fileprefix,set->cpusetdfileprefix), cont->contid);
+				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
 
 				// try to create directory
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
@@ -641,7 +672,7 @@ int prepareEnvironment(prgset_t *set) {
 					warn("Can not set CPU-affinity");
 				}
 				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
-					warn("Can not set NUMA memory nodes"); // TODO: separte NUMA settings
+					warn("Can not set NUMA memory nodes");
 				}
 			}
 			else //realloc issues
@@ -650,9 +681,10 @@ int prepareEnvironment(prgset_t *set) {
 	}
 
 
-	//------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
-	// system CGroup, possible tasks are moved -> do for all
-
+	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
+	 * system CGroup, possible tasks are moved -> do for all
+	 * --------------------
+	 */
 	char *fileprefix = NULL;
 
 	cont("creating CGroup for system on %s", cpus);
@@ -660,9 +692,8 @@ int prepareEnvironment(prgset_t *set) {
 	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
 		char * nfileprefix = NULL;
 
-		fileprefix[0] = '\0';   // ensures the memory is an empty string
 		// copy to new prefix
-		fileprefix = strcat(strcat(fileprefix,set->cpusetfileprefix), CSET_SYS);
+		fileprefix = strcat(strcpy(fileprefix,set->cpusetfileprefix), CSET_SYS);
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -679,44 +710,55 @@ int prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
-		if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-			warn("Can not set CPU exclusive");
-		}
+		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
+			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+				warn("Can not set CPU exclusive");
+			}
 
 		cont( "moving tasks..");
 
 		if ((nfileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("tasks")+1))) {
-			nfileprefix[0] = '\0';   // ensures the memory is an empty string
 			// copy to new prefix
-			nfileprefix = strcat(strcat(nfileprefix,set->cpusetfileprefix),"tasks");
+			nfileprefix = strcat(strcpy(nfileprefix,set->cpusetfileprefix),"tasks");
 
 			int mtask = 0;
 
-			char pidline[BUFRD];
+			char buf[BUFRD];
 			char *pid, *pid_ptr;
-			int nleft=0, got; // reading left counter
-			// prepare literal and open pipe request
-			int path = open(nfileprefix,O_RDONLY);
+			int nleft=0;	// parsing left counter
+			int ret;
 
-			// Scan through string and put in array, leave one byte extra, needed for strtok to work
-			while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
-				nleft += got;
-				printDbg("%s: Pid string return %s\n", __func__, pidline);
-				pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
-				pid = strtok_r (pidline,"\n", &pid_ptr);
-				while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+			// prepare literal and open pipe request
+			int path = open(nfileprefix, O_RDONLY);
+
+			// Scan through string and put in array, stops on EOF
+			while((ret = read(path, buf+nleft,BUFRD-nleft-1))) {
+
+				if (0 > ret){
+					if (EINTR == errno) // retry on interrupt
+						continue;
+					warn("kernel tasks read error!");
+					break;
+				}
+
+				nleft += ret;
+
+				printDbg("%s: Pid string return %s\n", __func__, buf);
+				buf[nleft] = '\0'; // end of read check, nleft = max 1023;
+				pid = strtok_r (buf,"\n", &pid_ptr);
+				while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 					// DO STUFF
 
 					// file prefix still pointing to CSET_SYS
 					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
-						printDbg( "Warn! Can not move task %s\n", pid);
+						//printDbg( "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}
 					nleft-=strlen(pid)+1;
 					pid = strtok_r (NULL,"\n", &pid_ptr);
 				}
 				if (pid) // copy leftover chars to beginning of string buffer
-					memcpy(pidline, pidline+BUFRD-nleft-1, nleft);
+					memcpy(buf, buf+BUFRD-nleft-1, nleft);
 			}
 
 			close(path);
@@ -739,7 +781,6 @@ sysend: // jumped here if not possible to create system
 	numa_free_cpumask(naffinity);
 	free(numastr);
 
-	// TODO: check if it makes sense to do this before or after starting threads
 	/* lock all memory (prevent swapping) -- do here */
 	if (set->lock_pages) {
 		// find lock configuration - depending on CAPS
@@ -750,15 +791,17 @@ sysend: // jumped here if not possible to create system
 			err_exit_n(errno, "MLockall failed");
 	}
 
+	info("Environment setup complete, starting orchestration...");
 	return 0;
 }
 
-/// cleanupEnvironment(): Cleanup of some system settings before exiting
-///
-/// Arguments: - structure with parameter set
-///
-/// Return value: -
-///
+/*
+ *  cleanupEnvironment(): Cleanup of some system settings before exiting
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: -
+ */
 void cleanupEnvironment(prgset_t *set){
 
 	// reset and read counters
@@ -778,6 +821,8 @@ void cleanupEnvironment(prgset_t *set){
 				close(*smi_msr_fd+i);
 			}
 	}
+
+	freeTracer(&rHead, &aHead); // free
 
 	// unlock memory pages
 	if (set->lock_pages)

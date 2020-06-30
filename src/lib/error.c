@@ -5,6 +5,7 @@
  * Advanced Programming in the UNIX Environment 2nd ed.
  */
 #include "error.h"
+#include <stdlib.h>
 
 /* print an error message and return */
 void err_msg(char *fmt, ...)

@@ -14,10 +14,10 @@
 #include <signal.h> // for SIGs, handling in main, raise in update
 
 // Custom includes
-#include "parse_config.h" // header file of configuration parser
-#include "rt-utils.h"	// trace and other utils
-#include "kernutil.h"	// generic kernel utilities
-#include "error.h"		// error and std error print functions
+#include "parse_config.h"	// header file of configuration parser
+#include "kernutil.h"		// generic kernel utilities
+#include "error.h"			// error and std error print functions
+#include "cmnutil.h"		// common definitions and functions
 
 // Things that should be needed only here
 #include <sys/mman.h>		// memory lock
@@ -25,27 +25,31 @@
 
 /* --------------------------- Global variables for all the threads and programs ------------------ */
 
-containers_t * contparm; // container parameter settings
-prgset_t * prgset; // program settings structure
+// containers has no lock-> verify single access only / RO
+containers_t * contparm;	// container parameter settings
+// prgset has no lock -> verify single access only / RO
+prgset_t * prgset; 			// program settings structure
 
 #ifdef DEBUG
 // debug output file
 	FILE  * dbg_out;
 #endif
+
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t dataMutex;
 // head of pidlist - PID runtime and configuration details
 node_t * nhead = NULL;
 
-// TODO configuration read file -- TEMP public, -> then change to static
-char * config = "config.json";
+// mutex to avoid read while updater fills or empties existing threads
+pthread_mutex_t resMutex; // UNUSED for now
+// heads of resource allocations for CPU and Tasks
+resAlloc_t * aHead = NULL;
+resTracer_t * rHead = NULL;
 
 // -------------- LOCAL variables for all the functions  ------------------
 
-// TODO:  implement fifo thread as in cyclic-test for readout
-//static pthread_t fifo_threadid;
-//static char fifopath[MAX_PATH];
-static int adaptive = 0;
+// configuration read file
+static char * config = "config.json";
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t main_stop;
@@ -77,8 +81,9 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-A                         activate Adaptive Static Schedule (ASS)\n"
+	       "-A       --adaptive        activate Adaptive Static Schedule (ASS)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
+	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
@@ -90,7 +95,7 @@ static void display_help(int error)
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
 	       "-f                         force execution with critical parameters\n"
-//	       "-F       --fifo=<path>     create a named pipe at path and write stats to it\n"
+	       "-F       --ftrace          start run-time analysis using kernel fTrace\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
 	       "-k                         keep track of ended PIDs\n"
 	       "-l LOOPS --loops=LOOPS     number of loops for container check: default=%d\n"
@@ -107,14 +112,9 @@ static void display_help(int error)
 	       "         --rr=RRTIME       set a SCHED_RR interval time in ms, default=100\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
+	       "-S       --system          activate Dynamic System Schedule (DSS), requires \n"
 #ifdef ARCH_HAS_SMI_COUNTER
                "         --smi             Enable SMI counting\n"
-#endif
-//	       "-t NUM   --threads=NUM     number of threads for resource management\n"
-//	       "                           default = 1 (not changeable for now)\n"
-	       "-u       --unbuffered      force unbuffered output for live processing (FIFO)\n"
-#ifdef NUMA
-//	       "-U       --numa            force numa distribution of memory nodes, RR\n"
 #endif
 #ifdef DEBUG
 	       "-v       --verbose         verbose output for debug purposes\n"
@@ -135,19 +135,18 @@ static void display_help(int error)
 }
 
 enum option_values {
-	OPT_AFFINITY=1, OPT_BIND, OPT_CLOCK, OPT_DFLAG,
-	OPT_FIFO, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
+	OPT_AFFINITY=1, OPT_ADAPTIVE, OPT_BIND, OPT_BLIND, OPT_CLOCK,
+	 OPT_DFLAG, OPT_FTRACE, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
 	OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET, 
-	OPT_RRTIME, OPT_THREADS, OPT_UNBUFFERED, OPT_RTIME, 
-	OPT_SMI, OPT_VERBOSE, OPT_WCET, OPT_POLICY, 
-	OPT_HELP, OPT_VERSION
+	OPT_RRTIME, OPT_RTIME, OPT_SYSTEM, OPT_SMI, OPT_VERBOSE,
+	OPT_WCET, OPT_POLICY, OPT_HELP, OPT_VERSION
 };
 
 /// process_options(): Process commandline options 
 ///
 /// Arguments: - structure with parameter set
 ///			   - passed command line variables
-///			   - number of cpus
+///			   - number of CPUs
 ///
 /// Return value: -
 static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus)
@@ -164,17 +163,18 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	parse_config_set_default(set);
 
 	for (;;) {
-		//option_index = 0;
 		/*
 		 * Options for getopt
 		 * Ordered alphabetically by single letter name
 		 */
 		static struct option long_options[] = {
 			{"affinity",         required_argument, NULL, OPT_AFFINITY},
+			{"adaptive",         no_argument,       NULL, OPT_ADAPTIVE },
 			{"bind",     		 no_argument,       NULL, OPT_BIND },
+			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"dflag",            no_argument,		NULL, OPT_DFLAG },
-			{"fifo",             required_argument, NULL, OPT_FIFO },
+			{"ftrace",           no_argument,		NULL, OPT_FTRACE },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
 			{"mlockall",         no_argument,       NULL, OPT_MLOCKALL },
@@ -182,10 +182,9 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"quiet",            no_argument,       NULL, OPT_QUIET },
 			{"runtime",          required_argument, NULL, OPT_RTIME },
 			{"rr",               required_argument, NULL, OPT_RRTIME },
-			{"threads",          required_argument, NULL, OPT_THREADS },
-			{"unbuffered",       no_argument,       NULL, OPT_UNBUFFERED },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
+			{"system",           no_argument,       NULL, OPT_SYSTEM },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
@@ -193,7 +192,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s::t:uUvw:",
+		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:Svw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -209,6 +208,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				set->affinity = argv[optind];
 				optargs++;
 				set->setaffinity = AFFINITY_SPECIFIED;
+			// flag -a with no range = all
 			} else {
 				set->affinity = malloc(14);
 				if (!set->affinity){
@@ -220,12 +220,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			}
 			break;
 		case 'A':
-			adaptive = 1;
+		case OPT_ADAPTIVE:
+			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
 			break;
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
 		case 'B':
+		case OPT_BLIND:
 			set->blindrun = 1; break;
 		case 'c':
 		case OPT_CLOCK:
@@ -247,8 +249,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			if (!set->cpusetdfileprefix)
 				err_exit("could not allocate memory!");
 
-			*set->cpusetdfileprefix = '\0'; // set first chat to null
-			set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+			set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 
 			break;
 		case 'd':
@@ -259,10 +260,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'f':
 			set->force = 1; break;
 		case 'F':
-		case OPT_FIFO:
-			set->use_fifo = 1;
-			//TODO: strncpy(fifopath, optarg, strlen(optarg));
-			break;
+		case OPT_FTRACE:
+			set->ftrace = 1; break;
 		case 'i':
 		case OPT_INTERVAL:
 			set->interval = atoi(optarg); break;
@@ -291,7 +290,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			if (SCHED_FIFO != set->policy && SCHED_RR != set->policy) {
 				warn(" policy and priority don't match: setting policy to SCHED_FIFO");
 				set->policy = SCHED_FIFO;
-}
+			}
 			break;
 		case 'P':
 			set->psigscan = 1; break;
@@ -326,9 +325,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				optargs++;
 			}
 			break;
-		case 'u':
-		case OPT_UNBUFFERED:
-			setvbuf(stdout, NULL, _IONBF, 0); break;
+		case 'S':
+		case OPT_SYSTEM:
+			set->sched_mode = MAX(set->sched_mode, SM_DYNSYSTEM);
+			break;
 #ifdef DEBUG
 		case 'v':
 		case OPT_VERBOSE: 
@@ -349,7 +349,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_HELP:
 			display_help(0); break;
 		case OPT_POLICY:
-			if (string_to_policy(optarg, &set->policy) == 0)
+			if (optarg == NULL
+				|| string_to_policy(optarg, &set->policy) == 0)
 				err_exit("Invalid policy %s", optarg);
 
 			break;
@@ -390,7 +391,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		// parse json configuration
 		parse_config_file(config, set, contparm);
 
-	if (set->smi) { // TODO: verify this statements, I just put them all
+	if (set->smi) { // verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)
 			err_exit("SMI counter relies on thread affinity");
 
@@ -449,7 +450,7 @@ int main(int argc, char **argv)
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
 	(void)printf("This software comes with no warranty. Please be careful\n");
 
-	{ // preprocessing and configuration readout
+	{ // pre-processing and configuration readout
 		prgset_t *tmpset;
 		if (!(tmpset = malloc (sizeof(prgset_t))))
 			err_exit("Unable to allocate memory");
@@ -464,11 +465,12 @@ int main(int argc, char **argv)
 		prgset = tmpset;
 	}
 
-	if (adaptive){
+	adaptPrepareSchedule(); // prepares masks, tracers and alike
+	if (SM_ADAPTIVE <= prgset->sched_mode
+			&& SM_DYNSIMPLE >= prgset->sched_mode){
 		// adaptive scheduling active? Clean prepare, execute, free
-		adaptPrepareSchedule();
+		adaptPlanSchedule();
 		adaptExecute();
-		adaptFreeTracer(); // free as we don't need it for the rest of the process
 	}
 
 	pthread_t thrManage, thrUpdate;
@@ -491,7 +493,6 @@ int main(int argc, char **argv)
 	(void)pthread_setname_np(thrUpdate, "update");
 #endif
 
-	// TODO: consider moving these two before the thread creation -> inheritance
 	{ // setup interrupt handler block
 		struct sigaction act;
 
@@ -501,12 +502,12 @@ int main(int argc, char **argv)
 		act.sa_sigaction = &inthand; // these are a union, do not assign both, -> first set null, then value
 		act.sa_flags = SA_SIGINFO;
 
-		/* blocking signal set */
+		/* blocking signal set during handler */
 		sigemptyset(&act.sa_mask);
 		sigaddset(&act.sa_mask, SIGINT);
 		sigaddset(&act.sa_mask, SIGTERM);
 		sigaddset(&act.sa_mask, SIGQUIT);
-		sigaddset(&act.sa_mask, SIGUSR1);
+		sigaddset(&act.sa_mask, SIGHUP);
 
 		act.sa_restorer = NULL;
 
@@ -520,15 +521,15 @@ int main(int argc, char **argv)
 	{ // signal blocking set
 
 		 sigset_t set;
-	   /* Block SIGQUIT and SIGUSR1; other threads created by main()
+	   /* Block SIGQUIT and SIGHUP; other threads created by main()
 		  will inherit a copy of the signal mask. */
 
 	   // allow all to be handled by Main, except
-	   sigemptyset(&set);
-	   sigaddset(&set, SIGQUIT);	// used in manage thread
-	   sigaddset(&set, SIGHUP);		// used in docker_link
-	   if (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))
-		{ // INT signal, stop from main prg
+	   if ( ((sigemptyset(&set)))
+			   || ((sigaddset(&set, SIGQUIT)))	// used in manage thread
+			   || ((sigaddset(&set, SIGHUP)))	// used in docker_link
+			   || (0 != pthread_sigmask(SIG_BLOCK, &set, NULL))){
+		   // INT signal, stop from main prg
 			perror ("Setup of sigmask failed");
 			exit(EXIT_FAILURE); // exit the software, not working
 		}
@@ -555,5 +556,5 @@ int main(int argc, char **argv)
     info("exiting safely");
     cleanupEnvironment(prgset);
 
-    return EXIT_SUCCESS; // TODO: verify correct return code
+    return EXIT_SUCCESS;
 }

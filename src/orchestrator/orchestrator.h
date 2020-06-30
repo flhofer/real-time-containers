@@ -1,7 +1,7 @@
 #include "orchdata.h"	// grobal memory structures and maniputlation functions
 
-#ifndef __SCHEDSTAT_H_
-	#define __SCHEDSTAT_H_
+#ifndef ORCHESTRATOR_H_
+	#define ORCHESTRATOR_H_
 
 	#define PRGNAME "DC (adaptive) static orchestrator"
 	#ifndef VERSION
@@ -18,4 +18,8 @@
 	extern pthread_mutex_t dataMutex; // data access mutex
 	extern node_t * nhead; // head of pidlist - PID runtime and configuration details
 
+	// resource allocation tracing
+	extern pthread_mutex_t resMutex; // trace access mutex UNUSED for now
+	extern resAlloc_t * aHead; // heads of resource allocations for CPU and Tasks
+	extern resTracer_t * rHead;
 #endif

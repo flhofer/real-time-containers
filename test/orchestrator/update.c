@@ -25,16 +25,12 @@
 #endif
 
 static void orchestrator_update_setup() {
-	prgset = malloc (sizeof(prgset_t));
+	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
-	prgset->affinity= "0"; // todo, detect
+	prgset->affinity= "0";
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
-
-	prgset->logdir = strdup("./");
-	prgset->logbasename = strdup("orchestrator.txt");
-	prgset->logsize = 0;
 	prgset->ftrace = 1;
 
 	// signatures and folders
@@ -48,36 +44,18 @@ static void orchestrator_update_setup() {
 	prgset->cpusystemfileprefix = strdup("/sys/devices/system/cpu/");
 
 	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
-	*prgset->cpusetdfileprefix = '\0'; // set first chat to null
-	prgset->cpusetdfileprefix = strcat(strcat(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
+	prgset->cpusetdfileprefix = strcat(strcpy(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
 
-	contparm = malloc (sizeof(containers_t));
-	contparm->img = NULL; // locals are not initialized
-	contparm->pids = NULL;
-	contparm->cont = NULL;
-	contparm->nthreads = 0;
-	contparm->num_cont = 0;
+	contparm = calloc (1, sizeof(containers_t));
 }
 
 static void orchestrator_update_teardown() {
-	free(prgset->logdir);
-	free(prgset->logbasename);
+	// free memory
+	while (nhead)
+		node_pop(&nhead);
 
-	// signatures and folders
-	free(prgset->cont_ppidc);
-	free(prgset->cont_pidc);
-	free(prgset->cont_cgrp);
-
-	// filepaths virtual file system
-	free(prgset->procfileprefix);
-	free(prgset->cpusetfileprefix);
-	free(prgset->cpusystemfileprefix);
-
-	free(prgset->cpusetdfileprefix);
-
-	free(prgset);
-
-	free(contparm);
+	freePrgSet(prgset);
+	freeContParm(contparm);
 }
 
 /// TEST CASE -> Stop update thread when setting status to -1
@@ -117,6 +95,7 @@ START_TEST(orchestrator_update_findprocs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
+	prgset->loops = 10; // shorten scan time
 	
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
@@ -137,11 +116,10 @@ START_TEST(orchestrator_update_findprocs)
 	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
 	sleep(1);
 
-	// verify pids
+	// verify PIDs
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid3);
 
-	// TODO: verify if threads remain defunct
 	pclose(fd1); // close pipe of sleep instance = HUP
 	pclose(fd3); // close pipe of sleep instance = HUP
 
@@ -200,6 +178,7 @@ START_TEST(orchestrator_update_rscs)
 	// push sig to config	
 	contparm->rscs = malloc (sizeof(struct sched_rscs));
 	contparm->rscs->affinity=0;
+	contparm->rscs->affinity_mask = parse_cpumask("0");
 	contparm->rscs->rt_timew=95000;
 	contparm->rscs->rt_time=100000;
 	contparm->rscs->mem_dataw=100;
@@ -225,6 +204,7 @@ START_TEST(orchestrator_update_rscs)
 		contparm->pids->psig = strdup(*pidsig);
 		contparm->pids->attr = contparm->attr;
 		contparm->pids->rscs = contparm->rscs;
+		contparm->pids->status |= MSK_STATSHAT | MSK_STATSHRC;
 		pidsig++;
 	}
 
@@ -296,13 +276,6 @@ START_TEST(orchestrator_update_rscs)
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
 
-	// free
-	while (contparm->pids) {
-		free(contparm->pids->psig);
-		pop((void **)&contparm->pids);
-	}
-	free(contparm->rscs);
-	free(contparm->attr);
 }
 END_TEST
 

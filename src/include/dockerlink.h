@@ -17,7 +17,7 @@
 	extern pthread_mutex_t containerMutex; // data access mutex
 	extern contevent_t * containerEvent; // data
 
-	void *thread_watch_docker(void *arg);
+	void *dlink_thread_watch(void *arg);
 
 #endif
 

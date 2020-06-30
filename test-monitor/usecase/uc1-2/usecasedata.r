@@ -1,6 +1,7 @@
 # Set the working directory
-setwd("./logs/") # temp
+setwd("./logs/")
 library(ggplot2)
+library(dplyr)
 library(viridis)
 
 stringValue <-function(line) {
@@ -28,7 +29,7 @@ loadData <- function(fName) {
 	# init values
 	start <- 1
 	plots <- list()
-	plot  <- list("Test" = -1, "FPS"= -1, "dataFPS"=NULL, "dataT"=NULL)
+	plot  <- list(name=fName, "Test" = -1, "FPS"= -1, "dataFPS"=NULL, "dataT"=NULL)
 	min=9999999
 	max = -1
 	avg = -1
@@ -54,7 +55,6 @@ loadData <- function(fName) {
 			if (( (as.integer(line[2]) != plot$Test) || (as.integer(line[3]) != plot$FPS)) &&
 				(plot$Test > -1)) {
 
-#				print(plot)
 				# new test data, append existing results to list, use test number for index
 				plots[[k]] <- plot
 				k <- k + 1
@@ -84,9 +84,9 @@ loadData <- function(fName) {
 					"rows"=NULL, "expMin"=-1, "expMax"=1, "bins"=-1, "res"=-1)
 
 			# parse min max avg
-			dataD$min <- as.integer(stringValue(linn[act+3])[2])
-			dataD$max <- as.integer(stringValue(linn[act+4])[2])
-			dataD$avg <- as.integer(stringValue(linn[act+5])[2])
+			dataD$min <- as.double(stringValue(linn[act+3])[2])
+			dataD$max <- as.double(stringValue(linn[act+4])[2])
+			dataD$avg <- as.double(stringValue(linn[act+5])[2])
 			act <- act +6		
 
 			# find beginning of table
@@ -118,13 +118,13 @@ loadData <- function(fName) {
 			# assign to set in data structure
 			if (identical(dataD$unit, "FPS")) {
 				plot$dataFPS <- dataD
-			}
-			else {
-				plot$dataT <- dataD
 				# compare min max avg
 				min = min(min,dataD$min)
 				max = max(max,dataD$max)
 				avg = max(avg,dataD$avg)	
+			}
+			else {
+				plot$dataT <- dataD
 			}
 
 		# once for is finished, increase start
@@ -146,9 +146,16 @@ plotData<-function(directory) {
 	write(paste0("Proceeding with directory ", directory), stderr())
 
 	# init
-	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) 
-	xmin <- 250
-	xmax <- 0
+	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) +
+			scale_fill_viridis_d() +
+	 		ylim (c(0,500)) +
+	 		scale_x_continuous(trans='log10',limits=c(10,100000)) +
+			labs(x=expression(paste("Frame delivery delays [", mu, "s]")), y="Occurrence count", fill="Instance") 
+	gplot2 <- ggplot(mapping= aes(x=bStart, y=Count)) +
+		scale_fill_viridis_d() +
+ 		labs(x=paste("Processing frame rate, FPS"), y="Occurrence count", fill="Instance") +
+		ylim (c(0,1000)) +
+		xlim (c(6,10)) 
 
 	files <- dir(directory, pattern= "(^workerapp[0-9](\\.|-fifo)*log)")
 
@@ -159,21 +166,117 @@ plotData<-function(directory) {
 
 		write(paste0("Size of dataset for ", files[f], " iter ", f, " :", length(histLoad)), stderr())
 
-		if (length(histLoad) > 0) {
-			xmin <- min(xmin, histLoad[[1]]$dataT$rows$bStart)
-			xmax <- max(xmax, histLoad[[1]]$dataT$rows$bStart)
+		k <- 1
 
-			gplot <- gplot + geom_line(data = histLoad[[1]]$dataT$rows,stat="identity", color=col[f]) #width=histLoad[[1]]$dataT$res, 
-		}
+		for (k in 1:length(histLoad)) {
+				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataT$rows,stat="identity", width = 0.1) 
+				gplot2 <- gplot2 + geom_bar(data = histLoad[[k]]$dataFPS$rows,stat="identity", width = 0.1) 
+			}
 	}	  
 
 	directory <- (gsub("/", "_", directory))
-	pdf(file= paste0("Hist_", directory,".pdf"), width = 10, height = 10)
-	gplot <- gplot + labs(x='occurrence of exeution value') +
-		     scale_x_continuous(trans='log10') 
-	#		 xlim(c(xmin,xmax)) 
-
+	png(file= paste0(directory,"fdelay.png"), width = 600, height = 500)
 	print (gplot)
+	dev.off()
+
+	png(file= paste0(directory,"FPS.png"), width = 600, height = 500)
+	print (gplot2)
+	dev.off()
+}
+
+loadDelays<-function(fName){
+	#Function, load data from text file for average plots 
+
+	# Read text into R
+	#write(fName, stderr())
+
+	if (!file.exists(fName) || file.info(fName)$size == 0) {
+		# break here if file does not exist
+		records <- data.frame ()
+		return(records)
+	}
+	#TODO: add protection big size
+
+
+	# read string buffer
+	linn <- readLines(fName)
+	#print(head(linn))
+
+	# init values
+	start <- 1
+	plot  <- list("name"=fName, "nPeriods" = -1, "nOverruns"= -1, "nViolations"=-1, "dataD"=NULL)
+	k <- 1
+
+	# find starting test entry
+	while(length(linn) > start && !startsWith(linn[start], 'Total Number'))
+		start <- start+1
+
+	# end of parsing buffer?
+	if (length(linn) <= start) 
+		break
+
+	# save to the actual parsing position variable
+	act=start
+
+	# parse min max avg
+	plot$nPeriods <- as.double(stringValue(linn[act])[5])
+	plot$nOverruns <- as.double(stringValue(linn[act+1])[3])
+	plot$nViolations <- as.double(stringValue(linn[act+2])[4])
+
+		# create data structure for histogram
+	plot$dataD<- list("run" = -1)
+
+	act=act+4
+	tstart=act
+
+	# parse hstrogram values..
+
+	# find end of this table of values
+	while(length(linn) > act && !startsWith(linn[act], '------'))
+		act=act+1
+
+	#counters
+	tend=act-1
+
+	# Transform into table, filter and add names
+	records = read.table(text= (gsub('[^0-9. ]' ,'', linn[tstart:tend])), header=FALSE)
+	plot$dataD <- data.frame ("run"=records$V1)
+			   
+	# compare min max avg
+	min = min(plot$dataD$run)
+	max = max(plot$dataD$run)
+	avg = mean(plot$dataD$run)	
+
+	write(paste0(fName, ";", min, ";", max, ";", avg), stdout())
+
+	return(plot)
+}
+
+readDeadline<-function(directory) {
+	write(paste0("Deadline read directory ", directory), stderr())
+
+	# detect files
+	files <- dir(directory, pattern= "(^workerapp[0-9]-deadline.*log)")
+	# Combine results of test batches
+	delays <- lapply (paste0(directory, "/", files), loadDelays)
+	# Create frames
+	delays <- lapply( delays, function(x) data.frame(name=rep(x$name), dataD=x$dataD$run))
+	# Merge
+	delays <- Reduce(function(...) merge(..., all=T), delays)
+	# filter name tags, reduce count in 1000ths
+	delays[,1]<- gsub(".*(workerapp[0-9]).*", "\\1", delays[,1]) 
+	delays[,2]<- delays[,2]/1000 
+
+	directory <- (gsub("/", "_", directory))
+	png(file= paste0(directory,"delay.png"), width = 700, height = 500)
+
+	print (ggplot(delays, aes(x=dataD)) +
+		geom_histogram(aes(fill=name)) +
+		labs(x=expression(paste("Periodic task runtime values [", mu, "s]")), y="Occurrence count", fill="Instance") +
+		xlim (c(400,3000)) +
+		ylim (c(0,500)) +
+		scale_fill_viridis_d()
+	)
 	dev.off()
 }
 
@@ -184,36 +287,27 @@ sink("stats-maxmin.csv")
 
 write("FileName;worst min; - max; - avg", stdout())
 
-col<- viridis(8)
+# df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
+# write(rownames(df)[which.max(df$mtime)], stderr())
 
-df <- df <- file.info(dir(".", pattern= "(^UC1|TEST[0-9]_1$)"))
-write(rownames(df)[which.max(df$mtime)], stderr())
-
-df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
-write(rownames(df)[which.max(df$mtime)], stderr())
+# df <- df <- file.info(dir(".", pattern= "(^UC2|TEST[0-9]_2$)"))
+# write(rownames(df)[which.max(df$mtime)], stderr())
 
 # Find all directories with pattern.. UC1
 dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
-
 # Combine results of test batches
-for (d in seq(along=dirs)){
-	plotData(dirs[d])
-}
+sapply(dirs, function(x) plotData(x) )
 
 # Find all directories with pattern.. UC1
 dirs <- dir(".", pattern= "(^UC2|TEST[0-9]_2$)")
+# Find all directories with pattern.. Test
+dirs2 <- dir(dirs, pattern= "^Test")
 
 # Combine results of test batches
-for (d in seq(along=dirs)){
-	# Find all directories with pattern.. Test
-	dirs2 <- dir(dirs[d], pattern= "^Test")
+sapply( paste0(dirs, "/", dirs2), function(x) plotData(x))
+sapply( paste0(dirs, "/", dirs2), function (x) readDeadline(x))
 
-	# Combine results of test batches
-	for (e in seq(along=dirs2)){
-		plotData(paste0(dirs[d], "/",dirs2[e]))
-	}
-}
-
-## back to the console
+# back to the console
 sink(type="output")
+
 

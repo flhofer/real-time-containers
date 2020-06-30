@@ -13,75 +13,25 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// dir entry structure and expl
 #include <errno.h>			// error numbers and strings
-#include <numa.h>			// Numa node identification
+#include <time.h>			// constants and functions for clock
 
 // Custom includes
 #include "orchestrator.h"
 
-#include "orchdata.h"	// memory structure to store information
-#include "rt-utils.h"	// trace and other utils
 #include "kernutil.h"	// generic kernel utilities
 #include "dockerlink.h" // connection to docker runtime
 #include "error.h"		// error and stderr print functions
-
-// Should be needed only here
-#include <limits.h>
-#include <sys/resource.h>
-#include <sys/vfs.h>
+#include "cmnutil.h"	// common definitions and functions
+#include "resmgnt.h"	// resource management for PIDs and Containers
 
 // locally globals variables used here ->
 static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
-static int clocksources[] = {
-	CLOCK_MONOTONIC,
-	CLOCK_REALTIME,
-	CLOCK_PROCESS_CPUTIME_ID,
-	CLOCK_THREAD_CPUTIME_ID
-};
 
-#define USEC_PER_SEC		1000000
-#define NSEC_PER_SEC		1000000000
-#define TIMER_RELTIME		0
-
-// Included in kernel 4.13
-#ifndef SCHED_FLAG_RECLAIM
-	#define SCHED_FLAG_RECLAIM		0x02
-#endif
-
-// Included in kernel 4.16
-#ifndef SCHED_FLAG_DL_OVERRUN
-	#define SCHED_FLAG_DL_OVERRUN		0x04
-#endif
-
-// for MUSL based systems
-#ifndef RLIMIT_RTTIME
-	#define RLIMIT_RTTIME 15
-#endif
-#ifndef pthread_yield
-	#define pthread_yield sched_yield
-#endif
-
-// TODO: standardize printing
+#undef PFX
 #define PFX "[update] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
 
 // declarations 
 static void scanNew();
-
-/// tsnorm(): verifies timespec for boundaries + fixes it
-///
-/// Arguments: pointer to timespec to check
-///
-/// Return value: -
-static inline void tsnorm(struct timespec *ts)
-{
-	while (ts->tv_nsec >= NSEC_PER_SEC) {
-		ts->tv_nsec -= NSEC_PER_SEC;
-		ts->tv_sec++;
-	}
-}
 
 /// cmpPidItem(): compares two pidlist items for Qsort
 ///
@@ -90,156 +40,6 @@ static inline void tsnorm(struct timespec *ts)
 /// Return value: difference PID
 static int cmpPidItem (const void * a, const void * b) {
 	return (((node_t *)b)->pid - ((node_t *)a)->pid);
-}
-
-/// setPidRlimit(): sets given resource limits
-///
-/// Arguments: - PID node
-///			   - soft resource limit
-///			   - hard resource limit
-///			   - resource limit tag
-///			   - resource limit string-name for prints
-///
-/// Return value: ---
-static inline void setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
-
-	struct rlimit rlim;		
-	if (-1 != rls || -1 != rlh) {
-		if (prlimit(pid, type, NULL, &rlim))
-			err_msg_n(errno, "getting %s for PID %d", name,
-				pid);
-		else {
-			if (-1 != rls)
-				rlim.rlim_cur = rls;
-			if (-1 != rlh)
-				rlim.rlim_max = rlh;
-			if (prlimit(pid, type, &rlim, NULL ))
-				err_msg_n(errno,"setting %s for PID %d", name,
-					pid);
-			else
-				cont("PID %d %s set to %d-%d", pid, name,
-					rlim.rlim_cur, rlim.rlim_max);
-		}
-	}
-} 
-
-// TODO: might need to move these to manage
-
-/// setPidResources(): set PID resources at first detection
-/// Arguments: - pointer to PID item (node_t)
-///
-/// Return value: --
-///
-static void setPidResources(node_t * node) {
-
-	struct bitmask * cset = numa_allocate_cpumask();
-
-	// parameters unassigned
-	if (!prgset->quiet)
-		(void)printf("\n");
-	if (node->pid)
-		info("new PID in list %d", node->pid);
-	else if (node->contid)
-		info("new container in list '%s'", node->contid);
-	else
-		warn("SetPidResources: Container not specified");
-
-	if (!node_findParams(node, contparm)) { // parameter set found in list -> assign and update
-		// pre-compute affinity
-		if (0 <= node->param->rscs->affinity) {
-			// CPU affinity defined to one CPU? set!
-			(void)numa_bitmask_clearall(cset);
-			(void)numa_bitmask_setbit(cset, node->param->rscs->affinity & ~(SCHED_FAFMSK)); // TODO: ?? FAFMSK
-		}
-		else
-			// CPU affinity to all enabled CPU's
-			copy_bitmask_to_bitmask(prgset->affinity_mask, cset);
-
-
-		if (!node->psig) 
-			node->psig = node->param->psig;
-		// TODO: fix once containers are managed properly
-		if (!node->contid && node->param->cont)
-			node->contid = node->param->cont->contid;
-
-		// TODO: track failed scheduling update?
-
-		// TODO: change to consider multiple PIDs with different affinity
-		// update CGroup setting of container if in CGROUP mode
-		if (DM_CGRP == prgset->use_cgroup) {
-			if (0 <= (node->param->rscs->affinity)) {
-
-				char *contp = NULL;
-				char affinity[11];
-				(void)sprintf(affinity, "%d", node->param->rscs->affinity & ~(SCHED_FAFMSK));
-
-				cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
-				if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
-					contp[0] = '\0';   // ensures the memory is an empty string
-					// copy to new prefix
-					contp = strcat(strcat(contp,prgset->cpusetdfileprefix), node->contid);		
-					
-					if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-						warn("Can not set CPU-affinity");
-					}
-				}
-				else 
-					warn("malloc failed!");
-
-				free (contp);
-			}
-		}
-		// should it be else??
-		else {
-
-			// add PID to docker CGroup
-			char pid[6]; // PID is 5 digits + \0
-			(void)sprintf(pid, "%d", node->pid);
-
-			if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
-				printDbg( "Warn! Can not move task %s\n", pid);
-			}
-
-			// Set affinity
-			if (numa_sched_setaffinity(node->pid, cset))
-				err_msg_n(errno,"setting affinity for PID %d",
-					node->pid);
-			else
-				cont("PID %d reassigned to CPU%d", node->pid, 
-					node->param->rscs->affinity);
-		}
-
-		if (0 == node->pid) // PID 0 = detected containers
-			return;
-
-		// only do if different than -1, <- not set values = keep default
-		if (SCHED_NODATA != node->param->attr->sched_policy) {
-			cont("Setting Scheduler of PID %d to '%s'", node->pid,
-				policy_to_string(node->param->attr->sched_policy));
-
-			// set the flag right away, if set..
-			if ((prgset->setdflag) 
-				&& (SCHED_DEADLINE == node->param->attr->sched_policy) 
-				&& (KV_416 <= prgset->kernelversion)) {
-
-				cont("Set dl_overrun flag for PID %d", node->pid);		
-				node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
-			}			
-
-			if (sched_setattr (node->pid, node->param->attr, 0U))
-				err_msg_n(errno, "setting attributes for PID %d",
-					node->pid);
-		}
-		else
-			cont("Skipping setting of scheduler for PID %d", node->pid);  
-
-		// controlling resource limits
-		setPidRlimit(node->pid, node->param->rscs->rt_timew,  node->param->rscs->rt_time,
-			RLIMIT_RTTIME, "RT-Limit" );
-
-		setPidRlimit(node->pid, node->param->rscs->mem_dataw,  node->param->rscs->mem_data,
-			RLIMIT_DATA, "Data-Limit" );
-	}
 }
 
 /// getContPids(): utility function to get PID list of interrest from Cgroups
@@ -252,56 +52,54 @@ static void getContPids (node_t **pidlst)
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
 	if (d) {
-		char *fname = NULL; // clear pointer again
-		char pidline[BUFRD];
-		char *pid, *pid_ptr;
-		char kparam[15]; // pid+/cmdline read string
+		char *fname = NULL;
+		char buf[BUFRD];	// read buffer
+		char *pid, *pid_ptr;	// strtok_r variables
 
-		printDbg( "\nContainer detection!\n");
+		printDbg( "\n" PFX "Container detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
-					fname[0] = '\0';   // ensures the memory is an empty string
 					// copy to new prefix
-					fname = strcat(strcat(fname,prgset->cpusetdfileprefix),dir->d_name);
+					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
 					fname = strcat(fname,"/tasks");
 
 					// prepare literal and open pipe request
-					int path = open(fname,O_RDONLY);
+					int fd = open(fname, O_RDONLY);
 
+					int nleft = 0;	// number of bytes left to parse
+					int	ret;		// return value number of bytes read, or error code
 					// Scan through string and put in array
-					int nleft = 0, got;
-					while((got = read(path, pidline+nleft,BUFRD-nleft-1))) {
-						nleft += got;
-						printDbg("%s: PID string return %s\n", __func__, pidline);
-						pidline[nleft] = '\0'; // end of read check, nleft = max 1023;
-						pid = strtok_r (pidline,"\n", &pid_ptr);	
-						printDbg("%s: processing ", __func__);
-						while (NULL != pid && nleft && (6 < (&pidline[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
+					while((ret = read(fd, buf+nleft,BUFRD-nleft-1))) {
+
+						if (0 > ret){ // error..
+							if (EINTR == errno) // retry on interrupt
+								continue;
+							warn("kernel tasks read error!");
+							break;
+						}
+
+						// read success, update bytes to parse
+						nleft += ret;
+
+						printDbg(PFX "%s: PID string return %s\n", __func__, buf);
+
+						buf[nleft] = '\0'; // end of read check, nleft = max BUFRD-1;
+						pid = strtok_r (buf,"\n", &pid_ptr);	
+
+						printDbg(PFX "%s: processing ", __func__);
+						while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
 
 							node_push(pidlst);
 							// PID found
 							(*pidlst)->pid = atoi(pid);
 							printDbg("->%d ",(*pidlst)->pid);
-							(*pidlst)->det_mode = DM_CGRP;
 
-							if (((*pidlst)->psig = malloc(MAXCMDLINE)) &&
-								((*pidlst)->contid = strdup(dir->d_name))) {
-								// alloc memory for strings
-
-								(void)sprintf(kparam, "%d/cmdline", (*pidlst)->pid);
-								if (0 > getkernvar("/proc/", kparam, (*pidlst)->psig, MAXCMDLINE))
-									// try to read cmdline of pid
-									warn("can not read pid %d's command line: %s", (*pidlst)->pid, strerror(errno));
-
-								// cut to exact (reduction = no issue)
-								(*pidlst)->psig=realloc((*pidlst)->psig, 
-									strlen((*pidlst)->psig)+1);
-							}
-							else // FATAL, exit and execute atExit
+							updatePidCmdline(*pidlst); // checks and updates..
+							if (!(( (*pidlst)->contid = strdup(dir->d_name) )))
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
@@ -309,9 +107,10 @@ static void getContPids (node_t **pidlst)
 						}
 						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
-							memcpy(pidline, pidline+BUFRD-nleft-1, nleft); 
+							memcpy(buf, buf+BUFRD-nleft-1, nleft); 
 					}
-					close(path);
+					close(fd);
+
 				}
 				else // FATAL, exit and execute atExit
 					fatal("Could not allocate memory!");
@@ -359,13 +158,12 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 	char *pid, *pid_ptr;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg("%s: Pid string return %s\n", __func__, pidline);
+		printDbg(PFX "%s: Pid string return %s\n", __func__, pidline);
 		pid = strtok_r (pidline," ", &pid_ptr);					
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
-        printDbg("processing->%d",(*pidlst)->pid);
-		(*pidlst)->det_mode = mode;
+        printDbg(PFX "processing->%d",(*pidlst)->pid);
 
 		// find command string and copy to new allocation
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
@@ -433,7 +231,7 @@ int  iret_dlink; // Timeout is set to 4 seconds by default
 /// Return value: result of pthread_create, negative if failed
 ///
 static int startDockerThread() {
-	iret_dlink = pthread_create( &thread_dlink, NULL, thread_watch_docker, NULL);
+	iret_dlink = pthread_create( &thread_dlink, NULL, dlink_thread_watch, NULL);
 #ifdef DEBUG
 	(void)pthread_setname_np(thread_dlink, "docker_link");
 #endif
@@ -453,7 +251,7 @@ static int stopDockerThread(){
 		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
 			perror("Failed to send signal to docker_link thread");
 		ret |= iret_dlink;
-		if ((iret_dlink = pthread_join( thread_dlink, NULL))) // wait until end
+		if ((iret_dlink = pthread_join (thread_dlink, NULL))) // wait until end
 			perror("Could not join with docker_link thread");
 		ret |= iret_dlink;
 		(void)printf(PFX "Threads stopped\n");
@@ -519,7 +317,7 @@ static void updateDocker() {
 		}
 	}
 
-	// scan for pid updates
+	// scan for PID updates
 	scanNew(); 
 }
 
@@ -561,13 +359,13 @@ static void scanNew () {
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
-	printDbg("\nResult update pid: ");
+	printDbg("\n" PFX "Result update pid: ");
 	for (node_t * curr = lnew; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
 
-	printDbg("\nEntering node update");		
+	printDbg("\n" PFX "Entering node update");
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -578,7 +376,7 @@ static void scanNew () {
 
 		// insert a missing item		
 		if (lnew->pid > abs(tail->next->pid)) {
-			printDbg("\n... Insert new PID %d", lnew->pid);		
+			printDbg("\n" PFX "... Insert new PID %d", lnew->pid);
 
 			node_t * tmp = tail->next;
 			tail->next = lnew;
@@ -600,7 +398,7 @@ static void scanNew () {
 				continue; 
 			}
 
-			printDbg("\n... Delete %d", tail->next->pid);		
+			printDbg("\n" PFX "... Delete %d", tail->next->pid);
 			if (prgset->trackpids){ // deactivate only
 				tail->next->pid*=-1;
 				tail = tail->next;
@@ -610,7 +408,7 @@ static void scanNew () {
 		} 
 		// ok, they're equal, skip to next
 		else {
-			printDbg("\nNo change");		
+			printDbg("\n" PFX "No change");
 			// free allocated items, no longer needed
 			node_pop(&lnew);
 			tail = tail->next;
@@ -619,7 +417,7 @@ static void scanNew () {
 
 	while (NULL != tail->next) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n... Delete at end %d", tail->next->pid);// tail->next->pid);		
+		printDbg("\n" PFX "... Delete at end %d", tail->next->pid);// tail->next->pid);
 		// get next item, then drop old
 		if (prgset->trackpids)// deactivate only
 			tail->next->pid = abs(tail->next->pid)*-1;
@@ -628,7 +426,7 @@ static void scanNew () {
 	}
 
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n... Insert at end, starting from PID %d - on\n", lnew->pid);		
+		printDbg("\n" PFX "... Insert at end, starting from PID %d - on\n", lnew->pid);
 		tail->next = lnew;
 		while (tail->next){
 			setPidResources(tail->next); // find match and set resources
@@ -641,10 +439,10 @@ static void scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("\nExiting node update\n");
+	printDbg("\n" PFX "Exiting node update\n");
 
 #ifdef DEBUG
-	printDbg("\nResult list: ");
+	printDbg("\n" PFX "Result list: ");
 	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
@@ -852,7 +650,7 @@ void *thread_update (void *arg)
 	}
 
 	(void)printf(PFX "Stopped\n");
-	// TODO: Start using return value
+	// Start using return value
 	return NULL;
 }
 

@@ -5,10 +5,10 @@
  *      Author: florian
  */
 
-#ifndef __PREPARE_H_
-	#define __PREPARE_H_
+#ifndef PREPARE_H_
+	#define PREPARE_H_
 
 	int prepareEnvironment(prgset_t *set);
 	void cleanupEnvironment(prgset_t *set);
 
-#endif /* __PREPARE_H_ */
+#endif /* PREPARE_H_ */

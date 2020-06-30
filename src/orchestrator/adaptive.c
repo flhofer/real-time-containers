@@ -7,53 +7,32 @@
 
 #include "adaptive.h"
 
-// Custom includes
-#include "orchestrator.h"
-#include "error.h"		// error and std error print functions
-
-// Things that should be needed only here
+// standard includes
 #include <numa.h>			// Numa node identification
 #include <linux/sched.h>
 #include <sched.h>
 
-// TODO: standardize printing
+// Custom includes
+#include "orchestrator.h"	// Definitions of global variables
+#include "error.h"			// error and std error print functions
+#include "cmnutil.h"		// common definitions and functions
+#include "resmgnt.h"		// resource management for PIDs and Containers
+
+#undef PFX
 #define PFX "[adapt] "
-#define PFL "         "PFX
-#define PIN PFX"    "
-#define PIN2 PIN"    "
-#define PIN3 PIN2"    "
-
-typedef struct resAlloc { 		// resource allocations mapping
-	struct resAlloc *	next;		//
-	struct bitmask * 	affinity;	// computed affinity candidates
-	struct cont_parm *	item; 		// default
-	struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
-	int					readOnly;	// do not update resources = shared values
-} resAlloc_t;
-
-static resAlloc_t * aHead = NULL;
-
-static struct resTracer * rHead;
-
-// Combining and or bit masks
-#define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
-									  if ((numa_bitmask_isbitset(a, i)) \
-										c (numa_bitmask_isbitset(b, i))) \
-										  numa_bitmask_setbit(b, i);
-
-#define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
-#define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
 
 #define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 #define MAX_UL 0.90
 #define SCHED_UKNLOAD	10 		// 10% load extra per task
 #define SCHED_RRTONATTR	1000000 // conversion factor from sched_rr_timeslice_ms to sched_attr
 
-/// cmpresItem(): compares two resource allocation items for Qsort, ascending
-///
-/// Arguments: pointers to the items to check
-///
-/// Return value: difference
+/*
+ *  cmpresItem(): compares two resource allocation items for Qsort, ascending
+ *
+ *  Arguments: pointers to the items to check
+ *
+ *  Return value: difference
+ */
 static int cmpPidItem (const void * a, const void * b) {
 	int64_t diff = ((int64_t)((resAlloc_t *)a)->item->attr->sched_period
 			- (int64_t)((resAlloc_t *)b)->item->attr->sched_period);
@@ -63,32 +42,14 @@ static int cmpPidItem (const void * a, const void * b) {
 	return (int)(diff % INT32_MAX); // reduce but keep sign
 }
 
-/// gcd(): greatest common divisor, iterative
-//
-/// Arguments: - candidate values in uint64_t
-///
-/// Return value: - greatest value that fits both
-///
-static uint64_t gcd(uint64_t a, uint64_t b)
-{
-	uint64_t temp;
-    while (b != 0)
-    {
-        temp = a % b;
-
-        a = b;
-        b = temp;
-    }
-    return a;
-}
-
-/// createResTracer(): create resource tracing memory elements
-/// 				   set them to default value
-//
-/// Arguments:
-///
-/// Return value:
-///
+/*
+ *  createResTracer(): create resource tracing memory elements
+ *  				   set them to default value
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
 static void createResTracer(){
 
 	// backwards, cpu0 on top, we assume affinity_mask ok
@@ -102,32 +63,33 @@ static void createResTracer(){
 	}
 }
 
-/// checkUvalue(): verify if task fits into Utilization limits of a resource
-///
-/// Arguments:  - resource entry for this CPU
-///				- the `attr` structure of the task we are trying to fit in
-///				- add or test, 0 = test, 1 = add to resources // TODO : variants, add-if
-///
-/// Return value: a matching score, higher is better. Negative values return error
-///				  -1 = no space; -2 error // TODO: maybe use ERRNO?
-///
+/*
+ *  checkUvalue(): verify if task fits into Utilization limits of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ * 				- the `attr` structure of the task we are trying to fit in
+ * 				- add or test, 0 = test, 1 = add to resources
+ *
+ *  Return value: a matching score, higher is better. Negative values return error
+ * 				  -1 = no space; -2 error
+ */
 static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
 	uint64_t basec = par->sched_period;
 	int rv = 3; // perfect match -> all cases max value default
+	int rvbonus = 1;
 
-	// TODO: case areas are NOT a new scope
-	// TODO: generic checks for 0 base, basec
 	switch (par->sched_policy) {
 
-	// TODO: if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	// sched_runtime == 0, no value, reset to 1 second
 	default:
 		if (0 == base || 0 == par->sched_runtime){
 			base = 1000000000; // default to 1 second)
 			break;
 		}
-		// TODO : else fall through
+
 	/*
 	 * DEADLINE return values
 	 * 3 = OK, perfect period match;
@@ -149,7 +111,6 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 			uint64_t new_base = gcd(base, par->sched_period);
 
 			if (new_base % 1000 != 0){
-				// TODO: warn or error if add is set?
 				warn("Check -> Nanosecond resolution periods not supported!");
 				return -2;
 			}
@@ -178,15 +139,12 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	 */
 	case SCHED_FIFO:
 
-		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;
 			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
 			break;
 		}
-
-		int rvbonus = 1;
 
 		// if unused, set to this period
 		if (0 == basec){
@@ -233,17 +191,16 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		used += par->sched_runtime * base/basec;
 		break;
 
-	/* TODO: review
+	/*
 	 *	RR return values for different situations
-	 *	1000 .. perfect match desired repetition matches period of resources
-	 *	   2 .. empty CPU, = perfect fit on new CPU
-	 *     1 .. recalculation of period, but new is perfect fit to both
-	 *     0 .. recompute needed
+	 *	 3 .. perfect match desired repetition matches period of resources
+	 *	 2 .. empty CPU, = perfect fit on new CPU
+	 *   1 .. recalculation of period, but new is perfect fit to both
+	 *   0 .. recompute needed
 	 *  all with +1 bonus if runtime fits remaining UL
 	 */
 	case SCHED_RR:
 
-		// TODO: maybe add subtraction instead of equal rv
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;
@@ -255,7 +212,7 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 		if (0 == basec){
 			basec = 1000000000; // default to 1 second)
 		}
-		else // TODO: check that
+		else
 			// if the runtime doesn't fit into the preemption slice..
 			// reset base to slice as it will be preempted during run increasing task switching
 			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
@@ -318,12 +275,50 @@ static int checkUvalue(struct resTracer * res, struct sched_attr * par, int add)
 	return rv;
 }
 
-/// checkPeriod(): find a resource that fits period
-///
-/// Arguments: the attr structure of the task
-///
-/// Return value: a pointer to the resource tracer
-///					returns null if nothing is found
+
+/*
+ *  recomputeTimes(): recomputes base and utilization factor of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeTimes(struct resTracer * res) {
+
+	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
+
+	int rv;
+
+	for (resAlloc_t * alloc = aHead; ((alloc)); alloc=alloc->next){
+		if (alloc->assigned != res)
+			continue;
+
+		rv = checkUvalue(resNew, alloc->item->attr, 1);
+		if ( 0 > rv ){
+			free(resNew);
+			return rv; // stops here
+		}
+
+	}
+
+	res->basePeriod = resNew->basePeriod;
+	res->usedPeriod = resNew->usedPeriod;
+	res->U = resNew->U;
+
+	free(resNew);
+	return 0;
+}
+
+
+/*
+ *  checkPeriod(): find a resource that fits period
+ *
+ *  Arguments: the attr structure of the task
+ *
+ *  Return value: a pointer to the resource tracer
+ * 					returns null if nothing is found
+ */
 static resTracer_t * checkPeriod(cont_t * item) {
 	resTracer_t * ftrc = NULL;
 	int last = -2;		// last checked tracer's score, error by default
@@ -349,12 +344,14 @@ static resTracer_t * checkPeriod(cont_t * item) {
 	return ftrc;
 }
 
-/// grepTracer(): find an empty or low UL CPU
-///
-/// Arguments: -
-///
-/// Return value: a pointer to the resource tracer
-///					returns null if nothing is found
+/*
+ *  grepTracer(): find an empty or low UL CPU
+ *
+ *  Arguments: -
+ *
+ *  Return value: a pointer to the resource tracer
+ *					returns null if nothing is found
+ */
 static resTracer_t * grepTracer() {
 	resTracer_t * ftrc = NULL;
 	float Umax = -2;
@@ -369,17 +366,18 @@ static resTracer_t * grepTracer() {
 	return ftrc;
 }
 
-/// addTracer(): append resource with mask
-///
-/// Arguments: - res is the resource reservation record
-///			   - CPU, number to allocate, -1 for default (if weight 1)
-///
-/// Return value: error, or 0 if successful
-///
+/*
+ *  addTracer(): append resource with mask
+ *
+ *  Arguments: - res is the resource reservation record
+ * 			   - CPU, number to allocate, -1 for default (if weight 1)
+ *
+ *  Return value: error, or 0 if successful
+ */
 static int addTracer(resAlloc_t * res, int cpu){
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (((-1 == cpu)
-			&& (numa_bitmask_isbitset(res->affinity, trc->affinity)))
+			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, trc->affinity)))
 			|| (cpu == trc->affinity)){
 
 			// check first. add and return check value
@@ -393,116 +391,138 @@ static int addTracer(resAlloc_t * res, int cpu){
 	return -1; // error! not found
 }
 
-
-/// addTracerFix(): append resource with mask for fixed values
-///
-/// Arguments: - res is the resource reservation record
-///
-/// Return value:
-///
+/*
+ *  addTracerFix(): append resource with mask for fixed values
+ *
+ *  Arguments: - res is the resource reservation record
+ *
+ *  Return value:
+ */
 static void addTracerFix(resAlloc_t * res) {
-	if (numa_bitmask_weight(res->affinity) == 1)
+	if (numa_bitmask_weight(res->item->rscs->affinity_mask) == 1){
 		if (0 > addTracer(res, -1))
 			err_exit("The resource plan does not fit your system!");
+		else
+			res->item->status |= MSK_STATCFIX;
+	}
 }
 
-/// pushResource(): append resource to resource task list with mask
-///
-/// Arguments: - item is container, image or pid
-///				(they're equal for attr and rscs )
-///			   - depth 0 = image, 1 = container, 2 - pid
-///
-/// Return value: returns the created resource info for hierarchical
-///					matching and combining
-///
-static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep, int depth){
+
+/*
+ *  createAffinityMask():create affinity mask based on configuration
+ *
+ *  Arguments: - resource structure
+ * 			   - dependent bit-mask (hierarchy upper)
+ *
+ *  Return value: returns the created resource info for hierarchical
+ * 					matching and combining */
+static void
+createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
+	// Create CPU mask only if not shared
+	if (rscs->affinity > 0) {
+		char  affstr[11];
+		(void)sprintf(affstr, "%d", rscs->affinity);
+		rscs->affinity_mask = numa_parse_cpustring_all(affstr);
+	}
+	else{
+		rscs->affinity_mask = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(prgset->affinity_mask, rscs->affinity_mask);
+		if (bDep)
+			numa_and_cpumask(bDep, rscs->affinity_mask);
+	}
+}
+
+/*
+ *  pushResource(): append resource to resource task list with mask
+ *
+ *  Arguments: - item is container, image or pid
+ * 				(they're equal for attr and rscs )
+ * 			   - dependent bit-mask (hierarchy upper)
+ *
+ *  Return value: returns the created resource info for hierarchical
+ * 					matching and combining
+ */
+static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
 
 	// add item
 	push((void**)&aHead, sizeof (resAlloc_t));
-	if (item->rscs->affinity > 0) {
-		char  affstr[11];
-		(void)sprintf(affstr, "%d", item->rscs->affinity);
-		aHead->affinity = numa_parse_cpustring_all(affstr);
-	}
-	else{
-		aHead->affinity = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(prgset->affinity_mask, aHead->affinity);
-		if (bDep)
-			numa_and_cpumask(bDep, aHead->affinity);
-	}
-
 	aHead->item = item;
+	if (item->status & MSK_STATSHRC)
+		return aHead;
 
-	// Set to read only if resources are copies of a parent
-	aHead->readOnly = (item->rscs == contparm->rscs) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->rscs == item->img->rscs))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
-
+	createAffinityMask (item->rscs, bDep);
 	return aHead;
 }
 
-/// adaptPrepareSchedule(): Prepare adaptive schedule computation
-/// 	compute the resource allocation
-///
-/// Arguments: -
-///
-/// Return value: -
-///
+/* --- SOME FUNCS TO EASE READABILITY ----- */
+static void
+ddPids(pids_t * pids, resAlloc_t * parAlloc, struct bitmask * bm){
+	resAlloc_t * rTmp;
+	// PIDs mask update and fill
+	for (;((pids)); pids=pids->next){
+
+		rTmp = pushResource((cont_t*)pids->pid, parAlloc->item->rscs->affinity_mask);
+		numa_or_cpumask(rTmp->item->rscs->affinity_mask,bm);
+
+		// if fix assignment, add to tracer
+		addTracerFix(rTmp);
+	}
+}
+
+static void
+ddConts(conts_t * conts, resAlloc_t * parAlloc, struct bitmask * bm){
+	// depending containers
+	for (; ((conts)); conts=conts->next){
+		struct bitmask *bmPids = numa_allocate_cpumask();
+		resAlloc_t * rCont;
+
+		// add reserve container, keep
+		rCont = pushResource(conts->cont, parAlloc->item->rscs->affinity_mask);
+
+		ddPids(conts->cont->pids,rCont, bmPids);
+
+		// update affinity values of container, keep only necessary
+		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
+
+		// merge mask to image shared, free unused
+		numa_or_cpumask(rCont->item->rscs->affinity_mask, bm);
+		numa_free_cpumask(bmPids);
+
+		// if fix assignment, add to tracer
+		addTracerFix(rCont);
+	}
+}
+/* --- END SOME FUNCS TO EASE READABILITY ----- */
+
+
+/*
+ *  adaptPrepareSchedule(): Prepare adaptive schedule computation
+ *  	compute the resource allocation
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
 void adaptPrepareSchedule(){
 	// create res tracer structures for all available data
-	(void)createResTracer();
+	createResTracer();
+	createAffinityMask(contparm->rscs, NULL);
 
 	// transform all masks, starting from images
 	for (img_t * img = contparm->img; ((img)); img=img->next ){
 		struct bitmask * bmConts = numa_allocate_cpumask();
-		resAlloc_t * rTmp, * rImg;
+		resAlloc_t * rImg;
 
 		// add reserve image, keep reference
-		rImg = pushResource((cont_t *)img, NULL, 0);
+		rImg = pushResource((cont_t *)img, NULL);
 
-		// depending containers
-		for (conts_t * conts = img->conts; ((conts)); conts=conts->next){
-			struct bitmask *bmPids = numa_allocate_cpumask();
-			resAlloc_t * rCont;
-
-			// add reserve container, keep
-			rCont = pushResource(conts->cont, rImg->affinity, 1);
-
-			// container's PIDs
-			for (pids_t * pids = conts->cont->pids; ((pids)); pids=pids->next){
-
-				rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
-				numa_or_cpumask(rTmp->affinity,bmPids);
-
-				// if fix assignment, add to tracer
-				addTracerFix(rTmp);
-			}
-
-			// update affinity values of container, keep only necessary
-			numa_and_cpumask(bmPids,rCont->affinity);
-
-			// merge mask to image shared, free unused
-			numa_or_cpumask(rCont->affinity,bmConts);
-			numa_free_cpumask(bmPids);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rCont);
-		}
-
-		// depending PIDs
-		for (pids_t * pids = img->pids; ((pids)); pids=pids->next){
-
-			rTmp = pushResource((cont_t*)pids->pid, rImg->affinity, 1);
-			numa_or_cpumask(rTmp->affinity,bmConts);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rTmp);
-		}
+		// continue Cont->PIDs
+		ddConts(img->conts, rImg, bmConts);
+		// continue PIDs
+		ddPids(img->pids,rImg, bmConts);
 
 		// update affinity values of image, keep only necessary
-		numa_and_cpumask(bmConts,rImg->affinity);
+		numa_and_cpumask(bmConts,rImg->item->rscs->affinity_mask);
 		// free unused
 		numa_free_cpumask(bmConts);
 
@@ -511,28 +531,21 @@ void adaptPrepareSchedule(){
 	}
 
 	// transform all masks, solo containers
-	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next ){
+	for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next){
 		if (cont->img) // part of tree, skip
 			continue;
 
 		struct bitmask *bmPids = numa_allocate_cpumask();
-		resAlloc_t * rTmp, * rCont;
+		resAlloc_t * rCont;
 
 		// add reserve container, keep
-		rCont = pushResource(cont, NULL, 1);
+		rCont = pushResource(cont, NULL);
 
-		// container's PIDs
-		for (pids_t * pids = cont->pids; ((pids)); pids=pids->next){
-
-			rTmp = pushResource((cont_t*)pids->pid, rCont->affinity, 2);
-			numa_or_cpumask(rTmp->affinity,bmPids);
-
-			// if fix assignment, add to tracer
-			addTracerFix(rTmp);
-		}
+		// continue PIDs
+		ddPids(cont->pids, rCont, bmPids);
 
 		// update affinity values, keep only necessary
-		numa_and_cpumask(bmPids,rCont->affinity);
+		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
 
 		//push container mask, and merge to image shared
 		numa_free_cpumask(bmPids);
@@ -541,23 +554,33 @@ void adaptPrepareSchedule(){
 		addTracerFix(rCont);
 	}
 
+
 	// transform all masks, PIDs
 	for (pidc_t * pid = contparm->pids; ((pid)); pid=pid->next ){
 		if (pid->img || pid->cont) // part of tree, skip
 			continue;
 
-		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL, 2);
+		resAlloc_t * rTmp = pushResource((cont_t*)pid, NULL);
 
 		// if fix assignment, add to tracer
 		addTracerFix(rTmp);
 	}
+}
 
-	// ################## from here use resource masks ##############
+/*
+ *  adaptPrepareSchedule(): Prepare adaptive schedule computation
+ *  	compute the resource allocation, uses resoure masks only
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
+void adaptPlanSchedule(){
 
 	// order by period and runtime
 	qsortll((void **)&aHead, cmpPidItem);
 
-	int unmatched = 0;
+	int unmatched = 0; // count unmatched
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
 		resTracer_t * trc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
@@ -570,7 +593,7 @@ void adaptPrepareSchedule(){
 					// allocate resources for flexible tasks
 					trc= checkPeriod(res->item);
 					if (trc){
-						checkUvalue(trc, res->item->attr, 1);
+						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
 					}
 					else
@@ -591,7 +614,7 @@ void adaptPrepareSchedule(){
 					// allocate resources for flexible tasks
 					trc= checkPeriod(res->item);
 					if (trc){
-						checkUvalue(trc, res->item->attr, 1);
+						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
 					}
 					else
@@ -601,6 +624,7 @@ void adaptPrepareSchedule(){
 		}
 	} // END dedicated resources
 
+	printDbg("After pre-compute, un-match count %d\n", unmatched);
 	{ // compute flexible resources with undefined detail
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;
@@ -642,47 +666,49 @@ void adaptPrepareSchedule(){
 	} // END dedicated resources
 }
 
-/// adaptScramble(): Re-scramble resource distribution when some issues
-/// 	with allocation showed up
-///
-/// Arguments: -
-///
-/// Return value: -
-///
+/*
+ *  adaptScramble(): Re-scramble resource distribution when some issues
+ *  	with allocation showed up
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
 void adaptScramble(){
-	// TODO: implement!
-}
 
-/// adaptExecute(): Update actual schedule parameters of containers
-///		with adaptive result computed at prepare
-///
-/// Arguments: -
-///
-/// Return value: -
-///
-void adaptExecute() {
-	for (resAlloc_t * res = aHead; ((res)); res=res->next)
-		if (!(res->readOnly) && (res->assigned))
-			res->item->rscs->affinity = res->assigned->affinity;
-}
+	resTracer_t * trc = NULL;
 
-/// adaptGetAllocations(): returns resource tracing info
-///
-/// Arguments: -
-///
-/// Return value: head of resource allocations
-///
-struct resTracer * adaptGetTracers(){
-	return rHead;
-}
+	for (resAlloc_t * res= aHead; ((res)); res=res->next){
 
-void adaptFreeTracer(){
-	while (aHead){
-		numa_free_cpumask(aHead->affinity);
-		pop((void**)&aHead);
+		if (!(res->assigned) ||(res->item->status & MSK_STATCFIX))
+				continue;
+
+		trc = checkPeriod(res->item);
+		// found a better option?
+		if (trc && (trc != res->assigned)){
+			// recompute and add
+			(void)checkUvalue(trc, res->item->attr, 1);
+			resTracer_t * trcOld = res->assigned;
+
+			res->assigned = trc;
+			recomputeTimes(trcOld); // reset times of old resource
+		}
 	}
 
-	while (rHead)
-		pop((void**)&rHead);
+}
+
+/*
+ *  adaptExecute(): Update actual schedule parameters of containers
+ * 		with adaptive result computed at prepare
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
+void adaptExecute() {
+	// apply only if not shared and if fixed cpu is assigned
+	for (resAlloc_t * res = aHead; ((res)); res=res->next)
+		if (!(res->item->status & MSK_STATSHRC) && (res->assigned))
+			res->item->rscs->affinity = res->assigned->affinity;
 }
 

@@ -15,18 +15,14 @@
 
 // static library includes
 #include "kernutil.h"		// kernel util data types and functions
-#include "rt-utils.h"	// trace and other utils
+#include "parse_func.h"
+#include "cmnutil.h"	// common definitions and functions
 
+#undef PFX
 #define PFX "[json] "
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
 
-#ifndef TRUE
-	#define TRUE true
-	#define FALSE false
-#endif
-
-#include "parse_func.h"
 
 /// parse_resource_data(): extract parameter values from JSON tokens for resource limits
 ///
@@ -91,7 +87,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 		pidc_t *data, cont_t *cont, img_t * img, containers_t *conts)
 {
 
-	printDbg(PIN "Parsing pid [%d]\n", index);
+	printDbg(PIN "Parsing PID [%d]\n", index);
 
 	if (!cont) 
 		cont = (cont_t *) img; // overwrite default reference if no cont set
@@ -107,10 +103,17 @@ static void parse_pid_data(struct json_object *obj, int index,
 		else if (cont) {
 			// set to container default
 			data->attr = cont->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to container scheduling settings\n");
+		}
+		else if (img) {
+			data->attr = img->attr;
+			data->status |= MSK_STATSHAT;
+			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -123,10 +126,17 @@ static void parse_pid_data(struct json_object *obj, int index,
 		else if (cont) { 
 			// set to container default
 			data->rscs = cont->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to container resource settings\n");
+		}
+		else if (img) {
+			data->rscs = img->rscs;
+			data->status |= MSK_STATSHRC;
+			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -159,10 +169,12 @@ static void parse_container_data(struct json_object *obj, int index,
 			parse_scheduling_data(attr,	&data->attr);
 		else if (img) {
 			data->attr = img->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -174,10 +186,12 @@ static void parse_container_data(struct json_object *obj, int index,
 			parse_resource_data(rscs, &data->rscs);
 		else if (img) { 
 			data->rscs = img->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to image scheduling settings\n");
 		}
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -288,6 +302,7 @@ static void parse_image_data(struct json_object *obj, int index,
 			parse_scheduling_data(attr,	&data->attr);
 		else {
 			data->attr = conts->attr;
+			data->status |= MSK_STATSHAT;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -299,6 +314,7 @@ static void parse_image_data(struct json_object *obj, int index,
 			parse_resource_data(rscs, &data->rscs);
 		else {
 			data->rscs = conts->rscs;
+			data->status |= MSK_STATSHRC;
 			printDbg(PIN "defaulting to global scheduling settings\n");
 		}
 	}
@@ -409,13 +425,10 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!global) {
 		printDbg(PFX " No global section Found: Use default value\n");
 
-		// TODO set only if NULL
-
 		// logging
 		if (!(set->logdir = strdup("./")) || 
 			!(set->logbasename = strdup("orchestrator.txt")))
 			err_exit_n(errno, "Can not set parameter");
-		set->logsize = 0;
 
 		// signatures and folders
 		if (!set->cont_ppidc)
@@ -438,11 +451,9 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		if (!set->cpusetdfileprefix)
 			err_exit_n(errno, "Could not allocate memory");
 
-		*set->cpusetdfileprefix = '\0'; // set first chat to null
-		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 
-
-		// affinity default setting // TODO: duplicate -> function
+		// affinity default setting
 		if (!set->affinity){
 			char *defafin;
 			if (!(defafin = malloc(22))) // has never been set
@@ -453,7 +464,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			set->affinity = strdup(defafin);
 			free(defafin);
 		}
-
 		return;
 	}
 
@@ -493,8 +503,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		if (!set->cpusetdfileprefix)
 			err_exit_n(errno, "Could not allocate memory");
 
-		*set->cpusetdfileprefix = '\0'; // set first chat to null
-		set->cpusetdfileprefix = strcat(strcat(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);		
+		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
 	}
 
 	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);
@@ -527,7 +536,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	// force, cli only
 	set->smi = get_bool_value_from(global, "smi", TRUE, set->smi);
 	set->rrtime = get_int_value_from(global, "rrtime", TRUE, set->rrtime);
-	set->use_fifo = get_bool_value_from(global, "use_fifo", TRUE, set->use_fifo);
 	//kernelversion -> runtime parameter
 
 	{ // affinity selection switch block
@@ -564,10 +572,8 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		free(defafin);
 	} // END default affinity block 
 
-
-	set->gnuplot = get_bool_value_from(global, "gnuplot", TRUE, set->gnuplot);
-	set->logsize = get_bool_value_from(global, "logsize", TRUE, set->logsize);
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
+	set->ptresh = get_double_value_from(global, "ptresh", TRUE, set->ptresh);
 
 }
 
@@ -581,7 +587,6 @@ void parse_config_set_default(prgset_t *set) {
 	// logging
 	set->logdir = NULL; 
 	set->logbasename = NULL;
-	set->logsize = 0;
 
 	set->cont_ppidc = NULL;
 	set->cont_pidc = NULL;
@@ -607,14 +612,13 @@ void parse_config_set_default(prgset_t *set) {
 	set->runtime = 0;
 	set->psigscan = 0;
 	set->trackpids = 0;
-	//set->negiszero = 0;
+
 	set->dryrun = 0;
 	set->blindrun = 0;
 	set->lock_pages = 0;
 	set->force = 0;
 	set->smi = 0;
 	set->rrtime = 0;
-	set->use_fifo=0; // TODO FIFO implementation
 
 	// runtime values
 	set->kernelversion = KV_NOT_SUPPORTED;
@@ -624,10 +628,11 @@ void parse_config_set_default(prgset_t *set) {
 	set->affinity_mask = NULL;
 
 
-	set->gnuplot = 0; // TODO: GNU-plot?
 	set->ftrace = 0;
 
 	set->use_cgroup = DM_CGRP;
+
+	set->ptresh = 0.9;
 }
 
 /// parse_config(): parse the JSON configuration and push back results
@@ -643,7 +648,7 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 	if (!set) {
 		// empty pointer, create and init structure
 		if ((set=malloc(sizeof(prgset_t))))
-			err_msg("Error allocatinging memory!"); 
+			err_msg("Error allocating memory!");
 		parse_config_set_default(set);	
 	}
 
@@ -667,8 +672,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "global   : %s\n", json_object_to_json_string(global));
 		printDbg(PFX "Parsing global\n");
 		parse_global(global, set);
-		if (global && !json_object_put(global))
-			err_msg(PFX "Could not free object!");
 
 	} // END program settings block
 
@@ -681,9 +684,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		printDbg(PFX "Parsing scheduling\n");
 		parse_scheduling_data(scheduling, &conts->attr);
 
-		if (scheduling && !json_object_put(scheduling))
-			err_msg(PFX "Could not free object!");
-
 	} // END global scheduling parameters, default
 
 	{ // global resource limits block
@@ -695,9 +695,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 		printDbg(PFX "Parsing resources\n");
 		parse_resource_data(resources, &conts->rscs);
 
-		if (resources && !json_object_put(resources))
-			err_msg(PFX "Could not free object!");
-
 	} // END resource limits block
 
 	{ // images settings block
@@ -708,8 +705,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "images    : %s\n", json_object_to_json_string(images));
 			printDbg(PFX "Parsing images\n");
 			parse_images(images, conts);
-			if (!json_object_put(images))
-				err_msg(PFX "Could not free object!");
 		}
 
 	} // END images settings block
@@ -722,8 +717,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 			printDbg(PFX "containers    : %s\n", json_object_to_json_string(containers));
 			printDbg(PFX "Parsing containers\n");
 			parse_containers(containers, conts, NULL);
-			if (!json_object_put(containers))
-				err_msg(PFX "Could not free object!");
 		}
 
 	} // END container settings block
@@ -743,8 +736,6 @@ static void parse_config(struct json_object *root, prgset_t *set, containers_t *
 				parse_pid_data(pidobj, idx, conts->pids, NULL, NULL, conts);
 				idx++;
 			}
-			if (!json_object_put(pidslist))
-				err_msg(PFX "Could not free object!");
 		}
 	} // END PIDs settings block
 
@@ -767,9 +758,9 @@ void parse_config_pipe(FILE *inpipe, prgset_t *set, containers_t *conts) {
 	js = json_tokener_parse(buf);
 	parse_config(js, set, conts);
 
-	// end parsing JSON TODO: fix memory leak?? changes first long string
-//	if (!json_object_put(js))
-//		err_exit(PFX "Could not free objects!");
+	// end parsing JSON
+	if (!json_object_put(js))
+		err_exit(PFX "Could not free objects!");
 }
 
 /// parse_config_stdin(): parse the JSON configuration from stdin until EOF
@@ -795,8 +786,8 @@ void parse_config_file (const char *filename, prgset_t *set, containers_t *conts
 	free(fn);
 	parse_config(js, set, conts);
 
-	// end parsing JSON TODO: fix memory leak?? changes first long string
-//	if (!json_object_put(js))
-//		err_exit(PFX "Could not free objects!");
+	// end parsing JSON
+	if (!json_object_put(js))
+		err_exit(PFX "Could not free objects!");
 }
 

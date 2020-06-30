@@ -9,13 +9,11 @@
 #include "../../src/include/parse_config.h"
 #include <check.h>
 
-//TODO: all tests!!!
-
 static prgset_t * set;
 static containers_t * conts;
 static FILE * pp;
 
-static struct sched_rscs _def_rscs = {-1, -1, -1, -1, -1};
+static struct sched_rscs _def_rscs = {-1, NULL, -1, -1, -1, -1};
 static struct sched_attr _def_attr = {48, 0, 0, 0, 0, 0, 0, 0}; // sched_other == 0 
 
 

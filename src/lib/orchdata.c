@@ -1,6 +1,17 @@
-#include "orchdata.h" // memory structure to store information
+#include "orchdata.h"	// memory structure to store information
+#include "cmnutil.h"	// general definitions
+#include <numa.h>		// for numa free cpu-mask
+#include <time.h>		// time management and constants
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
+
+// Programmable clock source values
+int clocksources[] = {
+	CLOCK_MONOTONIC,
+	CLOCK_REALTIME,
+	CLOCK_PROCESS_CPUTIME_ID,
+	CLOCK_THREAD_CPUTIME_ID
+};
 
 ///	generic push pop, based on the fact that all structures have the next l.l
 /// pointer right as first element
@@ -163,7 +174,7 @@ int node_findParams(node_t* node, struct containers * conts){
 	struct cont_parm * cont = NULL;
 	// check for image match first
 	while (NULL != img) {
-		// 12 is standard docker short signature
+
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			conts_t * imgcont = img->conts;	
@@ -171,7 +182,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
-					// 12 is standard docker short signature
+
 					if  (!strncmp(imgcont->cont->contid, node->contid,
 							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
 						cont = imgcont->cont;
@@ -198,7 +209,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// check for container match
 		while (NULL != cont) {
-			// 12 is standard docker short signature
+
 			if(cont->contid && node->contid) {
 				if (!strncmp(cont->contid, node->contid,
 						MIN(strlen(cont->contid), strlen(node->contid))))
@@ -214,28 +225,38 @@ int node_findParams(node_t* node, struct containers * conts){
 		}
 	}
 
-	// did we find a container match?
+	// did we find a container or image match?
 	if (img || cont) {
-		// read all associated pids. Is it there?
+		// read all associated PIDs. Is it there?
 
-		// TODO: if container has no settings, use image. Even just for one
-
-		// assign pids from cont or img, depending whats found
+		// assign pids from cont or img, depending what is found
 		int useimg = (img && !cont);
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
+		// check the first result
 		while (NULL != curr) {
 			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
 				// found a matching pid inc root container
 				node->param = curr->pid;
 				return 0;
 			}
-			curr = curr->next; 
+			curr = curr->next;
 		}
 
-		// TODO: - Expand to double check also image.
+		// if both were found, check again in image
+		if (img && cont){
+			curr = img->pids;
+			while (NULL != curr) {
+				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+					// found a matching pid inc root container
+					node->param = curr->pid;
+					return 0;
+				}
+				curr = curr->next;
+			}
+		}
 
-		// found? if not, create entry
+		// found? if not, create PID parameter entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
@@ -248,12 +269,14 @@ int node_findParams(node_t* node, struct containers * conts){
 
 			// assign values
 			cont->contid = node->contid;
+			img->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
-		// add to container pids
+		// add to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 		conts->pids->rscs = cont->rscs;
 		conts->pids->attr = cont->attr;
 
@@ -266,12 +289,10 @@ int node_findParams(node_t* node, struct containers * conts){
 		return 0;
 	}
 	else{ 
-		// no match found. an now?
+		// no match found. and now?
 		printDbg("... container not found, trying PID scan\n");
 
-		// TODO: if containerid is valid, create entry?
-
-		// start from scratch in the pid config list only. Maybe ID is new?
+		// start from scratch in the PID config list only. Maybe Container ID is new
 		struct pidc_parm * curr = conts->pids;
 
 		while (NULL != curr) {
@@ -286,72 +307,122 @@ int node_findParams(node_t* node, struct containers * conts){
 	printDbg("... PID not found. Ignoring\n");
 
 	return -1;
-	// TODO: what if NULL?
-/*
-	// didnt find it anywhere  -> plant an empty container and pidc
-	push((void**)&conts->cont, sizeof(cont_t));
-	conts->cont->contid = node->psig; // use program signature for container TODO: maybe use pid instead?
-	conts->cont->rscs = conts->rscs;
-	conts->cont->attr = conts->attr;
-
-	push((void**)&conts->pids, sizeof(pidc_t));
-	push((void**)&cont->pids, sizeof(pids_t));
-	cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-
-	conts->pids->rscs = conts->rscs;
-	conts->pids->attr = conts->attr;
-	node->param = conts->pids;
-
-	// update counters
-	conts->nthreads++;
-	conts->num_cont++;		
-	return -1;
-*/
 }
 
 /* -------------------- special for Param structures --------------------- */
 
-void freeParm(cont_t ** head, struct sched_attr * attr,
-		struct sched_rscs * rscs, int depth){
-	cont_t * item = *head;
+static void
+freeParm(cont_t * item){
 
-	{ // attributes check
-	int copy = (item->attr == attr) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->attr == item->img->attr))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->attr == ((pidc_t*)item)->cont->attr));
-
-	if (!copy){
+	if (!(item->status & MSK_STATSHAT))
+#ifdef DEBUG
+	{
 		free(item->attr);
 		item->attr = NULL;
 	}
-	}
-	{ // resources check
-	int copy = (item->rscs == rscs) // Check global
-		|| ((depth > 0) && (item->img) // Check with image (Container & PID)
-				&& (item->rscs == item->img->rscs))
-		|| ((depth > 1) && (((pidc_t*)item)->cont) // Check with container (PID)
-				&& (item->rscs == ((pidc_t*)item)->cont->rscs));
+#else
+		free(item->attr);
+#endif
 
-	if (!copy){
+	if ((item->rscs) && !(item->status & MSK_STATSHRC)){
+		if (item->rscs->affinity_mask)
+			numa_free_cpumask(item->rscs->affinity_mask);
 		free(item->rscs);
+#ifdef DEBUG
 		item->rscs = NULL;
+#endif
 	}
+}
+
+void
+freeContParm(containers_t * contparm){
+	// free resources!!
+	while (contparm->img){
+		while (contparm->img->conts)
+			pop((void**)&contparm->img->conts);
+		while (contparm->img->pids)
+			pop ((void**)&contparm->img->pids);
+
+		freeParm ((cont_t*)contparm->img);
+		pop ((void**)&contparm->img);
 	}
 
-	if (0==depth)
-		pop((void **)head);
+	while (contparm->cont){
+		while (contparm->cont->pids)
+			pop ((void**)&contparm->cont->pids);
+		freeParm (contparm->cont);
+		pop((void**)&contparm->cont);
+	}
+
+	while (contparm->pids){
+		freeParm ((cont_t*)contparm->pids);
+		pop ((void**)&contparm->pids);
+	}
+
+	free(contparm->attr);
+	contparm->attr = NULL;
+	if (contparm->rscs){
+		numa_free_cpumask(contparm->rscs->affinity_mask);
+		contparm->rscs->affinity_mask = NULL;
+	}
+	free(contparm->rscs);
+	contparm->rscs = NULL;
+	free(contparm);
 }
+
+void
+freePrgSet(prgset_t * prgset){
+
+	numa_bitmask_free(prgset->affinity_mask);
+	free(prgset->logdir);
+	free(prgset->logbasename);
+
+	// signatures and folders
+	free(prgset->cont_ppidc);
+	free(prgset->cont_pidc);
+	free(prgset->cont_cgrp);
+
+	// filepaths virtual file system
+	free(prgset->procfileprefix);
+	free(prgset->cpusetfileprefix);
+	free(prgset->cpusystemfileprefix);
+
+	free(prgset->cpusetdfileprefix);
+
+	free(prgset);
+}
+
+/*
+ *  adaptFreeTracer(): free resources
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
+void
+freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead){
+	while (*aHead){
+		pop((void**)aHead);
+	}
+
+	while (*rHead)
+		pop((void**)rHead);
+}
+
 
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, 0, NULL, NULL, NULL,			// PID, det_mode, *psig, *contid, *imgid
+						0, 0, NULL, NULL, NULL,			// PID, status, *psig, *contid, *imgid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
-						{ INT64_MAX, 0, INT64_MIN,		// statistics, max and min to min and max
-						0, 0, 0, 0, 0,
-						0, INT64_MAX, 0, INT64_MIN},
+						{ 								// statistics, max and min to min and max
+							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max
+							0, 0, 0, 0, 0,				//
+							0, 0,						//		dl rf, dl diff
+							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
+							0, 0,						//		computed values histogram
+							NULL , NULL					// 		*pointer to fitting data and vectors
+						},
 						NULL};							// *param structure pointer
 
 /* -------------------- RUNTIME structure ----------------------*/
@@ -399,7 +470,11 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->imgid);
 #endif
-	// TODO: configuration of PID and container maybe as well?
+	// curve fitting parameters
+	if ((*head)->mon.pdf_hist)
+		runstats_histFree((*head)->mon.pdf_hist);
+	if ((*head)->mon.pdf_cdf)
+		runstats_cdffree(&(*head)->mon.pdf_cdf);
 
 	pop((void**)head);
 }
