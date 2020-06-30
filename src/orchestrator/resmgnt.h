@@ -29,4 +29,11 @@
 	void updatePidWCET(node_t * node, uint64_t wcet); // update WCET value to computed result
 	void updatePidCmdline(node_t * node);	// update PID command line
 
+	// resTracer functions for simple and adaptive schedule
+	void createResTracer(); 					// create linked list elements for all CPU's
+	int checkUvalue(struct resTracer * res,
+		struct sched_attr * par, int add);		// check utilization value, does task fit?
+	resTracer_t * checkPeriod(cont_t * item);	// find a resTracer that fits best
+	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
+
 #endif /* RESMGMT_H_ */
