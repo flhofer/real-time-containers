@@ -464,14 +464,16 @@ int main(int argc, char **argv)
 		prgset = tmpset;
 	}
 
-	adaptPrepareSchedule(); // prepares masks, tracers and alike
+	adaptPrepareSchedule(); // prepares masks, tracers and alike, useful for all active modes
 	if (SM_ADAPTIVE <= prgset->sched_mode
 			&& SM_DYNSIMPLE >= prgset->sched_mode){
-		// adaptive scheduling active? Clean prepare, execute, free
+		// adaptive scheduling active? Clean prepare, execute, useful for all active modes
 		adaptPlanSchedule();
 		adaptExecute();
 	}
-	else // free allocation memory right away
+	if (SM_ADAPTIVE != prgset->sched_mode
+			&& SM_PADAPTIVE != prgset->sched_mode)
+		// free allocation info right away if we are not adaptive, dynamic allocation later
 		adaptFree();
 
 	pthread_t thrManage, thrUpdate;

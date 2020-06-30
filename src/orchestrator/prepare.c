@@ -27,6 +27,7 @@
 #include "error.h"		// error and std error print functions
 #include "cmnutil.h"	// common definitions and functions
 #include "resmgnt.h"	// resource management
+#include "adaptive.h"	// adaptive scheduling
 
 // Things that should be needed only here
 #include <pthread.h>// used for thread management
@@ -823,6 +824,7 @@ void cleanupEnvironment(prgset_t *set){
 	}
 
 	freeTracer(&rHead); // free
+	adaptFree();
 
 	// unlock memory pages
 	if (set->lock_pages)
