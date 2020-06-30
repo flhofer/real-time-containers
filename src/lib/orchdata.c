@@ -470,7 +470,7 @@ void node_pop(node_t ** head) {
 	if ((*head)->mon.pdf_hist)
 		runstats_histFree((*head)->mon.pdf_hist);
 	if ((*head)->mon.pdf_cdf)
-		runstats_cdffree(&(*head)->mon.pdf_cdf);
+		runstats_cdfFree(&(*head)->mon.pdf_cdf);
 
 	pop((void**)head);
 }

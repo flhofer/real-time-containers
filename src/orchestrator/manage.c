@@ -891,30 +891,43 @@ static int updateStats ()
 			if (!(runstats_histCheck(item->mon.pdf_hist))){
 				// if histogram is set and count is ok, update and fit curve
 
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+				if ((SM_PADAPTIVE == prgset->sched_mode)
+						&& (SCHED_DEADLINE == item->attr.sched_policy)){
+					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
 
-					// if in dynamic system and we updated the curve, update WCET for system
-					if ((SM_DYNSYSTEM == prgset->sched_mode)
-							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+					if (!item->attr.sched_runtime) // FIXME: should not be possible
+						updatePidAttr(item);
 
-						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
-								runstats_cdfsample(item->mon.pdf_cdf, prgset->ptresh));
+					newWCET = MIN (item->attr.sched_runtime, newWCET);
+					updatePidWCET(item, newWCET);
 
-						// OK, let's check the error
-						if (newWCET > 0){
-//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference?
-								updatePidWCET(item, newWCET);
-								item->mon.cdf_runtime = newWCET;
-//							}
+					warn ("Estimation error, can not update WCET");
+				}
+				else
+					if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+
+						// if in dynamic(progressive) system and we updated the curve, update WCET
+						if ((SM_DYNSYSTEM <= prgset->sched_mode)
+								&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+
+							uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+
+							// OK, let's check the error
+							if (newWCET > 0){
+	//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference? -> WARN can't do that, offset vs stdev ratio!
+									updatePidWCET(item, newWCET);
+									item->mon.cdf_runtime = newWCET;
+	//							}
+							}
+							else
+								warn ("Estimation error, can not update WCET");
 						}
-						else
-							warn ("Estimation error, can not update WCET");
 					}
-				}
-				else{
-					// something went wrong. Reset parameters
-					warn("CDF initialization error for PID %d", item->pid);
-				}
+					else{
+						// something went wrong. Reset parameters
+						warn("CDF initialization error for PID %d", item->pid);
+					}
 
 			}
 		}

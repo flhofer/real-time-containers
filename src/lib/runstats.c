@@ -656,6 +656,20 @@ runstats_histSolve(stat_hist * h, stat_param * x)
 }
 
 /*
+ * runstats_histSixSigma() : return six-sigma probability value of histogram = mean + 6 stdev
+ *
+ * Arguments: - histogram addr pointer
+ *
+ * Return value: time value for six sigma
+ */
+double
+runstats_histSixSigma(const stat_hist * h){
+	if (!h)
+		return 0.0;
+	return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);
+}
+
+/*
  * runstats_mdlpdf() : Integrate area under curve between a-b
  *
  * Arguments: - pointer to the parameter vector
@@ -831,7 +845,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 
 	// re-alloc if number of bins differs
 	if (*c && ((*c)->n != (*h)->n))
-		runstats_cdffree(c);
+		runstats_cdfFree(c);
 
 	if (!*c)
 		*c = gsl_histogram_pdf_alloc((*h)->n);
@@ -842,7 +856,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 	}
 
 	if ((ret = gsl_histogram_scale(*h, 0.9)))
-		err_msg ("CDF creation failed : %s", gsl_strerror(ret));
+		err_msg ("Histogram scaling failed : %s", gsl_strerror(ret));
 
 	// finally readjusts the bin size
 	{
@@ -860,13 +874,13 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 /*
  * runstats_cdfsample() : CDF sample
  *
- * Arguments: - histogram addr pointer
- * 			  - CDF destination pointer
+ * Arguments: - histogram CDF pointer
+ * 			  - probability value to look for
  *
  * Return value: time value
  */
 double
-runstats_cdfsample(const stat_cdf * c, double r){
+runstats_cdfSample(const stat_cdf * c, double r){
 	if (!c)
 		return 0.0;
 	return gsl_histogram_pdf_sample(c, r);
@@ -875,12 +889,12 @@ runstats_cdfsample(const stat_cdf * c, double r){
 /*
  * runstats_cdffree() : CDF free
  *
- * Arguments: - CDF destination pointer
+ * Arguments: - CDF pointer
  *
  * Return value: -
  */
 void
-runstats_cdffree(stat_cdf ** c){
+runstats_cdfFree(stat_cdf ** c){
 
 	gsl_histogram_pdf_free(*c);
 	*c = NULL;
