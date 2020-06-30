@@ -287,11 +287,53 @@ static int stopTraceRead() {
  *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
  */
 static int
-pickPidCheckBuffer(node_t * item, uint64_t extra_rt){
+pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
+	uint64_t usedtime = 0;
+	resTracer_t * testCpu;
 
+	// TODO: check actual affinity matches res-tracer
 
-	return 0;
+	// Find res-tracer assigned to CPU
+	for (resAlloc_t *res = aHead; ((res)); res=res->next){
+		if (res->item == (struct cont_param *) item->param){
+			if (res->assigned)
+				testCpu = res->assigned;
+			else
+				break;
+		}
+	}
+
+	// find all matching, test if space is enough
+
+	for (node_t *node = nhead; ((node)); node=node->next){
+		if (node->mon.dl_deadline
+				&& node->mon.dl_deadline <= item->mon.dl_deadline){
+			// dl present and smaller than next dl of item
+
+			for (resAlloc_t *res = aHead; ((res)); res=res->next){
+				if (res->item == node){
+					// found res for testing item
+
+					if (res->assigned && testCpu == res->assigned){
+						// the same node!?
+
+						uint64_t stdl = res->item->attr->sched_deadline;
+
+						// check how often period fits, add time
+						while (stdl < item->mon.dl_deadline){
+							stdl +=res->item->attr->sched_period;
+							usedtime += res->item->attr->sched_runtime;
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	// if remaining time is enough, return 0
+	return 0 >= (item->mon.dl_deadline - ts - usedtime - extra_rt);
 }
 
 static void
@@ -423,7 +465,7 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 
 			if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
 				// check reschedule?
-				if (0 < pickPidCheckBuffer(item, item->mon.dl_rt - item->mon.cdf_runtime))
+//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
 					// reschedule
 					;
 

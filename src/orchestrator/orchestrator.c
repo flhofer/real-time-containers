@@ -466,7 +466,8 @@ int main(int argc, char **argv)
 	}
 
 	adaptPrepareSchedule(); // prepares masks, tracers and alike
-	if (SM_ADAPTIVE == prgset->sched_mode){
+	if (SM_ADAPTIVE <= prgset->sched_mode
+			&& SM_DYNSIMPLE >= prgset->sched_mode){
 		// adaptive scheduling active? Clean prepare, execute, free
 		adaptPlanSchedule();
 		adaptExecute();
