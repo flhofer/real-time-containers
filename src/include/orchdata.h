@@ -135,12 +135,6 @@
 
 	typedef struct resTracer resTracer_t;
 
-	typedef struct resAlloc { 		// resource allocations mapping
-		struct resAlloc *	next;		//
-		struct cont_parm *	item; 		// default, could be any element (img, cont, pid)
-		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
-	} resAlloc_t;
-
 	struct resTracer { // resource tracers
 		struct resTracer * next;
 		int32_t	 affinity; 		// exclusive CPU-num
@@ -250,7 +244,7 @@
 	// special - free structure
 	void freeContParm(containers_t * contparm);
 	void freePrgSet(prgset_t * prgset);
-	void freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead);
+	void freeTracer(resTracer_t ** rHead);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs

@@ -30,7 +30,6 @@ node_t * nhead = NULL;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t resMutex; // UNUSED for now
 // heads of resource allocations for CPU and Tasks
-resAlloc_t * aHead = NULL;
 resTracer_t * rHead = NULL;
 
 // ############################ end common global variables ###########################333

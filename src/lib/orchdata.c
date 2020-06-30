@@ -393,18 +393,14 @@ freePrgSet(prgset_t * prgset){
 }
 
 /*
- *  adaptFreeTracer(): free resources
+ *  freeTracer(): free resources
  *
- *  Arguments: -
+ *  Arguments: - head of resource tracer to free
  *
  *  Return value: -
  */
 void
-freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead){
-	while (*aHead){
-		pop((void**)aHead);
-	}
-
+freeTracer(resTracer_t ** rHead){
 	while (*rHead)
 		pop((void**)rHead);
 }

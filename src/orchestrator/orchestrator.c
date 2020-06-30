@@ -43,7 +43,6 @@ node_t * nhead = NULL;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t resMutex; // UNUSED for now
 // heads of resource allocations for CPU and Tasks
-resAlloc_t * aHead = NULL;
 resTracer_t * rHead = NULL;
 
 // -------------- LOCAL variables for all the functions  ------------------
@@ -472,6 +471,8 @@ int main(int argc, char **argv)
 		adaptPlanSchedule();
 		adaptExecute();
 	}
+	else // free allocation memory right away
+		adaptFree();
 
 	pthread_t thrManage, thrUpdate;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads

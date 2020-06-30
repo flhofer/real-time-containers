@@ -292,45 +292,45 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 	uint64_t usedtime = 0;
 	resTracer_t * testCpu;
 
-	// TODO: check actual affinity matches res-tracer
-
-	// Find res-tracer assigned to CPU
-	for (resAlloc_t *res = aHead; ((res)); res=res->next){
-		if (res->item == (struct cont_param *) item->param){
-			if (res->assigned)
-				testCpu = res->assigned;
-			else
-				break;
-		}
-	}
-
-	// find all matching, test if space is enough
-
-	for (node_t *node = nhead; ((node)); node=node->next){
-		if (node->mon.dl_deadline
-				&& node->mon.dl_deadline <= item->mon.dl_deadline){
-			// dl present and smaller than next dl of item
-
-			for (resAlloc_t *res = aHead; ((res)); res=res->next){
-				if (res->item == node){
-					// found res for testing item
-
-					if (res->assigned && testCpu == res->assigned){
-						// the same node!?
-
-						uint64_t stdl = res->item->attr->sched_deadline;
-
-						// check how often period fits, add time
-						while (stdl < item->mon.dl_deadline){
-							stdl +=res->item->attr->sched_period;
-							usedtime += res->item->attr->sched_runtime;
-						}
-					}
-					break;
-				}
-			}
-		}
-	}
+//	// TODO: check actual affinity matches res-tracer
+//
+//	// Find res-tracer assigned to CPU
+//	for (resAlloc_t *res = aHead; ((res)); res=res->next){
+//		if (res->item == (struct cont_param *) item->param){
+//			if (res->assigned)
+//				testCpu = res->assigned;
+//			else
+//				break;
+//		}
+//	}
+//
+//	// find all matching, test if space is enough
+//
+//	for (node_t *node = nhead; ((node)); node=node->next){
+//		if (node->mon.dl_deadline
+//				&& node->mon.dl_deadline <= item->mon.dl_deadline){
+//			// dl present and smaller than next dl of item
+//
+//			for (resAlloc_t *res = aHead; ((res)); res=res->next){
+//				if (res->item == node){
+//					// found res for testing item
+//
+//					if (res->assigned && testCpu == res->assigned){
+//						// the same node!?
+//
+//						uint64_t stdl = res->item->attr->sched_deadline;
+//
+//						// check how often period fits, add time
+//						while (stdl < item->mon.dl_deadline){
+//							stdl +=res->item->attr->sched_period;
+//							usedtime += res->item->attr->sched_runtime;
+//						}
+//					}
+//					break;
+//				}
+//			}
+//		}
+//	}
 
 	// if remaining time is enough, return 0
 	return 0 >= (item->mon.dl_deadline - ts - usedtime - extra_rt);

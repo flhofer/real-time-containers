@@ -22,6 +22,18 @@
 #define PFX "[adapt] "
 
 /*
+ * 	LOCAL definitions and variables
+ */
+
+typedef struct resAlloc { 		// resource allocations mapping
+	struct resAlloc *	next;		//
+	struct cont_parm *	item; 		// default, could be any element (img, cont, pid)
+	struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
+} resAlloc_t;
+
+resAlloc_t * aHead = NULL;
+
+/*
  *  cmpresItem(): compares two resource allocation items for Qsort, ascending
  *
  *  Arguments: pointers to the items to check
@@ -417,3 +429,16 @@ void adaptExecute() {
 			res->item->rscs->affinity = res->assigned->affinity;
 }
 
+/*
+ *  adaptFreeTracer(): free resources
+ *
+ *  Arguments: -
+ *
+ *  Return value: -
+ */
+void
+adaptFree(){
+	while (aHead){
+		pop((void**)&aHead);
+	}
+}

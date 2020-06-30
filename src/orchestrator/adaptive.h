@@ -13,6 +13,6 @@
 	void adaptPlanSchedule();
 	void adaptScramble();
 	void adaptExecute();
-	void adaptFreeTracer();
+	void adaptFree();
 
 #endif /* ADAPTIVE_H_ */
