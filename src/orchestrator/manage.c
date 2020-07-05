@@ -901,35 +901,48 @@ static int manageSched(){
 		// update CMD-line once out of 10 (less often..)
 		updatePidCmdline(item);
 
-		if (!(runstats_histCheck(item->mon.pdf_hist))){
-			// if histogram is set and count is ok, update and fit curve
-			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& ((SCHED_RR == item->attr.sched_policy)
-					|| (SCHED_FIFO == item->attr.sched_policy))){
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
-
+		if (!(runstats_histCheck(item->mon.pdf_phist))){
+			if ((SCHED_RR != item->attr.sched_policy)
+					|| (SCHED_FIFO == item->attr.sched_policy)){
+				if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
+					item->mon.cdf_period = (uint64_t)(NSEC_PER_SEC *
+							runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 				}
 				else
 					// something went wrong. Reset parameters
 					warn("CDF period initialization error for PID %d", item->pid);
 			}
+		}
+
+		if (!(runstats_histCheck(item->mon.pdf_hist))){
+			// if histogram is set and count is ok, update and fit curve
 
 
-			if ((SM_PADAPTIVE == prgset->sched_mode)
-					&& (SCHED_DEADLINE == item->attr.sched_policy)){
-				uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
+			// PADAPTIVE
+			switch (prgset->sched_mode) {
 
-				newWCET = MIN (item->attr.sched_runtime, newWCET);
-				updatePidWCET(item, newWCET);
+			case SM_PADAPTIVE:
+				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
 
-				warn ("Estimation error, can not update WCET");
-			}
-			else
+					if (SCHED_DEADLINE == item->attr.sched_policy){
+						newWCET = MIN (item->attr.sched_runtime, newWCET);
+						updatePidWCET(item, newWCET);
+					}
+
+					if (0 < newWCET)
+						item->mon.cdf_runtime = newWCET;
+					else
+						warn ("Estimation error, can not update WCET");
+				}
+				break;
+
+			case SM_DYNSYSTEM:
+			case SM_DYNSIMPLE:
+			case SM_DYNMCBIN:
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
-					// if in dynamic(progressive) system and we updated the curve, update WCET
-					if ((SM_DYNSYSTEM <= prgset->sched_mode)
-							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+					if (SCHED_DEADLINE == item->attr.sched_policy) {
 
 						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
 									runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
@@ -949,6 +962,14 @@ static int manageSched(){
 					// something went wrong. Reset parameters
 					warn("CDF initialization error for PID %d", item->pid);
 				}
+
+				break;
+
+			case SM_STATIC:
+			case SM_ADAPTIVE:
+			default:
+				break;
+			}
 
 		}
     }
