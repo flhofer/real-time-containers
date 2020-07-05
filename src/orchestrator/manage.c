@@ -333,7 +333,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 //	}
 
 	// if remaining time is enough, return 0
-	return 0 >= (item->mon.dl_deadline - ts - usedtime - extra_rt);
+	return 0 >= (item->mon.deadline - ts - usedtime - extra_rt);
 }
 
 static void
@@ -345,22 +345,22 @@ pickPidCons(node_t *item, uint64_t ts){
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
 		// period should never be zero from here on
-		if (!item->mon.dl_deadline				 // no deadline set?
-				|| (item->mon.dl_deadline < ts)){// did we miss a deadline? check for update, sync
-			int is_null = (!item->mon.dl_deadline);
+		if (!item->mon.deadline				 // no deadline set?
+				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
+			int is_null = (!item->mon.deadline);
 
 			get_sched_info(item);				 // update deadline from debug buffer
-			while (item->mon.dl_deadline < ts){	 // after update still not in line? (buffer updates 10ms)
-				item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+			while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
+				item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
 			}
 		}
 		else
 			// just add a period, we rely on periodicity
-			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 	}
 
-	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
+	item->mon.dl_diff = item->mon.deadline - item->mon.dl_rt;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
@@ -387,11 +387,11 @@ pickPidCommon(void * addr, uint64_t ts) {
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-//	if (pFrame->common_flags != 1)
-//		{
-//		// print the flag found, if different from 1
-//		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
-//		}
+	if (pFrame->common_flags != 1)
+		{
+		// print the flag found, if different from 1
+		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
+		}
 
 	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
 }
@@ -652,32 +652,6 @@ void *thread_ftrace(void *arg){
 
 // #################################### THREAD specific END ############################################
 
-/// manageSched(): main function called to reassign resources
-///
-/// Arguments:
-///
-/// Return value: N/D - int
-///
-static int manageSched(){
-
-	// this is for the dynamic and adaptive scheduler only
-
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
-
-    node_t * current = nhead;
-
-	while (current != NULL) {
-
-        current = current->next;
-    }
-
-
-	(void)pthread_mutex_unlock(&dataMutex);
-
-	return 0;
-}
-
 /*
  *  get_sched_info(): get scheduler debug output info
  *
@@ -775,13 +749,13 @@ get_sched_info(node_t * item)
 					item->mon.dl_count++;
 			}
 			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
-				if (0 == item->mon.dl_deadline)
-					item->mon.dl_deadline = num;
-				else if (num != item->mon.dl_deadline) {
+				if (0 == item->mon.deadline)
+					item->mon.deadline = num;
+				else if (num != item->mon.deadline) {
 					// it's not, updated deadline found
 
 					// calculate difference to last reading, should be 1 period
-					diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
+					diff = (int64_t)(num-item->mon.deadline)-(int64_t)item->attr.sched_period;
 
 					// difference is very close to multiple of period we might have a scan fail
 					// in addition to the overshoot
@@ -816,7 +790,7 @@ get_sched_info(node_t * item)
 						item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
 					}
 
-					item->mon.dl_deadline = num;
+					item->mon.deadline = num;
 				}
 
 				// update last seen runtime
@@ -893,54 +867,6 @@ static int updateStats ()
 
 		/*  Curve Fitting from here, for now every second (default) */
 
-		if (!(( scount % (prgset->loops*10) ))){
-			// update CMD-line once out of 10 (less often..)
-			updatePidCmdline(item);
-
-			if (!(runstats_histCheck(item->mon.pdf_hist))){
-				// if histogram is set and count is ok, update and fit curve
-
-				if ((SM_PADAPTIVE == prgset->sched_mode)
-						&& (SCHED_DEADLINE == item->attr.sched_policy)){
-					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
-
-					if (!item->attr.sched_runtime) // FIXME: should not be possible
-						updatePidAttr(item);
-
-					newWCET = MIN (item->attr.sched_runtime, newWCET);
-					updatePidWCET(item, newWCET);
-
-					warn ("Estimation error, can not update WCET");
-				}
-				else
-					if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
-
-						// if in dynamic(progressive) system and we updated the curve, update WCET
-						if ((SM_DYNSYSTEM <= prgset->sched_mode)
-								&& (SCHED_DEADLINE == item->attr.sched_policy)) {
-
-							uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
-										runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
-
-							// OK, let's check the error
-							if (newWCET > 0){
-	//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference? -> WARN can't do that, offset vs stdev ratio!
-									updatePidWCET(item, newWCET);
-									item->mon.cdf_runtime = newWCET;
-	//							}
-							}
-							else
-								warn ("Estimation error, can not update WCET");
-						}
-					}
-					else{
-						// something went wrong. Reset parameters
-						warn("CDF initialization error for PID %d", item->pid);
-					}
-
-			}
-		}
-
 		// get runtime value
 		if (!prgset->ftrace) // use standard debug output for scheduler
 			if (policy_is_realtime(item->attr.sched_policy)) {
@@ -952,6 +878,82 @@ static int updateStats ()
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex); 
+
+	return !(( scount % (prgset->loops*10) ));	// return 1 if we passed 10th time loops
+}
+
+/// manageSched(): main function called to update resources
+///
+/// Arguments:
+///
+/// Return value: N/D - int
+///
+static int manageSched(){
+
+	// this is for the dynamic and adaptive scheduler only
+
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// for now does only a simple update
+	for (node_t * item = nhead; ((item)); item=item->next ) {
+
+		// update CMD-line once out of 10 (less often..)
+		updatePidCmdline(item);
+
+		if (!(runstats_histCheck(item->mon.pdf_hist))){
+			// if histogram is set and count is ok, update and fit curve
+			if ((SM_PADAPTIVE <= prgset->sched_mode)
+					&& ((SCHED_RR == item->attr.sched_policy)
+					|| (SCHED_FIFO == item->attr.sched_policy))){
+				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+
+				}
+				else
+					// something went wrong. Reset parameters
+					warn("CDF period initialization error for PID %d", item->pid);
+			}
+
+
+			if ((SM_PADAPTIVE == prgset->sched_mode)
+					&& (SCHED_DEADLINE == item->attr.sched_policy)){
+				uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
+
+				newWCET = MIN (item->attr.sched_runtime, newWCET);
+				updatePidWCET(item, newWCET);
+
+				warn ("Estimation error, can not update WCET");
+			}
+			else
+				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+
+					// if in dynamic(progressive) system and we updated the curve, update WCET
+					if ((SM_DYNSYSTEM <= prgset->sched_mode)
+							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
+
+						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+
+						// OK, let's check the error
+						if (newWCET > 0){
+//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference? -> WARN can't do that, offset vs stdev ratio!
+								updatePidWCET(item, newWCET);
+								item->mon.cdf_runtime = newWCET;
+//							}
+						}
+						else
+							warn ("Estimation error, can not update WCET");
+					}
+				}
+				else{
+					// something went wrong. Reset parameters
+					warn("CDF initialization error for PID %d", item->pid);
+				}
+
+		}
+    }
+
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
 }

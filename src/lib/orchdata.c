@@ -413,12 +413,15 @@ static const node_t _node_default = { NULL,				// *next,
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max
-							0, 0, 0, 0, 0,				//
+							0, 0,						//		last ts, deadline
 							0, 0,						//		dl rf, dl diff
+							0, 0, 0,					//		scan counters, fail, overrun
 							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
+
 							0, 0,						//		computed values histogram
-							NULL , NULL,				// 		*pointer to fitting data and vectors
-							0
+							NULL, NULL,					// 		*pointer to fitting data for runtime
+							NULL, NULL,					// 		*pointer to fitting data for period (NON_RT)
+							0, NULL						//		affinity set, *affinity mask runtime
 						},
 						NULL};							// *param structure pointer
 
@@ -467,11 +470,26 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->imgid);
 #endif
-	// curve fitting parameters
+	// curve fitting parameters runtime
 	if ((*head)->mon.pdf_hist)
 		runstats_histFree((*head)->mon.pdf_hist);
 	if ((*head)->mon.pdf_cdf)
 		runstats_cdfFree(&(*head)->mon.pdf_cdf);
+	// curve fitting parameters period
+	if ((*head)->mon.pdf_phist)
+		runstats_histFree((*head)->mon.pdf_phist);
+	if ((*head)->mon.pdf_pcdf)
+		runstats_cdfFree(&(*head)->mon.pdf_pcdf);
+	// runtime affinity mask
+	if ((*head)->mon.affinity_mask)
+		numa_bitmask_free((*head)->mon.affinity_mask);
+#ifdef DEBUG
+	(*head)->mon.pdf_hist = NULL;
+	(*head)->mon.pdf_cdf = NULL;
+	(*head)->mon.pdf_phist = NULL;
+	(*head)->mon.pdf_pcdf = NULL;
+	(*head)->mon.affinity_mask = NULL;
+#endif
 
 	pop((void**)head);
 }
