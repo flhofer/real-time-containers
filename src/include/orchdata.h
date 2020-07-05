@@ -165,6 +165,8 @@
 		uint64_t cdf_period;	// ** RFU ** CDF computed periodic distance for non DL tasks
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
 		stat_cdf *  pdf_cdf;	// CDF data collection
+		// RES allocation
+		int32_t affinity; 		// actually running CPU
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info
