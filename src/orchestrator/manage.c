@@ -460,14 +460,14 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 						b = (double)item->mon.dl_rt; // at least 1ns
 
 					if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-						warn("Curve fitting parameter init failure for PID %d", item->pid);
+						warn("Histogram init failure for PID %d runtime", item->pid);
 				}
 
 				double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
 				int ret;
 				if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 					if (ret != 1) // GSL_EDOM
-						warn("Curve fitting histogram increment error for PID %d", item->pid);
+						warn("Histogram increment error for PID %d runtime", item->pid);
 
 				if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
 					// check reschedule?
@@ -483,10 +483,27 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		}
 	}
 
-	// find mext pid and put ts
+	// find next pid and put ts, compute period eventually
 	for (node_t * citem = nhead; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
 		if (abs(citem->pid)==pFrame->next_pid){
+
+			if ((item->mon.last_ts > 0)
+					&& (SCHED_DEADLINE != item->attr.sched_policy)){
+				double period = (double)(ts - item->mon.last_ts)/(double)NSEC_PER_SEC;
+				int ret;
+
+				if (!(item->mon.pdf_phist)){
+					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+						warn("Histogram init failure for PID %d period", item->pid);
+				}
+
+				if ((ret = runstats_histAdd(item->mon.pdf_hist, period)))
+					if (ret != 1) // GSL_EDOM
+						warn("Histogram increment error for PID %d period", item->pid);
+
+			}
+
 			citem->mon.last_ts = ts;
 			break;
 		}
