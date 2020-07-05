@@ -387,11 +387,11 @@ pickPidCommon(void * addr, uint64_t ts) {
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-	if (pFrame->common_flags != 1)
-		{
-		// print the flag found, if different from 1
-		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
-		}
+//	if (pFrame->common_flags != 1)
+//		{
+//		// print the flag found, if different from 1
+//		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
+//		}
 
 	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
 }
@@ -415,10 +415,15 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
-//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
-//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
-//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
-						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
+
+				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
+				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
+				//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+
+//				(pFrame->prev_state & 0xFF ? __print_flags(pFrame->prev_state & 0xFF,"|",
+//						pFrame->prev_state & 0x100 ? "+" : "",
+
+				pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -439,38 +444,42 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		// compute runtime - limit between 1ns and 1 sec
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
 
-		if (item->mon.last_ts > 0)
-		// TODO: call only if Need-Resched is set
-		{
-			// check statistics and add value
-			if (!(item->mon.pdf_hist)){
-				// base for histogram, runtime parameter
-				double b = (double)item->attr.sched_runtime;
-				// --, try prefix if none loaded
-				if (!b && item->param && item->param->attr)
-					b = (double)item->param->attr->sched_runtime;
-				// -- fall-back to last runtime
-				if (!b)
-					b = (double)item->mon.dl_rt; // at least 1ns
+		if (item->mon.last_ts > 0){
+			if ((pFrame->prev_state & 0x1) // Status 'S' = sleep
+					|| !(pFrame->prev_state & 0xFF)) // Status 'R' = running (yield)
+			{
+				// check statistics and add value
+				if (!(item->mon.pdf_hist)){
+					// base for histogram, runtime parameter
+					double b = (double)item->attr.sched_runtime;
+					// --, try prefix if none loaded
+					if (!b && item->param && item->param->attr)
+						b = (double)item->param->attr->sched_runtime;
+					// -- fall-back to last runtime
+					if (!b)
+						b = (double)item->mon.dl_rt; // at least 1ns
 
-				if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-					warn("Curve fitting parameter init failure for PID %d", item->pid);
+					if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
+						warn("Curve fitting parameter init failure for PID %d", item->pid);
+				}
+
+				double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+				int ret;
+				if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
+					if (ret != 1) // GSL_EDOM
+						warn("Curve fitting histogram increment error for PID %d", item->pid);
+
+				if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
+					// check reschedule?
+	//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
+						// reschedule
+						;
+
+				// consolidate other values
+				pickPidCons(item, ts);
 			}
-
-			double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
-			int ret;
-			if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
-				if (ret != 1) // GSL_EDOM
-					warn("Curve fitting histogram increment error for PID %d", item->pid);
-
-			if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
-				// check reschedule?
-//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
-					// reschedule
-					;
-
-			// consolidate other values
-			pickPidCons(item, ts);
+			else
+				printDbg(PFX "Status not part of preview\n");
 		}
 	}
 
