@@ -61,14 +61,6 @@ struct tr_common {
 	int32_t common_pid;
 };
 
-struct tr_wakeup {
-	char comm[16]; //24 - 16
-	pid_t pid; // 28 - 20
-	int32_t prio; // 32 - 24
-	int32_t success; // 36 - 28
-	int32_t target_cpu; // 40 - 32
-};
-
 struct tr_switch {
 	char prev_comm[16]; //24 - 16
 	pid_t prev_pid; // 28 - 20
@@ -78,15 +70,6 @@ struct tr_switch {
 	char next_comm[16]; // 56 - 48
 	pid_t next_pid; // 60 - 52
 	int32_t next_prio; // 64 - 56
-};
-
-struct tr_runtime {
-	char comm[16]; //24 - 16
-	pid_t pid; // 28 - 20
-	uint32_t dummy  ; // 32 - 24 - alignment filler
-	uint64_t runtime; // 40 - 32
-	uint64_t vruntime; // 48 - 40
-	// filled with 0's to 52
 };
 
 // signal to keep status of triggers ext SIG
@@ -225,7 +208,7 @@ static int startTraceRead() {
 	// loop through, bit set = start a thread and store in ll
 	for (int i=0;i<maxcpu;i++)
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
-			push((void**)&elist_thead, sizeof(struct ftrace_elist));
+			push((void**)&elist_thead, sizeof(struct ftrace_thread));
 			elist_thead->cpuno = i;
 			elist_thead->dbgfile = NULL;
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, elist_thead);
@@ -336,8 +319,42 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 	return 0 >= (item->mon.deadline - ts - usedtime - extra_rt);
 }
 
+/*
+ *  pickPidCons(): update runtime data, init stats when needed
+ *
+ *  Arguments: - item to update
+ * 			   - last time stamp
+ *
+ *  Return value: -
+ */
 static void
 pickPidCons(node_t *item, uint64_t ts){
+
+	if (!(item->mon.pdf_hist)){
+		// base for histogram, runtime parameter
+		double b = (double)item->attr.sched_runtime;
+		// --, try prefix if none loaded
+		if (!b && item->param && item->param->attr)
+			b = (double)item->param->attr->sched_runtime;
+		// -- fall-back to last runtime
+		if (!b)
+			b = (double)item->mon.dl_rt; // at least 1ns
+
+		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
+			warn("Histogram init failure for PID %d runtime", item->pid);
+	}
+
+	double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+	int ret;
+	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
+		if (ret != 1) // GSL_EDOM
+			warn("Histogram increment error for PID %d runtime", item->pid);
+
+	if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
+		// check reschedule?
+//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
+			// reschedule
+			;
 
 	// -> what if we read the debug output here??
 
@@ -396,15 +413,15 @@ pickPidCommon(void * addr, uint64_t ts) {
 	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
 }
 
-/// pickPidInfoS(): process PID fTrace sched_switch
-///					update data with kernel tracer debug out
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
+/*
+ *  pickPidInfoS(): process PID fTrace sched_switch
+ * 					update data with kernel tracer debug out
+ *
+ *  Arguments: - frame containing the runtime info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
 static int pickPidInfoS(void * addr, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, ts);
@@ -431,15 +448,14 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 	// working item
 	node_t * item = NULL;
 
-	// find previous pid switching from
+	// find PID switching from
 	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->prev_pid){
+		if (citem->pid == pFrame->prev_pid){
 			item = citem;
 			break;
 		}
 
-	// PID in list, update data
+	// previous PID in list, update runtime data
 	if (item){
 		// compute runtime - limit between 1ns and 1 sec
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
@@ -447,37 +463,8 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		if (item->mon.last_ts > 0){
 			if ((pFrame->prev_state & 0x1) // Status 'S' = sleep
 					|| !(pFrame->prev_state & 0xFF)) // Status 'R' = running (yield)
-			{
-				// check statistics and add value
-				if (!(item->mon.pdf_hist)){
-					// base for histogram, runtime parameter
-					double b = (double)item->attr.sched_runtime;
-					// --, try prefix if none loaded
-					if (!b && item->param && item->param->attr)
-						b = (double)item->param->attr->sched_runtime;
-					// -- fall-back to last runtime
-					if (!b)
-						b = (double)item->mon.dl_rt; // at least 1ns
-
-					if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-						warn("Histogram init failure for PID %d runtime", item->pid);
-				}
-
-				double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
-				int ret;
-				if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
-					if (ret != 1) // GSL_EDOM
-						warn("Histogram increment error for PID %d runtime", item->pid);
-
-				if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
-					// check reschedule?
-	//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
-						// reschedule
-						;
-
-				// consolidate other values
+				// update realtime stats and consolidate other values
 				pickPidCons(item, ts);
-			}
 			else
 				printDbg(PFX "Status not part of preview\n");
 		}
