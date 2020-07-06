@@ -421,7 +421,7 @@ static const node_t _node_default = { NULL,				// *next,
 							0, 0,						//		computed values histogram
 							NULL, NULL,					// 		*pointer to fitting data for runtime
 							NULL, NULL,					// 		*pointer to fitting data for period (NON_RT)
-							0, NULL						//		affinity set, *affinity mask runtime
+							-1, NULL					//		assignment CPU, *assignment mask runtime
 						},
 						NULL};							// *param structure pointer
 

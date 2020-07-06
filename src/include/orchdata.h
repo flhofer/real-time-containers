@@ -177,7 +177,7 @@
 		stat_cdf *  pdf_pcdf;	// CDF data collection for the period
 
 		// Runtime allocation
-		int32_t assigned; 		// actually running CPU
+		int32_t assigned; 		// actually running CPU, -1 = unassigned
 		struct bitmask * assigned_mask;	// computed affinity mask
 	} nodemon_t;
 
