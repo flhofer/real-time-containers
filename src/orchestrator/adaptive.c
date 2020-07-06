@@ -308,7 +308,7 @@ void adaptPlanSchedule(){
 					unmatched++;
 				else {
 					// allocate resources for flexible tasks
-					trc= checkPeriod(res->item);
+					trc= checkPeriod(res->item->attr, res->item->rscs->affinity);
 					if (trc){
 						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
@@ -329,7 +329,7 @@ void adaptPlanSchedule(){
 					unmatched++;
 				else {
 					// allocate resources for flexible tasks
-					trc= checkPeriod(res->item);
+					trc= checkPeriod(res->item->attr, res->item->rscs->affinity);
 					if (trc){
 						(void)checkUvalue(trc, res->item->attr, 1);
 						res->assigned = trc;
@@ -400,7 +400,7 @@ void adaptScramble(){
 		if (!(res->assigned) ||(res->item->status & MSK_STATCFIX))
 				continue;
 
-		trc = checkPeriod(res->item);
+		trc = checkPeriod(res->item->attr, res->item->rscs->affinity);
 		// found a better option?
 		if (trc && (trc != res->assigned)){
 			// recompute and add

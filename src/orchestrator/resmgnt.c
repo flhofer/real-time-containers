@@ -788,13 +788,14 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 /*
  *  checkPeriod(): find a resource that fits period
  *
- *  Arguments: the attr structure of the task
+ *  Arguments: - the attr structure of the task
+ *  		   - the set affinity
  *
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod(cont_t * item) {
+checkPeriod(struct sched_attr * attr, int affinity) {
 	resTracer_t * ftrc = NULL;
 	int last = -2;		// last checked tracer's score, error by default
 	float Ulast = 10;	// last checked traces's utilization rate
@@ -802,20 +803,45 @@ checkPeriod(cont_t * item) {
 
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		res = checkUvalue(trc, item->attr, 0);
+		res = checkUvalue(trc, attr, 0);
 		if ((res > last) // better match, or matching favorite
 			|| ((res == last) &&
-				(  (trc->affinity == abs(item->rscs->affinity))
+				(  (trc->affinity == abs(affinity))
 				|| (trc->U < Ulast)) ) )	{
 			last = res;
 			// reset U if we had an affinity match
-			if (trc->affinity == abs(item->rscs->affinity))
+			if (trc->affinity == abs(affinity))
 				Ulast= 0.0;
 			else
 				Ulast = trc->U;
 			ftrc = trc;
 		}
 	}
+	return ftrc;
+}
+
+/*
+ *  checkPeriod_R(): find a resource that fits period
+ *
+ *  Arguments: - the item to check
+ *
+ *  Return value: a pointer to the resource tracer
+ * 					returns null if nothing is found
+ */
+resTracer_t *
+checkPeriod_R(node_t * item) {
+	resTracer_t * ftrc = NULL;
+	struct sched_attr attr = { 48 };
+
+	if (SCHED_DEADLINE == item->attr.sched_policy)
+		ftrc = checkPeriod(&item->attr, item->param->rscs->affinity);
+	else{
+		attr.sched_policy = item->attr.sched_policy;
+		attr.sched_runtime = item->mon.cdf_runtime;
+		attr.sched_period = item->mon.cdf_period;
+		ftrc = checkPeriod(&attr, item->param->rscs->affinity);
+	}
+
 	return ftrc;
 }
 
