@@ -34,6 +34,8 @@
 	int checkUvalue(struct resTracer * res,
 		struct sched_attr * par, int add);		// check utilization value, does task fit?
 	resTracer_t * checkPeriod(cont_t * item);	// find a resTracer that fits best
+	resTracer_t * getTracer(int32_t CPUno);		// return resTracer for CPU no
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
 	int	recomputeCPUTimes(int32_t CPUno);			// recompute UL for CPU
+
 #endif /* RESMGMT_H_ */

@@ -263,6 +263,19 @@ static int stopTraceRead() {
 // #################################### THREAD specific ############################################
 
 /*
+ *  pickPidReallocCPU(): process PID runtime overrun,
+ *
+ *  Arguments: - item to check
+ *
+ *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
+ */
+static int
+pickPidReallocCPU(int32_t CPUno){
+
+	return 0;
+}
+
+/*
  *  pickPidCheckBuffer(): process PID runtime overrun,
  *
  *  Arguments: - item to check
@@ -465,10 +478,10 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 			item->mon.assigned = fthread->cpuno;
 
 			if (0 > recomputeCPUTimes(fthread->cpuno))
-				; // TODO: reschedule something
+				pickPidReallocCPU(fthread->cpuno);
 
 			if (0 > recomputeCPUTimes(CPU))
-				; // TODO: reschedule something
+				pickPidReallocCPU(CPU);
 		}
 
 		// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
@@ -496,10 +509,10 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 				citem->mon.assigned = fthread->cpuno;
 
 				if (0 > recomputeCPUTimes(fthread->cpuno))
-					; // TODO: reschedule something
+					pickPidReallocCPU(fthread->cpuno);
 
 				if (0 > recomputeCPUTimes(CPU))
-					; // TODO: reschedule something
+					pickPidReallocCPU(CPU);
 			}
 
 			if ((citem->mon.last_ts > 0)

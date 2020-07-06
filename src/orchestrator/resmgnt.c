@@ -820,6 +820,25 @@ checkPeriod(cont_t * item) {
 }
 
 /*
+ *  getTracer(): get the resource tracer for CPU x
+ *
+ *  Arguments: - CPU number to look for
+ *
+ *  Return value: a pointer to the resource tracer
+ *					returns null if nothing is found
+ */
+resTracer_t *
+getTracer(int32_t CPUno) {
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if (CPUno == trc->affinity)
+			return trc;
+	}
+
+	return NULL;
+}
+
+/*
  *  grepTracer(): find an empty or low UL CPU
  *
  *  Arguments: -
@@ -897,10 +916,10 @@ recomputeCPUTimes(int32_t CPUno) {
 	if (-1 == CPUno)	// default, not assigned
 		return 0;
 
-	// loop through all and return the best fit
-	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (CPUno == trc->affinity)
-			return recomputeTimes(trc, CPUno);
-	}
-	return -1; // not found!
+	resTracer_t * trc;
+
+	if ((trc = getTracer(CPUno)))
+		return recomputeTimes(trc, CPUno);
+
+	return -2; // not found! ERROR
 }
