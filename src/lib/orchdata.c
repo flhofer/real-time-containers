@@ -481,14 +481,14 @@ void node_pop(node_t ** head) {
 	if ((*head)->mon.pdf_pcdf)
 		runstats_cdfFree(&(*head)->mon.pdf_pcdf);
 	// runtime affinity mask
-	if ((*head)->mon.affinity_mask)
-		numa_bitmask_free((*head)->mon.affinity_mask);
+	if ((*head)->mon.assigned_mask)
+		numa_bitmask_free((*head)->mon.assigned_mask);
 #ifdef DEBUG
 	(*head)->mon.pdf_hist = NULL;
 	(*head)->mon.pdf_cdf = NULL;
 	(*head)->mon.pdf_phist = NULL;
 	(*head)->mon.pdf_pcdf = NULL;
-	(*head)->mon.affinity_mask = NULL;
+	(*head)->mon.assigned_mask = NULL;
 #endif
 
 	pop((void**)head);

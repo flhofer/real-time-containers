@@ -177,8 +177,8 @@
 		stat_cdf *  pdf_pcdf;	// CDF data collection for the period
 
 		// Runtime allocation
-		int32_t affinity; 		// actually running CPU
-		struct bitmask * affinity_mask;	// computed affinity mask
+		int32_t assigned; 		// actually running CPU
+		struct bitmask * assigned_mask;	// computed affinity mask
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info
