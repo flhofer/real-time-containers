@@ -48,7 +48,7 @@ struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
-	int (*eventcall)(void *, uint64_t); // event elaboration function
+	int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t); // event elaboration function
 };
 struct ftrace_elist * elist_head;
 
@@ -78,7 +78,8 @@ static volatile sig_atomic_t ftrace_stop;
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
-static int pickPidInfoS(void * addr, uint64_t ts);
+static int pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
+static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
 
 static int get_sched_info(node_t * item);
 
@@ -398,7 +399,7 @@ pickPidCons(node_t *item, uint64_t ts){
 /// Return value: error code, 0 = success
 ///
 static int
-pickPidCommon(void * addr, uint64_t ts) {
+pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
 	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
@@ -422,9 +423,9 @@ pickPidCommon(void * addr, uint64_t ts) {
  *
  *  Return value: error code, 0 = success
  */
-static int pickPidInfoS(void * addr, uint64_t ts) {
+static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
-	int ret1 = pickPidCommon(addr, ts);
+	int ret1 = pickPidCommon(addr, fthread, ts);
 	addr+= ret1;
 
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
@@ -457,8 +458,21 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 
 	// previous PID in list, update runtime data
 	if (item){
-		// compute runtime - limit between 1ns and 1 sec
-		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
+		// check if CPU changed, exiting
+		if (item->mon.assigned != fthread->cpuno){
+			// change on exit???, reassign CPU?
+			int32_t CPU = item->mon.assigned;
+			item->mon.assigned = fthread->cpuno;
+
+			if (0 > recomputeCPUTimes(fthread->cpuno))
+				; // TODO: reschedule something
+
+			if (0 > recomputeCPUTimes(CPU))
+				; // TODO: reschedule something
+		}
+
+		// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
+		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
 
 		if (item->mon.last_ts > 0){
 			if ((pFrame->prev_state & 0x1) // Status 'S' = sleep
@@ -470,10 +484,23 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		}
 	}
 
-	// find next pid and put ts, compute period eventually
+	// find next PID and put ts, compute period eventually
 	for (node_t * citem = nhead; ((citem)); citem=citem->next )
 		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->next_pid){
+		if (citem->pid == pFrame->next_pid){
+
+			// check if CPU changed, exiting
+			if (citem->mon.assigned != fthread->cpuno){
+				// change on exit???, reassign CPU?
+				int32_t CPU = citem->mon.assigned;
+				citem->mon.assigned = fthread->cpuno;
+
+				if (0 > recomputeCPUTimes(fthread->cpuno))
+					; // TODO: reschedule something
+
+				if (0 > recomputeCPUTimes(CPU))
+					; // TODO: reschedule something
+			}
 
 			if ((citem->mon.last_ts > 0)
 					&& (SCHED_DEADLINE != citem->attr.sched_policy)){
@@ -617,7 +644,7 @@ void *thread_ftrace(void *arg){
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
 			while ((pEvent)  && (!ftrace_stop)) {
-				int (*eventcall)(void *, uint64_t) = pickPidCommon; // default to common for unknown formats
+				int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t) = pickPidCommon; // default to common for unknown formats
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					// check for ID, first value is 16 bit ID
@@ -627,7 +654,7 @@ void *thread_ftrace(void *arg){
 					}
 
 				// call event
-				int count = eventcall(pEvent, timestamp);
+				int count = eventcall(pEvent, fthread, timestamp);
 				if (0 > count){
 					// something went wrong, dump and exit
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
