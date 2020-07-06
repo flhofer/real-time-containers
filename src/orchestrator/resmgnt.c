@@ -842,3 +842,65 @@ grepTracer() {
 	return ftrc;
 }
 
+/*
+ *  recomputeTimes(): recomputes base and utilization factor of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeTimes(struct resTracer * res, int32_t CPUno) {
+
+	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
+	struct sched_attr attr = { 48 };
+	int rv;
+
+	// find PID switching from
+	for (node_t * item = nhead; ((item)); item=item->next){
+		if (item->mon.assigned != CPUno)
+			continue;
+
+		if (SCHED_DEADLINE == item->attr.sched_policy)
+			rv = checkUvalue(resNew, &item->attr, 1);
+		else{
+			attr.sched_policy = item->attr.sched_policy;
+			attr.sched_runtime = item->mon.cdf_runtime;
+			attr.sched_period = item->mon.cdf_period;
+			rv = checkUvalue(resNew, &attr, 1);
+		}
+
+		if ( 0 > rv ){
+			free(resNew);
+			return rv; // stops here
+		}
+
+	}
+
+	res->basePeriod = resNew->basePeriod;
+	res->usedPeriod = resNew->usedPeriod;
+	res->U = resNew->U;
+
+	free(resNew);
+	return 0;
+}
+
+/*
+ *  recomputeCPUTimes(): recomputes base and utilization factor of a CPU
+ *
+ *  Arguments:  - CPU number
+ *
+ *  Return value: Negative values return error
+ */
+int
+recomputeCPUTimes(int32_t CPUno) {
+	if (-1 == CPUno)	// default, not assigned
+		return 0;
+
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if (CPUno == trc->affinity)
+			return recomputeTimes(trc, CPUno);
+	}
+	return -1; // not found!
+}
