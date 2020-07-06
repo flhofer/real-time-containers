@@ -488,19 +488,19 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 		// skip deactivated tracking items
 		if (abs(citem->pid)==pFrame->next_pid){
 
-			if ((item->mon.last_ts > 0)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)){
-				double period = (double)(ts - item->mon.last_ts)/(double)NSEC_PER_SEC;
+			if ((citem->mon.last_ts > 0)
+					&& (SCHED_DEADLINE != citem->attr.sched_policy)){
+				double period = (double)(ts - citem->mon.last_ts)/(double)NSEC_PER_SEC;
 				int ret;
 
-				if (!(item->mon.pdf_phist)){
-					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-						warn("Histogram init failure for PID %d period", item->pid);
+				if (!(citem->mon.pdf_phist)){
+					if ((runstats_histInit(&(citem->mon.pdf_phist), period)))
+						warn("Histogram init failure for PID %d period", citem->pid);
 				}
 
-				if ((ret = runstats_histAdd(item->mon.pdf_hist, period)))
+				if ((ret = runstats_histAdd(citem->mon.pdf_phist, period)))
 					if (ret != 1) // GSL_EDOM
-						warn("Histogram increment error for PID %d period", item->pid);
+						warn("Histogram increment error for PID %d period", citem->pid);
 
 			}
 
@@ -918,18 +918,18 @@ static int manageSched(){
 		// update CMD-line once out of 10 (less often..)
 		updatePidCmdline(item);
 
-		if (!(runstats_histCheck(item->mon.pdf_phist))){
-			if ((SCHED_RR != item->attr.sched_policy)
-					|| (SCHED_FIFO == item->attr.sched_policy)){
-				if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
-					item->mon.cdf_period = (uint64_t)(NSEC_PER_SEC *
-							runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
+		if (SM_PADAPTIVE <= prgset->sched_mode)
+			if (!(runstats_histCheck(item->mon.pdf_phist))){
+				if ((SCHED_DEADLINE != item->attr.sched_policy)){
+					if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
+						item->mon.cdf_period = (uint64_t)(NSEC_PER_SEC *
+								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
+					}
+					else
+						// something went wrong. Reset parameters
+						warn("CDF period initialization error for PID %d", item->pid);
 				}
-				else
-					// something went wrong. Reset parameters
-					warn("CDF period initialization error for PID %d", item->pid);
 			}
-		}
 
 		if (!(runstats_histCheck(item->mon.pdf_hist))){
 			// if histogram is set and count is ok, update and fit curve
@@ -959,21 +959,21 @@ static int manageSched(){
 			case SM_DYNMCBIN:
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
-					if (SCHED_DEADLINE == item->attr.sched_policy) {
+					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
+								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
 
-						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
-									runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
-
-						// OK, let's check the error
-						if (newWCET > 0){
+					// OK, let's check the error
+					if (newWCET > 0){
 //							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference? -> WARN can't do that, offset vs stdev ratio!
+
+							if (SCHED_DEADLINE == item->attr.sched_policy) {
 								updatePidWCET(item, newWCET);
-								item->mon.cdf_runtime = newWCET;
+							}
+							item->mon.cdf_runtime = newWCET;
 //							}
-						}
-						else
-							warn ("Estimation error, can not update WCET");
 					}
+					else
+						warn ("Estimation error, can not update WCET");
 				}
 				else{
 					// something went wrong. Reset parameters
