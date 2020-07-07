@@ -302,20 +302,21 @@ pickPidReallocCPU(int32_t CPUno){
  *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
  */
 static int
-pickPidCheckBuffer(node_t * item, uint64_t ts, int32_t CPUno, uint64_t extra_rt){
+pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 	uint64_t usedtime = 0;
 
 	// find all matching, test if space is enough
 	for (node_t *citem = nhead; ((citem)); citem=citem->next){
-		if (citem->mon.assigned != CPUno)
+		if (citem->mon.assigned != item->mon.assigned)
 			continue;
 
-		if (citem->mon.deadline
+		// !! WARN, works only for deadline scheduled tasks
+		if (citem->mon.deadline && citem->attr.sched_period
 				&& citem->mon.deadline <= item->mon.deadline){
 			// dl present and smaller than next dl of item
 
-			uint64_t stdl = citem->attr.sched_deadline;
+			uint64_t stdl = citem->mon.deadline;
 
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
@@ -360,14 +361,14 @@ pickPidCons(node_t *item, uint64_t ts){
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d runtime", item->pid);
 
-	if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
+	if ((SM_DYNSIMPLE <= prgset->sched_mode)
+			&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime)))
 		// check reschedule?
-//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
+		if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
 			// reschedule
-			;
+			pickPidReallocCPU(item->mon.assigned);
 
 	// -> what if we read the debug output here??
-
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
@@ -468,16 +469,17 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 	// previous PID in list, update runtime data
 	if (item){
 		// check if CPU changed, exiting
-		if (item->mon.assigned != fthread->cpuno){
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.assigned != fthread->cpuno)){
 			// change on exit???, reassign CPU?
 			int32_t CPU = item->mon.assigned;
 			item->mon.assigned = fthread->cpuno;
 
-			if (0 > recomputeCPUTimes(fthread->cpuno))
-				pickPidReallocCPU(fthread->cpuno);
-
 			if (0 > recomputeCPUTimes(CPU))
 				pickPidReallocCPU(CPU);
+
+			if (0 > recomputeCPUTimes(fthread->cpuno))
+				pickPidReallocCPU(fthread->cpuno);
 		}
 
 		// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
@@ -499,16 +501,17 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		if (citem->pid == pFrame->next_pid){
 
 			// check if CPU changed, exiting
-			if (citem->mon.assigned != fthread->cpuno){
+			if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (citem->mon.assigned != fthread->cpuno)){
 				// change on exit???, reassign CPU?
 				int32_t CPU = citem->mon.assigned;
 				citem->mon.assigned = fthread->cpuno;
 
-				if (0 > recomputeCPUTimes(fthread->cpuno))
-					pickPidReallocCPU(fthread->cpuno);
-
 				if (0 > recomputeCPUTimes(CPU))
 					pickPidReallocCPU(CPU);
+
+				if (0 > recomputeCPUTimes(fthread->cpuno))
+					pickPidReallocCPU(fthread->cpuno);
 			}
 
 			if ((citem->mon.last_ts > 0)
