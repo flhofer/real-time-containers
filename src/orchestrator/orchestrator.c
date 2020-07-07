@@ -111,9 +111,12 @@ static void display_help(int error)
 	       "         --rr=RRTIME       set a SCHED_RR interval time in ms, default=100\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
-	       "-S       --system          activate Dynamic System Schedule (DSS), requires \n"
+	       "-S [NR]  --system[=NR]     activate Dynamic System Schedule (DSS), alg NR \n"
+	       "                           0 = System controlled (default)\n"
+	       "                           1 = Simple period based\n"
+	       "                           2 = Monte-Carlo bin\n"
 #ifdef ARCH_HAS_SMI_COUNTER
-               "         --smi             Enable SMI counting\n"
+           "         --smi             Enable SMI counting\n"
 #endif
 #ifdef DEBUG
 	       "-v       --verbose         verbose output for debug purposes\n"
@@ -183,7 +186,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"rr",               required_argument, NULL, OPT_RRTIME },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
-			{"system",           no_argument,       NULL, OPT_SYSTEM },
+			{"system",           optional_argument, NULL, OPT_SYSTEM },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
@@ -191,7 +194,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:Svw:",
+		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:S::vw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -326,7 +329,13 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'S':
 		case OPT_SYSTEM:
-			set->sched_mode = MAX(set->sched_mode, SM_DYNSYSTEM);
+			set->sched_mode = SM_DYNSYSTEM;
+			if (NULL != optarg) {
+				set->sched_mode+= MIN(atoi(optarg), 2);
+			} else if (optind<argc) {
+				set->sched_mode+= MIN(atoi(argv[optind]),2);
+				optargs++;
+			}
 			break;
 #ifdef DEBUG
 		case 'v':
