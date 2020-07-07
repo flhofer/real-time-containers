@@ -271,8 +271,26 @@ static int stopTraceRead() {
  */
 static int
 pickPidReallocCPU(int32_t CPUno){
+	resTracer_t * trc = getTracer(CPUno);
+	resTracer_t * ntrc = NULL;
 
-	return 0;
+	for (node_t * item = nhead; ((item)); item=item->next){
+		if (item->mon.assigned != CPUno)
+			continue;
+
+		ntrc = checkPeriod_R(item);
+		if (ntrc != trc){
+			// fitting found
+			int old = item->mon.assigned;
+			item->mon.assigned = trc->affinity;
+			if (setPidAffinity_R (item))
+				return 0;
+			// else reset, continue
+			item->mon.assigned = old;
+		}
+	}
+
+	return -1;
 }
 
 /*
@@ -284,50 +302,28 @@ pickPidReallocCPU(int32_t CPUno){
  *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
  */
 static int
-pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
+pickPidCheckBuffer(node_t * item, uint64_t ts, int32_t CPUno, uint64_t extra_rt){
 
 	uint64_t usedtime = 0;
-	resTracer_t * testCpu;
 
-//	// TODO: check actual affinity matches res-tracer
-//
-//	// Find res-tracer assigned to CPU
-//	for (resAlloc_t *res = aHead; ((res)); res=res->next){
-//		if (res->item == (struct cont_param *) item->param){
-//			if (res->assigned)
-//				testCpu = res->assigned;
-//			else
-//				break;
-//		}
-//	}
-//
-//	// find all matching, test if space is enough
-//
-//	for (node_t *node = nhead; ((node)); node=node->next){
-//		if (node->mon.dl_deadline
-//				&& node->mon.dl_deadline <= item->mon.dl_deadline){
-//			// dl present and smaller than next dl of item
-//
-//			for (resAlloc_t *res = aHead; ((res)); res=res->next){
-//				if (res->item == node){
-//					// found res for testing item
-//
-//					if (res->assigned && testCpu == res->assigned){
-//						// the same node!?
-//
-//						uint64_t stdl = res->item->attr->sched_deadline;
-//
-//						// check how often period fits, add time
-//						while (stdl < item->mon.dl_deadline){
-//							stdl +=res->item->attr->sched_period;
-//							usedtime += res->item->attr->sched_runtime;
-//						}
-//					}
-//					break;
-//				}
-//			}
-//		}
-//	}
+	// find all matching, test if space is enough
+	for (node_t *citem = nhead; ((citem)); citem=citem->next){
+		if (citem->mon.assigned != CPUno)
+			continue;
+
+		if (citem->mon.deadline
+				&& citem->mon.deadline <= item->mon.deadline){
+			// dl present and smaller than next dl of item
+
+			uint64_t stdl = citem->attr.sched_deadline;
+
+			// check how often period fits, add time
+			while (stdl < item->mon.deadline){
+				stdl += citem->attr.sched_period;
+				usedtime += citem->attr.sched_runtime;
+			}
+		}
+	}
 
 	// if remaining time is enough, return 0
 	return 0 >= (item->mon.deadline - ts - usedtime - extra_rt);

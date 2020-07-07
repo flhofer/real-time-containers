@@ -833,14 +833,35 @@ checkPeriod_R(node_t * item) {
 	resTracer_t * ftrc = NULL;
 	struct sched_attr attr = { 48 };
 
-	if (SCHED_DEADLINE == item->attr.sched_policy)
-		ftrc = checkPeriod(&item->attr, item->param->rscs->affinity);
-	else{
-		attr.sched_policy = item->attr.sched_policy;
-		attr.sched_runtime = item->mon.cdf_runtime;
-		attr.sched_period = item->mon.cdf_period;
-		ftrc = checkPeriod(&attr, item->param->rscs->affinity);
+	int last = -2;		// last checked tracer's score, error by default
+	float Ulast = 10;	// last checked traces's utilization rate
+	int res;
+
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if (SCHED_DEADLINE == item->attr.sched_policy)
+			res = checkUvalue(trc, &item->attr, 0);
+		else{
+			attr.sched_policy = item->attr.sched_policy;
+			attr.sched_runtime = item->mon.cdf_runtime;
+			attr.sched_period = item->mon.cdf_period;
+			res = checkUvalue(trc, &attr, 0);
+		}
+		if ((res > last) // better match, or matching favorite
+			|| ((res == last) &&
+				(  (trc->affinity == abs(item->param->rscs->affinity))
+				|| (trc->U < Ulast)) ) )	{
+			last = res;
+			// reset U if we had an affinity match
+			if (trc->affinity == abs(item->param->rscs->affinity))
+				Ulast= 0.0;
+			else
+				Ulast = trc->U;
+			ftrc = trc;
+		}
 	}
+
+	return ftrc;
 
 	return ftrc;
 }
@@ -948,4 +969,30 @@ recomputeCPUTimes(int32_t CPUno) {
 		return recomputeTimes(trc, CPUno);
 
 	return -2; // not found! ERROR
+}
+
+/*
+ *	setPidAffinity_R: sets the affinity of a PID based on assinged CPU
+ *				the task is present in the common 'docker' CGroup
+ *
+ *	Arguments: - pointer to node with data
+ *
+ *	Return value: 0 on success, -1 otherwise
+ */
+int
+setPidAffinity_R (node_t * node){
+	if (node->mon.assigned_mask)
+		numa_bitmask_clearall(node->mon.assigned_mask);
+	else
+		node->mon.assigned_mask = numa_allocate_cpumask();
+
+	numa_bitmask_setbit(node->mon.assigned_mask, node->mon.assigned);
+
+	// Set affinity
+	if (numa_sched_setaffinity(node->pid, node->mon.assigned_mask)){
+		err_msg_n(errno,"setting affinity for PID %d",
+			node->pid);
+		return -1;
+	}
+	return 0;
 }
