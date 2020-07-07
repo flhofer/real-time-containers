@@ -848,20 +848,18 @@ checkPeriod_R(node_t * item) {
 			res = checkUvalue(trc, &attr, 0);
 		}
 		if ((res > last) // better match, or matching favorite
-			|| ((res == last) &&
-				(  (trc->affinity == abs(item->param->rscs->affinity))
-				|| (trc->U < Ulast)) ) )	{
+			|| ((res == last)
+				&&	((item->param && (trc->affinity == abs(item->param->rscs->affinity)))
+						|| (trc->U < Ulast)) ) )	{
 			last = res;
 			// reset U if we had an affinity match
-			if (trc->affinity == abs(item->param->rscs->affinity))
+			if ((item->param) && (trc->affinity == abs(item->param->rscs->affinity)))
 				Ulast= 0.0;
 			else
 				Ulast = trc->U;
 			ftrc = trc;
 		}
 	}
-
-	return ftrc;
 
 	return ftrc;
 }
@@ -916,7 +914,7 @@ grepTracer() {
  *  Return value: Negative values return error
  */
 static int
-recomputeTimes(struct resTracer * res, int32_t CPUno) {
+recomputeTimes(struct resTracer * res) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
 	struct sched_attr attr = { 48 };
@@ -924,7 +922,7 @@ recomputeTimes(struct resTracer * res, int32_t CPUno) {
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != CPUno)
+		if (item->mon.assigned != res->affinity)
 			continue;
 
 		if (SCHED_DEADLINE == item->attr.sched_policy)
@@ -966,7 +964,7 @@ recomputeCPUTimes(int32_t CPUno) {
 	resTracer_t * trc;
 
 	if ((trc = getTracer(CPUno)))
-		return recomputeTimes(trc, CPUno);
+		return recomputeTimes(trc);
 
 	return -2; // not found! ERROR
 }
