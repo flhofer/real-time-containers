@@ -70,8 +70,16 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 	}
 }
 
+/*
+ *	setPidAffinity: sets the affinity of a PID
+ *
+ *	Arguments: - PID of taks
+ *			   - bit-mask for affinity
+ *
+ *	Return value: 0 on success, -1 otherwise
+ */
 static int
-setPidAffinityNo(pid_t pid, struct bitmask * mask) {
+setPidAffinity(pid_t pid, struct bitmask * mask) {
 	int ret = 0;
 
 	struct bitmask * bmold = numa_allocate_cpumask();
@@ -108,20 +116,20 @@ setPidAffinityNo(pid_t pid, struct bitmask * mask) {
 
 
 /*
- *	setPidAffinity: sets the affinity of a PID
- *				the task is present in the common 'docker' CGroup
+ *	setPidAffinityNode: sets the affinity of a PID based on node configuration
+ *				the task is present or moved to the in the common 'docker' CGroup
  *
  *	Arguments: - pointer to node with data
- *			   - bit-mask for affinity
  *
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setPidAffinity (node_t * node){
+setPidAffinityNode (node_t * node){
 
 	int ret = 0;
 
 	{	// add PID to docker CGroup
+		//TODO: warn ! this removes it if it's already present in a subgroup!
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
@@ -138,38 +146,37 @@ setPidAffinity (node_t * node){
 		return -1;
 	}
 
-	struct bitmask * bmold = numa_allocate_cpumask();
-	if (!bmold){
-		err_msg("Could not allocate bit-mask for compare!");
+	// return -1(-2) if one failed
+	return ret - setPidAffinity(node->pid,
+			node->param->rscs->affinity_mask);
+}
+
+/*
+ *	setPidAffinityAssinged: sets the affinity of a PID based on assigned CPU
+ *				the task is present in the common 'docker' CGroup
+ *
+ *	Arguments: - pointer to node with data
+ *
+ *	Return value: 0 on success, -1 otherwise
+ */
+int
+setPidAffinityAssinged (node_t * node){
+	if (node->mon.assigned_mask)
+		numa_bitmask_clearall(node->mon.assigned_mask);
+	else
+		node->mon.assigned_mask = numa_allocate_cpumask();
+
+	numa_bitmask_setbit(node->mon.assigned_mask, node->mon.assigned);
+
+	// Set affinity
+	if (numa_sched_setaffinity(node->pid, node->mon.assigned_mask)){
+		err_msg_n(errno,"setting affinity for PID %d",
+			node->pid);
 		return -1;
 	}
-
-	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
-	if ((0 > numa_sched_getaffinity(node->pid, bmold)))
-		err_msg_n(errno,"getting affinity for PID %d", node->pid);
-
-	if (numa_bitmask_equal(node->param->rscs->affinity_mask, bmold)){
-
-		// get textual representation for log
-		char affinity[CPUSTRLEN];
-		if (parse_bitmask (node->param->rscs->affinity_mask, affinity, CPUSTRLEN)){
-				warn("Can not determine inverse affinity mask!");
-				(void)sprintf(affinity, "****");
-		}
-
-		// Set affinity
-		if (numa_sched_setaffinity(node->pid, node->param->rscs->affinity_mask)){
-			err_msg_n(errno,"setting affinity for PID %d",
-				node->pid);
-			ret = -1;
-		}
-		else
-			cont("PID %d reassigned to CPUs '%s'", node->pid, affinity);
-	}
-
-	numa_bitmask_free(bmold);
-	return ret;
+	return 0;
 }
+
 
 /*
  *	setContainerAffinity: sets the affinity of a container
@@ -255,7 +262,7 @@ setPidResources_u(node_t * node) {
 			node->status |= MSK_STATUPD;
 		}
 		else
-			node->status |= !(setPidAffinity(node)) & MSK_STATUPD;
+			node->status |= !(setPidAffinityNode(node)) & MSK_STATUPD;
 	}
 
 	if (0 == node->pid) // PID 0 = detected containers
@@ -1004,30 +1011,4 @@ recomputeCPUTimes(int32_t CPUno) {
 		return recomputeTimes(trc);
 
 	return -2; // not found! ERROR
-}
-
-/*
- *	setPidAffinityAssinged: sets the affinity of a PID based on assigned CPU
- *				the task is present in the common 'docker' CGroup
- *
- *	Arguments: - pointer to node with data
- *
- *	Return value: 0 on success, -1 otherwise
- */
-int
-setPidAffinityAssinged (node_t * node){
-	if (node->mon.assigned_mask)
-		numa_bitmask_clearall(node->mon.assigned_mask);
-	else
-		node->mon.assigned_mask = numa_allocate_cpumask();
-
-	numa_bitmask_setbit(node->mon.assigned_mask, node->mon.assigned);
-
-	// Set affinity
-	if (numa_sched_setaffinity(node->pid, node->mon.assigned_mask)){
-		err_msg_n(errno,"setting affinity for PID %d",
-			node->pid);
-		return -1;
-	}
-	return 0;
 }

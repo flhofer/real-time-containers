@@ -114,7 +114,7 @@ static void display_help(int error)
 	       "-S [NR]  --system[=NR]     activate Dynamic System Schedule (DSS), alg NR \n"
 	       "                           0 = System controlled (default)\n"
 	       "                           1 = Simple period based\n"
-	       "                           2 = Monte-Carlo bin\n"
+	       "                           2 = Monte-Carlo bin (unsupported)\n"
 #ifdef ARCH_HAS_SMI_COUNTER
            "         --smi             Enable SMI counting\n"
 #endif
