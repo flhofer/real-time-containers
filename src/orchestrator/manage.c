@@ -381,7 +381,7 @@ pickPidCons(node_t *item, uint64_t ts){
 				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
 			int is_null = (!item->mon.deadline);
 
-			get_sched_info(item);				 // update deadline from debug buffer
+			/* TODO: return value */get_sched_info(item);				 // update deadline from debug buffer
 			while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 				item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
@@ -392,7 +392,9 @@ pickPidCons(node_t *item, uint64_t ts){
 			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 	}
 
-	item->mon.dl_diff = item->mon.deadline - item->mon.dl_rt;
+	item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+	// exponentially weighted moving average, alpha = 0.9
+	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
@@ -800,48 +802,51 @@ get_sched_info(node_t * item)
 					item->mon.deadline = num;
 				else if (num != item->mon.deadline) {
 					// it's not, updated deadline found
+					if (!prgset->ftrace){ // only if not from ftrace call
 
-					// calculate difference to last reading, should be 1 period
-					diff = (int64_t)(num-item->mon.deadline)-(int64_t)item->attr.sched_period;
+						// calculate difference to last reading, should be 1 period
+						diff = (int64_t)(num-item->mon.deadline)-(int64_t)item->attr.sched_period;
 
-					// difference is very close to multiple of period we might have a scan fail
-					// in addition to the overshoot
-					while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) {
-						item->mon.dl_scanfail++;
-						diff -= (int64_t)item->attr.sched_period;
-					}
+						// difference is very close to multiple of period we might have a scan fail
+						// in addition to the overshoot
+						while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) {
+							item->mon.dl_scanfail++;
+							diff -= (int64_t)item->attr.sched_period;
+						}
 
-					// overrun-GRUB handling statistics -- ?
-					if (diff)  {
-						item->mon.dl_overrun++;
+						// overrun-GRUB handling statistics -- ?
+						if (diff)  {
+							item->mon.dl_overrun++;
 
-						// usually: we have jitter but execution stays constant -> more than a slot?
-						printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
-							item->pid, diff, item->mon.dl_diff);
-					}
+							// usually: we have jitter but execution stays constant -> more than a slot?
+							printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
+								item->pid, diff, item->mon.dl_diff);
+						}
 
-					item->mon.dl_diff += diff;
-					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
-					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+						item->mon.dl_diff += diff;
+						item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+						item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
 
-					// exponentially weighted moving average, alpha = 0.9
-					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
+						// exponentially weighted moving average, alpha = 0.9
+						item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
 
-					// runtime replenished - deadline changed: old value may be real RT ->
-					// Works only if scan time < slack time
-					// and if not, this here filters the hole (maybe)
-					diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
-					if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
-						item->mon.rt_min = MIN (item->mon.rt_min, diff);
-						item->mon.rt_max = MAX (item->mon.rt_max, diff);
-						item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+						// runtime replenished - deadline changed: old value may be real RT ->
+						// Works only if scan time < slack time
+						// and if not, this here filters the hole (maybe)
+						diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+						if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
+							item->mon.rt_min = MIN (item->mon.rt_min, diff);
+							item->mon.rt_max = MAX (item->mon.rt_max, diff);
+							item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+						}
 					}
 
 					item->mon.deadline = num;
 				}
 
 				// update last seen runtime
-				item->mon.dl_rt = ltrt;
+				if (!prgset->ftrace)
+					item->mon.dl_rt = ltrt;
 				break; // we're done reading
 			}
 		}
