@@ -39,5 +39,5 @@
 	resTracer_t * getTracer(int32_t CPUno);		// return resTracer for CPU no
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
 	int	recomputeCPUTimes(int32_t CPUno);			// recompute UL for CPU
-	int	setPidAffinity_R (node_t * node);		// update PID affinity in run-time
+	int	setPidAffinityAssinged (node_t * node);		// update PID affinity in run-time
 #endif /* RESMGMT_H_ */

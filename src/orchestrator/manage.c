@@ -283,9 +283,13 @@ pickPidReallocCPU(int32_t CPUno){
 			// fitting found
 			int old = item->mon.assigned;
 			item->mon.assigned = trc->affinity;
-			if (setPidAffinity_R (item))
+			if (setPidAffinityAssinged (item)){
+				if (0 < recomputeCPUTimes(trc->affinity))
+					continue; // more than one to move
+
+				// done only if all works out
 				return 0;
-			// else reset, continue
+			}
 			item->mon.assigned = old;
 		}
 	}

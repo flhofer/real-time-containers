@@ -70,6 +70,43 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 	}
 }
 
+static int
+setPidAffinityNo(pid_t pid, struct bitmask * mask) {
+	int ret = 0;
+
+	struct bitmask * bmold = numa_allocate_cpumask();
+	if (!bmold){
+		err_msg("Could not allocate bit-mask for compare!");
+		return -1;
+	}
+
+	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
+	if ((0 > numa_sched_getaffinity(pid, bmold)))
+		err_msg_n(errno,"getting affinity for PID %d", pid);
+
+	if (numa_bitmask_equal(mask, bmold)){
+
+		// get textual representation for log
+		char affinity[CPUSTRLEN];
+		if (parse_bitmask (mask, affinity, CPUSTRLEN)){
+				warn("Can not determine inverse affinity mask!");
+				(void)sprintf(affinity, "****");
+		}
+
+		// Set affinity
+		if (numa_sched_setaffinity(pid, mask)){
+			err_msg_n(errno,"setting affinity for PID %d", pid);
+			ret = -1;
+		}
+		else
+			cont("PID %d reassigned to CPUs '%s'", pid, affinity);
+	}
+
+	numa_bitmask_free(bmold);
+	return ret;
+}
+
+
 /*
  *	setPidAffinity: sets the affinity of a PID
  *				the task is present in the common 'docker' CGroup
@@ -970,7 +1007,7 @@ recomputeCPUTimes(int32_t CPUno) {
 }
 
 /*
- *	setPidAffinity_R: sets the affinity of a PID based on assinged CPU
+ *	setPidAffinityAssinged: sets the affinity of a PID based on assigned CPU
  *				the task is present in the common 'docker' CGroup
  *
  *	Arguments: - pointer to node with data
@@ -978,7 +1015,7 @@ recomputeCPUTimes(int32_t CPUno) {
  *	Return value: 0 on success, -1 otherwise
  */
 int
-setPidAffinity_R (node_t * node){
+setPidAffinityAssinged (node_t * node){
 	if (node->mon.assigned_mask)
 		numa_bitmask_clearall(node->mon.assigned_mask);
 	else
