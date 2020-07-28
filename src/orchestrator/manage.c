@@ -238,14 +238,13 @@ static int stopTraceRead() {
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 
-			int ret1 = pthread_kill (elist_thead->thread, SIGQUIT); // tell threads to stop
-			if (ret1)
-				perror("Failed to send signal to fTrace thread");
+			int ret1 = 0;
+			if ((ret1 = pthread_kill (elist_thead->thread, SIGQUIT))) // tell threads to stop
+				err_msg_n(ret1, "Failed to send signal to fTrace thread");
 			ret |= ret1; // combine results in OR to detect one failing
 
-			ret1 = pthread_join( elist_thead->thread, &retVal); // wait until end
-			if (ret1)
-				perror("Could not join with fTrace thread");
+			if ((ret1 = pthread_join( elist_thead->thread, &retVal))) // wait until end
+				err_msg_n(ret1, "Could not join with fTrace thread");
 			ret |= ret1 | *(int*)retVal; // combine results in OR to detect one failing
 
 			if (retVal){ // return value assigned
@@ -366,11 +365,14 @@ pickPidCons(node_t *item, uint64_t ts){
 			warn("Histogram increment error for PID %d runtime", item->pid);
 
 	if ((SM_DYNSIMPLE <= prgset->sched_mode)
-			&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime)))
+			&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
 		// check reschedule?
-		if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
+		if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
 			// reschedule
+			item->mon.dl_overrun++;	// exceeded buffer
 			pickPidReallocCPU(item->mon.assigned);
+		}
+	}
 
 	// -> what if we read the debug output here??
 	if (SCHED_DEADLINE == item->attr.sched_policy){

@@ -232,8 +232,11 @@ int  iret_dlink; // Timeout is set to 4 seconds by default
 ///
 static int startDockerThread() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, dlink_thread_watch, NULL);
+	if (iret_dlink)  // thread not started successfully
+		err_msg_n(iret_dlink, "Failed to start docker_link thread");
 #ifdef DEBUG
-	(void)pthread_setname_np(thread_dlink, "docker_link");
+	else
+		(void)pthread_setname_np(thread_dlink, "docker_link");
 #endif
 	return iret_dlink;
 }
@@ -249,10 +252,10 @@ static int stopDockerThread(){
 	int ret = 0;
 	if (!iret_dlink) { // thread started successfully
 		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
-			perror("Failed to send signal to docker_link thread");
+			err_msg_n(iret_dlink, "Failed to send signal to docker_link thread");
 		ret |= iret_dlink;
 		if ((iret_dlink = pthread_join (thread_dlink, NULL))) // wait until end
-			perror("Could not join with docker_link thread");
+			err_msg_n(iret_dlink, "Could not join with docker_link thread");
 		ret |= iret_dlink;
 		(void)printf(PFX "Threads stopped\n");
 	}
@@ -458,7 +461,7 @@ static void scanNew () {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc = 0, ret, stop = 0;
+	int cc = 0, ret, stop = 0, dlink_on;
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
@@ -547,15 +550,15 @@ void *thread_update (void *arg)
 			}
 
 			// start docker link thread
-			if (startDockerThread())
-				warn("Unable to start the Docker link thread");
+			dlink_on = (0 == startDockerThread());
 
 			// set local variable -- all CPUs set.
 			*pthread_state=1;
 			//no break
 
 		case 1: // normal thread loop
-			updateDocker();
+			if (dlink_on)
+				updateDocker();
 			if (cc)
 				break;
 			// update, once every td
@@ -585,8 +588,9 @@ void *thread_update (void *arg)
 			//no break
 		case -2:
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
-			if (stopDockerThread())
-				warn("Unable to stop the Docker link thread");
+			if (dlink_on)
+				if (stopDockerThread())
+					warn("Unable to stop the Docker link thread");
 			//no break
 
 		case -99:

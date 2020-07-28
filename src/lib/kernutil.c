@@ -534,7 +534,7 @@ popen2(const char * command, const char * type, pid_t * pid)
         perror("Pipe creation");
 
 	if (!command || !type || !pid){ // input parameters must be written
-        perror("Invalid arguments");
+        err_msg("Invalid arguments");
 		return NULL;
 	}
 
