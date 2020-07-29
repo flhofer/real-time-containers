@@ -4,13 +4,13 @@ README for orchestrator v0.76
  INTRODUCTION
 ==============
 
-'orchestrator' is an orchestration application that tries to optimize real-time scheduled container allocation. Its function is to maintain schedulability and determinism while reducing resource requirements by reorganizing allocations and reconfigure the run-time environment based on heuristic and/or statistical data, and run-time evaluations.
+'orchestrator' is an orchestration application that tries to optimize real-time scheduled container allocation. Its function is to maintain schedulability and determinism while reducing resource requirements by reorganizing allocations and reconfigure its run-time environment based on heuristic and/or statistical data, and run-time evaluations.
 
-The code is currently maintained on GitHub:
+The code is currently maintained on GitHub at
 
 	git@github.com:flhofer/real-time-containers.git
 
-And mirrored on the Siemens CODE GitLab installation
+and mirrored on the Siemens CODE GitLab installation at
 
 	git@code.siemens.com:martin.sehr/real-time-containers.git
 
@@ -23,7 +23,7 @@ The static version limits to configured allocation and does not reschedule proce
 'orchestrator' runs on GNU/Linux compliant systems with 'BusyBox' (Musl is not completely supported yet). It needs GNU 'make' and a recent compiler (tested on: gcc) for basic features with the following development packages for compilation:
 * libnuma-dev	(NUMA manipulation)
 * libcap-dev		(POSIX Capabilities library)
-* check			(CHECK C based runtime test framework)
+* check			(CHECK C based run-time test framework)
 * libsubunit-dev	(CHECK sub-unit export library)
 * libjson-c-dev	(JSON configuration parsing)
 * libgsl-dev		(Heuristics - GNU scientific library)
@@ -60,7 +60,7 @@ For a reference on how to run specific unit tests only (environment variables CK
 
 Options available as of this version
 
-    $ ./orchestrator [-a <affinity range> -A -b -B -c <clock> -C <cgroup> -d -D -f -F -i <scan interval> -k -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -P -q -r <runtime> --rr=<rr-slice-size> -s [container cmd signature] -S [Alg-NR] --smi -v -w <WCET>] [configuration-file]
+    $ ./orchestrator [-a <affinity range> -A -b -B -c <clock> -C <cgroup> -d -D -f -F -i <scan interval> -k -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -P -q -r <run-time> --rr=<rr-slice-size> -s [container cmd signature] -S [Alg-NR] --smi -v -w <WCET>] [configuration-file]
 
 where:
 * affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1), and x-CPUs. The affinity range can be specified as comma-separated list and ranges, e.g. "0,4,7-10";
@@ -79,9 +79,9 @@ where:
 * -m enables memory page locking, reducing page-fault induced delays.
 * -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
 * the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo, or rr.
-* -P, in case command line signature, is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
+* in case command line signature is set, -P enables child-thread detection. Useful if the process is not RT, but the thread is
 * -q reduces verbosity where possible
-* a maximum runtime can be set with the r flag, in seconds. The default value is 0=unlimited
+* a maximum run-time can be set with the r flag, in seconds. The default value is 0=unlimited
 * with the -rr flag the slice value for Round-Robin scheduled tasks can be changed at startup.
 * -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of Docker containers;
 * -S selects the algorithm for the dynamic system scheduler (DSS). This scheduler tries to move containers when an overrun is imminent (Adaptive and Static do not do this). Montecarlo is not implemented yet.
@@ -100,16 +100,16 @@ The configuration file settings for this version consists of multiple sections a
 {  								
 	"cmd" : "rt-app conf2.json",// process run signature identification, full or partial
 	"params" : {				// real-time parameters - optional
-		"policy" : "SCHED_OTHER",// required scheduling policy
+		"policy" : "SCHED_OTHER",// required scheduling policy, 'default' leaves the setting unchanged
 		"flags"  : 0,			// process flags -> inheritance
 		"nice"   : 0,			// niceness factor for CFS schedules
 		"prio"   : 0,			// priority for RT schedules, FIFO & RR
-		"runtime": 1000000,		// EDF runtime in us
+		"runtime": 1000000,		// EDF run-time in us
 		"deadline": 4000000,	// EDF deadline in us
 		"period" : 4000000		// EDF period in us
 	},
 	"res" : {					// resouces to allocate for process, optional
-		"affinity" : -1,		// CPU affinity, -1 = all 
+		"affinity" : -1,		// CPU affinity, -1 = all with preference CPU 1
 		"rt-soft" : -1,			// real-time soft limit, execution time -> SIGXCPU
 		"rt-hard" : -1,			// real-time hard limit, execution time -> SIGKILL
 		"data-soft" : -1, 		// data/heap soft limit
@@ -156,20 +156,17 @@ All these objects are part of a global configuration. This configuration permits
 		"affother" : 0,							// tie non-RT tasks to same settings
 		"setdflag" : 0,							// sed dl-overrun flag for deadline tasks
 		"interval" : 5000,						// update scan interval in us
-		"dl_wcet": 100,							// runtime budget for update thread (deadline)
+		"dl_wcet": 100,							// run-time budget for update thread (deadline)
 		"loops" : 100,							// number of loops bf checking for new containers
-		"runtime" : 0,							// max runtime, 0 = infinite
+		"runtime" : 0,							// max run-time, 0 = infinite
 		"psigscan" : 0, 						// parent signature scan 
 		"trackpids" : 0,						// keep left pids in stat
 		"lock_pages" : 0,						// lock pages (memory) for orchestrator
-		"smi" : 0,								// smi optimizations - TODO
+		"smi" : 0,								// smi counter reading
 		"rrtime" : 100,							// slice time for rr scheduling, 100us
-		"use_fifo" : 0,							// use fifo status output - TODO
 		"setaffinity" : "AFFINITY_UNSPECIFIED", // affinity area for containers *_UNSPECIFIED, _SPECIFIED and _USEALL
 		"affinity" : "1-2",						// cpu affinity for containers, coma separated cpu list
-		"gnuplot" : 0,							// print gnuplot of statistics - TODO
-		"logsize" : 0,							// log size in mb - TODO
-		"ftrace" : 0,							// enable kernel tracing - TODO
+		"ftrace" : 0,							// enable kernel function tracing 
 	}
 
 	"images" : [						// list of images with matching containers and pds
@@ -237,11 +234,11 @@ The lookup hierarchy for PIDs is as follows:
 
 1)	image->container->pid	, if not found
 2)	image->pid				, if not found
-3)	pid						, if not found
-4)	left unchanged
+3)	container->pid			, if not found
+4)	pid						, if not found
+5)	left unchanged
 
-Depending on the use of the software, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry events, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
-Affinity might be a limiting factor as long as it is a single CPU setting.
+Depending on the use of the software, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry events, based on available resources, the "params" settings might be used to allocate the best slot. 
 
 =============
  EXAMPLE RUN
@@ -251,6 +248,5 @@ The following command presents a possible running scenario:
 
 	$ ./orchestrator -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
 
-In this case, the orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with command 'rt-app' and verify also all their threads. All threads running in a container will be bound to the same affinity range, set up as 1-3. The scan will be performed with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles the orchestrator will look for new containers to realign.
-All other parameters are left default.
+In this case, the orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with command 'rt-app' and verify also all their threads. All threads running in a container will be bound to the same affinity range, set up as 1-3. The scan will be performed with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles the orchestrator will look for new containers to realign. All other parameters are left default.
 
