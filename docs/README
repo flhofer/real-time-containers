@@ -46,7 +46,7 @@ Similarly, for the test framework, to compile type
 
 $ make check
 
-or, alternatively with DEBUG, type
+alternatively with DEBUG, type
 
 $ make check DEBUG=1
 
@@ -60,24 +60,31 @@ For a reference on how to run specific unit tests only (environment variables CK
 
 Options available as of this version
 
-    $ ./orchestrator [-a <affinity range> -b -c <clock> -C <cgroup> -d -D -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] --smi -v -w <WCET>] [configuration-file]
+    $ ./orchestrator [-a <affinity range> -A -b -B -c <clock> -C <cgroup> -d -D -f -F -i <scan interval> -k -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -P -q -r <runtime> --rr=<rr-slice-size> -s [container cmd signature] -S [Alg-NR] --smi -v -w <WCET>] [configuration-file]
 
 where:
-* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs. The affinity range can be specified as comma-separated list and ranges, e.g. "0,4,7-10";
-* -b enables binding of non-real-time tasks to the same core as the real-time task of the container;
-* clock is the type of clock timer used for recurring threads; 
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1), and x-CPUs. The affinity range can be specified as comma-separated list and ranges, e.g. "0,4,7-10";
+* -A denotes the adaptive algorithm, selected if set. The algorithm is an extension of static scheduling techniques, where unallocated, known, containers are placed on a best-fit basis on the available resources;
+* -b enables binding of non-real-time tasks to the same core as the real-time task of the container; used for PID based modes;
+* -B enables the blind run option, such that the pre-run setup environment does not try to force any run-time environment change.
+* clock is the type of clock timer used for recurring threads; The default is the monotonic system clock;
 * -C sets the CGroup based container detection mode. By default, the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
-* -d enables the deadline overflow flag for all real-time deadline scheduled tasks;
-* -D sets the dry-run flag. No kernel or environment parameters will be changed;
-* -f forces execution, even if parameters are seen as risky;
-* interval is the update interval of running statistics; 
-* loop count is the number of update loops until new containers are checked; 
-* -m enables memory page locking; 
+* -d enables the setting deadline overflow flag for all real-time deadline scheduled tasks; This permits the task to reclaim possible unused real-time bandwidth beyond the allotted amount.
+* -D sets the dry-run flag. No kernel or environment parameters will be changed but only actual values reported.
+* -f forces execution, even if parameters are seen as risky, and enables changes that might influence other services on the system.
+* -F enables kernel function trace-based run-time statistics instead of scheduler debug. The latter is limited to a run-time refresh of 10ms.
+* interval is the update interval set for refresh and running statistics. It influences the reactivity of PID based detection modes and changes the overhead amount.
+* with the flag -k the data of PIDs that leave will be kept in memory, for statistical purposes only.
+* loop count is the number of update loops until the presence of new containers is verified checked (not true for docker-link); 
+* -m enables memory page locking, reducing page-fault induced delays.
 * -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
-* the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo or rr.
+* the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo, or rr.
 * -P, in case command line signature, is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
+* -q reduces verbosity where possible
 * a maximum runtime can be set with the r flag, in seconds. The default value is 0=unlimited
+* with the -rr flag the slice value for Round-Robin scheduled tasks can be changed at startup.
 * -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of Docker containers;
+* -S selects the algorithm for the dynamic system scheduler (DSS). This scheduler tries to move containers when an overrun is imminent (Adaptive and Static do not do this). Montecarlo is not implemented yet.
 * --smi enables interrupt counters to be read for each CPU. This to track the effect of uncontrollable interrupts;
 * -v adds verbosity if the binary has been compiled with the DEBUG flag
 * -w details the worst-case execution time needed for the deadline based scheduling of the metric update thread.
@@ -87,8 +94,8 @@ The configuration file specified is optional. By default 'config.json' will be u
  CONFIGURATION
 ===============
 
-statsched reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation. The  file is usually found in the local working directory.
-The configuration file settings for this version consists of multiple sections and objects. These obects are connected in an hierarchy and can be present at different levels. The simplest is a PID configuration object. It's layout is as follows:
+'orchestrator' reads a configuration file to determine the parameters and resources to assign to each container. The default filename is set to 'config.json' and the file follows strict JSON data representation. The file is usually found in the local working directory.
+The configuration file settings for this version consists of multiple sections and objects. These objects are connected in a hierarchy and can be present at different levels. The simplest is a PID configuration object. Its layout is as follows:
 
 {  								
 	"cmd" : "rt-app conf2.json",// process run signature identification, full or partial
@@ -110,7 +117,7 @@ The configuration file settings for this version consists of multiple sections a
 	},
 },
 
-The next object in hierarchy is a container. It is simialr to a PID configuration.
+The next object in the hierarchy is a container. It is similar to a PID configuration.
 
 {  								
 	"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
@@ -119,7 +126,7 @@ The next object in hierarchy is a container. It is simialr to a PID configuratio
 	"pids" : [{ ... }],			// list of PID objects for this container
 },
 
-An image configuration, again is similar
+An image configuration, again, is similar
 
 {  								
 	"imgid" : "1ede341dace5",	// full or partial (at least 12 characters) of img id
@@ -214,17 +221,17 @@ All these objects are part of a global configuration. This configuration permits
 }
 
 This hierarchical setting allows thus specifying:
-* image specific settings and running pids of that image, valid for all containers using that image
-* exceptions to containers, changing settings for a few examles
-* exceptions and additions in the pid list of the image
+* image specific settings and running PIDs of that image, valid for all containers using that image
+* exceptions to containers, changing settings for a few examples
+* exceptions and additions in the PID-list of the image
 
 OR
 
-* container specific settings and running pids, without knowing the image name
+* container specific settings and running PIDs, without knowing the image name
 
 OR
 
-* pid specific settings if we know neiter the image nor the container, or if we want to apply certain settings to all instances of a pid in all containers
+* PID specific settings, if we know neither the image nor the container, or if we want to apply certain settings to all instances of a PID in all containers
 
 The lookup hierarchy for PIDs is as follows: 
 
@@ -233,8 +240,8 @@ The lookup hierarchy for PIDs is as follows:
 3)	pid						, if not found
 4)	left unchanged
 
-Depending on the use of the static orchestrator, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry event, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
-Affinity might be a limiting factor as long as it is a single CPU setting. ** this might change in future versions **
+Depending on the use of the software, the fields might be needed or not. The parameters and resource affinity may in some cases be complementary. For example, if the scheduling is done statically on entry events, based on available resources, the "params" settings might be used to allocate the best slot. (* feature in development, quasi static allocation *)
+Affinity might be a limiting factor as long as it is a single CPU setting.
 
 =============
  EXAMPLE RUN
