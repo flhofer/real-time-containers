@@ -175,54 +175,103 @@ will be taken as input file.
 .TP
 In the following and example of a configuration file
 
-{  									// open root object
+{                                      // open root object
 
-	[  								// array of objects
+    "global" : {
+        "logdir" : "./",                          // logging directory - TODO
+        "log_basename" : "orchestrator.txt",      // logging basename - TODO
+        "prc_kernel" : "/proc/sys/kernel/",       // kernel settings vfs
+        "sys_cpuset" : "/sys/fs/cgroup/cpuset/",  // cgroup cpuset vfs
+        "sys_cpu" :    "/sys/devices/system/cpu/",// cpu settings, ol vfs
+        "cont_ppidc" : "containerd-shim",         // pid signature for container shim
+        "cont_pidc" : "",                         // pid signature, opt, for filtering
+        "cont_cgrp" : "docker/",                  // subdirectory for CGroups
+        "priority" : 0,                           // priority of update thread
+        "clock" : 0,                              // clock type to use
+        "default_policy" : "SCHED_OTHER",         // scheduling policy for update thread
+        "quiet" : 0,                              // quiet mode
+        "affother" : 0,                           // tie non-RT tasks to same settings
+        "setdflag" : 0,                           // sed dl-overrun flag  for deadline 
+        "interval" : 5000,                        // update scan interval in us
+        "dl_wcet": 100,                           // run-time budget for update thread
+        "loops" : 100,                            // number of loops bf checking conts
+        "runtime" : 0,                            // max run-time, 0 = infinite
+        "psigscan" : 0,                           // parent signature scan 
+        "trackpids" : 0,                          // keep left pids in stat
+        "lock_pages" : 0,                         // lock pages for orchestrator
+        "smi" : 0,                                // smi counter reading
+        "rrtime" : 100,                           // slice time for rr scheduling, 100us
+        "setaffinity" : "AFFINITY_UNSPECIFIED",   // affinity area for containers
+        "affinity" : "1-2",                       // CPU affinity coma separated list
+        "ftrace" : 0,                             // enable kernel function tracing 
+    }
+    "images" : [                    // list of images with matching containers & PIDs
+    {                                  
+        "imgid" : "4efcb6c965de",   // full or partial id (at least 12 characters) 
+        "params" : { ... },         // real-time parameters - default to globals
+        "res" : { ... },            // resouces for image, default to globals
 
-		{  							// first container, one object per container
+        "cont" : [                  // list of containers based on this image
+        {                                  
+                "contid" : "4efcb6c965de",    // full or partial (at least 12 characters) of container id
+                "params" : { ... }, // real-time parameters, default to image
+                "res" : { ... },    // resouces to allocate, default to image
+                "pids" : [{ 
+                    "cmd" : "rt-app conf2.json",
+                    "params" : { ... }, // real-time parameters, default to container
+                    "res" : { ... },    // resouces to allocate, default to container
+                 }],    // list of PID objects for this container
+        }, ... ],
 
-			"cmd" : "rt-app conf2.json",	// process run signature identification
+        "pids" : [                  // list of default PID objects for this image
+        {
+            "cmd" : "rt-app conf2.json",
+            "params" : { ... },     // real-time parameters, default to image
+            "res" : { ... },        // resouces to allocate, default to image
+        }, ... ],
 
-			"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+    }, ... ],
 
-			"params" : {				// real-time parameters - optional
+    "containers" : [                // list of containers not based on known image
+    {                                  
+        "contid" : "4efcb6c965de",  // full or partial id (at least 12 characters) container id
+        "params" : { ... },         // real-time parameters, defaults to global
+        "res" : { ... },            // resouces for container, defaults to global
+        "pids" : [{ ... }],         // list of PID objects for this container
+    }, ... ],
 
-				"policy" : "other", 	// required scheduling policy
+    "pids" : [                      // list of PID objects with no container or image
+    {
+        ... 
+    }, ... ],
 
-				"flags"  : 0,			// process flags -> inheritance
-
-				"nice"   : 0,			// niceness factor for CFS schedules
-
-				"prio"   : 0,			// priority for RT schedules, FIFO & RR
-
-				"runtime": 1000000,		// EDF runtime in us
-
-				"deadline": 4000000,	// EDF deadline in us
-
-				"period" : 4000000		// EDF period in us
-
-			},
-
-			"res" : {					// resouces to allocate for container/process-opt
-
-				"affinity" : -1,		// CPU affinity, -1 = all 
-
-				"rt-soft" : -1,		// real-time soft limit, execution time -> SIGXCPU
-
-				"rt-hard" : -1,		// real-time hard limit, execution time -> SIGKILL
-
-				"data-soft" : -1, 		// data/heap soft limit
-
-// -> not used	"data-hard" : -1,		// hada/heap hard limit
-
-			},
-
-		},
-
-	]
-
+    "scheduling" : {                // real-time parameters for global defaults
+        ...
+    },
+    "resources" : {                 // resouces to allocate for global defaults
+        ...
+    },
 }
 
+.TP
+where the parameters and resources all follow the following struct
+
+    "params" : {                // real-time parameters - optional
+        "policy" : "SCHED_OTHER",// required scheduling policy, 'default' leaves the setting unchanged
+        "flags"  : 0,           // process flags -> inheritance
+        "nice"   : 0,           // niceness factor for CFS schedules
+        "prio"   : 0,           // priority for RT schedules, FIFO & RR
+        "runtime": 1000000,     // EDF run-time in us
+        "deadline": 4000000,    // EDF deadline in us
+        "period" : 4000000      // EDF period in us
+    },
+    "res" : {                   // resouces to allocate for process, optional
+        "affinity" : -1,        // CPU affinity, -1 = all with preference CPU 1
+        "rt-soft" : -1,         // real-time soft limit, execution time -> SIGXCPU
+        "rt-hard" : -1,         // real-time hard limit, execution time -> SIGKILL
+        "data-soft" : -1,       // data/heap soft limit
+// -> not used    "data-hard" : -1,        // data/heap hard limit
+    },
 
 .SH SEE ALSO
 .BR numa (3),
