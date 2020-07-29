@@ -66,7 +66,7 @@ where:
 * affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1), and x-CPUs. The affinity range can be specified as comma-separated list and ranges, e.g. "0,4,7-10";
 * -A denotes the adaptive algorithm, selected if set. The algorithm is an extension of static scheduling techniques, where unallocated, known, containers are placed on a best-fit basis on the available resources;
 * -b enables binding of non-real-time tasks to the same core as the real-time task of the container; used for PID based modes;
-* -B enables the blind run option, such that the pre-run setup environment does not try to force any run-time environment change.
+* -B enables the blind run option, such that the pre-run environment setup does not try to force any run-time environment change.
 * clock is the type of clock timer used for recurring threads; The default is the monotonic system clock;
 * -C sets the CGroup based container detection mode. By default, the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
 * -d enables the setting deadline overflow flag for all real-time deadline scheduled tasks; This permits the task to reclaim possible unused real-time bandwidth beyond the allotted amount.
