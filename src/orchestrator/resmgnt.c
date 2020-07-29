@@ -215,7 +215,7 @@ setContainerAffinity(node_t * node){
 		if (strcmp(affinity, affinity_old)){
 			cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
 			if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-				warn("Can not set CPU-affinity");
+				warn("Can not set CPU-affinity : %s", strerror(errno));
 				ret = -1;
 			}
 		}
@@ -485,7 +485,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			}
 		}
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes");
+			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 
 		// rewind, start configuring
@@ -505,10 +505,10 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
 						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-							warn("Can not set CPU-affinity");
+							warn("Can not set CPU-affinity : %s", strerror(errno));
 						}
 						if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-							warn("Can not set NUMA memory nodes");
+							warn("Can not set NUMA memory nodes : %s", strerror(errno));
 						}
 					}
 					else // realloc error
@@ -520,14 +520,14 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 		// Docker CGroup settings and affinity
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-			warn("Can not set CPU-affinity");
+			warn("Can not set CPU-affinity : %s", strerror(errno));
 		}
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes");
+			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive");
+				warn("Can not set CPU exclusive : %s", strerror(errno));
 			}
 
 		closedir(d);
