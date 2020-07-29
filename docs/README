@@ -1,83 +1,87 @@
-README for statsched v0.66
+README for orchestrator v0.76
 
 ==============
  INTRODUCTION
 ==============
 
-statsched is an orchestration application that tries to optimize real-time scheduled container alloocation. Its function is to maintain schedulability and determinism while reducing resource requirements.
+'orchestrator' is an orchestration application that tries to optimize real-time scheduled container allocation. Its function is to maintain schedulability and determinism while reducing resource requirements by reorganizing allocations and reconfigure the run-time environment based on heuristic and/or statistical data, and run-time evaluations.
 
-Code is currently maintained on GitHub:
+The code is currently maintained on GitHub:
 
-	git@github.com:ianno/real-time-containers.git
+	git@github.com:flhofer/real-time-containers.git
 
-The static version limits to configured allocation and does not reschedule processes once a slot has been allocated. For dynamic allocation, see dynsched. (future work :) )
+And mirrored on the Siemens CODE GitLab installation
+
+	git@code.siemens.com:martin.sehr/real-time-containers.git
+
+The static version limits to configured allocation and does not reschedule processes once a slot has been allocated. For dynamic allocation.
 
 ==============
  REQUIREMENTS
 ==============
 
-statsched runs on GNU/Linux. It needs bash, GNU make and a recent compiler (tested on: gcc) for basic features.
-** note - this will change once the package is complete **
-Furthermore, the following development packages should be installed:
-
-* rt-test package
-* libnuma-dev
-* libcap-dev
-* libsubunit-dev
-* libjson-c-dev
-* libgsl-dev
-* libgsl-dbg
+'orchestrator' runs on GNU/Linux compliant systems with 'BusyBox' (Musl is not completely supported yet). It needs GNU 'make' and a recent compiler (tested on: gcc) for basic features with the following development packages for compilation:
+* libnuma-dev	(NUMA manipulation)
+* libcap-dev		(POSIX Capabilities library)
+* check			(CHECK C based runtime test framework)
+* libsubunit-dev	(CHECK sub-unit export library)
+* libjson-c-dev	(JSON configuration parsing)
+* libgsl-dev		(Heuristics - GNU scientific library)
+* libgsl-dbg		(Heuristics - for dev only)
 
 ==================================
- BUILDING AND INSTALLING statsched
+ BUILDING AND INSTALLING orchestrator
 ==================================
 
-No additional make and build targets defined yet.
-
-If defined, the DEBUG flag enables higly verbose terminal output.
-
-To compile, type
+The source code package contains three sources: orchestrator, check test framework and use case simulation package.
+For standard build configuration of the orchestrator only, run 
 
 $ make
 
-or, alternatively, with debug:
+There is no automated system-dependent configuration yet. If you want to enable debug symbols and highly verbose outputs, set the DEBUG parameter, as follows: 
 
 $ make DEBUG=1
-(set default on development branch)
-No installation procedure is defined at the moment
 
-Without parameters make builds orchestrator and use cases. If you want to build check tests and execute the tests, use `make check`.
+Similarly, for the test framework, to compile type
 
-For a reference on how to use specific tests only (environment vairables CK_RUN_SUITE, CK_RUN_CASE and CK_NO_FORK) refer to the check user manual. https://libcheck.github.io/check/doc/check_html/check_4.html
+$ make check
+
+or, alternatively with DEBUG, type
+
+$ make check DEBUG=1
+
+or replace check with 'usecase' for the use case build. No installation procedure is defined at the moment. A further parameter that can be passed during compile is COVERAGE=1, which enables coverage test and output. With 'make all', all of the three builds are executed at once. Finally, the 'make test' option executes the unit tests of the check framework.,
+
+For a reference on how to run specific unit tests only (environment variables CK_RUN_SUITE, CK_RUN_CASE, and CK_NO_FORK) refer to the check user manual. https://libcheck.github.io/check/doc/check_html/check_4.html
 
 =======
  USAGE
 =======
 
-	Options available as of this version
+Options available as of this version
 
-    $ ./statsched.o [-a <affinity range> -b -c <clock> -C <cgroup> -d -D -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] --smi -v -w <WCET>] [configuration-file]
+    $ ./orchestrator [-a <affinity range> -b -c <clock> -C <cgroup> -d -D -f -i <scan interval> -l <loop count> -m -n[cmd signature] -p <priority> --policy=<name> -P -r <runtime> -s [container cmd signature] --smi -v -w <WCET>] [configuration-file]
 
 where:
-* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs. The affinity range can be specified as comma separated list and ranges, e.g. "0,4,7-10";
-* -b enables binding of non-realtime tasks to the same core as the real-time task of the container;
+* affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1) and x-CPUs. The affinity range can be specified as comma-separated list and ranges, e.g. "0,4,7-10";
+* -b enables binding of non-real-time tasks to the same core as the real-time task of the container;
 * clock is the type of clock timer used for recurring threads; 
-* -C sets the CGroup based container detection mode. By default the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
+* -C sets the CGroup based container detection mode. By default, the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
 * -d enables the deadline overflow flag for all real-time deadline scheduled tasks;
-* -D sets the dry-run flag. No kernel or environemnt parameters will be changed;
+* -D sets the dry-run flag. No kernel or environment parameters will be changed;
 * -f forces execution, even if parameters are seen as risky;
-* interval is the update intervall of running statistics; 
+* interval is the update interval of running statistics; 
 * loop count is the number of update loops until new containers are checked; 
 * -m enables memory page locking; 
 * -n defines the command line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
-* the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo or rr
-* -P, in case command line signature is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
-* a maximum runtime can be set with the r flag, in seconds. Default value is 0=unlimited
-* -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of docker containers;
+* the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo or rr.
+* -P, in case command line signature, is set, enables also child-thread detection. Useful if the process is not RT, but the thread is
+* a maximum runtime can be set with the r flag, in seconds. The default value is 0=unlimited
+* -s defines the parent PID <shim> signature detection mode; an optional parameter may be given to specify the container daemon to look for, e.g. 'docker-containerd-shim' if looking for instances of Docker containers;
 * --smi enables interrupt counters to be read for each CPU. This to track the effect of uncontrollable interrupts;
 * -v adds verbosity if the binary has been compiled with the DEBUG flag
-* -w details the worst case execution time needed for the deadline based scheduling of the metric update thread.
-The configuration fle specified is optional. By default 'config.json' will be used.
+* -w details the worst-case execution time needed for the deadline based scheduling of the metric update thread.
+The configuration file specified is optional. By default 'config.json' will be used.
 
 ===============
  CONFIGURATION
