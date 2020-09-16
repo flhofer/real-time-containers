@@ -168,7 +168,7 @@ static contevent_t * check_event() {
 			cntevent->timenano = evnt.timenano;
 			return cntevent;
 		}
-		if ((!strcmp(evnt.status, "create")) ||
+		if (//(!strcmp(evnt.status, "create")) ||
 			(!strcmp(evnt.status, "start")))
 		{
 			cntevent = malloc(sizeof(contevent_t));
