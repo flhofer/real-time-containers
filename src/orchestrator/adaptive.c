@@ -50,6 +50,26 @@ static int cmpPidItem (const void * a, const void * b) {
 }
 
 /*
+ *  cmpresItemU(): compares two resource allocation items for Qsort, ascending by Utilization
+ *
+ *  Arguments: pointers to the items to check
+ *
+ *  Return value: difference
+ */
+static int cmpPidItemU (const void * a, const void * b) {
+	if (!((resAlloc_t *)a)->item->attr->sched_period)
+		return -1;
+	if (!((resAlloc_t *)b)->item->attr->sched_period)
+		return 1;
+
+	double U1 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
+			(double)((resAlloc_t *)a)->item->attr->sched_period);
+	double U2 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
+			(double)((resAlloc_t *)a)->item->attr->sched_period);
+	return (U1-U2)*10000;
+}
+
+/*
  *  recomputeTimes(): recomputes base and utilization factor of a resource
  *
  *  Arguments:  - resource entry for this CPU
@@ -295,7 +315,8 @@ void adaptPrepareSchedule(){
 void adaptPlanSchedule(){
 
 	// order by period and runtime
-	qsortll((void **)&aHead, cmpPidItem);
+	//qsortll((void **)&aHead, cmpPidItem);
+	qsortll((void **)&aHead, cmpPidItemU);
 
 	int unmatched = 0; // count unmatched
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
