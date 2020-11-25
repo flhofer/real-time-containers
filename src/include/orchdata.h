@@ -179,6 +179,7 @@
 		// Runtime allocation
 		int32_t assigned; 		// actually running CPU, -1 = unassigned
 		struct bitmask * assigned_mask;	// computed affinity mask
+		uint64_t resched;		// number of rescheduling times
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info

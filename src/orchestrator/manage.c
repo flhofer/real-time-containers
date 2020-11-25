@@ -283,6 +283,7 @@ pickPidReallocCPU(int32_t CPUno){
 			int old = item->mon.assigned;
 			item->mon.assigned = trc->affinity;
 			if (setPidAffinityAssinged (item)){
+				item->mon.resched++;
 				if (0 < recomputeCPUTimes(trc->affinity))
 					continue; // more than one to move
 
@@ -479,6 +480,8 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		// check if CPU changed, exiting
 		if ((SM_DYNSIMPLE <= prgset->sched_mode)
 				&& (item->mon.assigned != fthread->cpuno)){
+			if (0 <= item->mon.assigned)
+				item->mon.resched++;
 			// change on exit???, reassign CPU?
 			int32_t CPU = item->mon.assigned;
 			item->mon.assigned = fthread->cpuno;
@@ -511,6 +514,8 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 			// check if CPU changed, exiting
 			if ((SM_DYNSIMPLE <= prgset->sched_mode)
 				&& (citem->mon.assigned != fthread->cpuno)){
+				if (0 <= citem->mon.assigned)
+					citem->mon.resched++;
 				// change on exit???, reassign CPU?
 				int32_t CPU = citem->mon.assigned;
 				citem->mon.assigned = fthread->cpuno;
@@ -1059,18 +1064,18 @@ static void dumpStats (){
 		default:
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
+			(void)printf("%5d%c: %3ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 				policy_to_string(item->attr.sched_policy));
 			break;
 
 		case SCHED_DEADLINE:
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+			(void)printf("%5d%c: %3ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched,item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
