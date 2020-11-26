@@ -40,7 +40,8 @@ resAlloc_t * aHead = NULL;
  *
  *  Return value: difference
  */
-static int cmpPidItem (const void * a, const void * b) {
+static int
+cmpPidItem (const void * a, const void * b) {
 	int64_t diff = ((int64_t)((resAlloc_t *)a)->item->attr->sched_period
 			- (int64_t)((resAlloc_t *)b)->item->attr->sched_period);
 	if (!diff)
@@ -50,13 +51,21 @@ static int cmpPidItem (const void * a, const void * b) {
 }
 
 /*
- *  cmpresItemU(): compares two resource allocation items for Qsort, ascending by Utilization
+ *  cmpPidItemU(): compares two resource allocation items for Qsort,
+ *  			   ascending by Utilization if using the same period
  *
  *  Arguments: pointers to the items to check
  *
  *  Return value: difference
  */
-static int cmpPidItemU (const void * a, const void * b) {
+static int
+cmpPidItemU (const void * a, const void * b) {
+	// order by period first
+	if ( (((resAlloc_t *)a)->item->attr->sched_period) !=
+		 (((resAlloc_t *)b)->item->attr->sched_period) )
+		return cmpPidItem (a, b);
+
+	// if one period 0, return other as bigger
 	if (!((resAlloc_t *)a)->item->attr->sched_period)
 		return -1;
 	if (!((resAlloc_t *)b)->item->attr->sched_period)
@@ -111,7 +120,8 @@ recomputeTimes(struct resTracer * res) {
  *
  *  Return value: error, or 0 if successful
  */
-static int addTracer(resAlloc_t * res, int cpu){
+static int
+addTracer(resAlloc_t * res, int cpu){
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (((-1 == cpu)
 			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, trc->affinity)))
@@ -135,7 +145,8 @@ static int addTracer(resAlloc_t * res, int cpu){
  *
  *  Return value:
  */
-static void addTracerFix(resAlloc_t * res) {
+static void
+addTracerFix(resAlloc_t * res) {
 	if (numa_bitmask_weight(res->item->rscs->affinity_mask) == 1){
 		if (0 > addTracer(res, -1))
 			err_exit("The resource plan does not fit your system!");
@@ -179,7 +190,8 @@ createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
  *  Return value: returns the created resource info for hierarchical
  * 					matching and combining
  */
-static resAlloc_t * pushResource(cont_t *item, struct bitmask* bDep){
+static resAlloc_t *
+pushResource(cont_t *item, struct bitmask* bDep){
 
 	// add item
 	push((void**)&aHead, sizeof (resAlloc_t));
@@ -240,7 +252,8 @@ ddConts(conts_t * conts, resAlloc_t * parAlloc, struct bitmask * bm){
  *
  *  Return value: -
  */
-void adaptPrepareSchedule(){
+void
+adaptPrepareSchedule(){
 	// create res tracer structures for all available data
 	createResTracer();
 	createAffinityMask(contparm->rscs, NULL);
@@ -312,7 +325,8 @@ void adaptPrepareSchedule(){
  *
  *  Return value: -
  */
-void adaptPlanSchedule(){
+void
+adaptPlanSchedule(){
 
 	// order by period and runtime
 	//qsortll((void **)&aHead, cmpPidItem);
@@ -412,7 +426,8 @@ void adaptPlanSchedule(){
  *
  *  Return value: -
  */
-void adaptScramble(){
+void
+adaptScramble(){
 
 	resTracer_t * trc = NULL;
 
@@ -443,7 +458,8 @@ void adaptScramble(){
  *
  *  Return value: -
  */
-void adaptExecute() {
+void
+adaptExecute() {
 	// apply only if not shared and if fixed cpu is assigned
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (!(res->item->status & MSK_STATSHRC) && (res->assigned))
