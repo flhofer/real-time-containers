@@ -80,7 +80,10 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-A       --adaptive        activate Adaptive Static Schedule (ASS)\n"
+	       "-A [SRT] --adaptive        activate Adaptive Static Schedule (ASS) with sorting\n"
+	       "                           0 = period based (default)\n"
+		   "                           1 = Utilization base, runtime per period\n"
+	       "                           2 = first SRT 0 than SRT 1\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
@@ -170,8 +173,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		 * Ordered alphabetically by single letter name
 		 */
 		static struct option long_options[] = {
-			{"affinity",         required_argument, NULL, OPT_AFFINITY},
-			{"adaptive",         no_argument,       NULL, OPT_ADAPTIVE },
+			{"affinity",         optional_argument, NULL, OPT_AFFINITY},
+			{"adaptive",         optional_argument, NULL, OPT_ADAPTIVE },
 			{"bind",     		 no_argument,       NULL, OPT_BIND },
 			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
@@ -194,7 +197,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:S::vw:",
+		int c = getopt_long(argc, argv, "a::A::bBc:C:dDfFhi:kl:mn::p:Pqr:s::S::vw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -224,6 +227,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'A':
 		case OPT_ADAPTIVE:
 			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
+			if (NULL != optarg) {
+				set->sort_mode= atoi(optarg);
+			} else if (optind<argc) {
+				set->sort_mode= atoi(argv[optind]);
+				optargs++;
+			}
 			break;
 		case 'b':
 		case OPT_BIND:
@@ -331,9 +340,9 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_SYSTEM:
 			set->sched_mode = SM_DYNSYSTEM;
 			if (NULL != optarg) {
-				set->sched_mode+= MIN(atoi(optarg), 2);
+				set->sched_mode= MIN(atoi(optarg), 2);
 			} else if (optind<argc) {
-				set->sched_mode+= MIN(atoi(argv[optind]),2);
+				set->sched_mode= MIN(atoi(argv[optind]),2);
 				optargs++;
 			}
 			break;

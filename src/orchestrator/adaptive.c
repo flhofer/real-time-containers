@@ -61,7 +61,8 @@ cmpPidItem (const void * a, const void * b) {
 static int
 cmpPidItemU (const void * a, const void * b) {
 	// order by period first
-	if ( (((resAlloc_t *)a)->item->attr->sched_period) !=
+	if ( SRT_PERIODU == prgset->sort_mode &&
+		 (((resAlloc_t *)a)->item->attr->sched_period) !=
 		 (((resAlloc_t *)b)->item->attr->sched_period) )
 		return cmpPidItem (a, b);
 
@@ -328,9 +329,11 @@ adaptPrepareSchedule(){
 void
 adaptPlanSchedule(){
 
-	// order by period and runtime
-	//qsortll((void **)&aHead, cmpPidItem);
-	qsortll((void **)&aHead, cmpPidItemU);
+	// order by period and/or utilization
+	if (SRT_PERIOD == prgset->sort_mode)
+		qsortll((void **)&aHead, cmpPidItem);
+	else
+		qsortll((void **)&aHead, cmpPidItemU);
 
 	int unmatched = 0; // count unmatched
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
