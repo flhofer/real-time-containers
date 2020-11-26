@@ -966,7 +966,7 @@ recomputeTimes(struct resTracer * res) {
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != res->affinity)
+		if (item->mon.assigned != res->affinity || 0 > item->pid)
 			continue;
 
 		if (SCHED_DEADLINE == item->attr.sched_policy)

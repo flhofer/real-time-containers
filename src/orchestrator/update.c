@@ -400,7 +400,7 @@ static void scanNew () {
 		// delete a dopped item
 		if (lnew->pid < abs(tail->next->pid)) {
 			// skip deactivated tracking items
-			if (tail->next->pid<0){
+			if (0 > tail->next->pid){
 				tail=tail->next;
 				continue; 
 			}

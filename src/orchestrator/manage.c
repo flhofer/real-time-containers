@@ -274,7 +274,7 @@ pickPidReallocCPU(int32_t CPUno){
 	resTracer_t * ntrc = NULL;
 
 	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != CPUno)
+		if (item->mon.assigned != CPUno || 0 > item->pid)
 			continue;
 
 		ntrc = checkPeriod_R(item);
@@ -312,7 +312,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 	// find all matching, test if space is enough
 	for (node_t *citem = nhead; ((citem)); citem=citem->next){
-		if (citem->mon.assigned != item->mon.assigned)
+		if (citem->mon.assigned != item->mon.assigned || 0 > item->pid)
 			continue;
 
 		// !! WARN, works only for deadline scheduled tasks
@@ -956,6 +956,8 @@ static int manageSched(){
 
 	// for now does only a simple update
 	for (node_t * item = nhead; ((item)); item=item->next ) {
+		if (0 > item->pid)
+			continue;
 
 		// update CMD-line once out of 10 (less often..)
 		updatePidCmdline(item);
