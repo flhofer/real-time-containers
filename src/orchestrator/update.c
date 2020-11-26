@@ -306,8 +306,12 @@ static void updateDocker() {
 
 				// drop matching PIDs of this container
 				for (;((curr->next)); curr=curr->next) 
-					if (curr->next->contid == lstevent->id) 
-						node_pop(&curr->next);
+					if (curr->next->contid == lstevent->id){
+						if (prgset->trackpids)		// deactivate only
+							curr->next->pid*=-1;
+						else
+							node_pop(&curr->next);
+					}
 
 				(void)pthread_mutex_unlock(&dataMutex);
 				break;
