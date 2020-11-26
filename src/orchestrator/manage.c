@@ -914,10 +914,8 @@ static int updateStats ()
 	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
 		// skip PID 0, = undefined or ROOT PID (swapper/sched)
-		if (item->pid<=0){
-			item=item->next; 
+		if (0 >= item->pid)
 			continue;
-		}
 
 		// update only when defaulting -> new entry, or every 100th scan
 		if (!(scount%prgset->loops)
