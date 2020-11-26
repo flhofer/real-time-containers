@@ -631,7 +631,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
 	uint64_t basec = par->sched_period;
-	int rv = 3; // perfect match -> all cases max value default
+	int rv = 4; // perfect match -> all cases max value default
 	int rvbonus = 1;
 
 	switch (par->sched_policy) {
@@ -646,10 +646,11 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 	/*
 	 * DEADLINE return values
-	 * 3 = OK, perfect period match;
-	 * 2 = OK, but empty CPU
-	 * 1 = recalculate base but new period is an exact multiplier;
-	 * 0 = OK, but recalculated base;
+	 * 4 = OK, perfect period match;
+	 * 3 = OK, empty CPU
+	 * 2 = recalculate base but GCD is the period of the resource (par > res)
+	 * 1 = recalculate base but GCD is the period of the task (res > par)
+	 * 0 = OK, but recalculated base, (GCD < res & par)
 	 */
 		// no break
 
@@ -657,7 +658,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		// if unused, set to this period
 		if (0==base){
 			base = par->sched_period;
-			rv = 1 + CHKNUISBETTER;
+			rv = 2 + CHKNUISBETTER;
 		}
 
 		if (base != par->sched_period) {
@@ -673,19 +674,19 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 			base = new_base;
 
 			// are the periods a perfect fit?
-			if ((new_base == res->basePeriod)
-				|| (new_base == par->sched_period))
-					rv = 2-CHKNUISBETTER;
+			if (new_base == res->basePeriod)
+				rv = 3-CHKNUISBETTER;
+			else if (new_base == par->sched_period)
+				rv = 1;
 			else
-				rv =0;
-
+				rv = 0;
 		}
 		used += par->sched_runtime * base/par->sched_period;
 		break;
 
 	/*
 	 *	FIFO return values for different situations
-	 *	3 .. perfect match desired repetition matches period of resources
+	 *	4 .. perfect match desired repetition matches period of resources
 	 *	2 .. empty CPU, = perfect fit on new CPU
 	 *  1 .. recalculation of period, but new is perfect fit to both
 	 *  0 .. recompute needed
@@ -747,7 +748,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 	/*
 	 *	RR return values for different situations
-	 *	 3 .. perfect match desired repetition matches period of resources
+	 *	 4 .. perfect match desired repetition matches period of resources
 	 *	 2 .. empty CPU, = perfect fit on new CPU
 	 *   1 .. recalculation of period, but new is perfect fit to both
 	 *   0 .. recompute needed
