@@ -384,7 +384,8 @@ pickPidCons(node_t *item, uint64_t ts){
 				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
 			int is_null = (!item->mon.deadline);
 
-			/* TODO: return value */get_sched_info(item);				 // update deadline from debug buffer
+			if (get_sched_info(item))			 // update deadline from debug buffer
+				warn("Unable to read schedule debug buffer!");
 			while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 				item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
