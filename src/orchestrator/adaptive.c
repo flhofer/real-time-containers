@@ -98,9 +98,9 @@ recomputeTimes(struct resTracer * res) {
 			continue;
 
 		rv = checkUvalue(resNew, alloc->item->attr, 1);
-		if ( 0 > rv ){
+		if ( INT_MIN == rv ){
 			free(resNew);
-			return rv; // stops here
+			return -1; // stops here
 		}
 
 	}
@@ -130,7 +130,7 @@ addTracer(resAlloc_t * res, int cpu){
 
 			// check first. add and return check value
 			int ret = checkUvalue(trc, res->item->attr, 1);
-			if (-1 == ret)
+			if (INT_MIN == ret)
 				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
 			res->assigned = trc;
 			return ret;
@@ -447,7 +447,7 @@ adaptScramble(){
 			resTracer_t * trcOld = res->assigned;
 
 			res->assigned = trc;
-			recomputeTimes(trcOld); // reset times of old resource
+			(void)recomputeTimes(trcOld); // reset times of old resource
 		}
 	}
 

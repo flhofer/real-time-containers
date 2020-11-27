@@ -819,7 +819,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	// calculate and verify utilization rate
 	float U = (double)used/(double)base;
 	if (MAX_UL < U)
-		rv = -1;
+		rv = INT_MIN;
 
 	if (add){ // apply changes to res structure?
 		res->usedPeriod = used;
@@ -979,9 +979,9 @@ recomputeTimes(struct resTracer * res) {
 			rv = checkUvalue(resNew, &attr, 1);
 		}
 
-		if ( 0 > rv ){
+		if ( INT_MIN == rv ){
 			free(resNew);
-			return rv; // stops here
+			return -1; // stops here
 		}
 
 	}
