@@ -54,7 +54,7 @@ START_TEST(orchestrator_resmgnt_checkValue)
 	// GCD match, new GCD
 	par.sched_period = 20000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(0, rv);
+	ck_assert_int_eq(-5, rv);
 
 	// No space left
 	par.sched_period = 15000;

@@ -650,7 +650,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	 * 3 = OK, empty CPU
 	 * 2 = recalculate base but GCD is the period of the resource (par > res)
 	 * 1 = recalculate base but GCD is the period of the task (res > par)
-	 * 0 = OK, but recalculated base, (GCD < res & par)
+	 * <1 = OK, but recalculated base, (-1) * factor fit period in new GCD
 	 */
 		// no break
 
@@ -679,7 +679,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 			else if (new_base == par->sched_period)
 				rv = 1;
 			else
-				rv = 0;
+				rv = MAX((-1) * (int)(res->basePeriod / new_base), INT_MIN+1);
 		}
 		used += par->sched_runtime * base/par->sched_period;
 		break;
