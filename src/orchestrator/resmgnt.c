@@ -670,7 +670,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 				return -2;
 			}
 			// recompute new values of resource tracer
-			used *= new_base/res->basePeriod;
+			used = used * new_base /res->basePeriod;
 			base = new_base;
 
 			// are the periods a perfect fit?
@@ -736,7 +736,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 				rv = 0;
 
 			// recompute new values of resource tracer
-			used *= new_base/base;
+			used = used * new_base / base;
 			base = new_base;
 		}
 
@@ -801,7 +801,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 					rv=0; // can not guarantee that it fits!
 			}
 
-			used *= new_base/base;
+			used = used * new_base / base;
 			base = new_base;
 		}
 
