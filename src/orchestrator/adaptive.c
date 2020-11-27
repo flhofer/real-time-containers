@@ -34,7 +34,7 @@ typedef struct resAlloc { 		// resource allocations mapping
 resAlloc_t * aHead = NULL;
 
 /*
- *  cmpresItem(): compares two resource allocation items for Qsort, ascending
+ *  cmpresItem(): compares two resource allocation items for Qsort, descending
  *
  *  Arguments: pointers to the items to check
  *
@@ -42,17 +42,17 @@ resAlloc_t * aHead = NULL;
  */
 static int
 cmpPidItem (const void * a, const void * b) {
-	int64_t diff = ((int64_t)((resAlloc_t *)a)->item->attr->sched_period
-			- (int64_t)((resAlloc_t *)b)->item->attr->sched_period);
+	int64_t diff = ((int64_t)((resAlloc_t *)b)->item->attr->sched_period
+			- (int64_t)((resAlloc_t *)a)->item->attr->sched_period);
 	if (!diff)
-		return (int)((int64_t)(((resAlloc_t *)a)->item->attr->sched_runtime
-				- (int64_t)((resAlloc_t *)b)->item->attr->sched_runtime)  % INT32_MAX);
+		return (int)((int64_t)(((resAlloc_t *)b)->item->attr->sched_runtime
+				- (int64_t)((resAlloc_t *)a)->item->attr->sched_runtime)  % INT32_MAX);
 	return (int)(diff % INT32_MAX); // reduce but keep sign
 }
 
 /*
  *  cmpPidItemU(): compares two resource allocation items for Qsort,
- *  			   ascending by Utilization if using the same period
+ *  			   descending by Utilization or periofd first then U
  *
  *  Arguments: pointers to the items to check
  *
@@ -68,15 +68,15 @@ cmpPidItemU (const void * a, const void * b) {
 
 	// if one period 0, return other as bigger
 	if (!((resAlloc_t *)a)->item->attr->sched_period)
-		return -1;
-	if (!((resAlloc_t *)b)->item->attr->sched_period)
 		return 1;
+	if (!((resAlloc_t *)b)->item->attr->sched_period)
+		return -1;
 
 	double U1 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
 			(double)((resAlloc_t *)a)->item->attr->sched_period);
-	double U2 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
-			(double)((resAlloc_t *)a)->item->attr->sched_period);
-	return (U1-U2)*10000;
+	double U2 = ((double)((resAlloc_t *)b)->item->attr->sched_runtime /
+			(double)((resAlloc_t *)b)->item->attr->sched_period);
+	return (U2-U1)*10000;
 }
 
 /*
