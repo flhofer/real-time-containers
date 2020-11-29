@@ -649,8 +649,9 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	 * 4 = OK, perfect period match;
 	 * 3 = OK, empty CPU
 	 * 2 = recalculate base but GCD is the period of the resource (par > res)
-	 * 1 = recalculate base but GCD is the period of the task (res > par)
-	 * <1 = OK, but recalculated base, (-1) * factor fit period in new GCD
+	 * 1-x = recalculate base but GCD is the period of the task (res > par)
+	 * 		1 + (-1) * factor fit period in new GCD
+	 * <0= OK, but recalculated base, (-1) * factor fit period in new GCD
 	 */
 		// no break
 
@@ -676,10 +677,11 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 			// are the periods a perfect fit?
 			if (new_base == res->basePeriod)
 				rv = 3-CHKNUISBETTER;
-			else if (new_base == par->sched_period)
-				rv = 1;
-			else
+			else {
 				rv = MAX((-1) * (int)(res->basePeriod / new_base), INT_MIN+1);
+				if (new_base == par->sched_period)
+					rv++;
+			}
 		}
 		used += par->sched_runtime * base/par->sched_period;
 		break;
