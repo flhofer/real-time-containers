@@ -28,7 +28,6 @@
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
 #define RTLIM_PERC	95			// percentage limitation for calculus
 
-#define CHKNUISBETTER 1	// new CPU if available better than perfect match?
 #define MAX_UL 0.90
 #define SCHED_UKNLOAD	10 		// 10% load extra per task
 #define SCHED_RRTONATTR	1000000 // conversion factor from sched_rr_timeslice_ms to sched_attr
@@ -630,8 +629,8 @@ int
 checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	uint64_t basec = par->sched_period;
-	int rv = 4; // perfect match -> all cases max value default
+	uint64_t baset = par->sched_period;
+	int rv = INT_MAX; // perfect match -> all cases max value default
 	int rvbonus = 1;
 
 	switch (par->sched_policy) {
@@ -646,11 +645,11 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 	/*
 	 * DEADLINE return values
-	 * 4 = OK, perfect period match;
-	 * 3 = OK, empty CPU
-	 * 2 = recalculate base but GCD is the period of the resource (par > res)
-	 * 1-x = recalculate base but GCD is the period of the task (res > par)
-	 * 		1 + (-1) * factor fit period in new GCD
+	 * INT_MAX	= OK, perfect period match;
+	 * 3 		= OK, empty CPU
+	 * 2		= recalculate base but GCD is the period of the resource (par > res)
+	 * 1-x 		= recalculate base but GCD is the period of the task (res > par)
+	 * 1+ (-1) * factor fit period in new GCD
 	 * <0= OK, but recalculated base, (-1) * factor fit period in new GCD
 	 */
 		// no break
@@ -659,7 +658,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		// if unused, set to this period
 		if (0==base){
 			base = par->sched_period;
-			rv = 2 + CHKNUISBETTER;
+			rv = INT_MAX - 1;
 		}
 
 		if (base != par->sched_period) {
@@ -668,7 +667,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 			if (new_base % 1000 != 0){
 				warn("Check -> Nanosecond resolution periods not supported!");
-				return -2;
+				return INT_MIN;
 			}
 			// recompute new values of resource tracer
 			used = used * new_base /res->basePeriod;
@@ -676,13 +675,14 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 			// are the periods a perfect fit?
 			if (new_base == res->basePeriod)
-				rv = 3-CHKNUISBETTER;
+				rv = INT_MAX - MAX((int)(par->sched_period / new_base), 0);
 			else {
 				rv = MAX((-1) * (int)(res->basePeriod / new_base), INT_MIN+1);
 				if (new_base == par->sched_period)
 					rv++;
 			}
 		}
+
 		used += par->sched_runtime * base/par->sched_period;
 		break;
 
@@ -704,38 +704,37 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		}
 
 		// if unused, set to this period
-		if (0 == basec){
+		if (0 == baset){
 			rvbonus = 0; // record that we have a fake base
-			basec = 1000000000; // default to 1 second)
+			baset = 1000000000; // default to 1 second)
 		}
+		else
+			baset = (baset/1000)*1000; // cut-off last thousands, no nanosecond resolution
 
 		if (0==base){
-			base = basec;
+			base = baset;
 			rvbonus  = 1; // reset again, we have match
-			rv = 1 + CHKNUISBETTER;
+			rv = 2;
 		}
 
 		if (rvbonus){
 			// free slice smaller than runtime, = additional preemption => lower pts
-			if ((MAX_UL-res->U) * (double)base < par->sched_runtime)
+			if ((double)(MAX_UL-res->U) * (double)base < (double)par->sched_runtime)
 				rvbonus=0;
 		}
 
-		if (base != basec) {
+		if (base != baset) {
 			// recompute base
-			uint64_t new_base = gcd(base, basec);
-
-			if (new_base % 1000 != 0){
-				warn("Check -> Nanosecond resolution periods not supported!");
-				return -2;
-			}
+			uint64_t new_base = gcd(base, baset);
 
 			// are the periods a perfect fit?
-			if ((new_base == base)
-				|| (new_base == basec))
-					rv = 2-CHKNUISBETTER;
-			else
-				rv = 0;
+			if (new_base == base)
+					rv = 1;
+			else{
+				rv = MAX((-1) * (int)(base / new_base), INT_MIN+1);
+				if (new_base == baset)
+					rv++;
+			}
 
 			// recompute new values of resource tracer
 			used = used * new_base / base;
@@ -745,7 +744,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		// apply bonus
 		rv+= rvbonus;
 
-		used += par->sched_runtime * base/basec;
+		used += par->sched_runtime * base/baset;
 		break;
 
 	/*
@@ -766,32 +765,32 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		}
 
 		// if unused, set to this period
-		if (0 == basec){
-			basec = 1000000000; // default to 1 second)
+		if (0 == baset){
+			baset = 1000000000; // default to 1 second)
 		}
 		else
 			// if the runtime doesn't fit into the preemption slice..
 			// reset base to slice as it will be preempted during run increasing task switching
 			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
-				basec = prgset->rrtime*SCHED_RRTONATTR;
+				baset = prgset->rrtime*SCHED_RRTONATTR;
 
 		if (0==base){
 			// if unused, set to rr slice. top fit
-			base = basec;
-			rv = 1 + CHKNUISBETTER;
+			base = baset;
+			rv = 2;
 		}
 
-		if (base != basec)
+		if (base != baset)
 		{
 
 			// recompute base
-			uint64_t new_base = gcd(base, basec);
+			uint64_t new_base = gcd(base, baset);
 
 			// are the periods a perfect fit?
-			if ((new_base == basec)
+			if ((new_base == baset)
 				// .. or equals the original period (could be 0 but would not be a match)
 				|| (new_base == par->sched_period))
-				rv = 2-CHKNUISBETTER;
+				rv = 1;
 			// TODO: new_base == base and base > rrtime vs base < rrtime
 			else{
 				// GCD doesn't match slice and is bigger than preemption slice ->
@@ -812,7 +811,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 			break;
 		}
 
-		used += par->sched_runtime * base/basec;
+		used += par->sched_runtime * base/baset;
 
 		break;
 
@@ -869,6 +868,7 @@ checkPeriod(struct sched_attr * attr, int affinity) {
 
 /*
  *  checkPeriod_R(): find a resource that fits period
+ *  				 uses run-time values for non-DEADLINE scheduled tasks
  *
  *  Arguments: - the item to check
  *
