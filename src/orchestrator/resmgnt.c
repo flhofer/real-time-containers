@@ -742,7 +742,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		}
 
 		// apply bonus
-		rv+= rvbonus;
+		rv= MAX(rv, rv + rvbonus);
 
 		used += par->sched_runtime * base/baset;
 		break;
