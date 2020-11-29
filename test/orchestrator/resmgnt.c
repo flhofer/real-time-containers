@@ -90,15 +90,15 @@ static void orchestrator_resmgnt_setup() {
 
 static void orchestrator_resmgnt_teardown() {
 	// free memory
-	while (nhead)
-		node_pop(&nhead);
+	while (rHead)
+		pop((void**)&rHead);
 
 	freePrgSet(prgset);
 	freeContParm(contparm);
 }
 
-/// TEST CASE -> check correct creation of resource allcation
-/// EXPECTED -> one resource matching the selected cpu
+/// TEST CASE -> check correct creation of resource allocation
+/// EXPECTED -> one resource matching the selected CPU
 START_TEST(orchestrator_resmgnt_createTracer)
 {
 
@@ -122,6 +122,48 @@ START_TEST(orchestrator_resmgnt_createTracer)
 }
 END_TEST
 
+/// TEST CASE -> check grepping of low resource tracer
+/// EXPECTED -> one resource matching the lowest U-CPU
+START_TEST(orchestrator_resmgnt_grepTracer)
+{
+
+	// test filling CPU0
+	createResTracer();
+	// add one more, UL 0.5
+	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->U = 0.5;
+
+	ck_assert_ptr_eq(grepTracer(), rHead->next);
+
+	// invert values
+	pop((void**)&rHead);
+	rHead->U = 0.5;
+	push((void**)&rHead, sizeof(struct resTracer));
+
+	ck_assert_ptr_eq(grepTracer(), rHead);
+}
+END_TEST
+
+/// TEST CASE -> check getting of resource tracer
+/// EXPECTED -> one resource matching the CPU id
+START_TEST(orchestrator_resmgnt_getTracer)
+{
+
+	// test filling CPU0
+	createResTracer();
+	// add one more, CPU2
+	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->affinity = 6;
+	// add one more, CPU1
+	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->affinity = 3;
+
+	ck_assert_ptr_eq(getTracer(3), rHead);
+	ck_assert_ptr_eq(getTracer(4), NULL);
+	ck_assert_ptr_eq(getTracer(0), rHead->next->next);
+}
+END_TEST
+
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_fitting");
 	tcase_add_test(tc1, orchestrator_resmgnt_checkValue);
@@ -129,8 +171,10 @@ void orchestrator_resmgnt (Suite * s) {
     suite_add_tcase(s, tc1);
 
     TCase *tc2 = tcase_create("resmgnt_tracing");
-	tcase_add_test(tc2, orchestrator_resmgnt_createTracer);
 	tcase_add_checked_fixture(tc2, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
+	tcase_add_test(tc2, orchestrator_resmgnt_createTracer);
+	tcase_add_test(tc2, orchestrator_resmgnt_getTracer);
+	tcase_add_test(tc2, orchestrator_resmgnt_grepTracer);
 
     suite_add_tcase(s, tc2);
 

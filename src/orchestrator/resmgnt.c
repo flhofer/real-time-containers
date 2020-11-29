@@ -939,11 +939,11 @@ getTracer(int32_t CPUno) {
 resTracer_t *
 grepTracer() {
 	resTracer_t * ftrc = NULL;
-	float Umax = -2;
+	float Umax = 1.0;
 
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (trc->U > Umax) {
+		if (trc->U < Umax) {
 			Umax = trc->U;
 			ftrc = trc;
 		}
