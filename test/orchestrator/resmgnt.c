@@ -203,6 +203,48 @@ START_TEST(orchestrator_resmgnt_checkPeriod)
 }
 END_TEST
 
+/// TEST CASE -> check best fit for a certain period
+/// EXPECTED -> one resource matching the CPU id
+START_TEST(orchestrator_resmgnt_checkPeriod_R)
+{
+
+	// test filling CPU0
+	createResTracer();
+	rHead->basePeriod = 100000;
+	// add one more, CPU1
+	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->basePeriod = 50000;
+	// add one more, CPU2
+	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->basePeriod = 70000;
+	rHead->affinity = 1;
+
+	node_t * item = NULL;
+	node_push(&item);\
+	item->param = calloc(1, sizeof(pidc_t));
+	item->param->rscs = calloc(1, sizeof(struct sched_rscs));
+	struct sched_attr par ={
+			48,
+			SCHED_DEADLINE,
+			0, 0, 0,
+			1000,
+			10000,
+			100000
+	};
+	item->attr = par;
+	item->param->rscs->affinity = -99;
+
+	ck_assert_ptr_eq(checkPeriod_R(item), rHead->next->next);// exact period match
+
+	item->attr.sched_policy = SCHED_FIFO;
+	item->mon.cdf_period = 50000;
+	item->mon.cdf_runtime = 560;
+	ck_assert_ptr_eq(checkPeriod_R(item), rHead->next);// exact period match
+
+	node_pop(&item);
+}
+END_TEST
+
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
 	tcase_add_test(tc1, orchestrator_resmgnt_checkValue);
@@ -220,6 +262,7 @@ void orchestrator_resmgnt (Suite * s) {
     TCase *tc3 = tcase_create("resmgnt_checkPeriod");
 	tcase_add_checked_fixture(tc3, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod);
+	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod_R);
 
     suite_add_tcase(s, tc3);
 
