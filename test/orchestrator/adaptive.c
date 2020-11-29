@@ -223,7 +223,7 @@ void orchestrator_adaptive (Suite * s) {
 
 	TCase *tc2 = tcase_create("adaptive_schedule");
 	tcase_add_checked_fixture(tc2, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
-//    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
+    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
     tcase_add_test(tc2, orchestrator_adaptive_schedule);
     tcase_add_test(tc2, orchestrator_adaptive_schedule2);
 
