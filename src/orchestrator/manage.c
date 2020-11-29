@@ -281,15 +281,16 @@ pickPidReallocCPU(int32_t CPUno){
 		if (ntrc != trc){
 			// fitting found
 			int old = item->mon.assigned;
-			item->mon.assigned = trc->affinity;
+			item->mon.assigned = ntrc->affinity;
 			if (setPidAffinityAssinged (item)){
 				item->mon.resched++;
 				if (0 < recomputeCPUTimes(trc->affinity))
-					continue; // more than one to move
+					continue; // more than one task to move
 
 				// done only if all works out
 				return 0;
 			}
+			// Reallocate did not work
 			item->mon.assigned = old;
 		}
 	}
