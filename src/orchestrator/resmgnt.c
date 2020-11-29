@@ -844,8 +844,8 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 resTracer_t *
 checkPeriod(struct sched_attr * attr, int affinity) {
 	resTracer_t * ftrc = NULL;
-	int last = -2;		// last checked tracer's score, error by default
-	float Ulast = 10;	// last checked traces's utilization rate
+	int last = INT_MIN;	// last checked tracer's score, error by default
+	float Ulast = 10.0;	// last checked traces's utilization rate
 	int res;
 
 	// loop through all and return the best fit
@@ -880,7 +880,7 @@ checkPeriod_R(node_t * item) {
 	resTracer_t * ftrc = NULL;
 	struct sched_attr attr = { 48 };
 
-	int last = -2;		// last checked tracer's score, error by default
+	int last = INT_MIN; // last checked tracer's score, error by default
 	float Ulast = 10;	// last checked traces's utilization rate
 	int res;
 
