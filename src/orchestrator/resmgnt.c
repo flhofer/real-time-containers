@@ -602,7 +602,7 @@ resetRTthrottle (prgset_t *set, int percent){
  */
 void
 createResTracer(){
-	if (rHead)	// does it exist?
+	if (rHead || !(prgset->affinity_mask))	// does it exist? is the mast set?
 		fatal("Memory management inconsistency: resTracer already present!");
 
 	// backwards, cpu0 on top, we assume affinity_mask ok
