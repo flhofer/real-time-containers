@@ -945,7 +945,6 @@ static int
 recomputeTimes(struct resTracer * res) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
-	struct sched_attr attr = { 48 };
 	int rv;
 
 	// find PID switching from
@@ -956,17 +955,17 @@ recomputeTimes(struct resTracer * res) {
 		if (SCHED_DEADLINE == item->attr.sched_policy)
 			rv = checkUvalue(resNew, &item->attr, 1);
 		else{
+			struct sched_attr attr = { 48 };
 			attr.sched_policy = item->attr.sched_policy;
 			attr.sched_runtime = item->mon.cdf_runtime;
 			attr.sched_period = item->mon.cdf_period;
 			rv = checkUvalue(resNew, &attr, 1);
 		}
 
-		if ( INT_MIN == rv ){
+		if ( INT_MIN == rv ){ 	// FULL
 			free(resNew);
-			return -1; // stops here
+			return -1; 			// stops here
 		}
-
 	}
 
 	res->basePeriod = resNew->basePeriod;
