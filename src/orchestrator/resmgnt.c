@@ -877,38 +877,19 @@ checkPeriod(struct sched_attr * attr, int affinity) {
  */
 resTracer_t *
 checkPeriod_R(node_t * item) {
-	resTracer_t * ftrc = NULL;
-	struct sched_attr attr = { 48 };
+	int affinity = INT_MIN;
+	if ((item->param) && (item->param->rscs))
+		affinity = item->param->rscs->affinity;
 
-	int last = INT_MIN; // last checked tracer's score, error by default
-	float Ulast = 10;	// last checked traces's utilization rate
-	int res;
-
-	// loop through all and return the best fit
-	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (SCHED_DEADLINE == item->attr.sched_policy)
-			res = checkUvalue(trc, &item->attr, 0);
-		else{
-			attr.sched_policy = item->attr.sched_policy;
-			attr.sched_runtime = item->mon.cdf_runtime;
-			attr.sched_period = item->mon.cdf_period;
-			res = checkUvalue(trc, &attr, 0);
-		}
-		if ((res > last) // better match, or matching favorite
-			|| ((res == last)
-				&&	((item->param && (trc->affinity == abs(item->param->rscs->affinity)))
-						|| (trc->U < Ulast)) ) )	{
-			last = res;
-			// reset U if we had an affinity match
-			if ((item->param) && (trc->affinity == abs(item->param->rscs->affinity)))
-				Ulast= 0.0;
-			else
-				Ulast = trc->U;
-			ftrc = trc;
-		}
+	if (SCHED_DEADLINE == item->attr.sched_policy)
+		return checkPeriod(&item->attr, affinity);
+	else{
+		struct sched_attr attr = { 48 };
+		attr.sched_policy = item->attr.sched_policy;
+		attr.sched_runtime = item->mon.cdf_runtime;
+		attr.sched_period = item->mon.cdf_period;
+		return checkPeriod(&attr, affinity);
 	}
-
-	return ftrc;
 }
 
 /*
