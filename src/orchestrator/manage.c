@@ -272,6 +272,8 @@ static int
 pickPidReallocCPU(int32_t CPUno){
 	resTracer_t * trc = getTracer(CPUno);
 	resTracer_t * ntrc = NULL;
+	uint64_t useorig = trc->usedPeriod;
+	trc->usedPeriod = trc->basePeriod;
 
 	for (node_t * item = nhead; ((item)); item=item->next){
 		if (item->mon.assigned != CPUno || 0 > item->pid)
@@ -284,10 +286,10 @@ pickPidReallocCPU(int32_t CPUno){
 			item->mon.assigned = ntrc->affinity;
 			if (setPidAffinityAssinged (item)){
 				item->mon.resched++;
+				(void)recomputeCPUTimes(ntrc->affinity);
 				if (0 < recomputeCPUTimes(trc->affinity))
 					continue; // more than one task to move
 
-				// done only if all works out
 				return 0;
 			}
 			// Reallocate did not work
@@ -295,6 +297,7 @@ pickPidReallocCPU(int32_t CPUno){
 		}
 	}
 
+	trc->usedPeriod = useorig;
 	return -1;
 }
 
