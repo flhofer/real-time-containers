@@ -17,8 +17,8 @@
 
 // tested
 #include "../../src/orchestrator/adaptive.c"
-// dependent includes
-#include "../../src/orchestrator/resmgnt.c"
+// dependent includes - part of resmgntTest.h
+#include "../../src/orchestrator/resmgnt.h"
 
 #include <errno.h>
 #include <pthread.h>

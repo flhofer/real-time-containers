@@ -14,7 +14,7 @@
 #include "../../src/include/kernutil.h"
 
 // tested
-#include "../../src/orchestrator/resmgnt.h"
+#include "../../src/orchestrator/resmgnt.c"
 
 #include <limits.h>
 #include <sys/resource.h>
