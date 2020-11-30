@@ -11,6 +11,9 @@
 #include <string.h> 		// used for string parsing
 #include <sched.h>			// scheduler functions
 #include <linux/sched.h>	// Linux specific scheduling
+#include <math.h>			// EXP and other math functions
+#include <sys/resource.h>	// resource limit constants
+#include <dirent.h>			// DIR function to read directory stats
 
 // Custom includes
 #include "orchestrator.h"
@@ -20,17 +23,14 @@
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"	// common definitions and functions
 
-// Should be needed only here
-#include <sys/resource.h>
-#include <dirent.h>
-
 #define RTLIM_UNL	"-1"		// out of 10000000 = 95%
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
 #define RTLIM_PERC	95			// percentage limitation for calculus
 
-#define MAX_UL 0.90
-#define SCHED_UKNLOAD	10 		// 10% load extra per task
-#define SCHED_RRTONATTR	1000000 // conversion factor from sched_rr_timeslice_ms to sched_attr
+#define MAX_UL 0.90						// 90% fixed Ul for all CPUs!
+#define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
+#define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
+#define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -430,6 +430,8 @@ updatePidCmdline(node_t * node){
 
 /*
  * --------------------- UNTIL HERE WE ASSUME RW LOCK ON NHEAD ------------------------
+ *
+ * ---------------------- PREPARE - COMMON RESOURCE STUFF -----------------------------
  */
 
 
@@ -616,14 +618,34 @@ createResTracer(){
 }
 
 /*
+ *  findPeriodMatch(): find a Period value that fits more the typical standards
+ *
+ *  Arguments:  -
+ *
+ *  Return value: - a new period
+ */
+static uint64_t
+findPeriodMatch(uint64_t cdf_Period){
+	int64_t match;
+	int64_t step = SCHED_PDEFAULT / 10;
+	int count;
+
+	for (int j = 1; (j< 4 || count > 1); j++, step /= 4 ){
+		count = 0;
+		while( ((match -= step) - cdf_Period) > step )
+			count++;
+	}
+	return match;
+}
+
+/*
  *  checkUvalue(): verify if task fits into Utilization limits of a resource
  *
  *  Arguments:  - resource entry for this CPU
  * 				- the `attr` structure of the task we are trying to fit in
  * 				- add or test, 0 = test, 1 = add to resources
  *
- *  Return value: a matching score, higher is better. Negative values return error
- * 				  -1 = no space; -2 error
+ *  Return value: a matching score, higher is better.
  */
 int
 checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
@@ -639,7 +661,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	// sched_runtime == 0, no value, reset to 1 second
 	default:
 		if (0 == base || 0 == par->sched_runtime){
-			base = 1000000000; // default to 1 second)
+			base = SCHED_PDEFAULT; // default to 1 second)
 			break;
 		}
 
@@ -706,7 +728,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		// if unused, set to this period
 		if (0 == baset){
 			rvbonus = 0; // record that we have a fake base
-			baset = 1000000000; // default to 1 second)
+			baset = SCHED_PDEFAULT; // default to 1 second)
 		}
 		else
 			baset = (baset/1000)*1000; // cut-off last thousands, no nanosecond resolution
@@ -766,7 +788,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 		// if unused, set to this period
 		if (0 == baset){
-			baset = 1000000000; // default to 1 second)
+			baset = SCHED_PDEFAULT; // default to 1 second)
 		}
 		else
 			// if the runtime doesn't fit into the preemption slice..
