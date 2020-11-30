@@ -11,9 +11,6 @@
 #include "../../src/orchestrator/orchestrator.h"
 
 #include <check.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
 
 // debug output file
 extern FILE  * dbg_out;

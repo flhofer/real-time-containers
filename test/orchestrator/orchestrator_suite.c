@@ -6,9 +6,12 @@
 ###############################
 */
 
+#include "orchestrator_suite.h"
+#include "../test.h"
+
 #include "adaptiveTest.c"
 #include "manageTest.c"
-#include "resmgntTest.c"
+#include "resmgntTest.h"
 #include "updateTest.c"
 
 Suite * orchestrator_suite(void) {

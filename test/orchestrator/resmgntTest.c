@@ -6,8 +6,19 @@
 ###############################
 */
 
+#include "resmgntTest.h"
+#include "../test.h"
+
+// Includes from orchestrator
 #include "../../src/orchestrator/resmgnt.h"
-#include <check.h>
+#include "../../src/include/parse_config.h"
+#include "../../src/include/kernutil.h"
+
+#include <stdint.h>
+#include <stdio.h>
+#include <errno.h>
+#include <time.h>
+#include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling
 
@@ -63,7 +74,8 @@ START_TEST(orchestrator_resmgnt_checkValue)
 }
 END_TEST
 
-static void orchestrator_resmgnt_setup() {
+static void
+orchestrator_resmgnt_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
@@ -88,7 +100,8 @@ static void orchestrator_resmgnt_setup() {
 	contparm = calloc (1, sizeof(containers_t));
 }
 
-static void orchestrator_resmgnt_teardown() {
+static void
+orchestrator_resmgnt_teardown() {
 	// free memory
 	while (rHead)
 		pop((void**)&rHead);

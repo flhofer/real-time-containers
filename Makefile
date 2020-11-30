@@ -12,7 +12,7 @@ OBJDIR = build
 
 sources = orchestrator.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
-testbins = 
+testbins = orchestrator_suite.o resmgntTest.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
