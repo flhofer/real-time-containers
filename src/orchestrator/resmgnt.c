@@ -626,15 +626,17 @@ createResTracer(){
  */
 static uint64_t
 findPeriodMatch(uint64_t cdf_Period){
-	int64_t match;
-	int64_t step = SCHED_PDEFAULT / 10;
-	int count;
+	double fact = ceil(log10((double)cdf_Period));
+	int64_t match = (int64_t) pow(10, fact);
+	int64_t step = match / 10;
 
-	for (int j = 1; (j< 4 || count > 1); j++, step /= 4 ){
-		count = 0;
-		while( ((match -= step) - cdf_Period) > step )
-			count++;
+	do{
+		while(match - cdf_Period > step )
+			match -= step;
+		step /= 4;
 	}
+	while ((step % 1000) == 0);
+
 	return match;
 }
 

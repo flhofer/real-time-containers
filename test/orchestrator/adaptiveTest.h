@@ -5,8 +5,8 @@
  *      Author: florianhofer
  */
 
-#ifndef _ADAPTIVETEST_H_
-#define _ADAPTIVETEST_H_
+#ifndef TEST_ADAPTIVETEST_H_
+#define TEST_ADAPTIVETEST_H_
 
 #include <check.h>
 

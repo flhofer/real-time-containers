@@ -5,11 +5,11 @@
  *      Author: Florian Hofer
  */
 
-#ifndef _LIBRARY_SUITE_H_
-#define _LIBRARY_SUITE_H_
+#ifndef TEST_LIB_LIBRARY_SUITE_H_
+#define TEST_LIB_LIBRARY_SUITE_H_
 
 #include <check.h>
 
 Suite * library_suite(void);
 
-#endif /* _LIBRARY_SUITE_H_ */
+#endif /* TEST_LIB_LIBRARY_SUITE_H_ */

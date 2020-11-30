@@ -12,7 +12,9 @@ OBJDIR = build
 
 sources = orchestrator.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
-testbins = orchestrator_suite.o library_suite.o resmgntTest.o adaptiveTest.o manageTest.o updateTest.o
+testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
+		   adaptiveTest.o manageTest.o updateTest.o dockerlinkTest.o\
+		   kernutilTest.o orchdataTest.o parse_configTest.o 
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
@@ -106,7 +108,7 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
+check: test/test.c $(wildcard $(SRC_DIR)/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	
 test:

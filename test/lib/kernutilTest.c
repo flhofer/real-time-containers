@@ -6,7 +6,10 @@
 ###############################
 */
 
-#include "../../src/include/kernutil.h"
+#include "kernutilTest.h"
+
+// tested
+#include "../../src/lib/kernutil.c"
 
 START_TEST(kernutil_check_kernel)
 {	

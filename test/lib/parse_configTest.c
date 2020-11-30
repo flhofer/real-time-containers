@@ -6,8 +6,11 @@
 ###############################
 */
 
-#include "../../src/include/parse_config.h"
-#include <check.h>
+#include "parse_configTest.h"
+
+// tested
+#include "../../src/lib/parse_config.c"
+
 
 static prgset_t * set;
 static containers_t * conts;

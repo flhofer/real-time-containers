@@ -5,8 +5,8 @@
  *      Author: Florian Hofer
  */
 
-#ifndef _UPDATETEST_H_
-#define _UPDATETEST_H_
+#ifndef TEST_UPDATETEST_H_
+#define TEST_UPDATETEST_H_
 
 #include <check.h>
 

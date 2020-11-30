@@ -5,11 +5,11 @@
  *      Author: Florian Hofer
  */
 
-#ifndef _ORCHESTRATOR_SUITE_H_
-#define _ORCHESTRATOR_SUITE_H_
+#ifndef TEST_ORCHESTRATOR_SUITE_H_
+#define TEST_ORCHESTRATOR_SUITE_H_
 
 #include <check.h>
 
 Suite * orchestrator_suite(void);
 
-#endif /* _ORCHESTRATOR_SUITE_H_ */
+#endif /* TEST_ORCHESTRATOR_SUITE_H_ */

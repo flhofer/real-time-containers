@@ -5,10 +5,16 @@
 # ©2019 all rights reserved ☺
 ###############################
 */
+#include "orchdataTest.h"
+#include "../test.h"
 
-#include "../../src/include/orchdata.h"
+// Includes from orchestrator library
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
+
+// tested
+#include "../../src/lib/orchdata.c"
+
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update

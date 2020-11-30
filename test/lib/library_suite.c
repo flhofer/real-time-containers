@@ -8,10 +8,10 @@
 #include "library_suite.h"
 #include "../test.h"
 
-#include "dockerlinkTest.c"
-#include "kernutilTest.c"
-#include "orchdataTest.c"
-#include "parse_configTest.c"
+#include "dockerlinkTest.h"
+#include "kernutilTest.h"
+#include "orchdataTest.h"
+#include "parse_configTest.h"
 
 Suite * library_suite(void) {
 

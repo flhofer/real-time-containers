@@ -5,8 +5,8 @@
  *      Author: Florian Hofer
  */
 
-#ifndef _MANAGETEST_H_
-#define _MANAGETEST_H_
+#ifndef TEST_MANAGETEST_H_
+#define TEST_MANAGETEST_H_
 
 #include <check.h>
 

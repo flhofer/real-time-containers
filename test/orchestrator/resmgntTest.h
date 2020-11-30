@@ -5,8 +5,8 @@
  *      Author: Florian Hofer
  */
 
-#ifndef _RESMGNTTEST_H_
-#define _RESMGNTTEST_H_
+#ifndef TEST_RESMGNTTEST_H_
+#define TEST_RESMGNTTEST_H_
 
 #include <check.h>
 
