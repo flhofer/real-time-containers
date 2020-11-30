@@ -10,9 +10,11 @@
 #include "../test.h"
 
 // Includes from orchestrator
-#include "../../src/orchestrator/resmgnt.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
+
+// tested
+#include "../../src/orchestrator/resmgnt.h"
 
 #include <limits.h>
 #include <sys/resource.h>
