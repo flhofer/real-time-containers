@@ -32,9 +32,6 @@ resTracer_t * rHead = NULL;
 #include "lib/library_suite.h"
 #include "orchestrator/orchestrator_suite.h"
 
-// generic error plotting
-#include "../src/include/error.h"
-
 #include <time.h>
 
 int main(void)
@@ -46,19 +43,11 @@ int main(void)
     SRunner *sr;
 
 	Suite * s1 = library_suite();
-	sr = srunner_create(s1);
-	// uncomment below for debugging
-//	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_NORMAL);
-    nf += srunner_ntests_failed(sr);
-    srunner_free(sr);
-
 	Suite * s2 = orchestrator_suite();
-    sr = srunner_create(s2);
-	// uncomment below for debugging
-//	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_NORMAL);
-    nf += srunner_ntests_failed(sr);
+	sr = srunner_create(s1);
+	srunner_add_suite(sr, s2);
+	srunner_run_all(sr, CK_NORMAL);
+    nf = srunner_ntests_failed(sr);
     srunner_free(sr);
 
     return nf == 0 ? 0 : 1;

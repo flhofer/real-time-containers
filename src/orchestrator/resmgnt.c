@@ -635,7 +635,8 @@ findPeriodMatch(uint64_t cdf_Period){
 			match -= step;
 		step /= 4;
 	}
-	while ((step % 1000) == 0);
+	// require at least us resolution,  min reach 5% of target
+	while ((step % 1000) == 0 && abs(match - cdf_Period) < (uint64_t)((double)cdf_Period * 0.01));
 
 	return match;
 }
@@ -911,7 +912,7 @@ checkPeriod_R(node_t * item) {
 		struct sched_attr attr = { 48 };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
-		attr.sched_period = item->mon.cdf_period;
+		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
 		return checkPeriod(&attr, affinity);
 	}
 }
@@ -982,7 +983,7 @@ recomputeTimes(struct resTracer * res) {
 			struct sched_attr attr = { 48 };
 			attr.sched_policy = item->attr.sched_policy;
 			attr.sched_runtime = item->mon.cdf_runtime;
-			attr.sched_period = item->mon.cdf_period;
+			attr.sched_period = findPeriodMatch(item->mon.cdf_period);
 			rv = checkUvalue(resNew, &attr, 1);
 		}
 

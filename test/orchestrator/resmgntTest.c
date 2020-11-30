@@ -262,6 +262,10 @@ struct {
 	uint64_t measured;
 } findPeriodVal[5] = {
 	{875000, 874345},
+	{200000000, 198402123},
+	{62500000, 63234114},
+	{11000000, 111212343},
+	{93000000, 929473927},
 };
 
 START_TEST(orchestrator_resmgnt_findPeriod)
@@ -288,7 +292,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_checked_fixture(tc3, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod_R);
-	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 1);
+	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 5);
 
     suite_add_tcase(s, tc3);
 
