@@ -3,10 +3,6 @@
 
 #include <sys/types.h>
 
-// for debug and testing purposes, export
-void buildEventConf();
-void clearEventConf();
-
 // Linked list of CPU threads, public to allow external calls
 struct ftrace_thread {
 	struct ftrace_thread * next;

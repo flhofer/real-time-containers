@@ -27,6 +27,18 @@
 #define MAX_PATH 256
 #define TESTCPU "0"
 
+void buildEventConf(){
+	push((void**)&elist_head, sizeof(struct ftrace_elist));
+	elist_head->eventid = 317;
+	elist_head->event = "sched_switch";
+	elist_head->eventcall = pickPidInfoS;
+}
+
+void clearEventConf(){
+	while (elist_head)
+		pop((void**)&elist_head);
+}
+
 static void orchestrator_manage_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);

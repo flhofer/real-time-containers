@@ -93,18 +93,6 @@ static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
-void buildEventConf(){
-	push((void**)&elist_head, sizeof(struct ftrace_elist));
-	elist_head->eventid = 317;
-	elist_head->event = "sched_switch";
-	elist_head->eventcall = pickPidInfoS;
-}
-
-void clearEventConf(){
-	while (elist_head)
-		pop((void**)&elist_head);
-}
-
 static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
 
