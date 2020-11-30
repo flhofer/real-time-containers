@@ -646,7 +646,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	/*
 	 * DEADLINE return values
 	 * INT_MAX	= OK, perfect period match;
-	 * 3 		= OK, empty CPU
+	 * INT_MAX-1= OK, empty CPU
 	 * 2		= recalculate base but GCD is the period of the resource (par > res)
 	 * 1-x 		= recalculate base but GCD is the period of the task (res > par)
 	 * 1+ (-1) * factor fit period in new GCD
@@ -847,7 +847,7 @@ checkPeriod(struct sched_attr * attr, int affinity) {
 	float Ulast = 10.0;	// last checked traces's utilization rate
 	int res;
 
-	// loop through all and return the best fit
+	// loop through	all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		res = checkUvalue(trc, attr, 0);
 		if ((res > last) // better match, or matching favorite
