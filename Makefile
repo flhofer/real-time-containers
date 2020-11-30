@@ -10,7 +10,7 @@ CPP?=$(CROSS_COMPILE)g++
 
 OBJDIR = build
 
-sources = orchestrator.c
+sources = orchestrator.c test.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
 testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
 		   adaptiveTest.o manageTest.o updateTest.o dockerlinkTest.o\
@@ -108,6 +108,7 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
+# TODO: create missing test cases to allow removal of librttest.a
 check: test/test.c $(wildcard $(SRC_DIR)/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	

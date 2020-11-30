@@ -10,6 +10,6 @@
 
 #include <check.h>
 
-
+void library_dockerlink (Suite * s);
 
 #endif /* TEST_LIB_DOCKERLINKTEST_H_ */
