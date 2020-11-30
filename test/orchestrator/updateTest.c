@@ -6,11 +6,17 @@
 ###############################
 */
 
-#include "../../src/orchestrator/update.h"
+#include "updateTest.h"
+#include "../test.h"
+
+// Includes from orchestrator library
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
-#include <check.h>
+
+// tested
+#include "../../src/orchestrator/update.c"
+
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>

@@ -6,12 +6,20 @@
 ###############################
 */
 
-#include "../../src/orchestrator/adaptive.h"
+#include "adaptiveTest.h"
+#include "../test.h"
+
+// Includes from orchestrator library
 #include "../../src/include/orchdata.h"
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
-#include <check.h>
+
+// tested
+#include "../../src/orchestrator/adaptive.c"
+// dependent includes
+#include "../../src/orchestrator/resmgnt.c"
+
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>

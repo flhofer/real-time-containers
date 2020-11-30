@@ -9,7 +9,7 @@
 #include "resmgntTest.h"
 #include "../test.h"
 
-// Includes from orchestrator
+// Includes from orchestrator library
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 

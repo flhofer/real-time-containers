@@ -6,10 +6,16 @@
 ###############################
 */
 
-#include "../../src/orchestrator/manage.h"
+#include "manageTest.h"
+#include "../test.h"
+
+// Includes from orchestrator library
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
-#include <check.h>
+
+// tested
+#include "../../src/orchestrator/manage.c"
+
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>

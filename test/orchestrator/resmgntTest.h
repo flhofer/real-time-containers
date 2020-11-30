@@ -2,7 +2,7 @@
  * resmgntTest.h
  *
  *  Created on: Nov 30, 2020
- *      Author: florianhofer
+ *      Author: Florian Hofer
  */
 
 #ifndef _RESMGNTTEST_H_

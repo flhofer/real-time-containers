@@ -87,7 +87,7 @@ cmpPidItemU (const void * a, const void * b) {
  *  Return value: Negative values return error
  */
 static int
-recomputeTimes(struct resTracer * res) {
+recomputeTimes_S(struct resTracer * res) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
 
@@ -447,7 +447,7 @@ adaptScramble(){
 			resTracer_t * trcOld = res->assigned;
 
 			res->assigned = trc;
-			(void)recomputeTimes(trcOld); // reset times of old resource
+			(void)recomputeTimes_S(trcOld); // reset times of old resource
 		}
 	}
 

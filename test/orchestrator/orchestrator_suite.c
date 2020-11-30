@@ -9,10 +9,10 @@
 #include "orchestrator_suite.h"
 #include "../test.h"
 
-#include "adaptiveTest.c"
-#include "manageTest.c"
+#include "adaptiveTest.h"
+#include "manageTest.h"
 #include "resmgntTest.h"
-#include "updateTest.c"
+#include "updateTest.h"
 
 Suite * orchestrator_suite(void) {
 
