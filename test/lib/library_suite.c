@@ -6,10 +6,10 @@
 ###############################
 */
 
-#include "kernutil.c"
-#include "orchdata.c"
-#include "parse_config.c"
-#include "dockerlink.c"
+#include "dockerlinkTest.c"
+#include "kernutilTest.c"
+#include "orchdataTest.c"
+#include "parse_configTest.c"
 
 Suite * library_suite(void) {
 

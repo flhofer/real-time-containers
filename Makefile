@@ -12,6 +12,7 @@ OBJDIR = build
 
 sources = orchestrator.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
+testbins = 
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
@@ -75,6 +76,8 @@ endif
 # define search paths
 VPATH	= src/orchestrator:
 VPATH	+= src/lib:
+VPATH	+= test/lib:
+VPATH	+= test/orchestrator:
 VPATH	+= test-monitor/usecase/uc1-2/src:
 
 .PHONY: all
@@ -103,8 +106,8 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, $(orcbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) $(testbins) librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, $(orcbins) $(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	
 test:
 	./check_test

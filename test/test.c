@@ -5,13 +5,7 @@
 # ©2019 all rights reserved ☺
 ###############################
 */
-
-#include <check.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
-
-#include "../../src/orchestrator/orchestrator.h"
+#include "test.h"
 
 // ############################ common global variables ###########################333
 

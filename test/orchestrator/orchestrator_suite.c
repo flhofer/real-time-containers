@@ -6,10 +6,10 @@
 ###############################
 */
 
-#include "update.c"
-#include "manage.c"
-#include "adaptive.c"
-#include "resmgnt.c"
+#include "adaptiveTest.c"
+#include "manageTest.c"
+#include "resmgntTest.c"
+#include "updateTest.c"
 
 Suite * orchestrator_suite(void) {
 
