@@ -10,6 +10,7 @@
 #include "../test.h"
 
 // Includes from orchestrator library
+#include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
 

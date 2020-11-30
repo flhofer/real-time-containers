@@ -254,6 +254,22 @@ START_TEST(orchestrator_resmgnt_checkPeriod_R)
 }
 END_TEST
 
+/// TEST CASE -> check best period fit for CDF captured values
+/// EXPECTED -> closest period in up-to 1/16th of a sec steps
+
+struct {
+	uint64_t expected;
+	uint64_t measured;
+} findPeriodVal[5] = {
+	{875000, 874345},
+};
+
+START_TEST(orchestrator_resmgnt_findPeriod)
+{
+	ck_assert(findPeriodMatch(findPeriodVal[_i].measured) == findPeriodVal[_i].expected);
+}
+END_TEST
+
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
 	tcase_add_test(tc1, orchestrator_resmgnt_checkValue);
@@ -272,8 +288,10 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_checked_fixture(tc3, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod_R);
+	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 1);
 
     suite_add_tcase(s, tc3);
+
 
 	return;
 }
