@@ -5,6 +5,8 @@
 # ©2019 all rights reserved ☺
 ###############################
 */
+#include "library_suite.h"
+#include "../test.h"
 
 #include "dockerlinkTest.c"
 #include "kernutilTest.c"

@@ -14,10 +14,6 @@
 #include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 
-#include <stdint.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
 #include <limits.h>
 #include <sys/resource.h>
 #include <linux/sched.h>	// linux specific scheduling

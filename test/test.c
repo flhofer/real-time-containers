@@ -28,11 +28,14 @@ resTracer_t * rHead = NULL;
 
 // ############################ end common global variables ###########################333
 
-#include "lib/library_suite.c"
+// include library and main suite code
+#include "lib/library_suite.h"
 #include "orchestrator/orchestrator_suite.h"
 
-// generic..
+// generic error plotting
 #include "../src/include/error.h"
+
+#include <time.h>
 
 int main(void)
 {
