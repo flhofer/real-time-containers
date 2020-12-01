@@ -10,5 +10,6 @@
 
 #include <check.h>
 
+void library_error (Suite * s);
 
 #endif /* TEST_LIB_ERRORTEST_H_ */
