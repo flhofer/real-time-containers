@@ -12,6 +12,7 @@
 #include "kernutilTest.h"
 #include "orchdataTest.h"
 #include "parse_configTest.h"
+#include "errorTest.h"
 
 Suite * library_suite(void) {
 
@@ -28,6 +29,7 @@ Suite * library_suite(void) {
 	}
 	library_parse_config(s);
 	library_dockerlink(s);
+	library_error(s);
 
 	return s;
 }
