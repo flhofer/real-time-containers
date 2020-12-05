@@ -79,4 +79,17 @@
 	    return a;
 	}
 
+	/// lcm(): least common multiple
+	//
+	/// Arguments: - candidate values in uint64_t
+	///
+	/// Return value: - smallest value that fits both
+	///
+	static inline uint64_t
+	lcm(uint64_t a, uint64_t b)
+	{
+		if (!a || !b)
+			return 0;
+		return (a/gcd(a,b)) * b;
+	}
 #endif /* _CMNUTIL_H_ */
