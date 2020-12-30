@@ -656,7 +656,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t used = res->usedPeriod;
 	uint64_t baset = par->sched_period;
 	int rv = INT_MAX; // perfect match -> all cases max value default
-	int rvbonus = 1;
+//	int rvbonus = 1;
 
 	switch (par->sched_policy) {
 
@@ -714,13 +714,14 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	/*
 	 *	FIFO return values for different situations
 	 *	4 .. perfect match desired repetition matches period of resources
-	 *	2 .. empty CPU, = perfect fit on new CPU
+	 *	3 .. empty CPU, = perfect fit on new CPU
 	 *  1 .. recalculation of period, but new is perfect fit to both
 	 *  0 .. recompute needed
 	 *  all with +1 bonus if runtime fits remaining UL
 	 */
 	case SCHED_FIFO:
 
+		// TODO : combine with others standard setters
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;
@@ -730,7 +731,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 		// if unused, set to this period
 		if (0 == baset){
-			rvbonus = 0; // record that we have a fake base
+//			rvbonus = 0; // record that we have a fake base
 			baset = SCHED_PDEFAULT; // default to 1 second)
 		}
 		else
@@ -738,28 +739,29 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 		if (0==base){
 			base = baset;
-			rvbonus  = 1; // reset again, we have match
-			rv = 2;
+//			rvbonus  = 1; // reset again, we have match
+			rv = 3;
 		}
 
-		if (rvbonus){
-			// free slice smaller than runtime, = additional preemption => lower pts
-			if ((double)(MAX_UL-res->U) * (double)base < (double)par->sched_runtime)
-				rvbonus=0;
-		}
+//		if (rvbonus){
+//			// free slice smaller than runtime, = additional preemption => lower pts
+//			if ((double)(MAX_UL-res->U) * (double)base < (double)par->sched_runtime)
+//				rvbonus=0;
+//		}
 
+		// TODO: maybe this can be used as generic part -> other tasks are guessed based on their mon parameters
 		if (base != baset) {
 			// recompute base
-			uint64_t new_base = gcd(base, baset);
+			uint64_t new_base = lcm(base, baset);
 
 			// are the periods a perfect fit?
-			if (new_base == base)
-					rv = 1;
-			else{
-				rv = MAX((-1) * (int)(base / new_base), INT_MIN+1);
-				if (new_base == baset)
-					rv++;
-			}
+			if (new_base == baset)
+					rv = 2;			// harmonic and p_i >= p_m
+			else if (new_base == base)
+					rv = 1;			// harmonic and p_i < p_m
+			else
+				// interruption score
+				rv = MAX((-1) * (int)((res->U * (double)new_base)/(double)base), INT_MIN+1);
 
 			// recompute new values of resource tracer
 			used = used * new_base / base;
@@ -767,7 +769,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		}
 
 		// apply bonus
-		rv= MAX(rv, rv + rvbonus);
+//		rv= MAX(rv, rv + rvbonus);
 
 		used += par->sched_runtime * base/baset;
 		break;
@@ -782,6 +784,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	 */
 	case SCHED_RR:
 
+		// TODO: combine with others standard setters
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
 			rv = 0;
@@ -793,11 +796,11 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		if (0 == baset){
 			baset = SCHED_PDEFAULT; // default to 1 second)
 		}
-		else
-			// if the runtime doesn't fit into the preemption slice..
-			// reset base to slice as it will be preempted during run increasing task switching
-			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
-				baset = prgset->rrtime*SCHED_RRTONATTR;
+//		else
+//			// if the runtime doesn't fit into the preemption slice..
+//			// reset base to slice as it will be preempted during run increasing task switching
+//			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+//				baset = prgset->rrtime*SCHED_RRTONATTR;
 
 		if (0==base){
 			// if unused, set to rr slice. top fit
@@ -805,6 +808,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 			rv = 2;
 		}
 
+		// TODO: this has to be reviewed
 		if (base != baset)
 		{
 
@@ -829,11 +833,6 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 			used = used * new_base / base;
 			base = new_base;
-		}
-
-		if (0 == par->sched_runtime){
-			// can't do anything more about usage computation
-			break;
 		}
 
 		used += par->sched_runtime * base/baset;
