@@ -620,25 +620,20 @@ createResTracer(){
 /*
  *  findPeriodMatch(): find a Period value that fits more the typical standards
  *
- *  Arguments:  -
+ *  Arguments:  - measured CDF period for non periodically scheduled tasks
  *
- *  Return value: - a new period
+ *  Return value: - an approximation (nearest) period
  */
 static uint64_t
 findPeriodMatch(uint64_t cdf_Period){
-	double fact = ceil(log10((double)cdf_Period));
-	int64_t match = (int64_t) pow(10, fact);
-	int64_t step = match / 10;
+	if (!cdf_Period) // nothing defined. use default
+		return NSEC_PER_SEC;
 
-	do{
-		while(match - cdf_Period > step )
-			match -= step;
-		step /= 4;
-	}
-	// require at least us resolution,  min reach 5% of target
-	while ((step % 1000) == 0 && abs(match - cdf_Period) < (uint64_t)((double)cdf_Period * 0.01));
+	// closing step size => find next higher power of 10 and divide by 40
+	double step =  pow(10, ceil(log10((double)cdf_Period))) / 40.0;
 
-	return match;
+	// return closest match with step distance to cdf_period
+	return (uint64_t)(round((double)cdf_Period/step) * step);
 }
 
 /*

@@ -260,17 +260,20 @@ END_TEST
 struct {
 	uint64_t expected;
 	uint64_t measured;
-} findPeriodVal[5] = {
-	{875000, 874345},
-	{200000000, 198402123},
-	{62500000, 63234114},
-	{11000000, 111212343},
-	{93000000, 929473927},
+} findPeriodVal[6] = {
+	{NSEC_PER_SEC, 0},		// default case if nothing has been measured or set yet
+	{200000000, 198402123}, // bit lower internal 10s
+	{62500000, 63234114},	// bit higher lower 3/4 of 10s
+	{875000, 874345},		// bit lower upper 3/4 of 10s
+	{125000000, 121212343},	// bit lower 100s + 1/40th
+	{925000000, 929473927},	// bit higher 100s + 1/40th
 };
 
 START_TEST(orchestrator_resmgnt_findPeriod)
 {
-	ck_assert(findPeriodMatch(findPeriodVal[_i].measured) == findPeriodVal[_i].expected);
+	uint64_t ms = findPeriodMatch(findPeriodVal[_i].measured);
+
+	ck_assert( ms == findPeriodVal[_i].expected);
 }
 END_TEST
 
@@ -292,7 +295,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_checked_fixture(tc3, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod);
 	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod_R);
-	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 5);
+	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 6);
 
     suite_add_tcase(s, tc3);
 
