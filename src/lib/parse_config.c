@@ -35,6 +35,7 @@ static void parse_resource_data(struct json_object *obj,
 
 	*data = malloc(sizeof(struct sched_rscs));
 	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
+	(*data)->affinity_mask = NULL;
 	(*data)->rt_timew = get_int_value_from(obj, "rt-soft", TRUE, -1);
 	(*data)->rt_time = get_int_value_from(obj, "rt-hard", TRUE, -1);
 	(*data)->mem_dataw = get_int_value_from(obj, "data-soft", TRUE, -1);
