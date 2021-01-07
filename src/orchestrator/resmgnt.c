@@ -31,7 +31,7 @@
 #define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
 #define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
-#define SCHED_UHARMONIC	2				// offset for non-harmonic scores in checkUvalue
+#define SCHED_UHARMONIC	2				// offset for non-harmonic scores in checkUvalue (MIN)
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -658,57 +658,59 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		base = baset;
 		rv = 2;
 	}
+	else {
+		// prepare parameters by scheduling type
+		switch (par->sched_policy) {
 
-	switch (par->sched_policy) {
-
-	case SCHED_DEADLINE:
-		break;
-
-	case SCHED_RR:
-		// if the runtime doesn't fit into the preemption slice..
-		// reset base to slice as it will be preempted during run increasing task switching
-		if (0 != par->sched_period)
-			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
-				baset = prgset->rrtime*SCHED_RRTONATTR;
-
-		// no break
-	case SCHED_FIFO:
-	// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
-	default:
-
-		if (0 == par->sched_runtime){
-			// can't do anything about computation
-			rv = INT_MAX;
-			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+		case SCHED_DEADLINE:
 			break;
+
+		case SCHED_RR:
+			// if the runtime doesn't fit into the preemption slice..
+			// reset base to slice as it will be preempted during run increasing task switching
+			if (0 != par->sched_period)
+				if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+					baset = prgset->rrtime*SCHED_RRTONATTR;
+
+			// no break
+		case SCHED_FIFO:
+		// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+		default:
+
+			if (0 == par->sched_runtime){
+				// can't do anything about computation
+				rv = INT_MAX;
+				used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+				break;
+			}
 		}
+
+		// base = baset = lcm  + harmonic	... 0 ideal
+		// base < baset = lcm  + harmonic   ... 1 subideal
+		// base = lcm > baset  + harmonic   ... 1 subideal
+		// idem  non harmonic  = 2
+		// baset < base -> ceil [ U * base / baset ] + non_harmonic
+
+		// TODO: and harmonic
+		// recompute base
+		uint64_t new_base = lcm(base, baset);
+
+		// are the periods a perfect fit?
+		if (new_base == baset) // && harmonic
+				rv = 0;				// harmonic and p_i >= p_m
+		else if (new_base == base)	// && harmonic
+				rv = 1;				// harmonic and p_i < p_m // may have p_i/p_m no of preemption
+		else
+			// interruption score -> non harmonic !
+			rv = MIN((int)((res->U * (double)base)/(double)baset)+SCHED_UHARMONIC, INT_MAX);
+
+		// recompute new values of resource tracer
+		used = used * new_base / base;
+		base = new_base;
+
+	//	if (1) // TODO not harmonic - check with harmonic, non harmonic options
+	//		rv = 1;
 	}
-
-	// base = baset = lcm  + harmonic	... 0 ideal
-	// base < baset = lcm  + harmonic   ... 1 subideal
-	// base = lcm > baset  + harmonic   ... 1 subideal
-	// idem  non harmonic  = 2
-	// baset < base -> ceil [ U * base / baset ] + non_harmonic
-
-	// TODO: and harmonic
-	// recompute base
-	uint64_t new_base = lcm(base, baset);
-
-	// are the periods a perfect fit?
-	if (new_base == baset) // && harmonic
-			rv = 0;				// harmonic and p_i >= p_m
-	else if (new_base == base)	// && harmonic
-			rv = 1;				// harmonic and p_i < p_m // may have p_i/p_m no of preemption
-	else
-		// interruption score -> non harmonic !
-		rv = MIN((int)((res->U * (double)new_base)/(double)baset)+1, INT_MAX);
-
-	// recompute new values of resource tracer
-	used = used * new_base / base;
-	base = new_base;
-
-	if (1) // TODO not harmonic - check with harmonic, non harmonic options
-		rv = 1;
 
 	used += par->sched_runtime * base/baset;
 

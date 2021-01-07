@@ -48,7 +48,7 @@ START_TEST(orchestrator_resmgnt_checkValue)
 	ck_assert_int_eq(2, rv);
 	// perfect fit using same period (+ harmonic)
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(1, rv);
+	ck_assert_int_eq(0, rv);
 
 	// fitting match, task is LCM, integer multiple ( + harmonic )
 	par.sched_period = 200000;
@@ -61,14 +61,14 @@ START_TEST(orchestrator_resmgnt_checkValue)
 	ck_assert_int_eq(1, rv);
 
 	// no direct match, LCM = 10ns ( loss of harmonic property )
-	par.sched_period = 20000;
+	par.sched_period = 40000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(5, rv); // score fit 3 + offset NHARM (2)
+	ck_assert_int_eq(2, rv); // score fit 1 + offset NHARM (2)
 
 	// fitting match, task = resource = LCM = 10ns ( but not harmonic anymore )
 	par.sched_period = 100000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(3, rv); // score fit 1 + offset NHARM (2)
+	ck_assert_int_eq(2, rv); // score fit 1 + offset NHARM (2)
 
 	// No space left
 	par.sched_period = 15000;
