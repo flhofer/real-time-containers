@@ -651,16 +651,11 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
 	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
-	int rv = 0; // perfect periods, best fit
+	int hm = res->status & MSK_STATHRMC;	// harmonic?
+	int rv = 0; // return value, perfect periods, best fit
 
-	// CPU unused, score = 2, preference to used resources
-	if (0 == base){
-		base = baset;
-		rv = 2;
-	}
-	else {
-		// prepare parameters by scheduling type
-		switch (par->sched_policy) {
+	// review task parameters by scheduling type
+	switch (par->sched_policy) {
 
 		case SCHED_DEADLINE:
 			break;
@@ -683,33 +678,43 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 				used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
 				break;
 			}
-		}
+	}
 
-		// base = baset = lcm  + harmonic	... 0 ideal
-		// base < baset = lcm  + harmonic   ... 1 subideal
-		// base = lcm > baset  + harmonic   ... 1 subideal
-		// idem  non harmonic  = 2
-		// baset < base -> ceil [ U * base / baset ] + non_harmonic
+	// CPU unused, score = 2, preference to used resources
+	if (0 == base){
+		base = baset;
+		rv = 2;
+		hm = 1;
+	}
+	else {
+		/*
+		 * Recalculate hyper-period and check score
+		 *
+		 * base = baset = lcm  + harmonic	... 0 ideal
+		 * base < baset = lcm  + harmonic   ... 1 subideal
+		 * base = lcm > baset  + harmonic   ... 1 subideal
+		 * start non harmonic >= 2
+		 * baset < base -> ceil [ U * base / baset ] + non_harmonic
+		 *
+		 */
 
-		// TODO: and harmonic
-		// recompute base
-		uint64_t new_base = lcm(base, baset);
+		// compute hyper-period
+		uint64_t hyperP = lcm(base, baset);
 
 		// are the periods a perfect fit?
-		if (new_base == baset) // && harmonic
+		if (hm && hyperP == baset)
 				rv = 0;				// harmonic and p_i >= p_m
-		else if (new_base == base)	// && harmonic
+		else if (hm && hyperP == base)
 				rv = 1;				// harmonic and p_i < p_m // may have p_i/p_m no of preemption
-		else
-			// interruption score -> non harmonic !
+		else{
+			// interruption score -> non harmonic !: verify how often new baset fits in runtime tot -> max interr.
 			rv = MIN((int)((res->U * (double)base)/(double)baset)+SCHED_UHARMONIC, INT_MAX);
+			hm = 0;
+		}
 
 		// recompute new values of resource tracer
-		used = used * new_base / base;
-		base = new_base;
-
-	//	if (1) // TODO not harmonic - check with harmonic, non harmonic options
-	//		rv = 1;
+		used = used * hyperP / base;
+		base = hyperP;
 	}
 
 	used += par->sched_runtime * base/baset;
@@ -723,7 +728,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		res->usedPeriod = used;
 		res->basePeriod = base;
 		res->U=U;
-		// TODO: set/reset harmonic
+		res->status = (res->status & ~MSK_STATHRMC) | hm;
 	}
 
 	return rv;

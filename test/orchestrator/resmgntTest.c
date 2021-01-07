@@ -63,12 +63,12 @@ START_TEST(orchestrator_resmgnt_checkValue)
 	// no direct match, LCM = 10ns ( loss of harmonic property )
 	par.sched_period = 40000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(2, rv); // score fit 1 + offset NHARM (2)
+	ck_assert_int_eq(2, rv); // score fit 0div + offset NHARM (2)
 
 	// fitting match, task = resource = LCM = 10ns ( but not harmonic anymore )
 	par.sched_period = 100000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(2, rv); // score fit 1 + offset NHARM (2)
+	ck_assert_int_eq(3, rv); // score fit 1div + offset NHARM (2)
 
 	// No space left
 	par.sched_period = 15000;
