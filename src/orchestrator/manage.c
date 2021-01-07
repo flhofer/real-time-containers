@@ -304,7 +304,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 	// find all matching, test if space is enough
 	for (node_t *citem = nhead; ((citem)); citem=citem->next){
-		if (citem->mon.assigned != item->mon.assigned || 0 > item->pid)
+		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
 			continue;
 
 		// !! WARN, works only for deadline scheduled tasks
