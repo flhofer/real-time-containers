@@ -36,13 +36,8 @@ static char * files [10] = {
 	};
 
 static void parse_config_tc1_startup() {
-	set = malloc(sizeof(prgset_t));
-	conts = malloc(sizeof(containers_t));
-	conts->img = NULL; // locals are not initialized
-	conts->pids = NULL;
-	conts->cont = NULL;
-	conts->nthreads = 0;
-	conts->num_cont = 0;
+	set = calloc(1, sizeof(prgset_t));
+	conts = calloc(1, sizeof(containers_t));
 }
 
 static void parse_config_tc1_teardown() {
