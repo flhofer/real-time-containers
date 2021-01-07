@@ -98,7 +98,7 @@ recomputeTimes_S(struct resTracer * res) {
 			continue;
 
 		rv = checkUvalue(resNew, alloc->item->attr, 1);
-		if ( INT_MIN == rv ){
+		if ( 0 > rv ){
 			free(resNew);
 			return -1; // stops here
 		}
@@ -130,7 +130,7 @@ addTracer(resAlloc_t * res, int cpu){
 
 			// check first. add and return check value
 			int ret = checkUvalue(trc, res->item->attr, 1);
-			if (INT_MIN == ret)
+			if (0 > ret)
 				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
 			res->assigned = trc;
 			return ret;
