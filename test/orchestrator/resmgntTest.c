@@ -30,7 +30,7 @@
 START_TEST(orchestrator_resmgnt_checkValue)
 {	
 	resTracer_t res = {
-
+			NULL, 0, 0.0, MSK_STATHRMC, 0, 0
 	};
 	struct sched_attr par = {
 		48,
@@ -53,22 +53,22 @@ START_TEST(orchestrator_resmgnt_checkValue)
 	// fitting match, task is LCM, integer multiple ( + harmonic )
 	par.sched_period = 200000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(0, rv);
+	ck_assert_int_eq(1, rv);
 
 	// fitting match, resource is LCM, integer multiple ( + harmonic )
 	par.sched_period = 50000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(1, rv);
+	ck_assert_int_eq(2, rv);
 
 	// no direct match, LCM = 10ns ( loss of harmonic property )
 	par.sched_period = 40000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(2, rv); // score fit 0div + offset NHARM (2)
+	ck_assert_int_eq(3, rv); // score fit 0div + offset NHARM (2)
 
 	// fitting match, task = resource = LCM = 10ns ( but not harmonic anymore )
 	par.sched_period = 100000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(3, rv); // score fit 1div + offset NHARM (2)
+	ck_assert_int_eq(4, rv); // score fit 1div + offset NHARM (2)
 
 	// No space left
 	par.sched_period = 15000;
@@ -190,10 +190,12 @@ START_TEST(orchestrator_resmgnt_checkPeriod)
 	// add one more, CPU1
 	push((void**)&rHead, sizeof(struct resTracer));
 	rHead->basePeriod = 50000;
+	rHead->status = MSK_STATHRMC;
 	// add one more, CPU2
 	push((void**)&rHead, sizeof(struct resTracer));
 	rHead->basePeriod = 70000;
 	rHead->affinity = 1;
+	rHead->status = MSK_STATHRMC;
 
 	struct sched_attr par ={
 			48,
@@ -205,12 +207,15 @@ START_TEST(orchestrator_resmgnt_checkPeriod)
 	};
 
 	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next->next);// exact period match
-	par.sched_period = 10000;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// par is new period, prefer higher GCD
+//  TODO: temporarly skipped as harmonic matches have no number preference in simple version
+//	par.sched_period = 10000;
+//	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// par is new period, prefer higher GCD
 	par.sched_period = 140000;
 	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead);			// par is double period ;)
 	par.sched_period = 75000;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// no perfect fit, prefer higher GCD
+	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead);			// no perfect fit, prefer better U fit
+	rHead->U = 0.1;
+	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// no perfect fit, prefer better U fit
 	rHead->basePeriod = 100000;
 	par.sched_period = 100000;
 	ck_assert_ptr_eq(checkPeriod(&par, -1), rHead);				// par, prefer affinity
@@ -230,9 +235,10 @@ START_TEST(orchestrator_resmgnt_checkPeriod_R)
 	// add one more, CPU1
 	push((void**)&rHead, sizeof(struct resTracer));
 	rHead->basePeriod = 50000;
+	rHead->status = MSK_STATHRMC;
 
 	node_t * item = NULL;
-	node_push(&item);\
+	node_push(&item);
 	item->param = calloc(1, sizeof(pidc_t));
 	item->param->rscs = calloc(1, sizeof(struct sched_rscs));
 	struct sched_attr par ={

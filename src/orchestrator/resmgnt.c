@@ -31,7 +31,7 @@
 #define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
 #define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
-#define SCHED_UHARMONIC	2				// offset for non-harmonic scores in checkUvalue (MIN)
+#define SCHED_UHARMONIC	3				// offset for non-harmonic scores in checkUvalue (MIN)
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -613,6 +613,7 @@ createResTracer(){
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rHead, sizeof(struct resTracer));
 			rHead->affinity = i;
+			rHead->status = MSK_STATHRMC;
 			rHead->U = 0.0;
 			rHead->basePeriod = 0;
 	}
@@ -684,7 +685,6 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	if (0 == base){
 		base = baset;
 		rv = 2;
-		hm = 1;
 	}
 	else {
 		/*
@@ -702,10 +702,12 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		uint64_t hyperP = lcm(base, baset);
 
 		// are the periods a perfect fit?
-		if (hm && hyperP == baset)
-				rv = 0;				// harmonic and p_i >= p_m
+		if (hm && base == baset)
+				rv = 0;				// harmonic and p_i = p_m
+		else if (hm && hyperP == baset)
+				rv = 1;				// harmonic and p_i > p_m, candidate gets interrupted
 		else if (hm && hyperP == base)
-				rv = 1;				// harmonic and p_i < p_m // may have p_i/p_m no of preemption
+				rv = 2;				// harmonic and p_i < p_m, candidate interrupts
 		else{
 			// interruption score -> non harmonic !: verify how often new baset fits in runtime tot -> max interr.
 			rv = MIN((int)((res->U * (double)base)/(double)baset)+SCHED_UHARMONIC, INT_MAX);
