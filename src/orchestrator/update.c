@@ -465,7 +465,7 @@ static void scanNew () {
 void *thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc = 0, ret, stop = 0, dlink_on;
+	int cc = 0, ret, stop = 0, dlink_on = 0;
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
