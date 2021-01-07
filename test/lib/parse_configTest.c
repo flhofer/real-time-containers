@@ -64,6 +64,11 @@ static void checkConfigDefault(containers_t * conts) {
 	ck_assert(conts->rscs);
 	ck_assert(conts->attr);
 
+	{	// clear unallocated part of memory 'template'
+		int32_t * a = (void *)conts->rscs + sizeof(conts->rscs->affinity);
+		*a = 0;
+	}
+
 	ck_assert(!memcmp(conts->rscs, &_def_rscs, sizeof(struct sched_rscs)));
 	ck_assert(!memcmp(conts->attr, &_def_attr, sizeof(struct sched_attr)));
 
