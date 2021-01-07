@@ -308,7 +308,7 @@ static void updateDocker() {
 				while (((curr->next))){
 					if (curr->next->contid == lstevent->id){
 						if (prgset->trackpids)		// deactivate only
-							curr->next->pid*=-1;
+							curr->next->pid = abs(curr->next->pid) * -1;
 						else {
 							node_pop(&curr->next);
 							continue; // don't move on to next item
