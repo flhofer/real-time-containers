@@ -30,7 +30,10 @@
 	#define MSK_STATTRTL		0x1	// setting RT throttle was successful done
 	#define	MSK_STATRUNC		0x2 // startup running containers present
 
-// default values, changeable via cli
+	// masks fot the status of a resource (resTracer_t)
+	#define MSK_STATHRMC		0x1	// resource allocation periods are harmonic
+
+	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
@@ -144,6 +147,7 @@
 		struct resTracer * next;
 		int32_t	 affinity; 		// exclusive CPU-num
 		float	 U;				// utilization factor
+		int 	 status;		// generic status info
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 	} resTracer_t;
