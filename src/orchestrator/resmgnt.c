@@ -31,6 +31,7 @@
 #define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
 #define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
+#define SCHED_UHARMONIC	2				// offset for non-harmonic scores in checkUvalue
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -643,208 +644,84 @@ findPeriodMatch(uint64_t cdf_Period){
  * 				- the `attr` structure of the task we are trying to fit in
  * 				- add or test, 0 = test, 1 = add to resources
  *
- *  Return value: a matching score, higher is better.
+ *  Return value: a matching score, lower is better, -1 = error
  */
 int
 checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
-	uint64_t baset = par->sched_period;
-	int rv = INT_MAX; // perfect match -> all cases max value default
-//	int rvbonus = 1;
+	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
+	int rv = 0; // perfect periods, best fit
+
+	// CPU unused, score = 2, preference to used resources
+	if (0 == base){
+		base = baset;
+		rv = 2;
+	}
 
 	switch (par->sched_policy) {
 
-	// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
-	// sched_runtime == 0, no value, reset to 1 second
-	default:
-		if (0 == base || 0 == par->sched_runtime){
-			base = SCHED_PDEFAULT; // default to 1 second)
-			break;
-		}
-
-	/*
-	 * DEADLINE return values
-	 * INT_MAX	= OK, perfect period match;
-	 * INT_MAX-1= OK, empty CPU
-	 * 2		= recalculate base but GCD is the period of the resource (par > res)
-	 * 1-x 		= recalculate base but GCD is the period of the task (res > par)
-	 * 1+ (-1) * factor fit period in new GCD
-	 * <0= OK, but recalculated base, (-1) * factor fit period in new GCD
-	 */
-		// no break
-
 	case SCHED_DEADLINE:
-		// if unused, set to this period
-		if (0==base){
-			base = par->sched_period;
-			rv = INT_MAX - 1;
-		}
-
-		if (base != par->sched_period) {
-			// recompute base
-			uint64_t new_base = gcd(base, par->sched_period);
-
-			if (new_base % 1000 != 0){
-				warn("Check -> Nanosecond resolution periods not supported!");
-				return INT_MIN;
-			}
-			// recompute new values of resource tracer
-			used = used * new_base /res->basePeriod;
-			base = new_base;
-
-			// are the periods a perfect fit?
-			if (new_base == res->basePeriod)
-				rv = INT_MAX - MAX((int)(par->sched_period / new_base), 0);
-			else {
-				rv = MAX((-1) * (int)(res->basePeriod / new_base), INT_MIN+1);
-				if (new_base == par->sched_period)
-					rv++;
-			}
-		}
-
-		used += par->sched_runtime * base/par->sched_period;
 		break;
 
-	/*
-	 *	FIFO return values for different situations
-	 *	4 .. perfect match desired repetition matches period of resources
-	 *	3 .. empty CPU, = perfect fit on new CPU
-	 *  1 .. recalculation of period, but new is perfect fit to both
-	 *  0 .. recompute needed
-	 *  all with +1 bonus if runtime fits remaining UL
-	 */
-	case SCHED_FIFO:
-
-		// TODO : combine with others standard setters
-		if (0 == par->sched_runtime){
-			// can't do anything about computation
-			rv = 0;
-			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
-			break;
-		}
-
-		// if unused, set to this period
-		if (0 == baset){
-//			rvbonus = 0; // record that we have a fake base
-			baset = SCHED_PDEFAULT; // default to 1 second)
-		}
-		else
-			baset = (baset/1000)*1000; // cut-off last thousands, no nanosecond resolution
-
-		if (0==base){
-			base = baset;
-//			rvbonus  = 1; // reset again, we have match
-			rv = 3;
-		}
-
-//		if (rvbonus){
-//			// free slice smaller than runtime, = additional preemption => lower pts
-//			if ((double)(MAX_UL-res->U) * (double)base < (double)par->sched_runtime)
-//				rvbonus=0;
-//		}
-
-		// TODO: maybe this can be used as generic part -> other tasks are guessed based on their mon parameters
-		if (base != baset) {
-			// recompute base
-			uint64_t new_base = lcm(base, baset);
-
-			// are the periods a perfect fit?
-			if (new_base == baset)
-					rv = 2;			// harmonic and p_i >= p_m
-			else if (new_base == base)
-					rv = 1;			// harmonic and p_i < p_m
-			else
-				// interruption score
-				rv = MAX((-1) * (int)((res->U * (double)new_base)/(double)base), INT_MIN+1);
-
-			// recompute new values of resource tracer
-			used = used * new_base / base;
-			base = new_base;
-		}
-
-		// apply bonus
-//		rv= MAX(rv, rv + rvbonus);
-
-		used += par->sched_runtime * base/baset;
-		break;
-
-	/*
-	 *	RR return values for different situations
-	 *	 4 .. perfect match desired repetition matches period of resources
-	 *	 2 .. empty CPU, = perfect fit on new CPU
-	 *   1 .. recalculation of period, but new is perfect fit to both
-	 *   0 .. recompute needed
-	 *  all with +1 bonus if runtime fits remaining UL
-	 */
 	case SCHED_RR:
+		// if the runtime doesn't fit into the preemption slice..
+		// reset base to slice as it will be preempted during run increasing task switching
+		if (0 != par->sched_period)
+			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+				baset = prgset->rrtime*SCHED_RRTONATTR;
 
-		// TODO: combine with others standard setters
+		// no break
+	case SCHED_FIFO:
+	// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+	default:
+
 		if (0 == par->sched_runtime){
 			// can't do anything about computation
-			rv = 0;
+			rv = INT_MAX;
 			used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
 			break;
 		}
-
-		// if unused, set to this period
-		if (0 == baset){
-			baset = SCHED_PDEFAULT; // default to 1 second)
-		}
-//		else
-//			// if the runtime doesn't fit into the preemption slice..
-//			// reset base to slice as it will be preempted during run increasing task switching
-//			if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
-//				baset = prgset->rrtime*SCHED_RRTONATTR;
-
-		if (0==base){
-			// if unused, set to rr slice. top fit
-			base = baset;
-			rv = 2;
-		}
-
-		// TODO: this has to be reviewed
-		if (base != baset)
-		{
-
-			// recompute base
-			uint64_t new_base = gcd(base, baset);
-
-			// are the periods a perfect fit?
-			if ((new_base == baset)
-				// .. or equals the original period (could be 0 but would not be a match)
-				|| (new_base == par->sched_period))
-				rv = 1;
-			// TODO: new_base == base and base > rrtime vs base < rrtime
-			else{
-				// GCD doesn't match slice and is bigger than preemption slice ->
-				if ((new_base > prgset->rrtime*SCHED_RRTONATTR)
-					// or  remaining utilization is enough to keep the thing running w/o preemtion
-					|| ((MAX_UL-res->U) * (double)new_base > par->sched_runtime))
-						rv = 1; // still fitting into it
-				else
-					rv=0; // can not guarantee that it fits!
-			}
-
-			used = used * new_base / base;
-			base = new_base;
-		}
-
-		used += par->sched_runtime * base/baset;
-
-		break;
-
 	}
+
+	// base = baset = lcm  + harmonic	... 0 ideal
+	// base < baset = lcm  + harmonic   ... 1 subideal
+	// base = lcm > baset  + harmonic   ... 1 subideal
+	// idem  non harmonic  = 2
+	// baset < base -> ceil [ U * base / baset ] + non_harmonic
+
+	// TODO: and harmonic
+	// recompute base
+	uint64_t new_base = lcm(base, baset);
+
+	// are the periods a perfect fit?
+	if (new_base == baset) // && harmonic
+			rv = 0;				// harmonic and p_i >= p_m
+	else if (new_base == base)	// && harmonic
+			rv = 1;				// harmonic and p_i < p_m // may have p_i/p_m no of preemption
+	else
+		// interruption score -> non harmonic !
+		rv = MIN((int)((res->U * (double)new_base)/(double)baset)+1, INT_MAX);
+
+	// recompute new values of resource tracer
+	used = used * new_base / base;
+	base = new_base;
+
+	if (1) // TODO not harmonic - check with harmonic, non harmonic options
+		rv = 1;
+
+	used += par->sched_runtime * base/baset;
 
 	// calculate and verify utilization rate
 	float U = (double)used/(double)base;
 	if (MAX_UL < U)
-		rv = INT_MIN;
+		rv = -1;
 
 	if (add){ // apply changes to res structure?
 		res->usedPeriod = used;
 		res->basePeriod = base;
 		res->U=U;
+		// TODO: set/reset harmonic
 	}
 
 	return rv;
@@ -862,14 +739,14 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 resTracer_t *
 checkPeriod(struct sched_attr * attr, int affinity) {
 	resTracer_t * ftrc = NULL;
-	int last = INT_MIN;	// last checked tracer's score, error by default
+	int last = INT_MAX;	// last checked tracer's score, max value by default
 	float Ulast = 10.0;	// last checked traces's utilization rate
 	int res;
 
 	// loop through	all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		res = checkUvalue(trc, attr, 0);
-		if ((res > last) // better match, or matching favorite
+		if ((0 <= res && res < last) // better match, or matching favorite
 			|| ((res == last) &&
 				(  (trc->affinity == abs(affinity))
 				|| (trc->U < Ulast)) ) )	{
@@ -981,7 +858,7 @@ recomputeTimes(struct resTracer * res) {
 			rv = checkUvalue(resNew, &attr, 1);
 		}
 
-		if ( INT_MIN == rv ){ 	// FULL
+		if ( 0 > rv ){ 			// FULL
 			free(resNew);
 			return -1; 			// stops here
 		}

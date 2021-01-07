@@ -45,30 +45,30 @@ START_TEST(orchestrator_resmgnt_checkValue)
 
 	// Empty CPU
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(INT_MAX-1, rv);
+	ck_assert_int_eq(2, rv);
 	// perfect fit
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(INT_MAX, rv);
+	ck_assert_int_eq(1, rv);
 
 	// GCD match, resource is GCD = stays same
 	par.sched_period = 200000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(INT_MAX-2, rv);
+	ck_assert_int_eq(0, rv);
 
 	// GCD match, task is GCD
 	par.sched_period = 50000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(-1, rv);
+	ck_assert_int_eq(1, rv);
 
 	// GCD match, new GCD
 	par.sched_period = 20000;
 	rv = checkUvalue(&res, &par, 1);
-	ck_assert_int_eq(-5, rv);
+	ck_assert_int_eq(1, rv);
 
 	// No space left
 	par.sched_period = 15000;
 	rv = checkUvalue(&res, &par, 0);
-	ck_assert_int_eq(INT_MIN, rv);
+	ck_assert_int_eq(-1, rv);
 }
 END_TEST
 
