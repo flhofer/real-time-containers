@@ -180,8 +180,10 @@ static void resetTracers(){
 	if (0 > setkernvar(prgset->procfileprefix, "sched_schedstats", "0", prgset->dryrun) )
 		warn("Unable to deactivate schedstat probe");
 
-	while (elist_head)
+	while (elist_head){
+		free(elist_head->event);
 		pop((void**)&elist_head);
+	}
 }
 
 /// startTraceRead(): start CPU tracing threads
@@ -561,7 +563,7 @@ void *thread_ftrace(void *arg){
 	*retVal = 0;
 
 	unsigned char buffer[PIPE_BUFFER];
-	void *pEvent;
+	void *pEvent = NULL;
 	struct kbuffer * kbuf; // kernel ring buffer structure
 	unsigned long long timestamp; // event time stamp, based on up-time in ns (using long long for compatibility kbuffer library)
 
