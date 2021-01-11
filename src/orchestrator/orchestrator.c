@@ -226,6 +226,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'A':
 		case OPT_ADAPTIVE:
+			// Mode must be at least adaptive to permit off-line sort
 			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
 			if (NULL != optarg) {
 				set->sort_mode= atoi(optarg);
@@ -338,11 +339,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'S':
 		case OPT_SYSTEM:
+			// base System, limit to +2 = Monte Carlo;
 			set->sched_mode = SM_DYNSYSTEM;
 			if (NULL != optarg) {
-				set->sched_mode= MIN(atoi(optarg), 2);
+				set->sched_mode += MIN(atoi(optarg), 2);
 			} else if (optind<argc) {
-				set->sched_mode= MIN(atoi(argv[optind]),2);
+				set->sched_mode += MIN(atoi(argv[optind]),2);
 				optargs++;
 			}
 			break;
@@ -354,7 +356,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 #endif
 		case OPT_VERSION:
 			(void)printf("Source compilation date: %s\n", __DATE__);
-			(void)printf("Copyright (C) 2019 Siemens Corporate Technologies, Inc.\n"
+			(void)printf("Copyright (C) 2019-21 Siemens Corporate Technologies, Inc.\n"
 						 "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>\n"
 						 "This is free software: you are free to change and redistribute it.\n"
 						 "There is NO WARRANTY, to the extent permitted by law.\n");

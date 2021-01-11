@@ -429,8 +429,10 @@ static void scanNew () {
 		// drop missing items
 		printDbg("\n" PFX "... Delete at end %d", tail->next->pid);// tail->next->pid);
 		// get next item, then drop old
-		if (prgset->trackpids)// deactivate only
+		if (prgset->trackpids){// deactivate only
 			tail->next->pid = abs(tail->next->pid)*-1;
+			tail = tail->next;
+		}
 		else
 			node_pop(&tail->next);
 	}
