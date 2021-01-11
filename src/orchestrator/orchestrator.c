@@ -403,7 +403,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 
 	// create parameter structure
-	if (!(contparm = malloc (sizeof(containers_t))))
+	if (!(contparm = calloc (1, sizeof(containers_t))))
 		err_exit("Unable to allocate memory");
 
 	if (!error)
