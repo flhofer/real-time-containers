@@ -280,7 +280,7 @@ pickPidReallocCPU(int32_t CPUno){
 			if (!setPidAffinityAssinged (item)){
 				item->mon.resched++;
 				(void)recomputeCPUTimes(ntrc->affinity);
-				if (0 < recomputeCPUTimes(trc->affinity))
+				if (0 > recomputeCPUTimes(trc->affinity))
 					continue; // more than one task to move
 
 				return 0;
