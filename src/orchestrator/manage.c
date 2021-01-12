@@ -52,6 +52,7 @@ struct ftrace_elist * elist_head;
 
 struct ftrace_thread * elist_thead = NULL;
 
+// TODO: implement parser for event list, in the long run
 struct tr_common {
 	uint16_t common_type;
 	uint8_t common_flags;
@@ -1061,7 +1062,6 @@ static void dumpStats (){
 
 	for (;((item)); item=item->next)
 		switch(item->attr.sched_policy){
-		default:
 		case SCHED_FIFO:
 		case SCHED_RR:
 			(void)printf("%5d%c: %3ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
@@ -1080,6 +1080,8 @@ static void dumpStats (){
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
 			break;
+		default:
+			;
 		}
 }
 
