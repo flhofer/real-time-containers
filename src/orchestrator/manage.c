@@ -32,10 +32,8 @@
 #define PIPE_BUFFER			4096
 #if __x86_64__ || __ppc64__
 	#define WORDSIZE		KBUFFER_LSIZE_8
-	#define CMNSPARE		4
 #else
 	#define WORDSIZE		KBUFFER_LSIZE_4
-	#define CMNSPARE		8
 #endif
 
 // total scan counter for update-stats
@@ -59,17 +57,21 @@ struct tr_common {
 	uint8_t common_flags;
 	uint8_t common_preempt_count;
 	int32_t common_pid;
+	uint8_t common_migrate_disable;		// UPDATED with newer kernel packages, not even kernel
+	uint8_t common_preempt_lazy_count;	// shifted all down, messing up struct alignment
 };
 
-struct tr_switch {
-	char prev_comm[16]; //24 - 16
-	pid_t prev_pid; // 28 - 20
-	int32_t prev_prio; // 32 - 24
-	int64_t prev_state; // 40 - 32
+struct tr_switch {		// coming from .. 12 bytes?
+	char prev_comm[16]; // 12 - 16	/ 0
+	pid_t prev_pid; // 28 - 4		/ 16
+	int32_t prev_prio; // 32 - 4	/ 20
+	int32_t _prev_filler; // 36 - 4	/ 24
+	uint32_t prev_state_l; // 40 - 4	/ 28
+	uint32_t prev_state_h; // 44 - 4	/ 32
 
-	char next_comm[16]; // 56 - 48
-	pid_t next_pid; // 60 - 52
-	int32_t next_prio; // 64 - 56
+	char next_comm[16]; // 48 - 16	/ 36
+	pid_t next_pid; // 64 - 4		/ 52
+	int32_t next_prio; // 68 - 4	/ 56
 };
 
 // signal to keep status of triggers ext SIG
@@ -425,7 +427,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
 		}
 
-	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
+	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
 }
 
 /*
@@ -446,7 +448,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
+				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, (uint64_t)pFrame->prev_state_l,
 
 				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
 				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
@@ -492,8 +494,8 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
 
 		if (item->mon.last_ts > 0){
-			if ((pFrame->prev_state & 0x1) // Status 'S' = sleep
-					|| !(pFrame->prev_state & 0xFF)) // Status 'R' = running (yield)
+			if ((pFrame->prev_state_l & 0x1) // Status 'S' = sleep
+					|| !(pFrame->prev_state_l & 0xFF)) // Status 'R' = running (yield)
 				// update realtime stats and consolidate other values
 				pickPidCons(item, ts);
 			else
