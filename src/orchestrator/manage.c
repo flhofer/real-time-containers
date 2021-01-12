@@ -272,11 +272,11 @@ pickPidReallocCPU(int32_t CPUno){
 			continue;
 
 		ntrc = checkPeriod_R(item);
-		if (ntrc != trc){
+		if (ntrc && ntrc != trc){
 			// fitting found
 			int old = item->mon.assigned;
 			item->mon.assigned = ntrc->affinity;
-			if (setPidAffinityAssinged (item)){
+			if (!setPidAffinityAssinged (item)){
 				item->mon.resched++;
 				(void)recomputeCPUTimes(ntrc->affinity);
 				if (0 < recomputeCPUTimes(trc->affinity))
