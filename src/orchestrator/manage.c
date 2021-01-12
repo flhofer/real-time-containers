@@ -903,8 +903,11 @@ static int updateStats ()
 
 	if (!(( scount % (prgset->loops*10) ))){
 		// test disabling throttle again if it didn't work.
-		if (!(prgset->status & MSK_STATTRTL))
-			resetRTthrottle(prgset, -1);
+		if (!(prgset->status & MSK_STATTRTL)){
+			// set even if not successful. stop trying
+			(void)resetRTthrottle(prgset, -1);
+			prgset->status |= MSK_STATTRTL;
+		}
 	}
 
 	// for now does only a simple update
