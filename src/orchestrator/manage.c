@@ -32,7 +32,7 @@
 #define PIPE_BUFFER			4096
 #if __x86_64__ || __ppc64__
 	#define WORDSIZE		KBUFFER_LSIZE_8
-	#define CMNSPARE		0
+	#define CMNSPARE		4
 #else
 	#define WORDSIZE		KBUFFER_LSIZE_4
 	#define CMNSPARE		8
