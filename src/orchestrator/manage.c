@@ -476,7 +476,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 	// previous PID in list, update runtime data
 	if (item){
 		// check if CPU changed, exiting
-		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+		if ((SM_DYNSYSTEM <= prgset->sched_mode)
 				&& (item->mon.assigned != fthread->cpuno)){
 			if (0 <= item->mon.assigned)
 				item->mon.resched++;
@@ -485,10 +485,12 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 			item->mon.assigned = fthread->cpuno;
 
 			if (0 > recomputeCPUTimes(CPU))
-				pickPidReallocCPU(CPU);
+				if (SM_DYNSIMPLE <= prgset->sched_mode)
+					pickPidReallocCPU(CPU);
 
 			if (0 > recomputeCPUTimes(fthread->cpuno))
-				pickPidReallocCPU(fthread->cpuno);
+				if (SM_DYNSIMPLE <= prgset->sched_mode)
+					pickPidReallocCPU(fthread->cpuno);
 		}
 
 		// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
@@ -510,7 +512,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		if (citem->pid == pFrame->next_pid){
 
 			// check if CPU changed, exiting
-			if ((SM_DYNSIMPLE <= prgset->sched_mode)
+			if ((SM_DYNSYSTEM <= prgset->sched_mode)
 				&& (citem->mon.assigned != fthread->cpuno)){
 				if (0 <= citem->mon.assigned)
 					citem->mon.resched++;
@@ -519,10 +521,12 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 				citem->mon.assigned = fthread->cpuno;
 
 				if (0 > recomputeCPUTimes(CPU))
-					pickPidReallocCPU(CPU);
+					if (SM_DYNSIMPLE <= prgset->sched_mode)
+							pickPidReallocCPU(CPU);
 
 				if (0 > recomputeCPUTimes(fthread->cpuno))
-					pickPidReallocCPU(fthread->cpuno);
+					if (SM_DYNSIMPLE <= prgset->sched_mode)
+							pickPidReallocCPU(fthread->cpuno);
 			}
 
 			if ((citem->mon.last_ts > 0)
