@@ -221,6 +221,8 @@ START_TEST(orchestrator_resmgnt_checkPeriod)
 	ck_assert_ptr_eq(checkPeriod(&par, -1), rHead);				// par, prefer affinity
 	rHead->U = 0.7;
 	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next->next);// par, prefer lower U
+
+	// TODO: all full returns NULL
 }
 END_TEST
 
