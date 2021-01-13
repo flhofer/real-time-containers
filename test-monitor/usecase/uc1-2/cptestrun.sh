@@ -3,6 +3,8 @@
 function prepareTest() {
 	no=$1
 
+	eval mkdir -p logs
+
 	if [ "$no" -eq 0 ]; then
 
 		# do nothing
@@ -35,20 +37,30 @@ function prepareTest() {
 		done
 	elif [ "$no" -eq 5 ]; then
 
-		eval ./orchestrator -fd orchUC1.json &
+		if [ "$2" -eq 1 ]; then
+			eval ./orchestrator -fdk -S 0 -A 2 orchUC1a.json > logs/out.txt 2>&1 &
+		else
+			eval ./orchestrator -fdk -S 0 -A 2 orchUC2a.json >> logs/out.txt 2>&1 &
+		fi
 		sleep 10
-		SPID=$(ps h -o pid -C orchestrator)	
+		SPID=$(ps h -o pid -C orchestrator)
 	fi
 }
 
 for k in {0..5}; do
 
-	prepareTest $k
+	prepareTest $k 1
 	eval ./ucexec.sh test 1
-	sleep 30
-	eval ./ucexec.sh test 2
+	if [ -n "$SPID" ]; then
+		# end orchestrator
+		kill -SIGINT $SPID
+		sleep 1
+	fi
 	sleep 30
 
+	prepareTest $k 2
+	eval ./ucexec.sh test 2
+	sleep 30
 	if [ -n "$SPID" ]; then
 		# end orchestrator
 		kill -SIGINT $SPID

@@ -1,11 +1,17 @@
 #!/bin/bash 
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+
+eval rm -r artifacts
 
 # download latest version
 eval ./dllatest.sh
-if [[ "$?" -ne 0 ]]; then
+if [ $? -ne 0 ]; then
 	echo "No new version"
 	exit
 fi
+
+eval mv artifacts/orchestrator .
+eval chmod +x orchestrator
 
 # run usecase
 eval ./cptestrun.sh
