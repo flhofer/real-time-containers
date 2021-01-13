@@ -856,7 +856,7 @@ get_sched_info(node_t * item)
 			}
 		}
 
-		// Advanve with token
+		// Advance with token
 		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
 
@@ -985,13 +985,15 @@ static int manageSched(){
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
 
-					if (SCHED_DEADLINE == item->attr.sched_policy){
-						newWCET = MIN (item->attr.sched_runtime, newWCET);
-						updatePidWCET(item, newWCET);
-					}
-
-					if (0 < newWCET)
+					if (0 < newWCET){
+						if (SCHED_DEADLINE == item->attr.sched_policy){
+							if (item->param && item->param->attr &&
+									!(item->param->attr->sched_runtime))
+								newWCET = MIN (item->param->attr->sched_runtime, newWCET);
+							updatePidWCET(item, newWCET);
+						}
 						item->mon.cdf_runtime = newWCET;
+					}
 					else
 						warn ("Estimation error, can not update WCET");
 				}
@@ -1006,14 +1008,11 @@ static int manageSched(){
 								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
 
 					// OK, let's check the error
-					if (newWCET > 0){
-//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference? -> WARN can't do that, offset vs stdev ratio!
-
-							if (SCHED_DEADLINE == item->attr.sched_policy) {
-								updatePidWCET(item, newWCET);
-							}
-							item->mon.cdf_runtime = newWCET;
-//							}
+					if (0 < newWCET){
+						if (SCHED_DEADLINE == item->attr.sched_policy) {
+							updatePidWCET(item, newWCET);
+						}
+						item->mon.cdf_runtime = newWCET;
 					}
 					else
 						warn ("Estimation error, can not update WCET");
