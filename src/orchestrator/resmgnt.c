@@ -888,7 +888,7 @@ static int
 recomputeTimes_u(struct resTracer * res, node_t * skip) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
-	int rv;
+	int rv = 0;
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next){
@@ -897,18 +897,13 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 			continue;
 
 		if (SCHED_DEADLINE == item->attr.sched_policy)
-			rv = checkUvalue(resNew, &item->attr, 1);
+			rv = MIN(checkUvalue(resNew, &item->attr, 1), rv);
 		else{
 			struct sched_attr attr = { 48 };
 			attr.sched_policy = item->attr.sched_policy;
 			attr.sched_runtime = item->mon.cdf_runtime;
 			attr.sched_period = findPeriodMatch(item->mon.cdf_period);
-			rv = checkUvalue(resNew, &attr, 1);
-		}
-
-		if ( 0 > rv ){ 			// FULL
-			free(resNew);
-			return -1; 			// stops here
+			rv = MIN(checkUvalue(resNew, &attr, 1), rv);
 		}
 	}
 
@@ -917,7 +912,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 	res->U = resNew->U;
 
 	free(resNew);
-	return 0;
+	return rv;
 }
 
 /*
