@@ -476,8 +476,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 	// previous PID in list, update runtime data
 	if (item){
 		// check if CPU changed, exiting
-		if ((SM_DYNSYSTEM <= prgset->sched_mode)
-				&& (item->mon.assigned != fthread->cpuno)){
+		if (item->mon.assigned != fthread->cpuno){
 			if (0 <= item->mon.assigned)
 				item->mon.resched++;
 			// change on exit???, reassign CPU?
@@ -512,8 +511,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		if (citem->pid == pFrame->next_pid){
 
 			// check if CPU changed, exiting
-			if ((SM_DYNSYSTEM <= prgset->sched_mode)
-				&& (citem->mon.assigned != fthread->cpuno)){
+			if (citem->mon.assigned != fthread->cpuno){
 				if (0 <= citem->mon.assigned)
 					citem->mon.resched++;
 				// change on exit???, reassign CPU?
@@ -529,7 +527,8 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 							pickPidReallocCPU(fthread->cpuno);
 			}
 
-			if ((citem->mon.last_ts > 0)
+			if ((SM_PADAPTIVE <= prgset->sched_mode)
+					&& (citem->mon.last_ts > 0)
 					&& (SCHED_DEADLINE != citem->attr.sched_policy)){
 				double period = (double)(ts - citem->mon.last_ts)/(double)NSEC_PER_SEC;
 				int ret;
@@ -982,7 +981,6 @@ static int manageSched(){
 			// if histogram is set and count is ok, update and fit curve
 
 
-			// PADAPTIVE
 			switch (prgset->sched_mode) {
 
 			case SM_PADAPTIVE:
