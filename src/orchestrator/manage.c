@@ -387,6 +387,7 @@ pickPidCons(node_t *item, uint64_t ts){
 			warn("Histogram increment error for PID %d runtime", item->pid);
 
 	if ((SM_DYNSIMPLE <= prgset->sched_mode)
+			&& (SCHED_DEADLINE == item->attr.sched_policy)
 			&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
 		// check reschedule?
 		if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
@@ -996,7 +997,7 @@ static int manageSched(){
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 
 						// check if there is a better fit for the period
-						pidReallocAndTest(checkPeriod_U(item), getTracer(item->affinity), item);
+						pidReallocAndTest(checkPeriod_U(item), getTracer(item->mon.assigned), item);
 					}
 					else
 						// something went wrong. Reset parameters
