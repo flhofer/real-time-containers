@@ -970,6 +970,22 @@ static int manageSched(){
 					if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
 						item->mon.cdf_period = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
+
+						// check if there is a better fit for the period
+						resTracer_t * ntrc = checkPeriod_U(item);
+						if ((ntrc) && item->mon.assigned != ntrc->affinity){
+							// better fit found
+							int old = item->mon.assigned;
+							item->mon.assigned = ntrc->affinity;
+							if (!setPidAffinityAssinged (item)){
+								item->mon.resched++;
+								(void)recomputeCPUTimes(old);
+								(void)recomputeCPUTimes(item->mon.assigned);
+							}
+							else // Reallocate did not work
+							 item->mon.assigned = old;
+						}
+
 					}
 					else
 						// something went wrong. Reset parameters
