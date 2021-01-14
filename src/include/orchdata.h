@@ -71,13 +71,6 @@
 		SM_DYNMCBIN		// use monte carlo bin allocation style algorithm
 	};
 
-	// definition of parameter sorting modes
-	enum sort_mode {
-		SRT_PERIOD = 0,	// sort by period
-		SRT_UTILIZ,		// sort by task utilization, runtime/period
-		SRT_PERIODU,	// sort by period, then by utilization
-	};
-
 	typedef struct sched_rscs { // resources 
 		int32_t affinity; // exclusive CPU-numbers
 		struct bitmask * affinity_mask;	// computed affinity mask
@@ -254,7 +247,6 @@
 		int ftrace; 				// enable Kernel ftrace for run-time statistics
 		enum det_mode use_cgroup;	// identify processes via CGroup
 		enum sched_mode sched_mode;	// scheduling control mode
-		enum sort_mode sort_mode;	// parameter list sorting mode for adapt(.c)
 		double ptresh;				// probability threshold for resource switching
 
 	} prgset_t;

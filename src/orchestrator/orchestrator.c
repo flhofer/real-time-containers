@@ -80,10 +80,9 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-A [SRT] --adaptive        activate Adaptive Static Schedule (ASS) with sorting\n"
-	       "                           0 = period based (default)\n"
-		   "                           1 = Utilization base, runtime per period\n"
-	       "                           2 = first SRT 0 than SRT 1\n"
+	       "-A [NR] --adaptive[=NR]    activate Adaptive Static Schedule (ASS)\n"
+	       "                           0 = Adaptive schedule \n"
+		   "                           1 = Probabilistic adaptive schedule (default)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
@@ -226,12 +225,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'A':
 		case OPT_ADAPTIVE:
-			// Mode must be at least adaptive to permit off-line sort
-			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
+			set->sched_mode = SM_PADAPTIVE;
 			if (NULL != optarg) {
-				set->sort_mode= atoi(optarg);
+				set->sched_mode= MIN(SM_ADAPTIVE + atoi(optarg), SM_PADAPTIVE);
 			} else if (optind<argc) {
-				set->sort_mode= atoi(argv[optind]);
+				set->sched_mode= MIN(SM_ADAPTIVE + atoi(argv[optind]), SM_PADAPTIVE);
 				optargs++;
 			}
 			break;

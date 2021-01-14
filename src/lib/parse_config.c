@@ -633,7 +633,6 @@ void parse_config_set_default(prgset_t *set) {
 
 	set->use_cgroup = DM_CGRP;
 	set->sched_mode = SM_STATIC;
-	set->sort_mode = SRT_PERIOD;
 	set->ptresh = 0.9;
 }
 
