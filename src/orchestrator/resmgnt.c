@@ -778,41 +778,16 @@ checkPeriod(struct sched_attr * attr, int affinity) {
  *  				 uses run-time values for non-DEADLINE scheduled tasks
  *
  *  Arguments: - the item to check
+ *  		   - include item in count
  *
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod_R(node_t * item) {
-	int affinity = INT_MIN;
-	if ((item->param) && (item->param->rscs))
-		affinity = item->param->rscs->affinity;
-
-	if (SCHED_DEADLINE == item->attr.sched_policy)
-		return checkPeriod(&item->attr, affinity);
-	else{
-		struct sched_attr attr = { 48 };
-		attr.sched_policy = item->attr.sched_policy;
-		attr.sched_runtime = item->mon.cdf_runtime;
-		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
-		return checkPeriod(&attr, affinity);
-	}
-}
-
-/*
- *  checkPeriod_U(): find a better resource that fits period
- *  				 uses run-time values for non-DEADLINE scheduled tasks
- *
- *  Arguments: - the item to check
- *
- *  Return value: a pointer to the resource tracer
- * 					returns null if nothing is found
- */
-resTracer_t *
-checkPeriod_U(node_t * item) {
+checkPeriod_R(node_t * item, int include) {
 	int affinity = INT_MIN;
 	resTracer_t * ftrc = NULL;
-	if (0 < item->mon.assigned)
+	if (!(include) && 0 < item->mon.assigned)
 		recomputeCPUTimes_u(item->mon.assigned, item);
 
 	if ((item->param) && (item->param->rscs))
@@ -828,7 +803,7 @@ checkPeriod_U(node_t * item) {
 		ftrc = checkPeriod(&attr, affinity);
 	}
 
-	if (0 < item->mon.assigned)
+	if (!(include) && 0 < item->mon.assigned)
 		recomputeCPUTimes_u(item->mon.assigned, NULL);
 
 	return ftrc;

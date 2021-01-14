@@ -238,12 +238,12 @@ START_TEST(orchestrator_resmgnt_checkPeriod_R)
 	item->attr = par;
 	item->param->rscs->affinity = -99;
 
-	ck_assert_ptr_eq(checkPeriod_R(item), rHead->next);// exact period match
+	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead->next);// exact period match
 
 	item->attr.sched_policy = SCHED_FIFO;
 	item->mon.cdf_period = 50000;
 	item->mon.cdf_runtime = 560;
-	ck_assert_ptr_eq(checkPeriod_R(item), rHead);// exact period match
+	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead);// exact period match
 
 	free(item->param->rscs);
 	free(item->param);

@@ -35,8 +35,8 @@
 		struct sched_attr * par, int add);		// check utilization value, does task fit?
 	resTracer_t * checkPeriod(struct sched_attr
 			* attr, int affinity);				// find a resTracer that fits best
-	resTracer_t * checkPeriod_R(node_t * item);	// same, but with node for runtime
-	resTracer_t * checkPeriod_U(node_t * item); // same, but considering original placement (update)
+	resTracer_t * checkPeriod_R(node_t * item, int include);
+												// same, but with node for runtime
 	resTracer_t * getTracer(int32_t CPUno);		// return resTracer for CPU no
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
 	int	recomputeCPUTimes(int32_t CPUno);			// recompute UL for CPU
