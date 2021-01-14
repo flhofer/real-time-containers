@@ -295,25 +295,16 @@ pickPidReallocCPU(int32_t CPUno){
 	resTracer_t * trc = getTracer(CPUno);
 	resTracer_t * ntrc = NULL;
 
-	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != CPUno || 0 > item->pid)
-			continue;
+	for (int include = 0; include < 2; include++ )
+		// run twice, include=0 and include=1 to force move second time
+		for (node_t * item = nhead; ((item)); item=item->next){
+			if (item->mon.assigned != CPUno || 0 > item->pid)
+				continue;
 
-		ntrc = checkPeriod_U(item);
-		if (!pidReallocAndTest(ntrc, trc, item))
-			return 0; // realloc worked and CPU ok
-
-	}
-
-	// repeat with force!
-	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != CPUno || 0 > item->pid)
-			continue;
-
-		ntrc = checkPeriod_R(item);
-		if (!pidReallocAndTest(ntrc, trc, item))
-			return 0; // realloc worked and CPU ok
-	}	
+			ntrc = checkPeriod_R(item, include);
+			if (!pidReallocAndTest(ntrc, trc, item))
+				return 0; // realloc worked and CPU ok
+		}
 	
 	return -1;
 }
@@ -386,22 +377,26 @@ pickPidCons(node_t *item, uint64_t ts){
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d runtime", item->pid);
 
-	if ((SM_DYNSIMPLE <= prgset->sched_mode)
-			&& (SCHED_DEADLINE == item->attr.sched_policy)
-			&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
-		// check reschedule?
-		if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
-			// reschedule
-			item->mon.dl_overrun++;	// exceeded buffer
-			pickPidReallocCPU(item->mon.assigned);
-		}
-	}
-
-	// -> what if we read the debug output here??
 	if (SCHED_DEADLINE == item->attr.sched_policy){
+
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
 		// period should never be zero from here on
+
+		/*
+		 * Check if we had a overrun and verify buffers
+		 */
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+			// check reschedule?
+			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
+				// reschedule
+				item->mon.dl_overrun++;	// exceeded buffer
+				pickPidReallocCPU(item->mon.assigned);
+			}
+		}
+
+		// -> what if we read the debug output here??.. maybe we lost track of deadline?
 		if (!item->mon.deadline				 // no deadline set?
 				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
 			int is_null = (!item->mon.deadline);
@@ -416,7 +411,13 @@ pickPidCons(node_t *item, uint64_t ts){
 		else
 			// just add a period, we rely on periodicity
 			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+
+		// stats about variability
+		item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
 	}
+	else
+		// if not DL use estimated value
+		item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
 
 	item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
 	// exponentially weighted moving average, alpha = 0.9
@@ -997,7 +998,7 @@ static int manageSched(){
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 
 						// check if there is a better fit for the period
-						pidReallocAndTest(checkPeriod_U(item), getTracer(item->mon.assigned), item);
+						pidReallocAndTest(checkPeriod_R(item, 0), getTracer(item->mon.assigned), item);
 					}
 					else
 						// something went wrong. Reset parameters
