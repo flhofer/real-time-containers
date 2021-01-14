@@ -266,7 +266,7 @@ static int stopTraceRead() {
 static int
 pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * item){
 
-	if (ntrc && ntrc != trc){
+	if (ntrc && trc && ntrc != trc){
 		// better fit found
 		item->mon.assigned = ntrc->affinity;
 		if (!setPidAffinityAssinged (item)){
