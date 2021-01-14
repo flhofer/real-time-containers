@@ -84,13 +84,15 @@ static void display_help(int error)
 	       "                           0 = Adaptive schedule \n"
 		   "                           1 = Probabilistic adaptive schedule (default)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
+#ifdef DEBUG
 	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
-	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
+#endif
+			"-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature,\n"
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
@@ -203,8 +205,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		switch (c) {
 		case 'a':
 		case OPT_AFFINITY:
-//			if (numa)
-//				break;
 			if (NULL != optarg) {
 				set->affinity = optarg;
 				set->setaffinity = AFFINITY_SPECIFIED;
@@ -236,12 +236,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
+#ifdef DEBUG
 		case 'B':
 		case OPT_BLIND:
 			set->blindrun = 1; break;
 		case 'c':
 		case OPT_CLOCK:
 			set->clocksel = atoi(optarg); break;
+#endif
 		case 'C':
 			set->use_cgroup = DM_CGRP;
 			if (NULL != optarg) {
