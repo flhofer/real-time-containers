@@ -255,42 +255,66 @@ static int stopTraceRead() {
 // #################################### THREAD specific ############################################
 
 /*
+ *  pidReallocAndTest(): try to reallocate a PID to a new fit
+ *
+ *  Arguments: - resource tracer
+ *  		   - candidate tracer
+ *  		   - item of PID to move
+ *
+ *  Return value: -1 failed, -2 origin still full, 0 = success
+ */
+static int
+pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * item){
+
+	if (ntrc && ntrc != trc){
+		// better fit found
+		item->mon.assigned = ntrc->affinity;
+		if (!setPidAffinityAssinged (item)){
+			item->mon.resched++;
+			(void)recomputeCPUTimes(ntrc->affinity);
+			if (0 > recomputeCPUTimes(trc->affinity))
+				return -2; // more than one task to move
+
+			return 0;
+		}
+		// Reallocate did not work
+		item->mon.assigned = trc->affinity;
+	}
+	return -1;
+}
+
+/*
  *  pickPidReallocCPU(): process PID runtime overrun,
  *
- *  Arguments: - item to check
+ *  Arguments: - CPU number to check
  *
- *  Return value: error code, 0 = success (ok), 1 = re-scheduling needed
+ *  Return value: -1 failed, 0 = success (ok)
  */
 static int
 pickPidReallocCPU(int32_t CPUno){
 	resTracer_t * trc = getTracer(CPUno);
 	resTracer_t * ntrc = NULL;
-	uint64_t useorig = trc->usedPeriod;
-	trc->usedPeriod = trc->basePeriod;
 
 	for (node_t * item = nhead; ((item)); item=item->next){
 		if (item->mon.assigned != CPUno || 0 > item->pid)
 			continue;
 
-		ntrc = checkPeriod_R(item);
-		if (ntrc && ntrc != trc){
-			// fitting found
-			int old = item->mon.assigned;
-			item->mon.assigned = ntrc->affinity;
-			if (!setPidAffinityAssinged (item)){
-				item->mon.resched++;
-				(void)recomputeCPUTimes(ntrc->affinity);
-				if (0 > recomputeCPUTimes(trc->affinity))
-					continue; // more than one task to move
+		ntrc = checkPeriod_U(item);
+		if (!pidReallocAndTest(ntrc, trc, item))
+			return 0; // realloc worked and CPU ok
 
-				return 0;
-			}
-			// Reallocate did not work
-			item->mon.assigned = old;
-		}
 	}
 
-	trc->usedPeriod = useorig;
+	// repeat with force!
+	for (node_t * item = nhead; ((item)); item=item->next){
+		if (item->mon.assigned != CPUno || 0 > item->pid)
+			continue;
+
+		ntrc = checkPeriod_R(item);
+		if (!pidReallocAndTest(ntrc, trc, item))
+			return 0; // realloc worked and CPU ok
+	}	
+	
 	return -1;
 }
 
@@ -496,6 +520,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
 
 		if (item->mon.last_ts > 0){
+			// has it been suspended or restarted? calculate rest
 			if ((pFrame->prev_state_l & 0x1) // Status 'S' = sleep
 					|| !(pFrame->prev_state_l & 0xFF)) // Status 'R' = running (yield)
 				// update realtime stats and consolidate other values
@@ -527,6 +552,7 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 							pickPidReallocCPU(fthread->cpuno);
 			}
 
+			// period histogram and CDF
 			if ((SM_PADAPTIVE <= prgset->sched_mode)
 					&& (citem->mon.last_ts > 0)
 					&& (SCHED_DEADLINE != citem->attr.sched_policy)){
