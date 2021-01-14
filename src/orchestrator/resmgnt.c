@@ -33,6 +33,8 @@
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
 #define SCHED_UHARMONIC	3				// offset for non-harmonic scores in checkUvalue (MIN)
 
+static int recomputeCPUTimes_u(int32_t CPUno, node_t * skip);
+
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
  */
@@ -798,6 +800,41 @@ checkPeriod_R(node_t * item) {
 }
 
 /*
+ *  checkPeriod_U(): find a better resource that fits period
+ *  				 uses run-time values for non-DEADLINE scheduled tasks
+ *
+ *  Arguments: - the item to check
+ *
+ *  Return value: a pointer to the resource tracer
+ * 					returns null if nothing is found
+ */
+resTracer_t *
+checkPeriod_U(node_t * item) {
+	int affinity = INT_MIN;
+	resTracer_t * ftrc = NULL;
+	if (0 < item->mon.assigned)
+		recomputeCPUTimes_u(item->mon.assigned, item);
+
+	if ((item->param) && (item->param->rscs))
+		affinity = item->param->rscs->affinity;
+
+	if (SCHED_DEADLINE == item->attr.sched_policy)
+		ftrc = checkPeriod(&item->attr, affinity);
+	else{
+		struct sched_attr attr = { 48 };
+		attr.sched_policy = item->attr.sched_policy;
+		attr.sched_runtime = item->mon.cdf_runtime;
+		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+		ftrc = checkPeriod(&attr, affinity);
+	}
+
+	if (0 < item->mon.assigned)
+		recomputeCPUTimes_u(item->mon.assigned, NULL);
+
+	return ftrc;
+}
+
+/*
  *  getTracer(): get the resource tracer for CPU x
  *
  *  Arguments: - CPU number to look for
@@ -840,21 +877,23 @@ grepTracer() {
 }
 
 /*
- *  recomputeTimes(): recomputes base and utilization factor of a resource
+ *  recomputeTimes_u(): recomputes base and utilization factor of a resource
  *
  *  Arguments:  - resource entry for this CPU
+ *  			- node to skip for computation
  *
  *  Return value: Negative values return error
  */
 static int
-recomputeTimes(struct resTracer * res) {
+recomputeTimes_u(struct resTracer * res, node_t * skip) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
 	int rv;
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != res->affinity || 0 > item->pid)
+		if (item->mon.assigned != res->affinity
+				|| 0 > item->pid || item == skip)
 			continue;
 
 		if (SCHED_DEADLINE == item->attr.sched_policy)
@@ -882,6 +921,27 @@ recomputeTimes(struct resTracer * res) {
 }
 
 /*
+ *  recomputeCPUTimes_u(): recomputes base and utilization factor of a CPU
+ *  						variant used for updates with skip item
+ *
+ *  Arguments:  - CPU number
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
+	if (-1 == CPUno)	// default, not assigned
+		return 0;
+
+	resTracer_t * trc;
+
+	if ((trc = getTracer(CPUno)))
+		return recomputeTimes_u(trc, skip);
+
+	return -2; // not found! ERROR
+}
+
+/*
  *  recomputeCPUTimes(): recomputes base and utilization factor of a CPU
  *
  *  Arguments:  - CPU number
@@ -890,13 +950,5 @@ recomputeTimes(struct resTracer * res) {
  */
 int
 recomputeCPUTimes(int32_t CPUno) {
-	if (-1 == CPUno)	// default, not assigned
-		return 0;
-
-	resTracer_t * trc;
-
-	if ((trc = getTracer(CPUno)))
-		return recomputeTimes(trc);
-
-	return -2; // not found! ERROR
+	return recomputeCPUTimes_u(CPUno, NULL);
 }
