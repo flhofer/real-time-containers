@@ -84,23 +84,6 @@ orchestrator_resmgnt_setup() {
 
 	prgset->affinity= "0";
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
-
-	prgset->ftrace = 1;
-
-	// signatures and folders
-	prgset->cont_ppidc = strdup(CONT_PPID);
-	prgset->cont_pidc = strdup(CONT_PID);
-	prgset->cont_cgrp = strdup(CONT_DCKR);
-
-	// filepaths virtual file system
-	prgset->procfileprefix = strdup("/proc/sys/kernel/");
-	prgset->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/");
-	prgset->cpusystemfileprefix = strdup("/sys/devices/system/cpu/");
-
-	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
-	prgset->cpusetdfileprefix = strcat(strcpy(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
-
-	contparm = calloc (1, sizeof(containers_t));
 }
 
 static void
@@ -108,9 +91,10 @@ orchestrator_resmgnt_teardown() {
 	// free memory
 	while (rHead)
 		pop((void**)&rHead);
+	while (nhead)
+		pop((void**)&nhead);
 
 	freePrgSet(prgset);
-	freeContParm(contparm);
 }
 
 /// TEST CASE -> check correct creation of resource allocation
@@ -290,6 +274,41 @@ START_TEST(orchestrator_resmgnt_findPeriod)
 }
 END_TEST
 
+START_TEST(orchestrator_resmgnt_recomputeTimes)
+{
+	createResTracer();
+
+	struct sched_attr attr = {48, SCHED_DEADLINE,
+						0, 0, 0,
+						100000,
+						1000000,
+						1000000};
+	resTracer_t * ftrc = getTracer(0);
+
+	for (int i = 0; i<8; i++){
+		push((void**)&nhead, sizeof(node_t));
+		nhead->attr = attr;
+		nhead->mon.assigned = 0;
+	}
+	// check normal
+	ck_assert_int_eq(0, recomputeCPUTimes(0));
+	ck_assert(ftrc->U >= 0.799 && ftrc->U < 0.801);
+
+	attr.sched_deadline = 500000;
+	attr.sched_period = 500000;
+	push((void**)&nhead, sizeof(node_t));
+	nhead->attr = attr;
+	nhead->mon.assigned = 0;
+
+	// check full
+	ck_assert_int_eq(-1, recomputeCPUTimes_u(0, NULL));
+	ck_assert(ftrc->U >= 1);
+
+	ck_assert_int_eq(0, recomputeTimes_u(ftrc, nhead));
+
+}
+END_TEST
+
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
 	tcase_add_test(tc1, orchestrator_resmgnt_checkValue);
@@ -311,6 +330,12 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 6);
 
     suite_add_tcase(s, tc3);
+
+    TCase *tc4 = tcase_create("resmgnt_recomputeTimes");
+	tcase_add_checked_fixture(tc4, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
+	tcase_add_test(tc4, orchestrator_resmgnt_recomputeTimes);
+
+    suite_add_tcase(s, tc4);
 
 
 	return;
