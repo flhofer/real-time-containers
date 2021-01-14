@@ -998,14 +998,15 @@ static int manageSched(){
 			switch (prgset->sched_mode) {
 
 			case SM_PADAPTIVE:
+				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
 
 					if (0 < newWCET){
 						if (SCHED_DEADLINE == item->attr.sched_policy){
 							if (item->param && item->param->attr &&
-									!(item->param->attr->sched_runtime))
-								newWCET = MIN (item->param->attr->sched_runtime, newWCET);
+									!(item->param->attr->sched_runtime)) // max double initial WCET
+								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
 							updatePidWCET(item, newWCET);
 						}
 						item->mon.cdf_runtime = newWCET;
@@ -1018,16 +1019,15 @@ static int manageSched(){
 			case SM_DYNSYSTEM:
 			case SM_DYNSIMPLE:
 			case SM_DYNMCBIN:
+				// DYNAMIC, USE PROBABILISTIC WCET VALUE
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
 					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
 
-					// OK, let's check the error
 					if (0 < newWCET){
-						if (SCHED_DEADLINE == item->attr.sched_policy) {
+						if (SCHED_DEADLINE == item->attr.sched_policy)
 							updatePidWCET(item, newWCET);
-						}
 						item->mon.cdf_runtime = newWCET;
 					}
 					else
@@ -1043,6 +1043,7 @@ static int manageSched(){
 			case SM_STATIC:
 			case SM_ADAPTIVE:
 			default:
+				// ELSE, DO NOTHING
 				break;
 			}
 
