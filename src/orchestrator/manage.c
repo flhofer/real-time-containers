@@ -905,15 +905,6 @@ static int updateStats ()
 
 	scount++; // increase scan-count
 
-	if (!(( scount % (prgset->loops*10) ))){
-		// test disabling throttle again if it didn't work.
-		if (!(prgset->status & MSK_STATTRTL)){
-			// set even if not successful. stop trying
-			(void)resetRTthrottle(prgset, -1);
-			prgset->status |= MSK_STATTRTL;
-		}
-	}
-
 	// for now does only a simple update
 	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
@@ -952,6 +943,13 @@ static int updateStats ()
 static int manageSched(){
 
 	// this is for the dynamic and adaptive scheduler only
+
+	// test disabling throttle again if it didn't work.
+	if (!(prgset->status & MSK_STATTRTL)){
+		// set even if not successful. stop trying
+		(void)resetRTthrottle(prgset, -1);
+		prgset->status |= MSK_STATTRTL;
+	}
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
