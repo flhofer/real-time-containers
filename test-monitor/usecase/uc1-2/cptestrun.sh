@@ -45,11 +45,7 @@ function prepareTest() {
 	elif [ "$no" -eq 5 ]; then
 
 		# PAdaptive no info
-		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -A 1 > logs/out${no}.txt 2>&1 &
-		else
-			eval ./orchestrator -fk -A 1 >> logs/out${no}.txt 2>&1 &
-		fi
+		eval ./orchestrator -fk -A 1 > logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -67,11 +63,7 @@ function prepareTest() {
 	elif [ "$no" -eq 7 ]; then
 
 		# DSystem no info
-		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -S 0 > logs/out${no}.txt 2>&1 &
-		else
-			eval ./orchestrator -fk -S 0 >> logs/out${no}.txt 2>&1 &
-		fi
+		eval ./orchestrator -fk -S 0 > logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -89,11 +81,7 @@ function prepareTest() {
 	elif [ "$no" -eq 9 ]; then
 
 		# DSimple no info
-		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -S 1 > logs/out${no}.txt 2>&1 &
-		else
-			eval ./orchestrator -fk -S 1 >> logs/out${no}.txt 2>&1 &
-		fi
+		eval ./orchestrator -fk -S 1 > logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -113,7 +101,7 @@ function prepareTest() {
 #prepare and create orch output
 eval mkdir -p logs
 
-for k in {0..7}; do
+for k in {0..6}; do
 
 	prepareTest $k 1
 	eval ./ucexec.sh test 1
