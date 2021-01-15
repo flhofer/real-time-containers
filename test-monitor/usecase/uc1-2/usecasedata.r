@@ -33,6 +33,9 @@ loadData <- function(fName) {
 	min=9999999
 	max = -1
 	avg = -1
+	fmin=9999999
+	fmax = -1
+	favg = -1
 	k <- 1
 	while (start < length(linn)){
 			# find next starting test entry
@@ -119,12 +122,16 @@ loadData <- function(fName) {
 			if (identical(dataD$unit, "FPS")) {
 				plot$dataFPS <- dataD
 				# compare min max avg
-				min = min(min,dataD$min)
-				max = max(max,dataD$max)
-				avg = max(avg,dataD$avg)	
+				fmin = min(fmin,dataD$min)
+				fmax = max(fmax,dataD$max)
+				favg = max(favg,dataD$avg)	
 			}
 			else {
 				plot$dataT <- dataD
+				# compare min max avg
+				min = min(min,dataD$min)
+				max = max(max,dataD$max)
+				avg = max(avg,dataD$avg)
 			}
 
 		# once for is finished, increase start
@@ -138,6 +145,7 @@ loadData <- function(fName) {
 	}
 
 	write(paste0(fName, ";", min, ";", max, ";", avg), stdout())
+	write(paste0(fName, ";", fmin, ";", fmax, ";", favg), stdout())
 	return(plots)
 
 }
@@ -306,7 +314,7 @@ readDeadline<-function(directory) {
 ######### Start script main ()
 
 ## sink to write worst performing thread to a csv
-#sink("stats-maxmin.csv")
+sink("stats-maxmin.csv")
 
 write("FileName;worst min; - max; - avg", stdout())
 
