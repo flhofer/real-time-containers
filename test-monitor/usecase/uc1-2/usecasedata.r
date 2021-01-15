@@ -145,42 +145,61 @@ loadData <- function(fName) {
 plotData<-function(directory) {
 	write(paste0("Proceeding with directory ", directory), stderr())
 
-	# init
-	gplot <- ggplot(mapping= aes(x=bStart, y=Count)) +
-			scale_fill_viridis_d() +
-	 		ylim (c(0,500)) +
-	 		scale_x_continuous(trans='log10',limits=c(10,100000)) +
-			labs(x=expression(paste("Frame delivery delays [", mu, "s]")), y="Occurrence count", fill="Instance") 
-	gplot2 <- ggplot(mapping= aes(x=bStart, y=Count)) +
-		scale_fill_viridis_d() +
- 		labs(x=paste("Processing frame rate, FPS"), y="Occurrence count", fill="Instance") +
-		ylim (c(0,1000)) +
-		xlim (c(6,10)) 
-
+	# detect files
 	files <- dir(directory, pattern= "(^workerapp[0-9](\\.|-fifo)*log)")
+	# Load all results into a list
+	dataAll <- lapply (paste0(directory, "/", files), loadData)
+	lapply(dataAll, function(d) write(paste0("Size of dataset for ", d[[1]]$name, " :", length(d)), stderr()))
+	# Extract FPS part only for each test of each worker
+	dataFPS <- lapply(dataAll, function(d) lapply(d, function(x) data.frame(dat=x$dataFPS$rows)))
+	# Merge FPS parts of each worker
+	dataFPS <- lapply(dataFPS, function(x) Reduce(function(...) merge(..., all=TRUE, sort=TRUE), x))
+	# Aggregate sums FPS of workers
+	#dataFPS <- lapply(dataFPS, function(x) aggregate(list(Count=x$dat.Count), by=list(bStart=x$dat.bStart, bEnd=x$dat.bEnd), sum))
+	# merge worker tables
+	dataFPS <- Reduce(function(...) merge(..., all=TRUE, sort=TRUE), dataFPS)
+	# Aggregate sums FPS
+	dataFPS <- aggregate(list(Count=dataFPS$dat.Count), by=list(bStart=dataFPS$dat.bStart, bEnd=dataFPS$dat.bEnd), sum)
 
-	# Combine results of test batches
-	for (f in seq(along=files)){
-
-		histLoad<-loadData(paste0(directory, "/", files[f]))
-
-		write(paste0("Size of dataset for ", files[f], " iter ", f, " :", length(histLoad)), stderr())
-
-		k <- 1
-
-		for (k in 1:length(histLoad)) {
-				gplot <- gplot + geom_bar(data = histLoad[[k]]$dataT$rows,stat="identity", width = 0.1) 
-				gplot2 <- gplot2 + geom_bar(data = histLoad[[k]]$dataFPS$rows,stat="identity", width = 0.1) 
-			}
-	}	  
+	# Extract fDelay part only for each test of each worker
+	dataT <- lapply(dataAll, function(d) lapply(d, function(x) data.frame(dat=x$dataT$rows)))
+	# Merge fDelay parts of each worker
+	dataT <- lapply(dataT, function(x) Reduce(function(...) merge(..., all=TRUE, sort=TRUE), x))
+	# Aggregate sums fDelay of workers
+	# <- lapply(dataT, function(x) aggregate(list(Count=x$dat.Count), by=list(bStart=x$dat.bStart, bEnd=x$dat.bEnd), sum))
+	# merge worker tables
+	dataT <- Reduce(function(...) merge(..., all=TRUE, sort=TRUE), dataT)
+	# Aggregate sums fDelay
+	dataT <- aggregate(list(Count=dataT$dat.Count), by=list(bStart=dataT$dat.bStart, bEnd=dataT$dat.bEnd), sum)
 
 	directory <- (gsub("/", "_", directory))
+	sz = sum(dataT$bStart>100000)
 	png(file= paste0(directory,"fdelay.png"), width = 600, height = 500)
-	print (gplot)
+	ggp <- ggplot(mapping= aes(x=bStart, y=Count)) +
+			geom_bar(data = dataT,stat="identity", width = 0.1) +
+    		scale_fill_viridis_d() +
+#	 		ylim (c(0,5000)) +
+	 		scale_x_continuous(trans='log10',limits=c(10,100000)) +
+			labs(x=expression(paste("Frame delivery delays [", mu, "s]")), y="Occurrence count", fill="Instance")
+	if (sz){
+		ggp <- ggp + geom_point(aes(y=0, x = 100000, size=sz), shape=17, , color="red", fill="red", show.legend=FALSE)
+	}
+	print(ggp)
 	dev.off()
 
+	sz = sum(dataFPS$bStart>10)
 	png(file= paste0(directory,"FPS.png"), width = 600, height = 500)
-	print (gplot2)
+	ggp <- ggplot(mapping= aes(x=bStart, y=Count)) +
+		geom_bar(data = dataFPS,stat="identity", width = 0.1) +
+		scale_fill_viridis_d() +
+		xlim (c(6,10)) +
+ 		scale_y_log10() +
+#		ylim (c(0,10000)) +
+ 		labs(x=paste("Processing frame rate, FPS"), y="Occurrence count", fill="Instance") 
+	if (sz){
+   		ggp <- ggp + geom_point(aes(y=0, x = 10, size=sz), shape=17, , color="red", fill="red", show.legend=FALSE)
+	} 		
+	print(ggp)
 	dev.off()
 }
 
@@ -270,20 +289,24 @@ readDeadline<-function(directory) {
 	directory <- (gsub("/", "_", directory))
 	png(file= paste0(directory,"delay.png"), width = 700, height = 500)
 
-	print (ggplot(delays, aes(x=dataD)) +
+	sz = sum(delays$dataD>3000)
+	ggp <- ggplot(delays, aes(x=dataD)) +
 		geom_histogram(aes(fill=name)) +
 		labs(x=expression(paste("Periodic task runtime values [", mu, "s]")), y="Occurrence count", fill="Instance") +
 		xlim (c(400,3000)) +
 		ylim (c(0,500)) +
 		scale_fill_viridis_d()
-	)
+	if (sz){
+   		ggp <- ggp + geom_point(aes(y=0, x = 3000, size=sz), shape=17, , color="red", fill="red", show.legend=FALSE)
+	}
+	print (ggp)
 	dev.off()
 }
 
 ######### Start script main ()
 
 ## sink to write worst performing thread to a csv
-sink("stats-maxmin.csv")
+#sink("stats-maxmin.csv")
 
 write("FileName;worst min; - max; - avg", stdout())
 
@@ -298,7 +321,7 @@ dirs <- dir(".", pattern= "(^UC1|TEST[0-9]_1$)")
 # Combine results of test batches
 sapply(dirs, function(x) plotData(x) )
 
-# Find all directories with pattern.. UC1
+# Find all directories with pattern.. UC2
 dirs <- dir(".", pattern= "(^UC2|TEST[0-9]_2$)")
 # Find all directories with pattern.. Test
 dirs2 <- dir(dirs, pattern= "^Test")
@@ -309,5 +332,5 @@ sapply( paste0(dirs, "/", dirs2), function (x) readDeadline(x))
 
 # back to the console
 sink(type="output")
-
+warnings()
 
