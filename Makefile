@@ -1,4 +1,4 @@
-VERSION = 0.83
+VERSION = 0.85
 VERSUFF = -beta
 GIT_VERSION := $(shell git describe --abbrev=7 --always --tags)
 CC?=$(CROSS_COMPILE)gcc
@@ -109,7 +109,8 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
 # TODO: create missing test cases to allow removal of librttest.a
-check: test/test.c $(wildcard $(SRC_DIR)/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
+# TODO: add checks for dependent sources change! (does not work :/)
+check: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	
 test:
