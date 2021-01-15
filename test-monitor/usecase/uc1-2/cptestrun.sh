@@ -35,25 +35,14 @@ function prepareTest() {
 
 		# Adaptive
 		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -A 2 orchUC1a.json > logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -A 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fk -A 2 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -A 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
 	elif [ "$no" -eq 5 ]; then
-
-		# PAdaptive
-		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -A 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
-		else
-			eval ./orchestrator -fk -A 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
-		fi
-		sleep 10
-		SPID=$(ps h -o pid -C orchestrator)
-
-	elif [ "$no" -eq 6 ]; then
 
 		# PAdaptive no info
 		if [ "$testno" -eq 1 ]; then
@@ -64,7 +53,7 @@ function prepareTest() {
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
-	elif [ "$no" -eq 7 ]; then
+	elif [ "$no" -eq 6 ]; then
 
 		# PAdaptive info
 		if [ "$testno" -eq 1 ]; then
@@ -75,7 +64,7 @@ function prepareTest() {
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
-	elif [ "$no" -eq 8 ]; then
+	elif [ "$no" -eq 7 ]; then
 
 		# DSystem no info
 		if [ "$testno" -eq 1 ]; then
@@ -86,7 +75,7 @@ function prepareTest() {
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
-	elif [ "$no" -eq 9 ]; then
+	elif [ "$no" -eq 8 ]; then
 
 		# DSystem info
 		if [ "$testno" -eq 1 ]; then
@@ -97,7 +86,7 @@ function prepareTest() {
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
-	elif [ "$no" -eq 10 ]; then
+	elif [ "$no" -eq 9 ]; then
 
 		# DSimple no info
 		if [ "$testno" -eq 1 ]; then
@@ -108,7 +97,7 @@ function prepareTest() {
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
-	elif [ "$no" -eq 11 ]; then
+	elif [ "$no" -eq 10 ]; then
 
 		# Dsimple info
 		if [ "$testno" -eq 1 ]; then
