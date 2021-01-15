@@ -2,52 +2,129 @@
 
 function prepareTest() {
 	no=$1
-
-	eval mkdir -p logs
+	testno=$2
+	unset SPID
 
 	if [ "$no" -eq 0 ]; then
 
-		# do nothing
+		# do nothing, default setting TODO: reset all
 		sleep 1
 
 	elif [ "$no" -eq 1 ]; then
 
-		# 4 cores
+		# Manual settings with exclusive docker, 3 CPU dedicated + SMT
+		eval 'echo -1 > /proc/sys/kernel/sched_rt_runtime_us'
+		eval 'echo "1-3,5-8" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
+		eval 'echo "1" > /sys/fs/cgroup/cpuset/docker/cpuset.cpu_exclusive' 
+
+	elif [ "$no" -eq 2 ]; then
+
+		# Without SMT
 		for i in {4..7}; do
 			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 		done
 
-		for i in {12..15}; do
-			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
-		done
-
-	elif [ "$no" -eq 2 ]; then
-
-		eval 'echo -1 > /proc/sys/kernel/sched_rt_runtime_us'
-		eval 'echo "1-3,9-11" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
-
 	elif [ "$no" -eq 3 ]; then
 
-		eval 'echo "1" > /sys/fs/cgroup/cpuset/docker/cpuset.cpu_exclusive' 
+		# Environment setup only
+		eval ./orchestrator -fk > logs/out${no}.txt 2>&1 &
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
 
 	elif [ "$no" -eq 4 ]; then
 
-		for i in {8..12}; do
-			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
-		done
+		# Adaptive
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -A 2 orchUC1a.json > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -A 2 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
 	elif [ "$no" -eq 5 ]; then
 
-		if [ "$2" -eq 1 ]; then
-			eval ./orchestrator -fdk -S 0 -A 2 orchUC1a.json > logs/out.txt 2>&1 &
+		# PAdaptive
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -A 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fdk -S 0 -A 2 orchUC2a.json >> logs/out.txt 2>&1 &
+			eval ./orchestrator -fk -A 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 6 ]; then
+
+		# PAdaptive no info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -A 1 > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -A 1 >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 7 ]; then
+
+		# PAdaptive info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -S 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -S 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 8 ]; then
+
+		# DSystem no info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -S 0 > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -S 0 >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 9 ]; then
+
+		# DSystem info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -S 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -S 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 10 ]; then
+
+		# DSimple no info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -S 1 > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -S 1 >> logs/out${no}.txt 2>&1 &
+		fi
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
+	elif [ "$no" -eq 11 ]; then
+
+		# Dsimple info
+		if [ "$testno" -eq 1 ]; then
+			eval ./orchestrator -fk -S 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
+		else
+			eval ./orchestrator -fk -S 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 	fi
 }
 
-for k in {0..5}; do
+#prepare and create orch output
+eval mkdir -p logs
+
+for k in {0..7}; do
 
 	prepareTest $k 1
 	eval ./ucexec.sh test 1
