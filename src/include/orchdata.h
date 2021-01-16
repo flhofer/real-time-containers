@@ -180,7 +180,7 @@
 
 		// Runtime allocation
 		int32_t assigned; 		// actually running CPU, -1 = unassigned
-		struct bitmask * assigned_mask;	// computed affinity mask
+		struct bitmask * assigned_mask;	// computed assignment mask
 		uint64_t resched;		// number of rescheduling times
 	} nodemon_t;
 

@@ -27,7 +27,7 @@
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
 #define RTLIM_PERC	95			// percentage limitation for calculus
 
-#define MAX_UL 0.90						// 90% fixed Ul for all CPUs!
+#define MAX_UL 1						// 90% fixed Ul for all CPUs!
 #define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
 #define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
@@ -73,7 +73,7 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 }
 
 /*
- *	setPidAffinity: sets the affinity of a PID
+ *	setPidAffinity: sets the affinity of a PID at startup (NO CGRP)
  *
  *	Arguments: - PID of taks
  *			   - bit-mask for affinity
@@ -118,8 +118,8 @@ setPidAffinity(pid_t pid, struct bitmask * mask) {
 
 
 /*
- *	setPidAffinityNode: sets the affinity of a PID based on node configuration
- *				the task is present or moved to the in the common 'docker' CGroup
+ *	setPidAffinityNode: sets the affinity of a PID at startup based on node configuration
+ *				the task is present or moved to the in the common 'docker' CGroup (NO CGRP)
  *
  *	Arguments: - pointer to node with data
  *
@@ -155,7 +155,7 @@ setPidAffinityNode (node_t * node){
 
 /*
  *	setPidAffinityAssinged: sets the affinity of a PID based on assigned CPU
- *				the task is present in the common 'docker' CGroup
+ *				to select the assigned CPU at runtime when multiple affinity is present
  *
  *	Arguments: - pointer to node with data
  *
@@ -181,7 +181,7 @@ setPidAffinityAssinged (node_t * node){
 
 
 /*
- *	setContainerAffinity: sets the affinity of a container
+ *	setContainerAffinity: sets the affinity of a container containing PIDs (CGRP ONLY)
  *
  *	Arguments: - pointer to node with data
  *			   - bit-mask for affinity
@@ -256,10 +256,18 @@ setPidResources_u(node_t * node) {
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
+		// at start, assign node to static/adaptive table affinity match, only if there is a clear candidate
+		if (0 <= node->param->rscs->affinity){
+			node->mon.assigned = node->param->rscs->affinity;
+
+			if (0 <= node->mon.assigned && setPidAffinityAssinged(node))
+				warn("Can not assign startup allocation for PID %d", node->pid);
+		}
 	}
 	else{
+		// NO CGroups
 		if ((SCHED_DEADLINE == node->attr.sched_policy)
-				&& (SM_DYNSYSTEM == prgset->sched_mode)){
+				&& (SM_PADAPTIVE >= prgset->sched_mode)){
 			warn ("Can not set DL task to PID affinity when using G-EDF!");
 			node->status |= MSK_STATUPD;
 		}
@@ -747,6 +755,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
+// TODO: exclude CPUs not in a PIDs associated affinity_mask
 resTracer_t *
 checkPeriod(struct sched_attr * attr, int affinity) {
 	resTracer_t * ftrc = NULL;
