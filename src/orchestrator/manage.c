@@ -1022,20 +1022,27 @@ static int manageSched(){
 			case SM_PADAPTIVE:
 
 				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
-				newWCET = (uint64_t)(NSEC_PER_SEC *
-							runstats_histSixSigma(item->mon.pdf_hist));
+				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){ // keep to update and fix hist
 
-				if (0 < newWCET){
-					if (SCHED_DEADLINE == item->attr.sched_policy){
-						if (item->param && item->param->attr &&
-								!(item->param->attr->sched_runtime)) // max double initial WCET
-							newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
-						updatePidWCET(item, newWCET);
+					newWCET = (uint64_t)(NSEC_PER_SEC *
+								runstats_histSixSigma(item->mon.pdf_hist));
+
+					if (0 < newWCET){
+						if (SCHED_DEADLINE == item->attr.sched_policy){
+							if (item->param && item->param->attr &&
+									!(item->param->attr->sched_runtime)) // max double initial WCET
+								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
+							updatePidWCET(item, newWCET);
+						}
+						item->mon.cdf_runtime = newWCET;
 					}
-					item->mon.cdf_runtime = newWCET;
+					else
+						warn ("Estimation error, can not update WCET");
 				}
-				else
-					warn ("Estimation error, can not update WCET");
+				else {
+					// something went wrong
+					warn("CDF initialization/range error for PID %d", item->pid);
+				}
 				break;
 
 			case SM_DYNSYSTEM:
@@ -1056,8 +1063,8 @@ static int manageSched(){
 						warn ("Estimation error, can not update WCET");
 				}
 				else{
-					// something went wrong. Reset parameters
-					warn("CDF initialization error for PID %d", item->pid);
+					// something went wrong
+					warn("CDF initialization/range error for PID %d", item->pid);
 				}
 
 				break;
