@@ -71,6 +71,8 @@ static void getContPids (node_t **pidlst)
 
 					int nleft = 0;	// number of bytes left to parse
 					int	ret;		// return value number of bytes read, or error code
+					int count = 0;  // number of PIDS
+
 					// Scan through string and put in array
 					while((ret = read(fd, buf+nleft,BUFRD-nleft-1))) {
 
@@ -96,6 +98,7 @@ static void getContPids (node_t **pidlst)
 							node_push(pidlst);
 							// PID found
 							(*pidlst)->pid = atoi(pid);
+							(*pidlst)->status |= MSK_STATSIBL;
 							printDbg("->%d ",(*pidlst)->pid);
 
 							updatePidCmdline(*pidlst); // checks and updates..
@@ -103,8 +106,12 @@ static void getContPids (node_t **pidlst)
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
-							pid = strtok_r (NULL,"\n", &pid_ptr);	
+							pid = strtok_r (NULL,"\n", &pid_ptr);
+							count++;
 						}
+						if (1 == count) // only 1 found, reset sibling flag
+							(*pidlst)->status &= ~MSK_STATSIBL;
+
 						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(buf, buf+BUFRD-nleft-1, nleft); 
@@ -135,7 +142,7 @@ static void getContPids (node_t **pidlst)
 ///
 /// Return value: --
 ///
-static void getPids (node_t **pidlst, char * tag, int mode)
+static void getPids (node_t **pidlst, char * tag, char * ppid)
 {
 	FILE *fp;
 
@@ -156,6 +163,7 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 
 	char pidline[BUFRD];
 	char *pid, *pid_ptr;
+	int count = 0;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
 		printDbg(PFX "%s: Pid string return %s\n", __func__, pidline);
@@ -163,6 +171,10 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
+		if (ppid){
+			(*pidlst)->status |= MSK_STATSIBL;
+			(*pidlst)->contid=strdup(ppid);
+		}
         printDbg(PFX "processing->%d",(*pidlst)->pid);
 
 		// find command string and copy to new allocation
@@ -173,8 +185,11 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
 			// FATAL, exit and execute atExit
 			fatal("Could not allocate memory!");
-		(*pidlst)->contid = NULL;							
+		(*pidlst)->contid = NULL;
+		count++;
     }
+	if (1 == count) // only 1 found, reset sibling flag
+		(*pidlst)->status &= ~MSK_STATSIBL;
 
 	pclose(fp);
 }
@@ -215,7 +230,7 @@ static void getpPids (node_t **pidlst, char * tag)
 		(void)strcat(pids, pidline);
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
 
-		getPids(pidlst, pids, DM_CNTPID);
+		getPids(pidlst, pids, pidline);
 	}
 	pclose(fp);
 }
@@ -361,7 +376,7 @@ static void scanNew () {
 				sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
-			getPids(&lnew, pid, DM_CMDLINE);
+			getPids(&lnew, pid, NULL);
 			break;		
 	}
 

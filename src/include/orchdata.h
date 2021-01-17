@@ -18,6 +18,7 @@
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
 	#define MSK_STATWCUD		0x4	// WCET changed for PID
+	#define MSK_STATSIBL		0x8 // PID has sibilings in container
 
 	// masks for the status of configurations
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
