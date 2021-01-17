@@ -489,92 +489,80 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// working item
-	node_t * item = NULL;
-
 	// find PID switching from
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		if (citem->pid == pFrame->prev_pid){
-			item = citem;
-			break;
-		}
+	for (node_t * item = nhead; ((item)); item=item->next ){
 
-	// previous PID in list, update runtime data
-	if (item){
-		// check if CPU changed, exiting
-		if (item->mon.assigned != fthread->cpuno){
-			if (0 <= item->mon.assigned)
-				item->mon.resched++;
-			// change on exit???, reassign CPU?
-			int32_t CPU = item->mon.assigned;
-			item->mon.assigned = fthread->cpuno;
+		// previous or next pid in list, update data
+		if ((item->pid == pFrame->prev_pid)
+				|| (item->pid == pFrame->next_pid)){
 
-			if (0 > recomputeCPUTimes(CPU))
-				if (SM_DYNSIMPLE <= prgset->sched_mode)
-					pickPidReallocCPU(CPU);
+			// check if CPU changed, exiting
+			if (item->mon.assigned != fthread->cpuno){
+				if (0 <= item->mon.assigned)
+					item->mon.resched++;
+				// change on exit???, reassign CPU?
+				int32_t CPU = item->mon.assigned;
+				item->mon.assigned = fthread->cpuno;
 
-			if (0 > recomputeCPUTimes(fthread->cpuno))
-				if (SM_DYNSIMPLE <= prgset->sched_mode)
-					pickPidReallocCPU(fthread->cpuno);
-		}
+				// Removed from, should give no issues
+				if (0 > recomputeCPUTimes(CPU))
+					if (SM_DYNSIMPLE <= prgset->sched_mode)
+						pickPidReallocCPU(CPU);
+			}
 
-		// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
-		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
-
-		if (item->mon.last_ts > 0){
-			// has it been suspended or restarted? calculate rest
-			if ((pFrame->prev_state_l & 0x1) // Status 'S' = sleep
-					|| !(pFrame->prev_state_l & 0xFF)) // Status 'R' = running (yield)
-				// update realtime stats and consolidate other values
-				pickPidCons(item, ts);
-			else
-				printDbg(PFX "Status not part of preview\n");
 		}
 	}
 
-	// find next PID and put ts, compute period eventually
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (citem->pid == pFrame->next_pid){
+	// recompute actual CPU, new tasks might be there now
+	if (0 > recomputeCPUTimes(fthread->cpuno))
+		if (SM_DYNSIMPLE <= prgset->sched_mode)
+			pickPidReallocCPU(fthread->cpuno);
 
-			// check if CPU changed, exiting
-			if (citem->mon.assigned != fthread->cpuno){
-				if (0 <= citem->mon.assigned)
-					citem->mon.resched++;
-				// change on exit???, reassign CPU?
-				int32_t CPU = citem->mon.assigned;
-				citem->mon.assigned = fthread->cpuno;
+	// find PID switching from
+	for (node_t * item = nhead; ((item)); item=item->next ){
 
-				if (0 > recomputeCPUTimes(CPU))
-					if (SM_DYNSIMPLE <= prgset->sched_mode)
-							pickPidReallocCPU(CPU);
+		// previous PID in list, update runtime data
+		if (item->pid == pFrame->prev_pid){
 
-				if (0 > recomputeCPUTimes(fthread->cpuno))
-					if (SM_DYNSIMPLE <= prgset->sched_mode)
-							pickPidReallocCPU(fthread->cpuno);
+			// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
+			item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
+
+			if (item->mon.last_ts > 0){
+				// has it been suspended or restarted? calculate rest
+				if ((pFrame->prev_state_l & 0x1) // Status 'S' = sleep
+						|| !(pFrame->prev_state_l & 0xFF)) // Status 'R' = running (yield)
+					// update realtime stats and consolidate other values
+					pickPidCons(item, ts);
+				else
+					printDbg(PFX "Status not part of preview\n");
 			}
+		}
+
+		// find next PID and put ts, compute period eventually
+		if (item->pid == pFrame->next_pid){
 
 			// period histogram and CDF
 			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (citem->mon.last_ts > 0)
-					&& (SCHED_DEADLINE != citem->attr.sched_policy)){
-				double period = (double)(ts - citem->mon.last_ts)/(double)NSEC_PER_SEC;
+					&& (item->mon.last_ts > 0)
+					&& (SCHED_DEADLINE != item->attr.sched_policy)){
+				double period = (double)(ts - item->mon.last_ts)/(double)NSEC_PER_SEC;
 				int ret;
 
-				if (!(citem->mon.pdf_phist)){
-					if ((runstats_histInit(&(citem->mon.pdf_phist), period)))
-						warn("Histogram init failure for PID %d period", citem->pid);
+				if (!(item->mon.pdf_phist)){
+					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+						warn("Histogram init failure for PID %d period", item->pid);
 				}
 
-				if ((ret = runstats_histAdd(citem->mon.pdf_phist, period)))
+				if ((ret = runstats_histAdd(item->mon.pdf_phist, period)))
 					if (ret != 1) // GSL_EDOM
-						warn("Histogram increment error for PID %d period", citem->pid);
+						warn("Histogram increment error for PID %d period", item->pid);
 
 			}
 
-			citem->mon.last_ts = ts;
-			break;
+			item->mon.last_ts = ts;
 		}
+
+	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
