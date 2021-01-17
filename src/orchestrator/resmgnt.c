@@ -794,9 +794,14 @@ checkPeriod(struct sched_attr * attr, int affinity) {
  */
 resTracer_t *
 checkPeriod_R(node_t * item, int include) {
+
+	if (0 > item->mon.assigned)
+		return NULL;
+
 	int affinity = INT_MIN;
 	resTracer_t * ftrc = NULL;
-	if (!(include) && 0 < item->mon.assigned)
+
+	if (!(include))
 		recomputeCPUTimes_u(item->mon.assigned, item);
 
 	if ((item->param) && (item->param->rscs))
