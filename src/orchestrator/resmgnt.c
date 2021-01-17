@@ -257,7 +257,7 @@ setPidResources_u(node_t * node) {
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
 		// at start, assign node to static/adaptive table affinity match, only if there is a clear candidate
-		if (0 <= node->param->rscs->affinity){
+		if (node->pid && 0 <= node->param->rscs->affinity){
 			node->mon.assigned = node->param->rscs->affinity;
 
 			if (0 <= node->mon.assigned && setPidAffinityAssinged(node))
@@ -636,7 +636,7 @@ createResTracer(){
  *
  *  Return value: - an approximation (nearest) period
  */
-static uint64_t
+uint64_t
 findPeriodMatch(uint64_t cdf_Period){
 	if (!cdf_Period) // nothing defined. use default
 		return NSEC_PER_SEC;
