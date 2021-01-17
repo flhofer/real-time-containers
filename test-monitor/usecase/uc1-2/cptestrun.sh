@@ -53,9 +53,9 @@ function prepareTest() {
 
 		# PAdaptive info
 		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -S 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -A 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fk -S 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -A 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
