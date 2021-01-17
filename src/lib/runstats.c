@@ -844,17 +844,11 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 	// check and readjusts the bin size if needed. exit if that happens
 	{
 		size_t maxbin = gsl_histogram_max_bin(*h);
-		double bin_max;
-		double bin_min;
-		int rng = 0;
-		if (!gsl_histogram_get_range(*h, (*h)->n, &bin_min, &bin_max)){
-			// check if there is enough space around sigma to make it significant
-			rng = ((bin_max - bin_min) < gsl_histogram_sigma(*h) * 2.2);
-		}
-
 		// check mean is within 20-80% of range
 		if (((*h)->n * 2 > maxbin * 10)
-			|| ((*h)->n * 8 < maxbin * 10) || (rng)){
+			|| ((*h)->n * 8 < maxbin * 10)
+		// check if there is enough space around sigma to make it significant
+			|| (gsl_histogram_max(*h) - gsl_histogram_min(*h) < gsl_histogram_sigma(*h))){
 				if ((runstats_histFit(h))){
 					warn("Curve fitting histogram bin adaptation error");
 					// TODO: reinit?
