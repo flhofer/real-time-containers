@@ -994,11 +994,17 @@ static int manageSched(){
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
 					if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
-						item->mon.cdf_period = (uint64_t)(NSEC_PER_SEC *
+						uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 
-						// check if there is a better fit for the period
-						pidReallocAndTest(checkPeriod_R(item, 0), getTracer(item->mon.assigned), item);
+						// period changed enough for a better assignment
+						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
+							item->mon.cdf_period = newPeriod;
+							// check if there is a better fit for the period
+							pidReallocAndTest(checkPeriod_R(item, 0), getTracer(item->mon.assigned), item);
+						}
+						else
+							item->mon.cdf_period = newPeriod;
 					}
 					else
 						// something went wrong. Reset parameters
@@ -1009,26 +1015,27 @@ static int manageSched(){
 		if (!(runstats_histCheck(item->mon.pdf_hist))){
 			// if histogram is set and count is ok, update and fit curve
 
+			uint64_t newWCET = 0;
 
 			switch (prgset->sched_mode) {
 
 			case SM_PADAPTIVE:
-				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
-					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC * runstats_histSixSigma(item->mon.pdf_hist));
 
-					if (0 < newWCET){
-						if (SCHED_DEADLINE == item->attr.sched_policy){
-							if (item->param && item->param->attr &&
-									!(item->param->attr->sched_runtime)) // max double initial WCET
-								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
-							updatePidWCET(item, newWCET);
-						}
-						item->mon.cdf_runtime = newWCET;
+				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
+				newWCET = (uint64_t)(NSEC_PER_SEC *
+							runstats_histSixSigma(item->mon.pdf_hist));
+
+				if (0 < newWCET){
+					if (SCHED_DEADLINE == item->attr.sched_policy){
+						if (item->param && item->param->attr &&
+								!(item->param->attr->sched_runtime)) // max double initial WCET
+							newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
+						updatePidWCET(item, newWCET);
 					}
-					else
-						warn ("Estimation error, can not update WCET");
+					item->mon.cdf_runtime = newWCET;
 				}
+				else
+					warn ("Estimation error, can not update WCET");
 				break;
 
 			case SM_DYNSYSTEM:
@@ -1037,7 +1044,7 @@ static int manageSched(){
 				// DYNAMIC, USE PROBABILISTIC WCET VALUE
 				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
 
-					uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
+					newWCET = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
 
 					if (0 < newWCET){
