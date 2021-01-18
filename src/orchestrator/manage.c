@@ -58,15 +58,17 @@ struct tr_common {
 	uint8_t common_flags;
 	uint8_t common_preempt_count;
 	int32_t common_pid;
-	uint8_t common_migrate_disable;		// UPDATED with newer kernel packages, not even kernel
-	uint8_t common_preempt_lazy_count;	// shifted all down, messing up struct alignment
+	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
+	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
+	uint16_t _common_filler1;				// filler for C5
+	uint16_t _common_filler2;				// filler for C5
 };
 
 struct tr_switch {		// coming from .. 12 bytes?
 	char prev_comm[16]; // 12 - 16	/ 0
 	pid_t prev_pid; // 28 - 4		/ 16
 	int32_t prev_prio; // 32 - 4	/ 20
-	int32_t _prev_filler; // 36 - 4	/ 24
+//	int32_t _prev_filler; // 36 - 4	/ 24 	// filler only for BM, 8byte alignment issue
 	uint32_t prev_state_l; // 40 - 4	/ 28
 	uint32_t prev_state_h; // 44 - 4	/ 32
 
@@ -752,7 +754,7 @@ thread_ftrace(void *arg){
 
 
 /*
- *  updateSiblings(): check if the item is - has - the primary siblings
+ *  updateSiblings(): check if the item is - has - the primary sibling
  *  				  update all and siblings if there is a better fit
  *
  *  Arguments: - item to check for container siblings
@@ -1063,11 +1065,11 @@ manageSched(){
 						uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 
-						// period changed enough for a better assignment
+						// period changed enough for a different time-slot?
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
 							info("Update PID%d period: %luus", item->pid, newPeriod/1000);
-							// check if there is a better fit for the period
+							// check if there is a better fit for the period, and if it is main
 							updateSiblings(item);
 						}
 						else
