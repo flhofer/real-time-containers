@@ -34,14 +34,15 @@ typedef struct resAlloc { 		// resource allocations mapping
 resAlloc_t * aHead = NULL;
 
 /*
- *  cmpresItem(): compares two resource allocation items for Qsort, descending
+ *  cmpPidItemP(): compares two resource allocation attributes for Qsort, descending
+ *  				Criterion by period
  *
  *  Arguments: pointers to the items to check
  *
  *  Return value: difference
  */
 static int
-cmpPidItem (const void * a, const void * b) {
+cmpPidItemP (const void * a, const void * b) {
 	int64_t diff = ((int64_t)((resAlloc_t *)b)->item->attr->sched_period
 			- (int64_t)((resAlloc_t *)a)->item->attr->sched_period);
 	if (!diff)
@@ -51,8 +52,8 @@ cmpPidItem (const void * a, const void * b) {
 }
 
 /*
- *  cmpPidItemU(): compares two resource allocation items for Qsort,
- *  			   descending by Utilization or periofd first then U
+ *  cmpPidItemU(): compares two resource allocation attributes for Qsort,
+ *  			   descending by period first then Utilization
  *
  *  Arguments: pointers to the items to check
  *
@@ -63,19 +64,49 @@ cmpPidItemU (const void * a, const void * b) {
 	// order by period first
 	if ((((resAlloc_t *)a)->item->attr->sched_period) !=
 		 (((resAlloc_t *)b)->item->attr->sched_period))
-		return cmpPidItem (a, b);
+		return cmpPidItemP (a, b);
+
+
+	// if both are 0, return bigger runtime item
+	if (!((resAlloc_t *)a)->item->attr->sched_period
+			&& !((resAlloc_t *)b)->item->attr->sched_period)
+		return ((resAlloc_t *)b)->item->attr->sched_runtime
+		- ((resAlloc_t *)a)->item->attr->sched_runtime;
 
 	// if one period 0, return other as bigger
 	if (!((resAlloc_t *)a)->item->attr->sched_period)
-		return 1;
+			return 1;
 	if (!((resAlloc_t *)b)->item->attr->sched_period)
-		return -1;
+			return -1;
 
+	// both periods are present, use Utilization value
 	double U1 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
 			(double)((resAlloc_t *)a)->item->attr->sched_period);
 	double U2 = ((double)((resAlloc_t *)b)->item->attr->sched_runtime /
 			(double)((resAlloc_t *)b)->item->attr->sched_period);
 	return (U2-U1)*10000;
+}
+
+/*
+ *  cmpPidItemS(): compares two resource allocation attributes for Qsort,
+ *  			   descending by scheduler type, then period then U
+ *
+ *  Arguments: pointers to the items to check
+ *
+ *  Return value: difference
+ */
+static int
+cmpPidItemS (const void * a, const void * b) {
+	// order by period first-utilization
+	if (((resAlloc_t *)a)->item->attr->sched_period
+		|| ((resAlloc_t *)b)->item->attr->sched_period
+		|| ((resAlloc_t *)a)->item->attr->sched_runtime
+		|| ((resAlloc_t *)b)->item->attr->sched_runtime)
+		return cmpPidItemU (a, b);
+
+	// no parameters known, group by scheduler (order not important)
+	return ((resAlloc_t *)a)->item->attr->sched_policy
+		-  ((resAlloc_t *)b)->item->attr->sched_policy;
 }
 
 /*
@@ -329,7 +360,7 @@ void
 adaptPlanSchedule(){
 
 	// order by period and/or utilization
-	qsortll((void **)&aHead, cmpPidItemU);
+	qsortll((void **)&aHead, cmpPidItemS);
 
 	int unmatched = 0; // count unmatched
 	{ // compute flexible resources for tasks with defined runtime and period (desired)
