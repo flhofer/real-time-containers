@@ -380,6 +380,7 @@ adaptPlanSchedule(){
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;
 		resTracer_t * BTtrc = NULL;
+		resTracer_t * NTtrc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
 			if (!res->assigned)
 				switch (res->item->attr->sched_policy) {
@@ -409,8 +410,12 @@ adaptPlanSchedule(){
 					case SCHED_NORMAL:
 	//				case SCHED_OTHER:
 					case SCHED_IDLE:
-					default:
 						// NORMAL/IDLE/OTHER tasks can be floating and should not exist in general
+					default:
+						// OR undefined configuration, put in to a common tracer. Accompanying tasks
+						if (!NTtrc)
+							NTtrc = grepTracer();
+						res-> assigned = NTtrc;
 						break;
 				}
 			}
