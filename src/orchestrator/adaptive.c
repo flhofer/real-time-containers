@@ -121,18 +121,13 @@ recomputeTimes_S(struct resTracer * res) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
 
-	int rv;
+	int rv = 0;
 
 	for (resAlloc_t * alloc = aHead; ((alloc)); alloc=alloc->next){
 		if (alloc->assigned != res)
 			continue;
 
-		rv = checkUvalue(resNew, alloc->item->attr, 1);
-		if ( 0 > rv ){
-			free(resNew);
-			return -1; // stops here
-		}
-
+		rv = MIN(checkUvalue(resNew, alloc->item->attr, 1), rv);
 	}
 
 	res->basePeriod = resNew->basePeriod;
@@ -140,7 +135,7 @@ recomputeTimes_S(struct resTracer * res) {
 	res->U = resNew->U;
 
 	free(resNew);
-	return 0;
+	return rv;
 }
 
 /*
