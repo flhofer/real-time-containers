@@ -114,12 +114,12 @@ START_TEST(orchestrator_adaptive_schedule)
 	ck_assert_int_eq(2, cont->rscs->affinity);
 
 	cont=cont->next;
-	// unknown container set to other -1
-	ck_assert_int_eq(-2, cont->rscs->affinity);
+	// unknown container set to free tracer
+	ck_assert_int_eq(0, cont->rscs->affinity);
 
 	cont=cont->next;
 	// container -2, but one of it's pids 2, the other 0-> 0+2, stays -2 for now
-	ck_assert_int_eq(-2, cont->rscs->affinity);
+	ck_assert_int_eq(0, cont->rscs->affinity);
 	// second (first in list) pid in container on -2 -> gets 0 for period match
 	ck_assert_int_eq(0, cont->pids->pid->rscs->affinity);
 	// first pid in container on 2 -> stays
@@ -161,18 +161,18 @@ START_TEST(orchestrator_adaptive_schedule2)
 	ck_assert_int_eq(0, contparm->img->rscs->affinity);
 
 	cont_t * cont = contparm->cont;
-	// container set to other -1, fits to 1
+	// container set to other -1, fits to 0
+	ck_assert_int_eq(0, cont->rscs->affinity);
+
+	cont=cont->next;
+	// unknown container set to other -1, => 1
 	ck_assert_int_eq(1, cont->rscs->affinity);
 
 	cont=cont->next;
-	// unknown container set to other -1
-	ck_assert_int_eq(-2, cont->rscs->affinity);
-
-	cont=cont->next;
-	// container -2, but one of it's pids 2, the other 0-> 0+2, stays -2 for now
-	ck_assert_int_eq(-2, cont->rscs->affinity);
+	// container -2, but one of it's pids 2, the other 0-> 0+2, stays -2 for now => 1
+	ck_assert_int_eq(1, cont->rscs->affinity);
 	// second (first in list) pid in container on -2 -> gets 1 for period match
-	ck_assert_int_eq(1, cont->pids->pid->rscs->affinity);
+	ck_assert_int_eq(0, cont->pids->pid->rscs->affinity);
 	// first pid in container on 2 -> stays
 	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
 
@@ -187,13 +187,13 @@ START_TEST(orchestrator_adaptive_schedule2)
 
 	// check result of CPU assignments
 	ck_assert_int_eq(1000000000, rHead->basePeriod);
-	ck_assert_int_eq(220000000, rHead->usedPeriod);
+	ck_assert_int_eq(462000000, rHead->usedPeriod);
 	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)220000000/(double)1000000000) == rHead->U);
+	ck_assert((float)((double)462000000/(double)1000000000) == rHead->U);
 
-	ck_assert_int_eq(500000000, rHead->next->basePeriod);
-	ck_assert_int_eq(100000000, rHead->next->usedPeriod);
-	ck_assert((float)((double)100000000/(double)500000000) == rHead->next->U);  // 90+10
+	ck_assert_int_eq(1000000000, rHead->next->basePeriod);
+	ck_assert_int_eq(0, rHead->next->usedPeriod);
+	ck_assert((float)((double)0/(double)1000000000) == rHead->next->U);  // 90+10
 
 	ck_assert_int_eq(400000000, rHead->next->next->basePeriod);
 	ck_assert_int_eq(220000000, rHead->next->next->usedPeriod);

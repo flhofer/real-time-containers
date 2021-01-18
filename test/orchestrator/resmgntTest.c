@@ -237,6 +237,7 @@ START_TEST(orchestrator_resmgnt_checkPeriod_R)
 	};
 	item->attr = par;
 	item->param->rscs->affinity = -99;
+	item->mon.assigned = 1;
 
 	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead->next);// exact period match
 
@@ -294,8 +295,8 @@ START_TEST(orchestrator_resmgnt_recomputeTimes)
 	ck_assert_int_eq(0, recomputeCPUTimes(0));
 	ck_assert(ftrc->U >= 0.799 && ftrc->U < 0.801);
 
-	attr.sched_deadline = 500000;
-	attr.sched_period = 500000;
+	attr.sched_deadline = 250000;
+	attr.sched_period = 250000; // = 20% load
 	push((void**)&nhead, sizeof(node_t));
 	nhead->attr = attr;
 	nhead->mon.assigned = 0;
