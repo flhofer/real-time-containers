@@ -196,6 +196,7 @@ plotData<-function(directory) {
 	dev.off()
 
 	sz = sum(dataFPS$bStart>10)
+	sz2 = sum(dataFPS$bStart<6)
 	png(file= paste0(directory,"FPS.png"), width = 600, height = 500)
 	ggp <- ggplot(mapping= aes(x=bStart, y=Count)) +
 		geom_bar(data = dataFPS,stat="identity", width = 0.1) +
@@ -206,6 +207,9 @@ plotData<-function(directory) {
  		labs(x=paste("Processing frame rate, FPS"), y="Occurrence count", fill="Instance") 
 	if (sz){
    		ggp <- ggp + geom_point(aes(y=0, x = 10, size=sz), shape=17, , color="red", fill="red", show.legend=FALSE)
+	} 		
+	if (sz2){
+   		ggp <- ggp + geom_point(aes(y=0, x = 6, size=sz2), shape=17, , color="red", fill="red", show.legend=FALSE)
 	} 		
 	print(ggp)
 	dev.off()
