@@ -844,6 +844,7 @@ getTracer(int32_t CPUno) {
 
 /*
  *  grepTracer(): find an empty or low UL CPU
+ * 				Either U is smaller OR within 20% and Harmonic vs. not-Harmonic
  *
  *  Arguments: -
  *
@@ -857,7 +858,9 @@ grepTracer() {
 
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (trc->U < Umax) {
+		if ((trc->U < Umax)
+			|| ((ftrc) && (trc->U < ftrc->U * 1.2)
+				&& (ftrc->status & MSK_STATHRMC) && !(trc->status & MSK_STATHRMC))) {
 			Umax = trc->U;
 			ftrc = trc;
 		}
