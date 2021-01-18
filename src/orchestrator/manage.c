@@ -86,16 +86,28 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 
 static int get_sched_info(node_t * item);
 
-
-/// ftrace_inthand(): interrupt handler for infinite while loop, help
-/// this function is called from outside, interrupt handling routine
-/// Arguments: - signal number of interrupt calling
-///
-/// Return value: -
-static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
+/*
+ *  ftrace_inthand(): interrupt handler for infinite while loop, help
+ *  this function is called from outside, interrupt handling routine
+ *
+ *  Arguments: - signal number of interrupt calling
+ *
+ *  Return value: -
+ */
+static void
+ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
+/*
+ *  appendEvent(): add an event to event list to watch (fTrace)
+ *
+ *  Arguments: - debug path prefix
+ *  		   - event name (path)
+ *  		   - function (pointer) to call for the event
+ *
+ *  Return value: 0 on success, -1 on error
+ */
 static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
 
@@ -124,13 +136,15 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 	return -1;
 }
 
-/// configureTracers(): setup kernel function trace system
-///
-/// Arguments: - none
-///
-/// Return value: 0 = success, else error
-///
-static int configureTracers(){
+/*
+ *  configureTracers(): setup kernel function trace system
+ *
+ *  Arguments: - none
+ *
+ *  Return value: 0 = success, else error
+ */
+static int
+configureTracers(){
 
 	char * dbgpfx = get_debugfileprefix();
 
@@ -164,13 +178,15 @@ static int configureTracers(){
 	return 0; // setup successful?
 }
 
-/// resetTracers(): reset kernel function trace system
-///
-/// Arguments: - none
-///
-/// Return value: 0 = success, else error
-///
-static void resetTracers(){
+/*
+ * resetTracers(): reset kernel function trace system
+ *
+ *  Arguments: - none
+ *
+ *  Return value: 0 = success, else error
+ */
+static void
+resetTracers(){
 	char * dbgpfx = get_debugfileprefix();
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
@@ -189,13 +205,15 @@ static void resetTracers(){
 	}
 }
 
-/// startTraceRead(): start CPU tracing threads
-///
-/// Arguments:
-///
-/// Return value: OR-result of pthread_create, negative if one failed
-///
-static int startTraceRead() {
+/*
+ *  startTraceRead(): start CPU tracing threads
+ *
+ *  Arguments:
+ *
+ *  Return value: OR-result of pthread_create, negative if one failed
+ */
+static int
+startTraceRead() {
 
 	int maxcpu = prgset->affinity_mask->size;
 	int ret = 0;
@@ -217,13 +235,15 @@ static int startTraceRead() {
 	return ret; // = 0 if OK, else negative
 }
 
-/// stopTraceRead(): stop CPU tracing threads
-///
-/// Arguments:
-///
-/// Return value: OR-result of pthread_*, negative if one failed
-///
-static int stopTraceRead() {
+/*
+ *  stopTraceRead(): stop CPU tracing threads
+ *
+ *  Arguments:
+ *
+ *  Return value: OR-result of pthread_*, negative if one failed
+ */
+static int
+stopTraceRead() {
 
 	int ret = 0;
 	void * retVal = NULL;
@@ -433,14 +453,15 @@ pickPidCons(node_t *item, uint64_t ts){
 
 }
 
-/// pickPidCommon(): process PID fTrace common
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
+/*
+ *  pickPidCommon(): process PID fTrace common header
+ *
+ *  Arguments: - frame address containing the runtime info
+ *             - fTrace thread info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
 static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
@@ -462,11 +483,13 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
  * 					update data with kernel tracer debug out
  *
  *  Arguments: - frame containing the runtime info
+ *             - fTrace thread info
  * 			   - last time stamp
  *
  *  Return value: error code, 0 = success
  */
-static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
+static int
+pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, fthread, ts);
 	addr+= ret1;
@@ -569,13 +592,15 @@ static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread,
 	return ret1 + sizeof(struct tr_switch);
 }
 
-/// thread_ftrace(): parse kernel tracer output
-///
-/// Arguments: status trace
-///
-/// Return value: pointer to error code, 0 = success
-///
-void *thread_ftrace(void *arg){
+/*
+ *  thread_ftrace(): parse kernel tracer output
+ *
+ *  Arguments: - pointer to fTrace thread info
+ *
+ *  Return value: pointer to error code, 0 = success
+ */
+void *
+thread_ftrace(void *arg){
 
 	int pstate = 0;
 	int ret = 0;
@@ -724,6 +749,55 @@ void *thread_ftrace(void *arg){
 }
 
 // #################################### THREAD specific END ############################################
+
+
+/*
+ *  updateSiblings(): check if the item is - has - the primary siblings
+ *  				  update all and siblings if there is a better fit
+ *
+ *  Arguments: - item to check for container siblings
+ *
+ *  Return value: -1 don't touch, 0 = main or no siblings
+ */
+static void
+updateSiblings(node_t * node){
+
+	node_t * mainp = node;
+
+	if ((node->status & MSK_STATSIBL)
+			&& (node->contid)){
+
+		uint64_t smp = NSEC_PER_SEC;
+		for (node_t * item = nhead; ((item)); item=item->next ){
+			if ((item->contid) && !strcmp(node->contid, item->contid)){
+				if (SCHED_DEADLINE == item->attr.sched_policy){
+					if (item->attr.sched_period < smp){
+						mainp = item;
+						smp = item->attr.sched_period;
+					}
+				}
+				else
+					if (item->mon.cdf_period < smp){
+						mainp = item;
+						smp = item->mon.cdf_period;
+					}
+			}
+		}
+
+	}
+
+	if (mainp != node) // we are not the main task
+		return;
+
+	resTracer_t * ntrc = checkPeriod_R(mainp, 0);
+	resTracer_t * trc = getTracer(mainp->mon.assigned);
+
+	// update all TIDs
+	if (ntrc != trc)
+		for (node_t * item = nhead; ((item)); item=item->next )
+			if (!strcmp(node->contid, item-> contid))
+				pidReallocAndTest(ntrc, trc, item);
+}
 
 /*
  *  get_sched_info(): get scheduler debug output info
@@ -898,15 +972,16 @@ get_sched_info(node_t * item)
   return 0;
 }
 
-/// updateStats(): update the real time statistics for all scheduled threads
-/// -- used for monitoring purposes ---
-///
-/// Arguments: - 
-///
-/// Return value: number of PIDs found (total) that exceed peak PDF
-///				  defaults to 0 for static scheduler
-///
-static int updateStats ()
+/*
+ * updateStats(): update the real time statistics for all scheduled threads
+ *  -- used for monitoring purposes ---
+ *
+ *  Arguments: -
+ *
+ *  Return value: returns 1 if a statistics update is needed
+ */
+static int
+updateStats()
 {
 	static int prot = 0; // pipe rotation animation
 	static char const sp[4] = "/-\\|";
@@ -950,13 +1025,16 @@ static int updateStats ()
 	return !(( scount % (prgset->loops*10) ));	// return 1 if we passed 10th time loops
 }
 
-/// manageSched(): main function called to update resources
-///
-/// Arguments:
-///
-/// Return value: N/D - int
-///
-static int manageSched(){
+/*
+ * manageSched(): main function called to update resources
+ * 					called once out of 10* loops (less often..)
+ *
+ * Arguments: -
+ *
+ * Return value: N/D - int
+ */
+static int
+manageSched(){
 
 	// this is for the dynamic and adaptive scheduler only
 
@@ -975,7 +1053,7 @@ static int manageSched(){
 		if (0 > item->pid)
 			continue;
 
-		// update CMD-line once out of 10 (less often..)
+		// update CMD-line
 		updatePidCmdline(item);
 
 		if (SM_PADAPTIVE <= prgset->sched_mode)
@@ -988,8 +1066,9 @@ static int manageSched(){
 						// period changed enough for a better assignment
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
+							info("Update PID%d period: %luus", item->pid, newPeriod/1000);
 							// check if there is a better fit for the period
-							pidReallocAndTest(checkPeriod_R(item, 0), getTracer(item->mon.assigned), item);
+							updateSiblings(item);
 						}
 						else
 							item->mon.cdf_period = newPeriod;
@@ -1072,12 +1151,15 @@ static int manageSched(){
 	return 0;
 }
 
-/// dumpStats(): prints thread statistics to out
-///
-/// Arguments: -
-///
-/// Return value: -
-static void dumpStats (){
+/*
+ * dumpStats(): prints thread statistics to out
+ *
+ * Arguments: -
+ *
+ * Return value: -
+ */
+static void
+dumpStats (){
 
 	node_t * item = nhead;
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
@@ -1118,11 +1200,13 @@ static void dumpStats (){
 		}
 }
 
-/// thread_manage(): thread function call to manage schedule list
-///
-/// Arguments: - thread state/state machine, passed on to allow main thread stop
-///
-/// Return value: Exit Code - o for no error
+/*
+ *  thread_manage(): thread function call to manage schedule list
+ *
+ *  Arguments: - thread state/state machine, passed on to allow main thread stop
+ *
+ *  Return value: Exit Code - o for no error
+ */
 void *thread_manage (void *arg)
 {
 	// be explicit!
