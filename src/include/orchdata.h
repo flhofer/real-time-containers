@@ -67,7 +67,6 @@
 		SM_STATIC = 0,	// use static allocation only (NO RESCHEDULING)
 		SM_ADAPTIVE,	// use adaptive slot allocation at startup (NO RESCHEDULING)
 		SM_PADAPTIVE,	// use progressive adaptive slot allocation (NO RESCHEDULING)
-		SM_DYNSYSTEM,	// use system (Linux) based dynamic rescheduling technique
 		SM_DYNSIMPLE,	// use the simple affinity based dynamic scheduling (like adaptive)
 		SM_DYNMCBIN		// use monte carlo bin allocation style algorithm
 	};

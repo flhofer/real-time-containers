@@ -1130,7 +1130,6 @@ manageSched(){
 				}
 				break;
 
-			case SM_DYNSYSTEM:
 			case SM_DYNSIMPLE:
 			case SM_DYNMCBIN:
 				// DYNAMIC, USE PROBABILISTIC WCET VALUE

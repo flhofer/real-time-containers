@@ -116,9 +116,8 @@ static void display_help(int error)
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
 	       "-S [NR]  --system[=NR]     activate Dynamic System Schedule (DSS), alg NR \n"
-	       "                           0 = System controlled (default)\n"
-	       "                           1 = Simple period based\n"
-	       "                           2 = Monte-Carlo bin (unsupported)\n"
+	       "                           0 = Simple period based (default)\n"
+	       "                           1 = Monte-Carlo bin (unsupported)\n"
 #ifdef ARCH_HAS_SMI_COUNTER
            "         --smi             Enable SMI counting\n"
 #endif
@@ -340,7 +339,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'S':
 		case OPT_SYSTEM:
 			// base System, limit to +2 = Monte Carlo;
-			set->sched_mode = SM_DYNSYSTEM;
+			set->sched_mode = SM_DYNSIMPLE;
 			if (NULL != optarg) {
 				set->sched_mode += MIN(atoi(optarg), 2);
 			} else if (optind<argc) {
