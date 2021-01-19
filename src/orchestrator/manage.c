@@ -1097,7 +1097,7 @@ manageSched(){
 					if (0 < newWCET){
 						if (SCHED_DEADLINE == item->attr.sched_policy){
 							if (item->param && item->param->attr &&
-									!(item->param->attr->sched_runtime)) // max double initial WCET
+									(item->param->attr->sched_runtime)) // max double initial WCET
 								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
 							updatePidWCET(item, newWCET);
 						}
