@@ -283,7 +283,7 @@ stopTraceRead() {
  *  		   - candidate tracer
  *  		   - item of PID to move
  *
- *  Return value: -1 failed, -2 origin still full, 0 = success
+ *  Return value: -1 failed, -2 origin still full, 0 = success, 1 = no change
  */
 static int
 pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
@@ -318,7 +318,7 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 			return -2; // more than one task to move
 		return 0;
 	}
-	return -1;
+	return 1;
 }
 
 /*
@@ -541,8 +541,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 			// check if CPU changed, exiting
 			if (item->mon.assigned != fthread->cpuno){
-				if (0 <= item->mon.assigned)
-					item->mon.resched++;
 				// change on exit???, reassign CPU?
 				int32_t CPU = item->mon.assigned;
 				item->mon.assigned = fthread->cpuno;
@@ -551,6 +549,20 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				if (0 > recomputeCPUTimes(CPU))
 					if (SM_DYNSIMPLE <= prgset->sched_mode)
 						pickPidReallocCPU(CPU, 0);
+
+				if (0 <= item->mon.assigned){
+					item->mon.resched++;
+				}
+				else{
+					if (SCHED_NODATA == item->attr.sched_policy)
+							updatePidAttr(item);
+					// never assigned to a resource and we have data (SCHED_DL), check for fit
+					if (SCHED_DEADLINE == item->attr.sched_policy) {
+						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
+								getTracer(fthread->cpuno), item))
+							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
+					}
+				}
 			}
 
 		}
@@ -810,10 +822,8 @@ updateSiblings(node_t * node){
 		return -1;
 
 	// ELSE update all TIDs
-	resTracer_t * ntrc = checkPeriod_R(mainp, 0);
-	resTracer_t * trc = getTracer(mainp->mon.assigned);
-
-	return pidReallocAndTest(ntrc, trc, node);
+	return pidReallocAndTest(checkPeriod_R(mainp, 0),
+			getTracer(mainp->mon.assigned), node);
 }
 
 /*
@@ -1083,9 +1093,9 @@ manageSched(){
 						// period changed enough for a different time-slot?
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
-							info("Update PID%d period: %luus", item->pid, newPeriod/1000);
+							info("Update PID %d period: %luus", item->pid, newPeriod/1000);
 							// check if there is a better fit for the period, and if it is main
-							if (updateSiblings(item))
+							if (0 > updateSiblings(item))
 								warn("Sibling update not possible!");
 						}
 						else
