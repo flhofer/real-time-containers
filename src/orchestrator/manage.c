@@ -407,20 +407,7 @@ pickPidCons(node_t *item, uint64_t ts){
 			updatePidAttr(item);
 		// period should never be zero from here on
 
-		/*
-		 * Check if we had a overrun and verify buffers
-		 */
-		if ((SM_DYNSIMPLE <= prgset->sched_mode)
-				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
-			// check reschedule?
-			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
-				// reschedule
-				item->mon.dl_overrun++;	// exceeded buffer
-				pickPidReallocCPU(item->mon.assigned);
-			}
-		}
-
-		// -> what if we read the debug output here??.. maybe we lost track of deadline?
+		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
 		if (!item->mon.deadline				 // no deadline set?
 				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
 			int is_null = (!item->mon.deadline);
@@ -436,7 +423,20 @@ pickPidCons(node_t *item, uint64_t ts){
 			// just add a period, we rely on periodicity
 			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 
-		// stats about variability
+		/*
+		 * Check if we had a overrun and verify buffers
+		 */
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+			// check reschedule?
+			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
+				// reschedule
+				item->mon.dl_overrun++;	// exceeded buffer
+				pickPidReallocCPU(item->mon.assigned, item->mon.deadline);
+			}
+		}
+
+		// statistics about variability
 		item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
 	}
 	else
