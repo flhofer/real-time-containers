@@ -338,12 +338,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'S':
 		case OPT_SYSTEM:
-			// base System, limit to +2 = Monte Carlo;
+			// base Simple, limit to +1 = Monte Carlo;
 			set->sched_mode = SM_DYNSIMPLE;
 			if (NULL != optarg) {
-				set->sched_mode += MIN(atoi(optarg), 2);
+				set->sched_mode += MIN(atoi(optarg), 1);
 			} else if (optind<argc) {
-				set->sched_mode += MIN(atoi(argv[optind]),2);
+				set->sched_mode += MIN(atoi(argv[optind]), 1);
 				optargs++;
 			}
 			break;
