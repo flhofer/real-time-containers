@@ -313,14 +313,16 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * item){
  *  Return value: -1 failed, 0 = success (ok)
  */
 static int
-pickPidReallocCPU(int32_t CPUno){
+pickPidReallocCPU(int32_t CPUno, uint64_t deadline){
 	resTracer_t * trc = getTracer(CPUno);
 	resTracer_t * ntrc = NULL;
 
 	for (int include = 0; include < 2; include++ )
 		// run twice, include=0 and include=1 to force move second time
 		for (node_t * item = nhead; ((item)); item=item->next){
-			if (item->mon.assigned != CPUno || 0 > item->pid)
+			if (item->mon.assigned != CPUno || 0 > item->pid
+					// consider only within next period
+				|| ((deadline) && item->mon.deadline >= deadline))
 				continue;
 
 			ntrc = checkPeriod_R(item, include);
