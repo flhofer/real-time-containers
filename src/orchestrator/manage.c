@@ -761,17 +761,18 @@ thread_ftrace(void *arg){
  *
  *  Return value: -1 don't touch, 0 = main or no siblings
  */
-static void
+static int
 updateSiblings(node_t * node){
 
 	node_t * mainp = node;
 
-	if ((node->status & MSK_STATSIBL)
-			&& (node->contid)){
+	if ((node->status & MSK_STATSIBL) && (node->param)
+			&& (node->param->cont)){
 
 		uint64_t smp = NSEC_PER_SEC;
 		for (node_t * item = nhead; ((item)); item=item->next ){
-			if ((item->contid) && !strcmp(node->contid, item->contid)){
+			if (item->param && item->param->cont
+					&& item->param->cont == node->param->cont){
 				if (SCHED_DEADLINE == item->attr.sched_policy){
 					if (item->attr.sched_period < smp){
 						mainp = item;
@@ -785,20 +786,16 @@ updateSiblings(node_t * node){
 					}
 			}
 		}
-
 	}
 
 	if (mainp != node) // we are not the main task
-		return;
+		return -1;
 
+	// ELSE update all TIDs
 	resTracer_t * ntrc = checkPeriod_R(mainp, 0);
 	resTracer_t * trc = getTracer(mainp->mon.assigned);
 
-	// update all TIDs
-	if (ntrc != trc)
-		for (node_t * item = nhead; ((item)); item=item->next )
-			if (!strcmp(node->contid, item-> contid))
-				pidReallocAndTest(ntrc, trc, item);
+	return pidReallocAndTest(ntrc, trc, node);
 }
 
 /*
@@ -1070,7 +1067,8 @@ manageSched(){
 							item->mon.cdf_period = newPeriod;
 							info("Update PID%d period: %luus", item->pid, newPeriod/1000);
 							// check if there is a better fit for the period, and if it is main
-							updateSiblings(item);
+							if (updateSiblings(item))
+								warn("Sibling update not possible!");
 						}
 						else
 							item->mon.cdf_period = newPeriod;
