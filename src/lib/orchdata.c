@@ -260,7 +260,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
-			// add new items
+			// add new container
 			push((void**)&conts->cont, sizeof(cont_t));
 			push((void**)&img->conts, sizeof(conts_t));
 			img->conts->cont = conts->cont; 
@@ -273,13 +273,14 @@ int node_findParams(node_t* node, struct containers * conts){
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
-		// add to container PIDs
+		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
 		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 		conts->pids->rscs = cont->rscs;
 		conts->pids->attr = cont->attr;
 
+		// assing configuration to node
 		node->param = conts->pids;
 		node->param->img = img;
 		node->param->cont = cont;
@@ -297,7 +298,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		while (NULL != curr) {
 			if(curr->psig && node->psig && strstr(node->psig, curr->psig)) {
-				warn("assigning container configuration to unrelated PID");
+				warn("assigning configuration to unrelated PID");
 				node->param = curr;
 				return 0;
 			}
