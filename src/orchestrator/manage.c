@@ -1189,12 +1189,16 @@ static void
 dumpStats (){
 
 	node_t * item = nhead;
-	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
+	(void)printf( "\nStatistics for real-time SCHED_DEADLINE, FIFO and RR PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"
 					"PID - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
 			        "----------------------------------------------------------------------------------\n",
 					scount );
+
+	// find first matching
+	while ((item) && !policy_is_realtime(item->attr.sched_policy))
+		item=item->next;
 
 	// no PIDs in list
 	if (!item) {
@@ -1225,6 +1229,14 @@ dumpStats (){
 		default:
 			;
 		}
+
+	(void)printf( "\nStatistics on resource usage:\n"
+			        "----------------------------------------------------------------------------------\n");
+
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		recomputeCPUTimes(trc->affinity);
+		(void)printf( "CPU %d: %3.2f%%\n", trc->affinity, trc->U * 100);
+	}
 }
 
 /*
