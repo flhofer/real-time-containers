@@ -268,7 +268,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			cont->img = img;
 
 			// assign values
-			cont->contid = node->contid;
+			cont->contid = strdup(node->contid);
 			img->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
@@ -297,15 +297,61 @@ int node_findParams(node_t* node, struct containers * conts){
 		struct pidc_parm * curr = conts->pids;
 
 		while (NULL != curr) {
-			if(curr->psig && node->psig && strstr(node->psig, curr->psig)) {
+			if(curr->psig && node->psig && strstr(node->psig, curr->psig)
+				&& !(curr->cont) && !(curr->img) ) { // only unasociated items
 				warn("assigning configuration to unrelated PID");
-				node->param = curr;
-				return 0;
+				node->param = curr; // TODO: duplicate PIDC
+				break;
 			}
 			curr = curr->next; 
 		}
+
+		if (!node->contid){
+			// no containerid, can't do anything
+			printDbg("... PID not found. Ignoring\n");
+			return -1;
+		}
+
+		// add new container
+		push((void**)&conts->cont, sizeof(cont_t));
+		cont = conts->cont;
+
+		// assign values
+		cont->contid = strdup(node->contid);
+		cont->rscs = conts->rscs;
+		cont->attr = conts->attr;
+
+		if (!curr){
+			// found? if not, create PID parameter entry
+			printDbg("... parameters not found, creating from PID and assigning container settings\n");
+			// create new pidconfig
+			push((void**)&conts->pids, sizeof(pidc_t));
+			curr = conts->pids;
+
+			curr->psig = strdup(node->psig);
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->rscs = cont->rscs;
+			curr->attr = cont->attr;
+
+
+			// add new PID to container PIDs
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = curr; // add new empty item -> pid list, container pids list
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->rscs = cont->rscs;
+			curr->attr = cont->attr;
+
+			node->param = curr;
+		}
+		else {
+			// found use it's values
+			node->psig = node->param->psig;
+		}
+		// pidconfig curr gets container config cont
+		curr->cont = cont;
+		// update counter
+		conts->nthreads++;
 	}
-	printDbg("... PID not found. Ignoring\n");
 
 	return -1;
 }
