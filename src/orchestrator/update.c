@@ -286,9 +286,6 @@ static int stopDockerThread(){
 static void updateDocker() {
 	
 	// NOTE: pointers are atomic
-	if (!containerEvent)
-		return;
-	
 	while (containerEvent) {	
 		lstevent = containerEvent;
 		containerEvent = NULL;
@@ -588,7 +585,8 @@ void *thread_update (void *arg)
 			// update, once every td
 			if (!prgset->quiet)	
 				(void)printf("\rNode Stats update  ");
-			scanNew(); 
+			if (!dlink_on)
+				scanNew();
 
 			break;
 		case -1:
