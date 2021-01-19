@@ -34,7 +34,7 @@ static void parse_resource_data(struct json_object *obj,
 		  struct sched_rscs **data){
 
 	*data = malloc(sizeof(struct sched_rscs));
-	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, -1);
+	(*data)->affinity = get_int_value_from(obj, "affinity", TRUE, INT_MIN);
 	(*data)->affinity_mask = NULL;
 	(*data)->rt_timew = get_int_value_from(obj, "rt-soft", TRUE, -1);
 	(*data)->rt_time = get_int_value_from(obj, "rt-hard", TRUE, -1);
@@ -58,7 +58,7 @@ static void parse_scheduling_data(struct json_object *obj,
 
 		char *policy;
 		policy = get_string_value_from(obj, "policy",
-						   TRUE, "SCHED_OTHER");
+						   TRUE, "default");
 		if (string_to_policy(policy, &(*data)->sched_policy)) {
 			err_msg(PFX "Invalid policy %s", policy);
 			exit(EXIT_INV_CONFIG);
@@ -381,7 +381,7 @@ static void parse_images(struct json_object *images, containers_t *conts)
 					conts->nthreads += json_object_array_length(pidobj);
 				}
 
-				// update conuters
+				// update counters
 				conts->num_cont++;
 				idx++;
 			}
