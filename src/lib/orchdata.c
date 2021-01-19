@@ -161,6 +161,35 @@ static inline void duplicateContainer(node_t* node, struct containers * conts, c
 	node->psig = NULL;
 }
 
+static void
+refreshContainers(node_t* node, struct containers * conts) {
+
+	// NOTE, the first is the new entry
+	for (cont_t ** cont = &conts->cont->next; (*cont);){
+		// container id present, task found before info
+		if (node->contid == (*cont)->contid){
+
+			// update connected PIDs, unlink and add to new
+			for (; ((*cont)->pids) ; pop((void**)&(*cont)->pids)){
+				//set update flag
+				(*cont)->pids->pid->status &= ~MSK_STATUPD;
+				//update container link
+				(*cont)->pids->pid->cont = conts->cont;
+				// add to new container list
+				push((void**)&conts->cont->pids, sizeof(pids_t));
+				conts->cont->pids->pid = (*cont)->pids->pid;
+			}
+
+			// remove old container
+			pop((void**)cont);
+			continue;
+		}
+
+		cont=&(*cont)->next;
+	}
+}
+
+
 /// node_findParams(): assigns the PID parameters list of a running container
 ///
 /// Arguments: - node to chek for matching parameters
@@ -191,6 +220,7 @@ int node_findParams(node_t* node, struct containers * conts){
 					// if node pid = 0, psig is the name of the container coming from dockerlink
 					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
 						cont = imgcont->cont;
+						refreshContainers(node, conts); // refresh prematurely added containers
 						duplicateContainer(node, conts, &cont);
 						break;
 					}
@@ -217,6 +247,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
 				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
+					refreshContainers(node, conts); // refresh prematurely added containers
 					duplicateContainer(node, conts, &cont);
 					break;
 				}
