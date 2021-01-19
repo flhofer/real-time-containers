@@ -286,21 +286,37 @@ stopTraceRead() {
  *  Return value: -1 failed, -2 origin still full, 0 = success
  */
 static int
-pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * item){
+pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 
 	if (ntrc && trc && ntrc != trc){
 		// better fit found
-		item->mon.assigned = ntrc->affinity;
-		if (!setPidAffinityAssinged (item)){
-			item->mon.resched++;
-			(void)recomputeCPUTimes(ntrc->affinity);
-			if (0 > recomputeCPUTimes(trc->affinity))
-				return -2; // more than one task to move
 
-			return 0;
-		}
-		// Reallocate did not work
-		item->mon.assigned = trc->affinity;
+		// move all threads of same container
+		for (node_t * item = nhead; ((item)); item=item->next )
+			if (item->param && item->param->cont
+					&& item->param->cont == node->param->cont){
+
+				item->mon.assigned = ntrc->affinity;
+				if (!setPidAffinityAssinged (item)){
+					item->mon.resched++;
+					continue;
+				}
+				// Reallocate did not work, undo
+				item->mon.assigned = trc->affinity;
+				for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
+					if (bitem->param && bitem->param->cont
+							&& bitem->param->cont == item->param->cont){
+						bitem->mon.assigned = trc->affinity;
+						(void)setPidAffinityAssinged (bitem);
+					}
+				return -1;
+			}
+
+		// all done, recompute CPU-times
+		(void)recomputeCPUTimes(ntrc->affinity);
+		if (0 > recomputeCPUTimes(trc->affinity))
+			return -2; // more than one task to move
+		return 0;
 	}
 	return -1;
 }
@@ -367,7 +383,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 	}
 
 	// if remaining time is enough, return 0
-	return 0 >= (item->mon.deadline - ts - usedtime - extra_rt);
+	return 0 <= (item->mon.deadline - ts - usedtime - extra_rt);
 }
 
 /*
@@ -534,7 +550,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				// Removed from, should give no issues
 				if (0 > recomputeCPUTimes(CPU))
 					if (SM_DYNSIMPLE <= prgset->sched_mode)
-						pickPidReallocCPU(CPU);
+						pickPidReallocCPU(CPU, 0);
 			}
 
 		}
@@ -543,7 +559,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// recompute actual CPU, new tasks might be there now
 	if (0 > recomputeCPUTimes(fthread->cpuno))
 		if (SM_DYNSIMPLE <= prgset->sched_mode)
-			pickPidReallocCPU(fthread->cpuno);
+			pickPidReallocCPU(fthread->cpuno, 0);
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next ){
@@ -759,7 +775,7 @@ thread_ftrace(void *arg){
  *  updateSiblings(): check if the item is - has - the primary sibling
  *  				  update all and siblings if there is a better fit
  *
- *  Arguments: - item to check for container siblings
+ *  Arguments: - item that triggered update request
  *
  *  Return value: -1 don't touch, 0 = main or no siblings
  */
