@@ -275,8 +275,10 @@ setPidResources_u(node_t * node) {
 			node->status |= !(setPidAffinityNode(node)) & MSK_STATUPD;
 	}
 
-	if (0 == node->pid) // PID 0 = detected containers
+	if (0 == node->pid){ // PID 0 = detected containers
+		// TODO: cleanup
 		return;
+	}
 
 	// only do if different than -1, <- not set values = keep default
 	if (SCHED_NODATA != node->param->attr->sched_policy) {
@@ -331,6 +333,16 @@ setPidResources(node_t * node) {
 		setPidResources_u(node);
 	else
 		node->status |= MSK_STATUPD | MSK_STATNMTCH;
+
+	// check if we have siblings in container TODO: not all cases are found
+	int hasSiblings = node->status & MSK_STATSIBL;
+	for (node_t * item = nhead; (item) && !hasSiblings; item=item->next)
+		if (item->param && item->param->cont
+			&& item->param->cont == node->param->cont){
+			hasSiblings = MSK_STATSIBL;
+			item->status |= MSK_STATSIBL;
+		}
+	node->status |= hasSiblings;
 }
 
 /*

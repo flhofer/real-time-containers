@@ -318,7 +318,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&conts->pids, sizeof(pidc_t));
 		if (useimg) {
-			// add new container
+			// add new container unmatched container signature
 			push((void**)&conts->cont, sizeof(cont_t));
 			push((void**)&img->conts, sizeof(conts_t));
 			img->conts->cont = conts->cont; 
@@ -332,6 +332,7 @@ int node_findParams(node_t* node, struct containers * conts){
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
+
 		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
@@ -339,13 +340,14 @@ int node_findParams(node_t* node, struct containers * conts){
 		conts->pids->rscs = cont->rscs;
 		conts->pids->attr = cont->attr;
 
-		// assing configuration to node
+		// Assign configuration to node
 		node->param = conts->pids;
 		node->param->img = img;
 		node->param->cont = cont;
 		node->psig = node->param->psig;
 		// update counter
-		conts->nthreads++;
+		if (node->pid)
+			conts->nthreads++;
 		return 0;
 	}
 	else
