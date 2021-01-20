@@ -189,11 +189,13 @@ refreshContainers(containers_t * containers) {
 	for (cont_t * cont = containers->cont; (cont->next); cont=cont->next){
 		// container id present, task found before info
 		if (!strncmp(containers->cont->contid, cont->next->contid,
-				MIN(strlen(containers->cont->contid), strlen(cont->next->contid)))){
+				MIN(strlen(containers->cont->contid), strlen(cont->next->contid)))
+				&& (cont->next->status & MSK_STATCCRT)){
 
 			// Receive container list from old container
 			containers->cont->pids = cont->next->pids;
-			// remove old container
+			// remove old container (reset also flags for complete freeing)
+			cont->next->status = 0x0;
 			freeParm(cont->next);
 			pop((void**)&cont->next);
 
@@ -201,8 +203,10 @@ refreshContainers(containers_t * containers) {
 			for (pids_t * pids = containers->cont->pids; (pids) ; pids=pids->next){
 				//set update flag
 				pids->pid->status &= ~MSK_STATUPD;
-				//update container link
+				//update container link and shared resources
 				pids->pid->cont = containers->cont;
+				pids->pid->rscs = cont->rscs;
+				pids->pid->attr = cont->attr;
 			}
 
 			break;
