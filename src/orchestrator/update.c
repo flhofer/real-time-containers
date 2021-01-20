@@ -33,21 +33,27 @@ static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 // declarations 
 static void scanNew();
 
-/// cmpPidItem(): compares two pidlist items for Qsort
-///
-/// Arguments: pointers to the items to check
-///
-/// Return value: difference PID
-static int cmpPidItem (const void * a, const void * b) {
+/*
+ *  cmpPidItem(): compares two pidlist items for Qsort
+ *
+ *  Arguments: pointers to the items to check
+ *
+ *  Return value: difference PID
+ */
+static int
+cmpPidItem (const void * a, const void * b) {
 	return (((node_t *)b)->pid - ((node_t *)a)->pid);
 }
 
-/// getContPids(): utility function to get PID list of interrest from Cgroups
-/// Arguments: - pointer to linked list of PID
-///
-/// Return value: --
-///
-static void getContPids (node_t **pidlst)
+/*
+ *  getContPids(): utility function to get PID list of interest from CGroups
+ *
+ *  Arguments: - pointer to linked list storing newly found PIDs
+ *
+ *  Return value: --
+ */
+static void
+getContPids (node_t **pidlst)
 {
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
@@ -136,13 +142,17 @@ static void getContPids (node_t **pidlst)
 	prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 }
 
-/// getPids(): utility function to get list of PID
-/// Arguments: - pointer to linked list of PID
-///			   - tag string containing the command signature to look for 
-///
-/// Return value: --
-///
-static void getPids (node_t **pidlst, char * tag, char * ppid)
+/*
+ *  getPids(): utility function to get list of PID for DM_CMDLINE DM_CNTPID mode
+ *
+ *  Arguments: - pointer to linked list of PID
+ * 			   - tag string containing the command signature to look for
+ * 			   - parent PID if present to note it as sort of container-ID in
+ *
+ *  Return value: --
+ */
+static void
+getPids (node_t **pidlst, char * tag, char * ppid)
 {
 	FILE *fp;
 
@@ -194,13 +204,16 @@ static void getPids (node_t **pidlst, char * tag, char * ppid)
 	pclose(fp);
 }
 
-/// getcPids(): utility function to get list of PID by PPID tag
-/// Arguments: - pointer to linked list of PID
-///			   - tag string containing the name of the parent pid to look for
-///
-/// Return value: -- 
-///
-static void getpPids (node_t **pidlst, char * tag)
+/*
+ *  getcPids(): utility function to get list of PID by PPID tag (DM_CNTPID mode)
+ *
+ *  Arguments: - pointer to linked list of new PIDs
+ * 			   - tag string containing the name of the parent PID to look for
+ *
+ *  Return value: --
+ */
+static void
+getpPids (node_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
 	if (!tag) 
@@ -239,13 +252,15 @@ static contevent_t * lstevent;
 pthread_t thread_dlink;
 int  iret_dlink; // Timeout is set to 4 seconds by default
 
-/// startDockerThread(): start docker verification thread
-///
-/// Arguments: 
-///
-/// Return value: result of pthread_create, negative if failed
-///
-static int startDockerThread() {
+/*
+ *  startDockerThread(): start docker verification thread
+ *
+ *  Arguments:
+ *
+ *  Return value: result of pthread_create, negative if failed
+ */
+static int
+startDockerThread() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, dlink_thread_watch, NULL);
 	if (iret_dlink)  // thread not started successfully
 		err_msg_n(iret_dlink, "Failed to start docker_link thread");
@@ -256,13 +271,15 @@ static int startDockerThread() {
 	return iret_dlink;
 }
 
-/// stopDockerThread(): stop docker verification thread
-///
-/// Arguments:
-///
-/// Return value: result of pthread_*, negative if one failed
-///
-static int stopDockerThread(){
+/*
+ *  stopDockerThread(): stop docker verification thread
+ *
+ *  Arguments:
+ *
+ *  Return value: result of pthread_*, negative if one failed
+ */
+static int
+stopDockerThread(){
 	// set stop signal
 	int ret = 0;
 	if (!iret_dlink) { // thread started successfully
@@ -277,15 +294,20 @@ static int stopDockerThread(){
 	return ret;
 }
 
-/// updateDocker(): pull event from dockerlink and verify
-///
-/// Arguments: 
-///
-/// Return value: 
-///
-static void updateDocker() {
+/*
+ *  updateDocker(): pull event from dockerlink and verify
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+updateDocker() {
 	
 	// NOTE: pointers are atomic
+	if (!containerEvent)
+		return;
+	
 	while (containerEvent) {	
 		lstevent = containerEvent;
 		containerEvent = NULL;
@@ -343,14 +365,16 @@ static void updateDocker() {
 	scanNew(); 
 }
 
-/// scanNew(): main function for thread_update, scans for PIDs and inserts
-/// or drops the PID list
-///
-/// Arguments: 
-///
-/// Return value: 
-///
-static void scanNew () {
+/*
+ *  scanNew(): main function for thread_update, scans for PIDs and inserts
+ *  or drops the PID list
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+scanNew () {
 	// get PIDs 
 	node_t *lnew = NULL; // pointer to new list head
 
@@ -364,6 +388,7 @@ static void scanNew () {
 			getpPids(&lnew, prgset->cont_ppidc);
 			break;
 
+		case DM_CMDLINE:
 		default: ;// detect by pid signature
 			// cmdline of own thread
 			char pid[SIG_LEN];
@@ -474,12 +499,15 @@ static void scanNew () {
 
 }
 
-/// thread_update(): thread function call to manage and update present pids list
-///
-/// Arguments: - thread state/state machine, passed on to allow main thread stop
-///
-/// Return value: -
-void *thread_update (void *arg)
+/*
+ *  thread_update(): thread function call to manage and update present pids list
+ *
+ *  Arguments: - thread state/state machine, passed on to allow main thread stop
+ *
+ *  Return value: -
+ */
+void *
+thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
 	int cc = 0, ret, stop = 0, dlink_on = 0;
@@ -585,8 +613,7 @@ void *thread_update (void *arg)
 			// update, once every td
 			if (!prgset->quiet)	
 				(void)printf("\rNode Stats update  ");
-			if (!dlink_on)
-				scanNew();
+			scanNew();
 
 			break;
 		case -1:
