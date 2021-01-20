@@ -160,7 +160,7 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
  *
  *	Return: -
  */
-static inline void
+static void
 duplicateContainer(node_t* dlNode, struct containers * containers, cont_t ** cont) {
 	push((void**)&containers->cont, sizeof(cont_t));
 	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
@@ -178,18 +178,18 @@ duplicateContainer(node_t* dlNode, struct containers * containers, cont_t ** con
  *  refreshContainers() : move PID data from unrecognized container to
  * 						DockerLink passed data, refresh PIDs (happens sometimes)
  *
- *  Arguments: - Node with data from docker_link
- *  		   - Configuration structure
+ *  Arguments: - Configuration structure
  *
  *  Return: -
  */
 static void
-refreshContainers(node_t* dlNode, containers_t * containers) {
+refreshContainers(containers_t * containers) {
 
 	// NOTE, the first container is the new entry, we use address of ->next as holder
 	for (cont_t * cont = containers->cont; (cont->next); cont=cont->next){
 		// container id present, task found before info
-		if (dlNode->contid == cont->next->contid){
+		if (!strncmp(containers->cont->contid, cont->next->contid,
+				MIN(strlen(containers->cont->contid), strlen(cont->next->contid)))){
 
 			// Receive container list from old container
 			containers->cont->pids = cont->next->pids;
@@ -242,8 +242,8 @@ int node_findParams(node_t* node, struct containers * conts){
 					// if node pid = 0, psig is the name of the container coming from dockerlink
 					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
 						cont = imgcont->cont;
-						refreshContainers(node, conts); // refresh prematurely added containers
 						duplicateContainer(node, conts, &cont);
+						refreshContainers(conts); // refresh prematurely added containers
 						break;
 					}
 				}
@@ -270,8 +270,8 @@ int node_findParams(node_t* node, struct containers * conts){
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
 				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
-					refreshContainers(node, conts); // refresh prematurely added containers
 					duplicateContainer(node, conts, &cont);
+					refreshContainers(conts); // refresh prematurely added containers
 					break;
 				}
 			}
