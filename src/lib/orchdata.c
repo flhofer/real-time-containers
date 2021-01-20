@@ -322,7 +322,8 @@ int node_findParams(node_t* node, struct containers * conts){
 			cont->img = img;
 
 			// assign values
-			cont->contid = strdup(node->contid);
+			// CAN be null, should not happen, i.e. img & !cont
+			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
 			img->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
@@ -343,7 +344,8 @@ int node_findParams(node_t* node, struct containers * conts){
 		conts->nthreads++;
 		return 0;
 	}
-	else{ 
+	else
+	 if (node->pid) { // !=0 means not container or image
 		// no match found. and now?
 		printDbg("... container not found, trying PID scan\n");
 
@@ -360,30 +362,32 @@ int node_findParams(node_t* node, struct containers * conts){
 			curr = curr->next; 
 		}
 
-		if (!node->contid){
-			// no containerid, can't do anything
+		if (!node->contid || !node->psig){
+			// no container id and psig, can't do anything for reconstruction
+			if (curr)
+				return 0;
 			printDbg("... PID not found. Ignoring\n");
 			return -1;
 		}
 
-		// add new container
+		// add new container for the purpose of grouping
 		push((void**)&conts->cont, sizeof(cont_t));
 		cont = conts->cont;
 
 		// assign values
-		cont->contid = strdup(node->contid);
+		cont->contid = node->contid;  // keep string, unused will be freed (node_pop)
 		cont->status |= MSK_STATCCRT; // (created at runtime from node)
 		cont->rscs = conts->rscs;
 		cont->attr = conts->attr;
 
 		if (!curr){
-			// found? if not, create PID parameter entry
-			printDbg("... parameters not found, creating from PID and assigning container settings\n");
+			// config not found, create PID parameter entry
+			printDbg("... parameters not found, creating from PID settings and container\n");
 			// create new pidconfig
 			push((void**)&conts->pids, sizeof(pidc_t));
 			curr = conts->pids;
 
-			curr->psig = strdup(node->psig);
+			curr->psig = node->psig;  // keep string, unused will be freed (node_pop)
 			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 			curr->rscs = cont->rscs;
 			curr->attr = cont->attr;
@@ -397,15 +401,16 @@ int node_findParams(node_t* node, struct containers * conts){
 			curr->attr = cont->attr;
 
 			node->param = curr;
+			// update counter
+			conts->nthreads++;
 		}
 		else {
 			// found use it's values
+			free(node->psig);
 			node->psig = node->param->psig;
 		}
 		// pidconfig curr gets container config cont
 		curr->cont = cont;
-		// update counter
-		conts->nthreads++;
 	}
 
 	return -1;
