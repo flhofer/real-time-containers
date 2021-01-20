@@ -267,7 +267,7 @@ setPidResources_u(node_t * node) {
 	else{
 		// NO CGroups
 		if ((SCHED_DEADLINE == node->attr.sched_policy)
-				&& (SM_PADAPTIVE >= prgset->sched_mode)){
+				&& (SM_PADAPTIVE <= prgset->sched_mode)){
 			warn ("Can not set DL task to PID affinity when using G-EDF!");
 			node->status |= MSK_STATUPD;
 		}
