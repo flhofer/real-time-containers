@@ -3,6 +3,8 @@
 #include <numa.h>		// for numa free cpu-mask
 #include <time.h>		// time management and constants
 
+static void freeParm(cont_t * item);
+
 /* -------------------- COMMON, SHARED functions ----------------------*/
 
 // Programmable clock source values
@@ -148,44 +150,63 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 			 getTail((struct base *)*head), compar); 
 }
 
-static inline void duplicateContainer(node_t* node, struct containers * conts, cont_t ** cont) {
-	push((void**)&conts->cont, sizeof(cont_t));
+/*
+ *  duplicateContainer(): duplicate container configuration with data based on names
+ *  						data from DockerLink
+ *
+ *  Arguments: - Node with data from docker_link
+ *  		   - Configuration structure
+ *  		   - Pointer to newly created container
+ *
+ *	Return: -
+ */
+static inline void
+duplicateContainer(node_t* dlNode, struct containers * containers, cont_t ** cont) {
+	push((void**)&containers->cont, sizeof(cont_t));
 	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
-	(void)memcpy((void*)conts->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
+	(void)memcpy((void*)containers->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
 		sizeof(cont_t) - sizeof(cont_t *));
 	// update pointer to newly updated, assign id
-	*cont = conts->cont;
-	(*cont)->contid = strdup(node->contid);
+	*cont = containers->cont;
+	(*cont)->contid = strdup(dlNode->contid);
 
-	free(node->psig); // clear entry to avoid confusion
-	node->psig = NULL;
+	free(dlNode->psig); // clear entry to avoid confusion
+	dlNode->psig = NULL;
 }
 
+/*
+ *  refreshContainers() : move PID data from unrecognized container to
+ * 						DockerLink passed data, refresh PIDs (happens sometimes)
+ *
+ *  Arguments: - Node with data from docker_link
+ *  		   - Configuration structure
+ *
+ *  Return: -
+ */
 static void
-refreshContainers(node_t* node, struct containers * conts) {
+refreshContainers(node_t* dlNode, containers_t * containers) {
 
-	// NOTE, the first is the new entry
-	for (cont_t ** cont = &conts->cont->next; (*cont);){
+	// NOTE, the first container is the new entry, we use address of ->next as holder
+	for (cont_t * cont = containers->cont; (cont->next); cont=cont->next){
 		// container id present, task found before info
-		if (node->contid == (*cont)->contid){
+		if (dlNode->contid == cont->next->contid){
 
-			// update connected PIDs, unlink and add to new
-			for (; ((*cont)->pids) ; pop((void**)&(*cont)->pids)){
+			// Receive container list from old container
+			containers->cont->pids = cont->next->pids;
+			// remove old container
+			freeParm(cont->next);
+			pop((void**)&cont->next);
+
+			// update connected PIDs
+			for (pids_t * pids = containers->cont->pids; (pids) ; pids=pids->next){
 				//set update flag
-				(*cont)->pids->pid->status &= ~MSK_STATUPD;
+				pids->pid->status &= ~MSK_STATUPD;
 				//update container link
-				(*cont)->pids->pid->cont = conts->cont;
-				// add to new container list
-				push((void**)&conts->cont->pids, sizeof(pids_t));
-				conts->cont->pids->pid = (*cont)->pids->pid;
+				pids->pid->cont = containers->cont;
 			}
 
-			// remove old container
-			pop((void**)cont);
-			continue;
+			break;
 		}
-
-		cont=&(*cont)->next;
 	}
 }
 
@@ -213,7 +234,8 @@ int node_findParams(node_t* node, struct containers * conts){
 				if (imgcont->cont->contid && node->contid) {
 
 					if  (!strncmp(imgcont->cont->contid, node->contid,
-							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
+							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))
+							&& ((node->pid) || !(imgcont->cont->status & MSK_STATCCRT))) {
 						cont = imgcont->cont;
 						break;
 					}
@@ -242,7 +264,8 @@ int node_findParams(node_t* node, struct containers * conts){
 
 			if(cont->contid && node->contid) {
 				if (!strncmp(cont->contid, node->contid,
-						MIN(strlen(cont->contid), strlen(node->contid))))
+						MIN(strlen(cont->contid), strlen(node->contid)))
+						&& ((node->pid) || !(cont->status & MSK_STATCCRT)))
 					break;
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
@@ -349,6 +372,7 @@ int node_findParams(node_t* node, struct containers * conts){
 
 		// assign values
 		cont->contid = strdup(node->contid);
+		cont->status |= MSK_STATCCRT; // (created at runtime from node)
 		cont->rscs = conts->rscs;
 		cont->attr = conts->attr;
 
