@@ -20,8 +20,9 @@
 	#define MSK_STATWCUD		0x4	// WCET changed for PID
 	#define MSK_STATSIBL		0x8 // PID has sibilings in container
 
-	// masks for the status of configurations
+	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
+	#define	MSK_STATCCRT		0x2 // Configuration created from Runtime
 
 	// masks for the status of PIDs (node_t) and configurations
 	#define MSK_STATSHAT		0x10// shared attribute configuration
@@ -53,7 +54,6 @@
 		DM_CMDLINE = 0,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect PIDs
 		DM_CGRP,	// Use CGroup to detect PIDs of processes
-		DM_DLEVNT	// docker link event
 	};
 
 	enum aff_mode {
