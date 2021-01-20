@@ -337,7 +337,7 @@ setPidResources(node_t * node) {
 	// check if we have siblings in container TODO: not all cases are found
 	int hasSiblings = node->status & MSK_STATSIBL;
 	for (node_t * item = nhead; (item) && !hasSiblings; item=item->next)
-		if (item->param && item->param->cont
+		if (item->param && item->param->cont && node->param
 			&& item->param->cont == node->param->cont){
 			hasSiblings = MSK_STATSIBL;
 			item->status |= MSK_STATSIBL;
