@@ -546,7 +546,7 @@ START_TEST(orchdata_findparams_fail)
 {	
 	// sometimes null, sometimes with id, but never fitting -> check segfaults
 	node_push(&nhead);
-	nhead->pid = 1;
+	nhead->pid = _i ? 1 : 0;
 	nhead->psig = _i 		? NULL : strdup("wleep 1 as");
 	nhead->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
 	nhead->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");

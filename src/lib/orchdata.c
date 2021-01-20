@@ -411,6 +411,7 @@ int node_findParams(node_t* node, struct containers * conts){
 		}
 		// pidconfig curr gets container config cont
 		curr->cont = cont;
+		return 0;
 	}
 
 	return -1;
