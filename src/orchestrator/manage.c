@@ -292,25 +292,26 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 		// better fit found
 
 		// move all threads of same container
-		for (node_t * item = nhead; ((item)); item=item->next )
-			if (item->param && item->param->cont
-					&& item->param->cont == node->param->cont){
+		if (node->param)
+			for (node_t * item = nhead; ((item)); item=item->next )
+				if (item->param && item->param->cont
+						&& item->param->cont == node->param->cont){
 
-				item->mon.assigned = ntrc->affinity;
-				if (!setPidAffinityAssinged (item)){
-					item->mon.resched++;
-					continue;
-				}
-				// Reallocate did not work, undo
-				item->mon.assigned = trc->affinity;
-				for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
-					if (bitem->param && bitem->param->cont
-							&& bitem->param->cont == item->param->cont){
-						bitem->mon.assigned = trc->affinity;
-						(void)setPidAffinityAssinged (bitem);
+					item->mon.assigned = ntrc->affinity;
+					if (!setPidAffinityAssinged (item)){
+						item->mon.resched++;
+						continue;
 					}
-				return -1;
-			}
+					// Reallocate did not work, undo
+					item->mon.assigned = trc->affinity;
+					for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
+						if (bitem->param && bitem->param->cont
+								&& bitem->param->cont == item->param->cont){
+							bitem->mon.assigned = trc->affinity;
+							(void)setPidAffinityAssinged (bitem);
+						}
+					return -1;
+				}
 
 		// all done, recompute CPU-times
 		(void)recomputeCPUTimes(ntrc->affinity);
@@ -796,7 +797,8 @@ updateSiblings(node_t * node){
 
 	node_t * mainp = node;
 
-	if ((node->status & MSK_STATSIBL) && (node->param)
+	if (// (node->status & MSK_STATSIBL) && // removed temporarily as flag is not reliable
+			(node->param)
 			&& (node->param->cont)){
 
 		uint64_t smp = NSEC_PER_SEC;
@@ -810,7 +812,9 @@ updateSiblings(node_t * node){
 					}
 				}
 				else
-					if (item->mon.cdf_period < smp){
+					if (policy_is_realtime(item->attr.sched_policy)
+							&& (item->mon.cdf_period)	// the "periodic" task is fastest, and 0 siblings are to ignore
+							&& item->mon.cdf_period < smp){
 						mainp = item;
 						smp = item->mon.cdf_period;
 					}
