@@ -329,7 +329,7 @@ setPidResources(node_t * node) {
 	else
 		warn("SetPidResources: Container not specified");
 
-	if (!node_findParams(node, contparm))  // parameter set found in list -> assign and update
+	if (!findPidParameters(node, contparm))  // parameter set found in list -> assign and update
 		setPidResources_u(node);
 	else
 		node->status |= MSK_STATUPD | MSK_STATNMTCH;
@@ -950,4 +950,263 @@ recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
 int
 recomputeCPUTimes(int32_t CPUno) {
 	return recomputeCPUTimes_u(CPUno, NULL);
+}
+
+/* ------------------- Node configuration management from here ---------------------------- */
+
+/*
+ *  duplicateOrRefreshContainer(): duplicate or container configuration with data based on names
+ *  						data from DockerLink
+ *
+ *  Arguments: - Node with data from docker_link
+ *  		   - Configuration structure
+ *  		   - Pointer to container/image configuration found by search
+ *
+ *	Return: -
+ */
+static void
+duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, cont_t * dlCont) {
+
+	cont_t * cont;
+
+	// check if the container has already been added with ID, update PIDs
+	for (cont = configuration->cont; (cont); cont=cont->next){
+		if (cont != dlCont && (cont->next->status & MSK_STATCCRT)
+				&& !strncmp(cont->contid, cont->next->contid,
+						MIN(strlen(cont->contid), strlen(dlCont->contid))))
+			break;
+	}
+	if (!cont){
+		// not found?
+		push((void**)&configuration->cont, sizeof(cont_t));
+		cont = configuration->cont;
+	}
+
+	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
+	(void)memcpy(((void*)cont) + sizeof(cont_t *), ((void*)dlCont) + sizeof(cont_t *),
+			sizeof(cont_t) - sizeof(cont_t *));
+	// update pointer to newly updated, assign id, needed mostly for new creation
+	cont->contid = dlNode->contid;
+
+	// update connected PIDs (if present)
+	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
+		//set update flag
+		pids->pid->status &= ~MSK_STATUPD;
+		//update container link and shared resources
+		pids->pid->rscs = cont->rscs;
+		pids->pid->attr = cont->attr;
+	}
+
+	free(dlNode->psig); // clear entry to avoid confusion
+	dlNode->psig = NULL;
+}
+
+/*
+ *  findPidParameters(): assigns the PID parameters list of a running container
+ *
+ *  Arguments: - node to chek for matching parameters
+ *  		   - pid configuration list head
+ *
+ *  Return value: 0 if successful, -1 if unsuccessful
+ */
+int
+findPidParameters(node_t* node, struct containers * conts){
+
+	struct img_parm * img = conts->img;
+	struct cont_parm * cont = NULL;
+	// check for image match first
+	while (NULL != img) {
+
+		// TODO: check what if image is a name? does that reflect values passed by DL?
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
+				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
+			conts_t * imgcont = img->conts;
+			printDbg("Image match %s\n", img->imgid);
+			// check for container match
+			while (NULL != imgcont) {
+				if (imgcont->cont->contid && node->contid) {
+
+					if  (!strncmp(imgcont->cont->contid, node->contid,
+							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))
+							&& ((node->pid) || !(imgcont->cont->status & MSK_STATCCRT))) {
+						cont = imgcont->cont;
+						break;
+					}
+					// if node pid = 0, psig is the name of the container coming from dockerlink
+					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
+						cont = imgcont->cont;
+						duplicateOrRefreshContainer(node, conts, &cont);
+						break;
+					}
+				}
+				imgcont = imgcont->next;
+			}
+			break; // if imgid is found, keep trace in img -> default if nothing else found
+		}
+		img = img->next;
+	}
+
+	// we might have found the image, but still
+	// not in the images, check all containers
+	if (!cont) {
+		cont = conts->cont;
+
+		// check for container match
+		while (NULL != cont) {
+
+			if(cont->contid && node->contid) {
+				if (!strncmp(cont->contid, node->contid,
+						MIN(strlen(cont->contid), strlen(node->contid)))
+						&& ((node->pid) || !(cont->status & MSK_STATCCRT)))
+					break;
+
+				// if node pid = 0, psig is the name of the container coming from dockerlink
+				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
+					duplicateOrRefreshContainer(node, conts, &cont);
+					refreshContainers(conts); // refresh prematurely added containers
+					break;
+				}
+			}
+			cont = cont->next;
+		}
+	}
+
+	// did we find a container or image match?
+	if (img || cont) {
+		// read all associated PIDs. Is it there?
+
+		// assign pids from cont or img, depending what is found
+		int useimg = (img && !cont);
+		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
+
+		// check the first result
+		while (NULL != curr) {
+			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+				// found a matching pid inc root container
+				node->param = curr->pid;
+				return 0;
+			}
+			curr = curr->next;
+		}
+
+		// if both were found, check again in image
+		if (img && cont){
+			curr = img->pids;
+			while (NULL != curr) {
+				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+					// found a matching pid inc root container
+					node->param = curr->pid;
+					return 0;
+				}
+				curr = curr->next;
+			}
+		}
+
+		// found? if not, create PID parameter entry
+		printDbg("... parameters not found, creating from PID and assigning container settings\n");
+		push((void**)&conts->pids, sizeof(pidc_t));
+		if (useimg) {
+			// add new container unmatched container signature
+			push((void**)&conts->cont, sizeof(cont_t));
+			push((void**)&img->conts, sizeof(conts_t));
+			img->conts->cont = conts->cont;
+			cont = conts->cont;
+			cont->img = img;
+
+			// assign values
+			// CAN be null, should not happen, i.e. img & !cont
+			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
+			img->status |= MSK_STATSHAT | MSK_STATSHRC;
+			cont->rscs = img->rscs;
+			cont->attr = img->attr;
+		}
+
+		// add new PID to container PIDs
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+		conts->pids->rscs = cont->rscs;
+		conts->pids->attr = cont->attr;
+
+		// Assign configuration to node
+		node->param = conts->pids;
+		node->param->img = img;
+		node->param->cont = cont;
+		node->psig = node->param->psig;
+		// update counter
+		if (node->pid)
+			conts->nthreads++;
+		return 0;
+	}
+	else
+	 if (node->pid) { // !=0 means not container or image
+		// no match found. and now?
+		printDbg("... container not found, trying PID scan\n");
+
+		// start from scratch in the PID config list only. Maybe Container ID is new
+		struct pidc_parm * curr = conts->pids;
+
+		while (NULL != curr) {
+			if(curr->psig && node->psig && strstr(node->psig, curr->psig)
+				&& !(curr->cont) && !(curr->img) ) { // only unasociated items
+				warn("assigning configuration to unrelated PID");
+				node->param = curr; // TODO: duplicate PIDC
+				break;
+			}
+			curr = curr->next;
+		}
+
+		if (!node->contid || !node->psig){
+			// no container id and psig, can't do anything for reconstruction
+			if (curr)
+				return 0;
+			printDbg("... PID not found. Ignoring\n");
+			return -1;
+		}
+
+		// add new container for the purpose of grouping
+		push((void**)&conts->cont, sizeof(cont_t));
+		cont = conts->cont;
+
+		// assign values
+		cont->contid = node->contid;  // keep string, unused will be freed (node_pop)
+		cont->status |= MSK_STATCCRT; // (created at runtime from node)
+		cont->rscs = conts->rscs;
+		cont->attr = conts->attr;
+
+		if (!curr){
+			// config not found, create PID parameter entry
+			printDbg("... parameters not found, creating from PID settings and container\n");
+			// create new pidconfig
+			push((void**)&conts->pids, sizeof(pidc_t));
+			curr = conts->pids;
+
+			curr->psig = node->psig;  // keep string, unused will be freed (node_pop)
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->rscs = cont->rscs;
+			curr->attr = cont->attr;
+
+
+			// add new PID to container PIDs
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = curr; // add new empty item -> pid list, container pids list
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->rscs = cont->rscs;
+			curr->attr = cont->attr;
+
+			node->param = curr;
+			// update counter
+			conts->nthreads++;
+		}
+		else {
+			// found use it's values
+			free(node->psig);
+			node->psig = node->param->psig;
+		}
+		// pidconfig curr gets container config cont
+		curr->cont = cont;
+		return 0;
+	}
+
+	return -1;
 }

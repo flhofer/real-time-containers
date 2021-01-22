@@ -41,5 +41,10 @@
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
 	int	recomputeCPUTimes(int32_t CPUno);		// recompute UL for CPU
 	int	setPidAffinityAssinged (node_t * node);	// update PID affinity in run-time
+
 	uint64_t findPeriodMatch(uint64_t cdf_Period);	// find matching period in 1/40ths
+
+	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
+	int findPidParameters(node_t* node, containers_t * conts);
+
 #endif /* RESMGMT_H_ */

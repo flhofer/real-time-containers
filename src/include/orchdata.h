@@ -262,12 +262,10 @@
 	void freeContParm(containers_t * contparm);
 	void freePrgSet(prgset_t * prgset);
 	void freeTracer(resTracer_t ** rHead);
+	void freeParm(cont_t * item);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs
 	void node_push(node_t ** head);
 	void node_pop(node_t ** head);
-
-	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
-	int node_findParams(node_t* node, containers_t * conts);
 #endif

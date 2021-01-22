@@ -27,7 +27,7 @@
 
 /// TEST CASE -> check return value with different resources & schedules
 /// EXPECTED -> comparison value OK
-START_TEST(orchestrator_resmgnt_checkValue)
+START_TEST(checkValueTest)
 {	
 	resTracer_t res = {
 			NULL, 0, 0.0, MSK_STATHRMC, 0, 0
@@ -78,7 +78,7 @@ START_TEST(orchestrator_resmgnt_checkValue)
 END_TEST
 
 static void
-orchestrator_resmgnt_setup() {
+setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
@@ -87,7 +87,7 @@ orchestrator_resmgnt_setup() {
 }
 
 static void
-orchestrator_resmgnt_teardown() {
+teardown() {
 	// free memory
 	while (rHead)
 		pop((void**)&rHead);
@@ -99,7 +99,7 @@ orchestrator_resmgnt_teardown() {
 
 /// TEST CASE -> check correct creation of resource allocation
 /// EXPECTED -> one resource matching the selected CPU
-START_TEST(orchestrator_resmgnt_createTracer)
+START_TEST(createTracerTest)
 {
 
 	// test filling CPU0
@@ -124,7 +124,7 @@ END_TEST
 
 /// TEST CASE -> check grepping of low resource tracer
 /// EXPECTED -> one resource matching the lowest U-CPU
-START_TEST(orchestrator_resmgnt_grepTracer)
+START_TEST(grepTracerTest)
 {
 
 	// test filling CPU0
@@ -146,7 +146,7 @@ END_TEST
 
 /// TEST CASE -> check getting of resource tracer
 /// EXPECTED -> one resource matching the CPU id
-START_TEST(orchestrator_resmgnt_getTracer)
+START_TEST(getTracerTest)
 {
 
 	// test filling CPU0
@@ -166,7 +166,7 @@ END_TEST
 
 /// TEST CASE -> check best fit for a certain period
 /// EXPECTED -> one resource matching the CPU id
-START_TEST(orchestrator_resmgnt_checkPeriod)
+START_TEST(checkPeriodTest)
 {
 	// test filling CPU0
 	createResTracer();
@@ -212,7 +212,7 @@ END_TEST
 
 /// TEST CASE -> check best fit for a certain period
 /// EXPECTED -> one resource matching the CPU id
-START_TEST(orchestrator_resmgnt_checkPeriod_R)
+START_TEST(checkPeriod_RTest)
 {
 
 	// test filling CPU0
@@ -267,7 +267,7 @@ struct {
 	{925000000, 929473927},	// bit higher 100s + 1/40th
 };
 
-START_TEST(orchestrator_resmgnt_findPeriod)
+START_TEST(findPeriodTest)
 {
 	uint64_t ms = findPeriodMatch(findPeriodVal[_i].measured);
 
@@ -275,7 +275,7 @@ START_TEST(orchestrator_resmgnt_findPeriod)
 }
 END_TEST
 
-START_TEST(orchestrator_resmgnt_recomputeTimes)
+START_TEST(recomputeTimesTest)
 {
 	createResTracer();
 
@@ -310,33 +310,317 @@ START_TEST(orchestrator_resmgnt_recomputeTimes)
 }
 END_TEST
 
+static void tc5_setup() {
+
+	cont_t * cont;
+	{
+	// container
+	push((void**)&contparm->cont, sizeof(cont_t));
+	cont = contparm->cont;
+	cont->contid= strdup("a2aa8c37ce4ca2aa8c37ce4c");
+
+
+		const char *pids[] = {	"sleep",
+								"weep",
+								"hard 5",
+								NULL };
+
+		cont->rscs = contparm->rscs;
+		cont->attr = contparm->attr;
+
+		const char ** pidsig = pids;
+		while (*pidsig) {
+			// new pid
+			push((void**)&contparm->pids, sizeof(pidc_t));
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
+			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;
+			pidsig++;
+		}
+
+	}
+
+	// image by digest
+	push((void**)&contparm->img, sizeof(img_t));
+	img_t * img = contparm->img;
+	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
+	img->rscs = contparm->rscs;
+	img->attr = contparm->attr;
+
+	// image by tag
+	push((void**)&contparm->img, sizeof(img_t));
+	img = contparm->img;
+	img->imgid= strdup("testimg");
+	img->rscs = contparm->rscs;
+	img->attr = contparm->attr;
+
+	{
+		// add one more container
+		push((void**)&contparm->cont, sizeof(cont_t));
+		cont = contparm->cont;
+		cont->contid=strdup("d7408531a3b4d7408531a3b4");
+		cont->rscs = img->rscs;
+		cont->attr = img->attr;
+
+		const char *pids[] = {	"p 4",
+								NULL };
+		const char ** pidsig = pids;
+		while (*pidsig) {
+			// new pid
+			push((void**)&contparm->pids, sizeof(pidc_t));
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
+			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;
+			pidsig++;
+		}
+	}
+
+
+	{
+		// add one more container
+		push((void**)&contparm->cont, sizeof(cont_t));
+		cont = contparm->cont;
+		cont->contid=strdup("mytestcontainer");
+		cont->rscs = img->rscs;
+		cont->attr = img->attr;
+
+		const char *pids[] = {	"rt-testapp",
+								NULL };
+		const char ** pidsig = pids;
+		while (*pidsig) {
+			// new pid
+			push((void**)&contparm->pids, sizeof(pidc_t));
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
+			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;
+			pidsig++;
+		}
+	}
+
+	// relate to last container - image by tag
+	push((void**)&img->conts, sizeof(conts_t));
+	img->conts->cont = cont;
+
+}
+
+static void tc5_teardown() {
+
+	while (contparm->img){
+		while (contparm->img->conts)
+			pop((void**)&contparm->img->conts);
+
+		while (contparm->img->pids)
+			pop((void**)&contparm->img->pids);
+
+		free (contparm->img->imgid);
+		pop((void**)&contparm->img);
+	}
+
+	while (contparm->cont){
+		while (contparm->cont->pids)
+			pop((void**)&contparm->cont->pids);
+
+		free (contparm->cont->contid);
+		pop((void**)&contparm->cont);
+	}
+
+	while (contparm->pids) {
+		free(contparm->pids->psig);
+		pop((void **)&contparm->pids);
+	}
+
+	node_pop(&nhead);
+}
+
+static void findparamsCheck (int imgtest, int conttest) {
+
+	int retv = findPidParameters(nhead , contparm);
+	ck_assert_int_eq(retv, 0);
+	ck_assert(nhead->param);
+	ck_assert(nhead->param->rscs);
+	ck_assert(nhead->param->attr);
+
+	ck_assert((NULL != nhead->param->img) ^ !(imgtest));
+	if (imgtest){
+		ck_assert(nhead->param->img->imgid);
+		ck_assert_str_eq(nhead->param->img->imgid, nhead->imgid);
+		ck_assert(nhead->param->img->rscs);
+		ck_assert(nhead->param->img->attr);
+	}
+
+	if (!(conttest) && !(imgtest)){
+		ck_assert(!nhead->param->cont);
+		// both neg-> nothing to do here. Exit
+		return;
+	}
+
+	// if only container off, container is created. Test for presence
+	ck_assert(nhead->param->cont);
+	// if test, tesst for id only. Rest test anyway as created for img
+	if (conttest) {
+		ck_assert_str_eq(nhead->param->cont->contid, nhead->contid);
+		ck_assert(nhead->param->cont->contid);
+	}
+
+	ck_assert(nhead->param->cont->rscs);
+	ck_assert(nhead->param->cont->attr);
+}
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that all parameters are found as expected
+START_TEST(findparamsTest)
+{
+	// complete match, center, beginning, end
+	static const char *sigs[] = { "hard 5", "do we sleep or more", "weep 1", "keep 4"};
+
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
+
+	findparamsCheck( 0, 0 );
+
+	node_pop(&nhead);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that all parameters are found as expected
+START_TEST(findparamsContTest)
+{
+	// some match, 2,3
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
+
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
+	nhead->contid = (_i % 2) == 1 ? strdup("a2aa8c37ce4ca2aa8c37ce4c") : strdup("d7408531a3b4d7408531a3b4");
+
+	findparamsCheck( 0, 1 );
+
+	node_pop(&nhead);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that all parameters are found as expected
+START_TEST(findparamsImageTest)
+{
+	// some match, 2,3
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
+
+	node_push(&nhead);
+	nhead->pid = 1;
+	nhead->psig = strdup(sigs[_i]);
+	nhead->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
+	nhead->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
+
+	findparamsCheck( 1, (_i<2) );
+
+	node_pop(&nhead);
+}
+END_TEST
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that all parameters are found as expected
+START_TEST(findparamsFailTest)
+{
+	// sometimes null, sometimes with id, but never fitting -> check segfaults
+	node_push(&nhead);
+	nhead->pid = _i ? 1 : 0;
+	nhead->psig = _i 		? NULL : strdup("wleep 1 as");
+	nhead->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
+	nhead->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
+	int retv = findPidParameters(nhead , contparm);
+
+	ck_assert_int_eq(retv, -1);
+	ck_assert(!nhead->param);
+
+	node_pop(&nhead);
+}
+END_TEST
+
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that with data from dockerlink the function finds the parameters
+START_TEST(findparams_linkTest)
+{
+	node_push(&nhead);
+	nhead->pid = 0;
+	nhead->psig = NULL;
+	nhead->contid = strdup("d7408531a3b4d7408531a3b4");
+	nhead->imgid  = strdup("51c3cc77fcf051c3cc77fcf0");
+
+	findparamsCheck( 1, 1 );
+
+	node_pop(&nhead);
+}
+END_TEST
+
+
+/// TEST CASE -> test configuration find
+/// EXPECTED -> verifies that with data from dockerlink the function finds the parameters, container name
+START_TEST(findparams_link2Test)
+{
+	node_push(&nhead);
+	nhead->pid = 0;
+	nhead->psig = strdup("mytestcontainer");
+	nhead->contid = strdup("32aeede2352d57f52");
+	nhead->imgid  = strdup("c3cc77fcf051c3cc7");
+
+	findparamsCheck( 0, 1 );
+
+	// fix for r/o test -> duplicate manual free
+	nhead->param->cont->pids = NULL;
+
+	node_pop(&nhead);
+}
+END_TEST
+
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
-	tcase_add_test(tc1, orchestrator_resmgnt_checkValue);
+	tcase_add_test(tc1, checkValueTest);
 
     suite_add_tcase(s, tc1);
 
     TCase *tc2 = tcase_create("resmgnt_tracing");
-	tcase_add_checked_fixture(tc2, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
-	tcase_add_test(tc2, orchestrator_resmgnt_createTracer);
-	tcase_add_test(tc2, orchestrator_resmgnt_getTracer);
-	tcase_add_test(tc2, orchestrator_resmgnt_grepTracer);
+	tcase_add_checked_fixture(tc2, setup, teardown);
+	tcase_add_test(tc2, createTracerTest);
+	tcase_add_test(tc2, getTracerTest);
+	tcase_add_test(tc2, grepTracerTest);
 
     suite_add_tcase(s, tc2);
 
     TCase *tc3 = tcase_create("resmgnt_checkPeriod");
-	tcase_add_checked_fixture(tc3, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
-	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod);
-	tcase_add_test(tc3, orchestrator_resmgnt_checkPeriod_R);
-	tcase_add_loop_test(tc3, orchestrator_resmgnt_findPeriod, 0, 6);
+	tcase_add_checked_fixture(tc3, setup, teardown);
+	tcase_add_test(tc3, checkPeriodTest);
+	tcase_add_test(tc3, checkPeriod_RTest);
+	tcase_add_loop_test(tc3, findPeriodTest, 0, 6);
 
     suite_add_tcase(s, tc3);
 
     TCase *tc4 = tcase_create("resmgnt_recomputeTimes");
-	tcase_add_checked_fixture(tc4, orchestrator_resmgnt_setup, orchestrator_resmgnt_teardown);
-	tcase_add_test(tc4, orchestrator_resmgnt_recomputeTimes);
+	tcase_add_checked_fixture(tc4, setup, teardown);
+	tcase_add_test(tc4, recomputeTimesTest);
 
     suite_add_tcase(s, tc4);
+
+	TCase *tc5 = tcase_create("resmgnt_findparams");
+	tcase_add_unchecked_fixture(tc5, setup, teardown);
+	tcase_add_checked_fixture(tc5, tc5_setup, tc5_teardown);
+	tcase_add_loop_test(tc5, findparamsTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsContTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsImageTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsFailTest, 0, 4);
+	tcase_add_test(tc5, findparams_linkTest);
+	tcase_add_test(tc5, findparams_link2Test);
+
+	suite_add_tcase(s, tc5);
 
 
 	return;
