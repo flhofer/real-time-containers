@@ -1185,7 +1185,8 @@ manageSched(){
     }
 
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		trc->Umin = MIN (trc->Umin, trc->U);
+		if (0.0 != trc->U) // ignore 0 min CPU
+			trc->Umin = MIN (trc->Umin, trc->U);
 		trc->Umax = MAX (trc->Umax, trc->U);
 		if (0.0 == trc->Uavg)
 			trc->Uavg = trc->U;
@@ -1212,7 +1213,7 @@ dumpStats (){
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE, FIFO and RR PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"
-					"PID - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
+					"PID - Rsh - Smpl - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
 			        "----------------------------------------------------------------------------------\n",
 					scount );
 
@@ -1251,7 +1252,7 @@ dumpStats (){
 		}
 
 	(void)printf( "\nStatistics on resource usage:\n"
-				    "CPU : AVG (MIN/MAX)"
+				    "CPU : AVG (MIN/MAX)\n"
 			        "----------------------------------------------------------------------------------\n");
 
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
