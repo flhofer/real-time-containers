@@ -3,7 +3,7 @@
 #ifndef ORCHESTRATOR_H_
 	#define ORCHESTRATOR_H_
 
-	#define PRGNAME "DC (adaptive) static orchestrator"
+	#define PRGNAME "PDO - Probabilistic dynamic orchestrator"
 	#ifndef VERSION
 		#define VERSION "-- UNVERSIONED --"
 	#endif

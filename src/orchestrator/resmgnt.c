@@ -22,6 +22,7 @@
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"	// common definitions and functions
+#include "rt-sched.h"	// scheduling attribute struct
 
 #define RTLIM_UNL	"-1"		// out of 10000000 = 95%
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
@@ -962,17 +963,17 @@ recomputeCPUTimes(int32_t CPUno) {
  *  		   - Configuration structure
  *  		   - Pointer to container/image configuration found by search
  *
- *	Return: -
+ *	Return: - pointer to duplicate or refreshed container
  */
-static void
+static cont_t *
 duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, cont_t * dlCont) {
 
 	cont_t * cont;
 
 	// check if the container has already been added with ID, update PIDs
 	for (cont = configuration->cont; (cont); cont=cont->next){
-		if (cont != dlCont && (cont->next->status & MSK_STATCCRT)
-				&& !strncmp(cont->contid, cont->next->contid,
+		if (cont != dlCont && (cont->status & MSK_STATCCRT)
+				&& !strncmp(cont->contid, cont->contid,
 						MIN(strlen(cont->contid), strlen(dlCont->contid))))
 			break;
 	}
@@ -980,25 +981,98 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		// not found?
 		push((void**)&configuration->cont, sizeof(cont_t));
 		cont = configuration->cont;
+
+		cont->contid = dlNode->contid; // tranfer to avoid 12 vs 64 len issue
 	}
 
-	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
-	(void)memcpy(((void*)cont) + sizeof(cont_t *), ((void*)dlCont) + sizeof(cont_t *),
-			sizeof(cont_t) - sizeof(cont_t *));
-	// update pointer to newly updated, assign id, needed mostly for new creation
-	cont->contid = dlNode->contid;
+	// duplicate resources if needed
+	cont->status = dlCont->status;
+	if (!(cont->status & MSK_STATSHAT)){
+		cont->attr = malloc(sizeof(struct sched_attr));
+		(void)memcpy(cont->attr, dlCont->attr, sizeof(struct sched_attr));
+	}
+	else
+		cont->attr = dlCont->attr;
 
-	// update connected PIDs (if present)
+	if (!(cont->status & MSK_STATSHRC)){
+		cont->rscs = malloc(sizeof(struct sched_rscs));
+		(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
+		cont->rscs->affinity_mask = numa_allocate_cpumask();
+		if (dlCont->rscs->affinity_mask)
+			numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+	}
+	else
+		cont->rscs = dlCont->rscs;
+
+	// fill image field
+	cont->img = dlCont->img;
+	if (cont->img){
+		push((void**)&cont->img->conts, sizeof(conts_t));
+		cont->img->conts->cont = cont;
+	}
+
+	// update connected PIDs (if present), they share configuration with the container (= update)
 	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
-		//set update flag
-		pids->pid->status &= ~MSK_STATUPD;
 		//update container link and shared resources
-		pids->pid->rscs = cont->rscs;
 		pids->pid->attr = cont->attr;
+		pids->pid->rscs = cont->rscs;
+		pids->pid->img = cont->img;
+
+		// fill image field
+		pids->pid->img = cont->img;
+		if (cont->img){
+			push((void**)&cont->img->pids, sizeof(pids_t));
+			cont->img->pids->pid = pids->pid;
+		}
 	}
+
+	// duplicate Original container PIDs (if present)
+	for (pids_t * pids = dlCont->pids; (pids) ; pids=pids->next){
+
+		// add link to pid and pid
+		push((void**)&cont->pids, sizeof(pids_t));
+		push((void**)&configuration->pids, sizeof(pidc_t));
+		cont->pids->pid=configuration->pids;
+
+		configuration->pids->status = pids->pid->status;
+
+		if (!(configuration->pids->status & MSK_STATSHAT)){
+			configuration->pids->attr = malloc(sizeof(struct sched_attr));
+			(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
+		}
+		else
+			configuration->pids->attr = pids->pid->attr;
+
+
+		if (!(cont->status & MSK_STATSHRC)){
+			configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
+			(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
+			configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
+			if (pids->pid->rscs->affinity_mask)
+				numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+		}
+		else
+			configuration->pids->rscs = pids->pid->rscs;
+
+		// fill image field
+		configuration->pids->img = pids->pid->img;
+		if (pids->pid->img){
+			push((void**)&configuration->pids->img->pids, sizeof(pids_t));
+			configuration->pids->img->pids->pid = configuration->pids;
+		}
+	}
+
+	// update all running nodes
+	for (node_t * item = nhead; (item); item=item->next)
+		if (item->param && item->param->cont
+				&& item->param->cont == cont)
+			//set update flag
+			item->status &= ~MSK_STATUPD;
 
 	free(dlNode->psig); // clear entry to avoid confusion
 	dlNode->psig = NULL;
+
+	return cont;
 }
 
 /*
@@ -1035,7 +1109,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 					// if node pid = 0, psig is the name of the container coming from dockerlink
 					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
 						cont = imgcont->cont;
-						duplicateOrRefreshContainer(node, configuration, cont);
+						cont = duplicateOrRefreshContainer(node, configuration, cont);
 						break;
 					}
 				}
@@ -1062,7 +1136,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
 				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
-					duplicateOrRefreshContainer(node, configuration, cont);
+					cont = duplicateOrRefreshContainer(node, configuration, cont);
 					break;
 				}
 			}
