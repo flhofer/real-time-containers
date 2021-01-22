@@ -637,8 +637,11 @@ createResTracer(){
 			push((void**)&rHead, sizeof(struct resTracer));
 			rHead->affinity = i;
 			rHead->status = MSK_STATHRMC;
-			rHead->U = 0.0;
-			rHead->basePeriod = 0;
+//			rHead->U = 0.0;
+//			rHead->Umax = 0.0;
+			rHead->Umin = 1.0;
+//			rHead->Uavg = 0.0;
+//			rHead->basePeriod = 0;
 	}
 }
 

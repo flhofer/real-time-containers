@@ -143,6 +143,10 @@
 		int 	 status;		// generic status info
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
+		// used during runtime for stats
+		float	 Umin;			// utilization factor
+		float	 Uavg;			// utilization factor
+		float	 Umax;			// utilization factor
 	} resTracer_t;
 
 	typedef struct sched_mon { // actual values for monitoring

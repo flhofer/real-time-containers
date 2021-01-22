@@ -1177,6 +1177,15 @@ manageSched(){
 		}
     }
 
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		trc->Umin = MIN (trc->Umin, trc->U);
+		trc->Umax = MAX (trc->Umax, trc->U);
+		if (0.0 == trc->Uavg)
+			trc->Uavg = trc->U;
+		else
+			trc->Uavg = trc->Uavg * 0.9 + trc->U * 0.1;
+	}
+
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
@@ -1235,11 +1244,13 @@ dumpStats (){
 		}
 
 	(void)printf( "\nStatistics on resource usage:\n"
+				    "CPU : AVG (MIN/MAX)"
 			        "----------------------------------------------------------------------------------\n");
 
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		recomputeCPUTimes(trc->affinity);
-		(void)printf( "CPU %d: %3.2f%%\n", trc->affinity, trc->U * 100);
+		(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
+				trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
 	}
 }
 
