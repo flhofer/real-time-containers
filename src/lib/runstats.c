@@ -847,9 +847,9 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 		size_t maxbin = gsl_histogram_max_bin(*h);
 		// check mean is within 10-80% of range
 		if (((*h)->n * 2 > maxbin * 10)
-			|| ((*h)->n * 8 < maxbin * 10)
-		// check if there is enough space around sigma to make it significant
-			|| (gsl_histogram_max(*h) - gsl_histogram_min(*h) < gsl_histogram_sigma(*h))){
+			|| ((*h)->n * 8 < maxbin * 10)){
+//		// check if there is enough space around sigma to make it significant
+//			|| (gsl_histogram_max(*h) - gsl_histogram_min(*h) < gsl_histogram_sigma(*h))){
 				if ((runstats_histFit(h))){
 					warn("Curve fitting histogram bin adaptation error");
 					// TODO: reinit?
