@@ -320,6 +320,7 @@ static void tc5_setupUnchecked() {
 
 	contparm->rscs = malloc(sizeof(struct sched_rscs)); // allocate dummy structures
 	contparm->attr = malloc(sizeof(struct sched_attr)); // allocate
+	contparm->rscs->affinity_mask = NULL;
 
 	cont_t * cont;
 	{
