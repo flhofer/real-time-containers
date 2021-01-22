@@ -310,7 +310,6 @@ START_TEST(recomputeTimesTest)
 }
 END_TEST
 
-/// Static setup for all tests in the following batch
 static void tc5_setupUnchecked() {
 	contparm = malloc (sizeof(containers_t));
 	contparm->img = NULL; // locals are not initialized
@@ -321,15 +320,6 @@ static void tc5_setupUnchecked() {
 
 	contparm->rscs = malloc(sizeof(struct sched_rscs)); // allocate dummy structures
 	contparm->attr = malloc(sizeof(struct sched_attr)); // allocate
-}
-
-static void tc5_teardownUnchecked() {
-	free(contparm->rscs);
-	free(contparm->attr);
-	free(contparm);
-}
-
-static void tc5_setup() {
 
 	cont_t * cont;
 	{
@@ -344,6 +334,7 @@ static void tc5_setup() {
 								"hard 5",
 								NULL };
 
+		cont->status = MSK_STATSHAT | MSK_STATSHRC;
 		cont->rscs = contparm->rscs;
 		cont->attr = contparm->attr;
 
@@ -354,6 +345,7 @@ static void tc5_setup() {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
 			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
 			pidsig++;
@@ -365,6 +357,7 @@ static void tc5_setup() {
 	push((void**)&contparm->img, sizeof(img_t));
 	img_t * img = contparm->img;
 	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
+	img->status = MSK_STATSHAT | MSK_STATSHRC;
 	img->rscs = contparm->rscs;
 	img->attr = contparm->attr;
 
@@ -372,6 +365,7 @@ static void tc5_setup() {
 	push((void**)&contparm->img, sizeof(img_t));
 	img = contparm->img;
 	img->imgid= strdup("testimg");
+	img->status = MSK_STATSHAT | MSK_STATSHRC;
 	img->rscs = contparm->rscs;
 	img->attr = contparm->attr;
 
@@ -380,6 +374,7 @@ static void tc5_setup() {
 		push((void**)&contparm->cont, sizeof(cont_t));
 		cont = contparm->cont;
 		cont->contid=strdup("d7408531a3b4d7408531a3b4");
+		cont->status = MSK_STATSHAT | MSK_STATSHRC;
 		cont->rscs = img->rscs;
 		cont->attr = img->attr;
 
@@ -392,6 +387,7 @@ static void tc5_setup() {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
 			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
 			pidsig++;
@@ -404,6 +400,7 @@ static void tc5_setup() {
 		push((void**)&contparm->cont, sizeof(cont_t));
 		cont = contparm->cont;
 		cont->contid=strdup("mytestcontainer");
+		cont->status = MSK_STATSHAT | MSK_STATSHRC;
 		cont->rscs = img->rscs;
 		cont->attr = img->attr;
 
@@ -416,6 +413,7 @@ static void tc5_setup() {
 			push((void**)&cont->pids, sizeof(pids_t));
 			cont->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
 			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
 			pidsig++;
@@ -428,33 +426,10 @@ static void tc5_setup() {
 
 }
 
-static void tc5_teardown() {
-
-	while (contparm->img){
-		while (contparm->img->conts)
-			pop((void**)&contparm->img->conts);
-
-		while (contparm->img->pids)
-			pop((void**)&contparm->img->pids);
-
-		free (contparm->img->imgid);
-		pop((void**)&contparm->img);
-	}
-
-	while (contparm->cont){
-		while (contparm->cont->pids)
-			pop((void**)&contparm->cont->pids);
-
-		free (contparm->cont->contid);
-		pop((void**)&contparm->cont);
-	}
-
-	while (contparm->pids) {
-		free(contparm->pids->psig);
-		pop((void **)&contparm->pids);
-	}
-
-	node_pop(&nhead);
+static void tc5_teardownUnchecked() {
+	freeContParm(contparm);
+	while (nhead)
+		node_pop(&nhead);
 }
 
 static void findparamsCheck (int imgtest, int conttest) {
@@ -631,12 +606,11 @@ void orchestrator_resmgnt (Suite * s) {
 
 	TCase *tc5 = tcase_create("resmgnt_findparams");
 	tcase_add_unchecked_fixture(tc5, tc5_setupUnchecked, tc5_teardownUnchecked);
-	tcase_add_checked_fixture(tc5, tc5_setup, tc5_teardown);
-//	tcase_add_loop_test(tc5, findparamsTest, 0, 4);
-//	tcase_add_loop_test(tc5, findparamsContTest, 0, 4);
-//	tcase_add_loop_test(tc5, findparamsImageTest, 0, 4);
-//	tcase_add_loop_test(tc5, findparamsFailTest, 0, 4);
-//	tcase_add_test(tc5, findparams_linkTest);
+	tcase_add_loop_test(tc5, findparamsTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsContTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsImageTest, 0, 4);
+	tcase_add_loop_test(tc5, findparamsFailTest, 0, 4);
+	tcase_add_test(tc5, findparams_linkTest);
 	tcase_add_test(tc5, findparams_link2Test);
 
 	suite_add_tcase(s, tc5);
