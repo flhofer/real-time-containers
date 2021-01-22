@@ -294,7 +294,7 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 		// move all threads of same container
 		if (node->param)
 			for (node_t * item = nhead; ((item)); item=item->next )
-				if (item->param && item->param->cont
+				if (0 < item->pid && item->param && item->param->cont
 						&& item->param->cont == node->param->cont){
 
 					item->mon.assigned = ntrc->affinity;
@@ -305,7 +305,7 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 					// Reallocate did not work, undo
 					item->mon.assigned = trc->affinity;
 					for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
-						if (bitem->param && bitem->param->cont
+						if (0 < bitem->pid && bitem->param && bitem->param->cont
 								&& bitem->param->cont == item->param->cont){
 							bitem->mon.assigned = trc->affinity;
 							(void)setPidAffinityAssinged (bitem);
@@ -803,7 +803,7 @@ updateSiblings(node_t * node){
 
 		uint64_t smp = NSEC_PER_SEC;
 		for (node_t * item = nhead; ((item)); item=item->next ){
-			if (item->param && item->param->cont
+			if (0 < item->pid && item->param && item->param->cont
 					&& item->param->cont == node->param->cont){
 				if (SCHED_DEADLINE == item->attr.sched_policy){
 					if (item->attr.sched_period < smp){
