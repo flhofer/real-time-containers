@@ -288,7 +288,7 @@ stopTraceRead() {
 static int
 pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 
-	if (ntrc && trc && ntrc != trc){
+	if (ntrc && ntrc != trc){
 		// better fit found
 
 		// move all threads of same container
@@ -302,14 +302,15 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 						item->mon.resched++;
 						continue;
 					}
-					// Reallocate did not work, undo
-					item->mon.assigned = trc->affinity;
-					for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
-						if (0 < bitem->pid && bitem->param && bitem->param->cont
-								&& bitem->param->cont == item->param->cont){
-							bitem->mon.assigned = trc->affinity;
-							(void)setPidAffinityAssinged (bitem);
-						}
+					if (trc){ // Reallocate did not work, undo if possible
+						item->mon.assigned = trc->affinity;
+						for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
+							if (0 < bitem->pid && bitem->param && bitem->param->cont
+									&& bitem->param->cont == item->param->cont){
+								bitem->mon.assigned = trc->affinity;
+								(void)setPidAffinityAssinged (bitem);
+							}
+					}
 					return -1;
 				}
 
@@ -551,10 +552,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					if (SM_DYNSIMPLE <= prgset->sched_mode)
 						pickPidReallocCPU(CPU, 0);
 
-				if (0 <= item->mon.assigned){
+				if (0 <= CPU)
 					item->mon.resched++;
-				}
 				else{
+					// unassigned cpu was not part of adaptive table
 					if (SCHED_NODATA == item->attr.sched_policy)
 							updatePidAttr(item);
 					// never assigned to a resource and we have data (SCHED_DL), check for fit
@@ -563,7 +564,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 								getTracer(fthread->cpuno), item))
 							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
 					}
+					else // otherwise just move
+						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
 				}
+
 			}
 
 		}
