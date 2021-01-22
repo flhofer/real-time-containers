@@ -41,8 +41,8 @@
 #define ROOT_EPSREL	1e-7	// max error relative value min (a|b)
 
 #define STARTBINS 30		// default bin number
-#define BIN_DEFMIN 0.70		// default range: - offset * x
-#define BIN_DEFMAX 1.30 	// default range: + offset * x
+#define BIN_DEFMIN 0.50		// default range: - offset * x
+#define BIN_DEFMAX 1.50 	// default range: + offset * x
 
 #define MODEL_DEFAMP 1/(sqrt(2*M_PI)*b*MODEL_DEFSTD)	// default model amplitude
 #define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
@@ -848,7 +848,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 	// check and readjusts the bin size if needed. exit if that happens
 	{
 		size_t maxbin = gsl_histogram_max_bin(*h);
-		// check mean is within 20-80% of range
+		// check mean is within 10-80% of range
 		if (((*h)->n * 2 > maxbin * 10)
 			|| ((*h)->n * 8 < maxbin * 10)
 		// check if there is enough space around sigma to make it significant
