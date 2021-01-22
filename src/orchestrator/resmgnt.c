@@ -1010,9 +1010,9 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
  *  Return value: 0 if successful, -1 if unsuccessful
  */
 int
-findPidParameters(node_t* node, struct containers * conts){
+findPidParameters(node_t* node, containers_t * configuration){
 
-	struct img_parm * img = conts->img;
+	struct img_parm * img = configuration->img;
 	struct cont_parm * cont = NULL;
 	// check for image match first
 	while (NULL != img) {
@@ -1035,7 +1035,7 @@ findPidParameters(node_t* node, struct containers * conts){
 					// if node pid = 0, psig is the name of the container coming from dockerlink
 					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
 						cont = imgcont->cont;
-						duplicateOrRefreshContainer(node, conts, &cont);
+						duplicateOrRefreshContainer(node, configuration, cont);
 						break;
 					}
 				}
@@ -1049,7 +1049,7 @@ findPidParameters(node_t* node, struct containers * conts){
 	// we might have found the image, but still
 	// not in the images, check all containers
 	if (!cont) {
-		cont = conts->cont;
+		cont = configuration->cont;
 
 		// check for container match
 		while (NULL != cont) {
@@ -1062,8 +1062,7 @@ findPidParameters(node_t* node, struct containers * conts){
 
 				// if node pid = 0, psig is the name of the container coming from dockerlink
 				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
-					duplicateOrRefreshContainer(node, conts, &cont);
-					refreshContainers(conts); // refresh prematurely added containers
+					duplicateOrRefreshContainer(node, configuration, cont);
 					break;
 				}
 			}
@@ -1104,13 +1103,13 @@ findPidParameters(node_t* node, struct containers * conts){
 
 		// found? if not, create PID parameter entry
 		printDbg("... parameters not found, creating from PID and assigning container settings\n");
-		push((void**)&conts->pids, sizeof(pidc_t));
+		push((void**)&configuration->pids, sizeof(pidc_t));
 		if (useimg) {
 			// add new container unmatched container signature
-			push((void**)&conts->cont, sizeof(cont_t));
+			push((void**)&configuration->cont, sizeof(cont_t));
 			push((void**)&img->conts, sizeof(conts_t));
-			img->conts->cont = conts->cont;
-			cont = conts->cont;
+			img->conts->cont = configuration->cont;
+			cont = configuration->cont;
 			cont->img = img;
 
 			// assign values
@@ -1123,19 +1122,19 @@ findPidParameters(node_t* node, struct containers * conts){
 
 		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
-		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
+		cont->pids->pid = configuration->pids; // add new empty item -> pid list, container pids list
 		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
-		conts->pids->rscs = cont->rscs;
-		conts->pids->attr = cont->attr;
+		configuration->pids->rscs = cont->rscs;
+		configuration->pids->attr = cont->attr;
 
 		// Assign configuration to node
-		node->param = conts->pids;
+		node->param = configuration->pids;
 		node->param->img = img;
 		node->param->cont = cont;
 		node->psig = node->param->psig;
 		// update counter
 		if (node->pid)
-			conts->nthreads++;
+			configuration->nthreads++;
 		return 0;
 	}
 	else
@@ -1144,7 +1143,7 @@ findPidParameters(node_t* node, struct containers * conts){
 		printDbg("... container not found, trying PID scan\n");
 
 		// start from scratch in the PID config list only. Maybe Container ID is new
-		struct pidc_parm * curr = conts->pids;
+		struct pidc_parm * curr = configuration->pids;
 
 		while (NULL != curr) {
 			if(curr->psig && node->psig && strstr(node->psig, curr->psig)
@@ -1165,21 +1164,21 @@ findPidParameters(node_t* node, struct containers * conts){
 		}
 
 		// add new container for the purpose of grouping
-		push((void**)&conts->cont, sizeof(cont_t));
-		cont = conts->cont;
+		push((void**)&configuration->cont, sizeof(cont_t));
+		cont = configuration->cont;
 
 		// assign values
 		cont->contid = node->contid;  // keep string, unused will be freed (node_pop)
 		cont->status |= MSK_STATCCRT; // (created at runtime from node)
-		cont->rscs = conts->rscs;
-		cont->attr = conts->attr;
+		cont->rscs = configuration->rscs;
+		cont->attr = configuration->attr;
 
 		if (!curr){
 			// config not found, create PID parameter entry
 			printDbg("... parameters not found, creating from PID settings and container\n");
 			// create new pidconfig
-			push((void**)&conts->pids, sizeof(pidc_t));
-			curr = conts->pids;
+			push((void**)&configuration->pids, sizeof(pidc_t));
+			curr = configuration->pids;
 
 			curr->psig = node->psig;  // keep string, unused will be freed (node_pop)
 			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
@@ -1196,7 +1195,7 @@ findPidParameters(node_t* node, struct containers * conts){
 
 			node->param = curr;
 			// update counter
-			conts->nthreads++;
+			configuration->nthreads++;
 		}
 		else {
 			// found use it's values
