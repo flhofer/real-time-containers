@@ -508,8 +508,6 @@ runstats_paramVerify(stat_hist * h, stat_param * x){
 
 /*
  * runstats_histCheck: check if minimum amount for bin fitting is met
- * 						at least SAMP_MINCNT, and once every 10 seconds
- * 						if center is correct
  *
  * Arguments: - pointer to the memory location for storage
  *
@@ -520,8 +518,7 @@ runstats_histCheck(stat_hist * h){
 	if (!h)
 		return GSL_FAILURE;
 
-	return (gsl_histogram_sum(h) < MAX (SAMP_MINCNT,
-			20 / (gsl_histogram_max(h) - gsl_histogram_min(h))))
+	return (gsl_histogram_sum(h) < SAMP_MINCNT)
 		?  GSL_FAILURE : GSL_SUCCESS;
 }
 
