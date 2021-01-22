@@ -1098,6 +1098,7 @@ manageSched(){
 						uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
 
+						item->mon.resample++;
 						// period changed enough for a different time-slot?
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
@@ -1138,6 +1139,7 @@ manageSched(){
 							updatePidWCET(item, newWCET);
 						}
 						item->mon.cdf_runtime = newWCET;
+						item->mon.resample++;
 					}
 					else
 						warn ("Estimation error, can not update WCET");
@@ -1160,6 +1162,7 @@ manageSched(){
 						if (SCHED_DEADLINE == item->attr.sched_policy)
 							updatePidWCET(item, newWCET);
 						item->mon.cdf_runtime = newWCET;
+						item->mon.resample++;
 					}
 					else
 						warn ("Estimation error, can not update WCET");
@@ -1227,18 +1230,18 @@ dumpStats (){
 		switch(item->attr.sched_policy){
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%5d%c: %3ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.resched, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 				policy_to_string(item->attr.sched_policy));
 			break;
 
 		case SCHED_DEADLINE:
-			(void)printf("%5d%c: %3ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.resched,item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched, item->mon.resample, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
 				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);

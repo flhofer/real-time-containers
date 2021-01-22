@@ -186,6 +186,7 @@
 		int32_t assigned; 		// actually running CPU, -1 = unassigned
 		struct bitmask * assigned_mask;	// computed assignment mask
 		uint64_t resched;		// number of rescheduling times
+		uint64_t resample;		// number of resampling times
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info
