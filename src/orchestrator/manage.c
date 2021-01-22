@@ -316,7 +316,7 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 
 		// all done, recompute CPU-times
 		(void)recomputeCPUTimes(ntrc->affinity);
-		if (0 > recomputeCPUTimes(trc->affinity))
+		if ((trc) && 0 > recomputeCPUTimes(trc->affinity))
 			return -2; // more than one task to move
 		return 0;
 	}
