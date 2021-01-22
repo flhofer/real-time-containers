@@ -1192,7 +1192,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 			// assign values
 			// CAN be null, should not happen, i.e. img & !cont
 			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
-			img->status |= MSK_STATSHAT | MSK_STATSHRC;
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
 		}
@@ -1200,7 +1200,8 @@ findPidParameters(node_t* node, containers_t * configuration){
 		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = configuration->pids; // add new empty item -> pid list, container pids list
-		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+
+		configuration->pids->status |= MSK_STATSHAT | MSK_STATSHRC;
 		configuration->pids->rscs = cont->rscs;
 		configuration->pids->attr = cont->attr;
 
@@ -1246,7 +1247,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		// assign values
 		cont->contid = node->contid;  // keep string, unused will be freed (node_pop)
-		cont->status |= MSK_STATCCRT; // (created at runtime from node)
+		cont->status |= MSK_STATCCRT | MSK_STATSHAT | MSK_STATSHRC; // (created at runtime from node)
 		cont->rscs = configuration->rscs;
 		cont->attr = configuration->attr;
 
@@ -1258,17 +1259,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 			curr = configuration->pids;
 
 			curr->psig = node->psig;  // keep string, unused will be freed (node_pop)
-			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->status |= MSK_STATSHAT | MSK_STATSHRC;
 			curr->rscs = cont->rscs;
 			curr->attr = cont->attr;
 
-
-			// add new PID to container PIDs
+			// add new PID configuration to container PIDs
 			push((void**)&cont->pids, sizeof(pids_t));
-			cont->pids->pid = curr; // add new empty item -> pid list, container pids list
-			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
-			curr->rscs = cont->rscs;
-			curr->attr = cont->attr;
+			cont->pids->pid = curr;
 
 			node->param = curr;
 			// update counter
