@@ -41,8 +41,8 @@
 #define ROOT_EPSREL	1e-7	// max error relative value min (a|b)
 
 #define STARTBINS 30		// default bin number
-#define BIN_DEFMIN 0.50		// default range: - offset * x
-#define BIN_DEFMAX 1.50 	// default range: + offset * x
+#define BIN_DEFMIN 0.70		// default range: - offset * x
+#define BIN_DEFMAX 1.30 	// default range: + offset * x
 
 #define MODEL_DEFAMP 1/(sqrt(2*M_PI)*b*MODEL_DEFSTD)	// default model amplitude
 #define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
@@ -556,23 +556,26 @@ runstats_histFit(stat_hist **h)
 	if (!h || !*h)
 		return GSL_EINVAL;
 
+	// get parameter
+	double mn = gsl_histogram_mean(*h);	 // sample mean
+	double sd = gsl_histogram_sigma(*h); // sample standard deviation
+	double N = gsl_histogram_sum(*h);
 	size_t maxbin = gsl_histogram_max_bin(*h);
+
 	// are we in the very corner?, shift the histogram instead
-	if (2 > maxbin || gsl_histogram_bins(*h) - 3 < maxbin){
+	if ((2 > maxbin || gsl_histogram_bins(*h) - 3 < maxbin)
+			&& N * 0.9 < gsl_histogram_get(*h, maxbin)){
 		double bin_min = gsl_histogram_min(*h);
 		double bin_max = gsl_histogram_max(*h);
-		double diff = ((int)(2 > maxbin)*-1) * (bin_max - bin_min * 0.9);
+		double diff = (bin_max - bin_min) * 0.9;
+		if (2 > maxbin)
+			diff *= -1;
 		// clear and reset
-		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0, bin_min+diff), MAX(bin_max + diff, diff)))
+		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0, bin_min+diff), MAX(bin_max + diff, -diff)))
 				? GSL_FAILURE : GSL_SUCCESS;
 	}
 
 	// update bin range
-
-	// get parameters and free histogram
-	double mn = gsl_histogram_mean(*h); 	// sample mean
-	double sd = gsl_histogram_sigma(*h); // sample standard deviation
-	double N = gsl_histogram_sum(*h);
 
 	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
 		sd = mn * 0.01;
