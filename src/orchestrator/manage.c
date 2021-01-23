@@ -1098,32 +1098,27 @@ manageSched(){
 		if (SM_PADAPTIVE <= prgset->sched_mode)
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
-					// if there is not some sort of period, the following fails
-					if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
-						uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
-								runstats_cdfSample(item->mon.pdf_pcdf, prgset->ptresh)); // to cover 9x percent of cases
+					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
+							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
-						item->mon.resample++;
-						item->status &= ~MSK_STATPHERR;
-						// period changed enough for a different time-slot?
-						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
-							item->mon.cdf_period = newPeriod;
+					// period changed enough for a different time-slot?
+					if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
+						if (item->mon.cdf_period * 95 > newPeriod * 100
+								|| item->mon.cdf_period * 105 < newPeriod * 100){
+							// meaningful change?
 							info("Update PID %d period: %luus", item->pid, newPeriod/1000);
-							// check if there is a better fit for the period, and if it is main
-							if (0 > updateSiblings(item))
-								warn("Sibling update not possible!");
+							item->mon.resample++;
 						}
-						else
-							item->mon.cdf_period = newPeriod;
+						item->mon.cdf_period = newPeriod;
+						// check if there is a better fit for the period, and if it is main
+						if (0 > updateSiblings(item))
+							warn("Sibling update not possible!");
 					}
-					else{
-						// something went wrong. Reset parameters
-						if (!(item->status & MSK_STATPHERR))
-							warn("CDF period initialization error for PID %d", item->pid);
-						item->status |= MSK_STATPHERR;
+					else
+						item->mon.cdf_period = newPeriod;
 					}
 				}
-			}
+
 
 		if (!(runstats_histCheck(item->mon.pdf_hist))){
 			// if histogram is set and count is ok, update and fit curve
@@ -1147,9 +1142,13 @@ manageSched(){
 								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
 							updatePidWCET(item, newWCET);
 						}
-						info("Update PID %d runtime: %luus", item->pid, newWCET/1000);
+						if ( item->mon.cdf_runtime * 95 > newWCET * 100
+								|| item->mon.cdf_runtime * 105 < newWCET * 100){
+							// meaningful change?
+							info("Update PID %d runtime: %luus", item->pid, newWCET/1000);
+							item->mon.resample++;
+						}
 						item->mon.cdf_runtime = newWCET;
-						item->mon.resample++;
 						item->status &= ~MSK_STATHERR;
 					}
 					else

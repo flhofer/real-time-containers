@@ -523,6 +523,22 @@ runstats_histCheck(stat_hist * h){
 }
 
 /*
+ * runstats_histMean: returns the mean value of the histogram
+ *
+ * Arguments: - pointer to the memory location for storage
+ *
+ * Return value: - double- mean value
+ */
+double
+runstats_histMean(stat_hist * h){
+	if (!h)
+		return 0.0;
+
+	return gsl_histogram_mean(h);
+
+}
+
+/*
  * runstats_histAdd: increases the count of an occurrence value
  *
  * Arguments: - pointer to the memory location for storage

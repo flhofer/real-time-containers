@@ -37,6 +37,7 @@ int runstats_histSolve(stat_hist * h, stat_param * x);
 double runstats_histShape(stat_hist * h, double b);	// shape value to histogram borders
 int runstats_histAdd(stat_hist * h, double b);		// add value to histogram
 int runstats_histCheck(stat_hist * h);				// check prepared for fitting
+double runstats_histMean(stat_hist * h);			// get the mean of the PD
 int runstats_histFit(stat_hist **h);				// fit histogram bins
 double runstats_histSixSigma(const stat_hist * h);	// compute six-sigma probability time value (LSS 99.996% on normal dist)
 void runstats_histFree(stat_hist * h);				// free histrogram structure
