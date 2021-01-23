@@ -554,20 +554,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 				if (0 <= CPU)
 					item->mon.resched++;
-				else{
-					// unassigned cpu was not part of adaptive table
-					if (SCHED_NODATA == item->attr.sched_policy)
-							updatePidAttr(item);
-					// never assigned to a resource and we have data (SCHED_DL), check for fit
-					if (SCHED_DEADLINE == item->attr.sched_policy) {
-						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
-								getTracer(fthread->cpuno), item))
-							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
-					}
-					else // otherwise just move
-						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
-				}
-
+				else
+					// not assigned by orchestrator -> it sets assigned in setPidResources_u
+					item->status |= MSK_STATNAFF;
 			}
 
 		}
@@ -581,7 +570,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next ){
 
-		// previous PID in list, update runtime data
+		// previous PID in list, exiting, update runtime data
 		if (item->pid == pFrame->prev_pid){
 
 			// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
@@ -595,10 +584,25 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					pickPidCons(item, ts);
 				else
 					printDbg(PFX "Status not part of preview\n");
+
+				if (item->status & MSK_STATNAFF){
+					// unassigned CPU was not part of adaptive table
+					if (SCHED_NODATA == item->attr.sched_policy)
+							updatePidAttr(item);
+					// never assigned to a resource and we have data (SCHED_DL), check for fit
+					if (SCHED_DEADLINE == item->attr.sched_policy) {
+						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
+								getTracer(fthread->cpuno), item))
+							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
+					}
+					else // otherwise just move
+						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
+				}
+
 			}
 		}
 
-		// find next PID and put ts, compute period eventually
+		// find next PID and put timeStamp, compute period eventually
 		if (item->pid == pFrame->next_pid){
 
 			// period histogram and CDF

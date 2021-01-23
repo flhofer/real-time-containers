@@ -177,6 +177,8 @@ setPidAffinityAssinged (node_t * node){
 			node->pid);
 		return -1;
 	}
+	// reset no affinity bit (if set)
+	node->status &= ~MSK_STATNAFF;
 	return 0;
 }
 

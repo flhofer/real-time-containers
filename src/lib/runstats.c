@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 250		// Minimum number of samples in histogram
+#define SAMP_MINCNT 200		// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)

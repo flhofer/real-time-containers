@@ -18,13 +18,13 @@
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
 	#define MSK_STATWCUD		0x4	// WCET changed for PID
-	#define MSK_STATSIBL		0x8 // PID has sibilings in container
+	#define MSK_STATSIBL		0x8 // PID has siblings in container
+	#define MSK_STATNAFF		0x10 // PID has no affinity yet
 
 	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
 	#define	MSK_STATCCRT		0x2 // Configuration created from Runtime
 
-	// masks for the status of PIDs (node_t) and configurations
 	#define MSK_STATSHAT		0x10// shared attribute configuration
 	#define MSK_STATSHRC		0x20// shared resource configuration
 
@@ -68,7 +68,7 @@
 		SM_ADAPTIVE,	// use adaptive slot allocation at startup (NO RESCHEDULING)
 		SM_PADAPTIVE,	// use progressive adaptive slot allocation (NO RESCHEDULING)
 		SM_DYNSIMPLE,	// use the simple affinity based dynamic scheduling (like adaptive)
-		SM_DYNMCBIN		// use monte carlo bin allocation style algorithm
+		SM_DYNMCBIN		// use Monte-Carlo bin allocation style algorithm
 	};
 
 	typedef struct sched_rscs { // resources 
