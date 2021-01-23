@@ -1118,7 +1118,8 @@ manageSched(){
 					}
 					else{
 						// something went wrong. Reset parameters
-						warn("CDF period initialization error for PID %d", item->pid);
+						if (!(item->status & MSK_STATPHERR))
+							warn("CDF period initialization error for PID %d", item->pid);
 						item->status |= MSK_STATPHERR;
 					}
 				}
@@ -1156,7 +1157,8 @@ manageSched(){
 				}
 				else {
 					// something went wrong
-					warn("CDF initialization/range error for PID %d", item->pid);
+					if (!(item->status & MSK_STATHERR))
+						warn("CDF initialization/range error for PID %d", item->pid);
 					item->status |= MSK_STATHERR;
 				}
 				break;
@@ -1174,13 +1176,16 @@ manageSched(){
 							updatePidWCET(item, newWCET);
 						item->mon.cdf_runtime = newWCET;
 						item->mon.resample++;
+						item->status &= ~MSK_STATHERR;
 					}
 					else
 						warn ("Estimation error, can not update WCET");
 				}
 				else{
 					// something went wrong
-					warn("CDF initialization/range error for PID %d", item->pid);
+					if (!(item->status & MSK_STATHERR))
+						warn("CDF initialization/range error for PID %d", item->pid);
+					item->status |= MSK_STATHERR;
 				}
 
 				break;
