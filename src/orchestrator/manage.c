@@ -1104,7 +1104,7 @@ manageSched(){
 								runstats_cdfSample(item->mon.pdf_pcdf, prgset->ptresh)); // to cover 9x percent of cases
 
 						item->mon.resample++;
-						item->status &= ~MSK_STATHERR;
+						item->status &= ~MSK_STATPHERR;
 						// period changed enough for a different time-slot?
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
@@ -1119,7 +1119,7 @@ manageSched(){
 					else{
 						// something went wrong. Reset parameters
 						warn("CDF period initialization error for PID %d", item->pid);
-						item->status |= MSK_STATHERR;
+						item->status |= MSK_STATPHERR;
 					}
 				}
 			}
@@ -1146,6 +1146,7 @@ manageSched(){
 								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
 							updatePidWCET(item, newWCET);
 						}
+						info("Update PID %d runtime: %luus", item->pid, newWCET/1000);
 						item->mon.cdf_runtime = newWCET;
 						item->mon.resample++;
 						item->status &= ~MSK_STATHERR;
