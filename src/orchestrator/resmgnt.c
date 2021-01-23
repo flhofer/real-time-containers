@@ -265,6 +265,14 @@ setPidResources_u(node_t * node) {
 
 			if (0 <= node->mon.assigned && setPidAffinityAssinged(node))
 				warn("Can not assign startup allocation for PID %d", node->pid);
+
+			// put start values as dist initial values
+			if (node->param && node->param->attr){
+				if (node->param->attr->sched_period)
+					node->mon.cdf_period = node->param->attr->sched_period;
+				if (node->param->attr->sched_runtime)
+					node->mon.cdf_runtime = node->param->attr->sched_runtime;
+			}
 		}
 	}
 	else{
