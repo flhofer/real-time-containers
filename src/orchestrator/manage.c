@@ -397,7 +397,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
  *  Return value: -
  */
 static void
-pickPidCons(node_t *item, uint64_t ts){
+pickPidCons(node_t *item, uint64_t ts, int running){
 
 	if (!(item->mon.pdf_hist)){
 		// base for histogram, runtime parameter
@@ -413,7 +413,7 @@ pickPidCons(node_t *item, uint64_t ts){
 			warn("Histogram init failure for PID %d runtime", item->pid);
 	}
 
-	double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
+	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 		if (ret != 1) // GSL_EDOM
@@ -461,17 +461,18 @@ pickPidCons(node_t *item, uint64_t ts){
 		// if not DL use estimated value
 		item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
 
-	item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
-	// exponentially weighted moving average, alpha = 0.9
-	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
-	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
-	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
+	if (!running){ // reset only if not in running state
+		// exponentially weighted moving average, alpha = 0.9
+		item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
+		item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
+		item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
-	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
-	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
-	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+		item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
+		item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
+		item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
 
-	item->mon.dl_rt = 0;
+		item->mon.dl_rt = 0;
+	}
 
 }
 
@@ -573,15 +574,15 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == pFrame->prev_pid){
 
-			// compute runtime - limit between 1ns and 1 sec, update - sum if interupted
-			item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1); // FIXME: hard-coded
+			// compute runtime
+			item->mon.dl_rt = ts - item->mon.last_ts;
 
 			if (item->mon.last_ts > 0){
 				// has it been suspended or restarted? calculate rest
 				if ((pFrame->prev_state_l & 0x1) // Status 'S' = sleep
-						|| !(pFrame->prev_state_l & 0xFF)) // Status 'R' = running (yield)
+						|| !(pFrame->prev_state_l & 0x7F)) // Status 'R' = running (yield)
 					// update realtime stats and consolidate other values
-					pickPidCons(item, ts);
+					pickPidCons(item, ts, !(pFrame->prev_state_l & 0x01));
 				else
 					printDbg(PFX "Status not part of preview\n");
 
@@ -605,10 +606,11 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// find next PID and put timeStamp, compute period eventually
 		if (item->pid == pFrame->next_pid){
 
-			// period histogram and CDF
+			// period histogram and CDF TODO: fix to use wakeup instead
 			if ((SM_PADAPTIVE <= prgset->sched_mode)
 					&& (item->mon.last_ts > 0)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)){
+					&& (SCHED_DEADLINE != item->attr.sched_policy)
+					&& (!item->mon.dl_rt)){ // only if new runtime
 				double period = (double)(ts - item->mon.last_ts)/(double)NSEC_PER_SEC;
 				int ret;
 
