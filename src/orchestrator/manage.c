@@ -595,8 +595,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 								getTracer(fthread->cpuno), item))
 							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
 					}
-					else // otherwise just move
-						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
+//					else // otherwise just move
+//						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
 				}
 
 			}
@@ -1098,11 +1098,13 @@ manageSched(){
 		if (SM_PADAPTIVE <= prgset->sched_mode)
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
+					// if there is not some sort of period, the following fails
 					if (!runstats_cdfCreate(&item->mon.pdf_phist, &item->mon.pdf_pcdf)){
 						uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
-								runstats_cdfSample(item->mon.pdf_pcdf, 0.5)); // average p is what we want for period
+								runstats_cdfSample(item->mon.pdf_pcdf, prgset->ptresh)); // to cover 9x percent of cases
 
 						item->mon.resample++;
+						item->status &= ~MSK_STATHERR;
 						// period changed enough for a different time-slot?
 						if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
 							item->mon.cdf_period = newPeriod;
@@ -1114,9 +1116,11 @@ manageSched(){
 						else
 							item->mon.cdf_period = newPeriod;
 					}
-					else
+					else{
 						// something went wrong. Reset parameters
 						warn("CDF period initialization error for PID %d", item->pid);
+						item->status |= MSK_STATHERR;
+					}
 				}
 			}
 
@@ -1144,6 +1148,7 @@ manageSched(){
 						}
 						item->mon.cdf_runtime = newWCET;
 						item->mon.resample++;
+						item->status &= ~MSK_STATHERR;
 					}
 					else
 						warn ("Estimation error, can not update WCET");
@@ -1151,6 +1156,7 @@ manageSched(){
 				else {
 					// something went wrong
 					warn("CDF initialization/range error for PID %d", item->pid);
+					item->status |= MSK_STATHERR;
 				}
 				break;
 
