@@ -563,7 +563,7 @@ runstats_histFit(stat_hist **h)
 		double bin_max = gsl_histogram_max(*h);
 		double diff = ((int)(2 > maxbin)*-1) * (bin_max - bin_min * 0.9);
 		// clear and reset
-		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0, bin_min(*h)+diff), MAX(bin_max + diff, diff)))
+		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0, bin_min+diff), MAX(bin_max + diff, diff)))
 				? GSL_FAILURE : GSL_SUCCESS;
 	}
 
