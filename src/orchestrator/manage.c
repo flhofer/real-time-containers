@@ -1203,7 +1203,7 @@ manageSched(){
 		if (0.0 != trc->U) // ignore 0 min CPU
 			trc->Umin = MIN (trc->Umin, trc->U);
 		trc->Umax = MAX (trc->Umax, trc->U);
-		if (0.0 == trc->Uavg)
+		if (0.0 == trc->Uavg && 0.0 != trc->U)
 			trc->Uavg = trc->U;
 		else
 			trc->Uavg = trc->Uavg * 0.9 + trc->U * 0.1;
