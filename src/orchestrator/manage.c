@@ -573,7 +573,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		if (item->pid == pFrame->prev_pid){
 
 			// compute runtime
-			item->mon.dl_rt += ts - item->mon.last_ts;
+			item->mon.dl_rt += (ts - item->mon.last_ts);
 
 			if (item->mon.last_ts > 0){
 //				#define TASK_RUNNING            0x0
@@ -623,18 +623,23 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 			// period histogram and CDF TODO: fix to use wakeup instead
 			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (item->mon.last_ts > 0)
 					&& (SCHED_DEADLINE != item->attr.sched_policy)
 					&& (!item->mon.dl_rt)){ // only if new runtime = last period ended
-				double period = (double)(ts - item->mon.last_ts)/(double)NSEC_PER_SEC;
 
-				if (!(item->mon.pdf_phist)){
-					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-						warn("Histogram init failure for PID %d period", item->pid);
+				if (item->mon.last_tsP){
+
+					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+					if (!(item->mon.pdf_phist)){
+						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+							warn("Histogram init failure for PID %d period", item->pid);
+					}
+
+					if ((runstats_histAdd(item->mon.pdf_phist, period)))
+						warn("Histogram increment error for PID %d period", item->pid);
 				}
 
-				if ((runstats_histAdd(item->mon.pdf_phist, period)))
-					warn("Histogram increment error for PID %d period", item->pid);
+				item->mon.last_tsP = ts;
 
 			}
 
