@@ -579,17 +579,25 @@ runstats_histFit(stat_hist **h)
 	double bin_min = gsl_histogram_min(*h);
 	double bin_max = gsl_histogram_max(*h);
 	size_t maxbin = gsl_histogram_max_bin(*h);
+	size_t n = gsl_histogram_bins(*h);
 
 	// are we in the very corner?, shift the histogram instead
 	if ((0.0 != bin_min)
-			&& (2 > maxbin || gsl_histogram_bins(*h) - 3 < maxbin)
+			&& (2 > maxbin || n - 3 < maxbin)
 			&& N * 0.9 < gsl_histogram_get(*h, maxbin)){
-		double diff = (bin_max - bin_min) * 0.9;
-		if (2 > maxbin)
-			diff *= -1;
+		double diff = (bin_max - bin_min) * (double)(n-4)/(double)n; // 2 margin + 2 extra bins
+		// almost double the range to deal with misscaling
+		if (2 > maxbin){
+			bin_min = MAX(bin_min- 2.0 * diff, 0.0);
+			bin_max = MAX(bin_max - diff, 2.0 * diff);
+		}
+		else {
+			bin_min = MAX(bin_min + diff, 0.0);
+			bin_max = bin_max + 2.0 * diff;
+		}
+
 		// clear and reset
-		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0.0, bin_min+diff),
-				MAX(bin_max + diff, bin_max - bin_min)))
+		return (0 != gsl_histogram_set_ranges_uniform(*h, bin_min, bin_max))
 				? GSL_FAILURE : GSL_SUCCESS;
 	}
 
@@ -598,13 +606,11 @@ runstats_histFit(stat_hist **h)
 	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
 		sd = mn * 0.01;
 
-	size_t n = gsl_histogram_bins(*h);
-
 	// compute ideal bin size according to Scott 1979
 	double W = 3.49*sd*pow(N, (double)-1/3);
 
-	// bin count to cover 10 standard deviations both sides
-	size_t new_n = (size_t)trunc(sd*20/W);
+	// bin count to cover 10 standard deviations both sides, at least 10 bins
+	size_t new_n = (size_t)MAX(trunc(sd*20/W), 10);
 
 	if (n != new_n) {
 		// if bin count differs, reallocate
