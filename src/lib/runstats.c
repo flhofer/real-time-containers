@@ -576,18 +576,20 @@ runstats_histFit(stat_hist **h)
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 	double N = gsl_histogram_sum(*h);
+	double bin_min = gsl_histogram_min(*h);
+	double bin_max = gsl_histogram_max(*h);
 	size_t maxbin = gsl_histogram_max_bin(*h);
 
 	// are we in the very corner?, shift the histogram instead
-	if ((2 > maxbin || gsl_histogram_bins(*h) - 3 < maxbin)
+	if ((0.0 != bin_min)
+			&& (2 > maxbin || gsl_histogram_bins(*h) - 3 < maxbin)
 			&& N * 0.9 < gsl_histogram_get(*h, maxbin)){
-		double bin_min = gsl_histogram_min(*h);
-		double bin_max = gsl_histogram_max(*h);
 		double diff = (bin_max - bin_min) * 0.9;
 		if (2 > maxbin)
 			diff *= -1;
 		// clear and reset
-		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0, bin_min+diff), MAX(bin_max + diff, -diff)))
+		return (0 != gsl_histogram_set_ranges_uniform(*h, MAX(0.0, bin_min+diff),
+				MAX(bin_max + diff, bin_max - bin_min)))
 				? GSL_FAILURE : GSL_SUCCESS;
 	}
 
@@ -616,8 +618,8 @@ runstats_histFit(stat_hist **h)
 	}
 
 	// adjust margins bin limits
-	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	double bin_max = mn + ((double)n/2.0)*W;
+	bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
+	bin_max = mn + ((double)n/2.0)*W;
 	int ret;
 	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
 		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
