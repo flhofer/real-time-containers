@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 50		// Minimum number of samples in histogram
+#define SAMP_MINCNT 100		// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
@@ -572,33 +572,40 @@ runstats_histFit(stat_hist **h)
 	if (!h || !*h)
 		return GSL_EINVAL;
 
-	// get parameter
+	// get parameters of histogram
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 	double N = gsl_histogram_sum(*h);
 	double bin_min = gsl_histogram_min(*h);
 	double bin_max = gsl_histogram_max(*h);
+	double range = (bin_max - bin_min);
 	size_t maxbin = gsl_histogram_max_bin(*h);
 	size_t n = gsl_histogram_bins(*h);
 
 	// are we in the very corner?, shift the histogram instead
 	if ((0.0 != bin_min)
-			&& (2 > maxbin || n - 3 < maxbin)
+			&& (n * 2 > maxbin * 10 || n * 8 <= maxbin * 10)
 			&& N * 0.9 < gsl_histogram_get(*h, maxbin)){
-		double diff = (bin_max - bin_min) * (double)(n-4)/(double)n; // 2 margin + 2 extra bins
+		range *= (double)(n-4)/(double)n; // 2 margin + 2 extra bins
 		// almost double the range to deal with misscaling
-		if (2 > maxbin){
-			bin_min = MAX(bin_min- 2.0 * diff, 0.0);
-			bin_max = MAX(bin_max - diff, 2.0 * diff);
+		if (n * 2 > maxbin * 10){
+			bin_min = MAX(bin_min- 2.0 * range, 0.0);
+			bin_max = MAX(bin_max - range, 2.0 * range);
 		}
 		else {
-			bin_min = MAX(bin_min + diff, 0.0);
-			bin_max = bin_max + 2.0 * diff;
+			bin_min = MAX(bin_min + range, 0.0);
+			bin_max = bin_max + 2.0 * range;
 		}
 
 		// clear and reset
 		return (0 != gsl_histogram_set_ranges_uniform(*h, bin_min, bin_max))
 				? GSL_FAILURE : GSL_SUCCESS;
+	}
+	if (0.0 == bin_min && maxbin * 10 < n * 2){
+		// way too big range
+		return (0 != gsl_histogram_set_ranges_uniform(*h, 0.0, range/2))
+				? GSL_FAILURE : GSL_SUCCESS;
+
 	}
 
 	// update bin range
@@ -607,12 +614,17 @@ runstats_histFit(stat_hist **h)
 		sd = mn * 0.01;
 
 	// compute ideal bin size according to Scott 1979
-	double W = 3.49*sd*pow(N, (double)-1/3);
+	double W = 3.49*sd*pow(N, (double)(-1/3));
 
 	// bin count to cover 10 standard deviations both sides, at least 10 bins
 	size_t new_n = (size_t)MAX(trunc(sd*20/W), 10);
+	// adjust margins bin limits
+	bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
+	bin_max = mn + (mn - bin_min);
+	range = bin_max - bin_min;
 
-	if (n != new_n) {
+	// do we have at least a 20% change?
+	if (n * 80 > new_n * 100 || n * 120 <  new_n * 100){
 		// if bin count differs, reallocate
 		gsl_histogram_free (*h);
 		n = new_n;
@@ -621,16 +633,14 @@ runstats_histFit(stat_hist **h)
 			err_msg("Unable to allocate memory for histogram");
 			return GSL_ENOMEM;
 		}
+		int ret;
+		if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
+			err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
+
+		return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 	}
 
-	// adjust margins bin limits
-	bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	bin_max = mn + ((double)n/2.0)*W;
-	int ret;
-	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
-		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
-
-	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+	return GSL_CONTINUE;
 }
 
 /*
@@ -880,23 +890,19 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 	if (!c || !h || !(*h))
 		return GSL_EINVAL;
 
+	int ret;
+
 	// check and readjusts the bin size if needed. exit if that happens
-	{
-		size_t maxbin = gsl_histogram_max_bin(*h);
-		// check mean is within 10-80% of range
-		if (((*h)->n * 2 > maxbin * 10)
-			|| ((*h)->n * 8 < maxbin * 10)){
-//		// check if there is enough space around sigma to make it significant
-//			|| (gsl_histogram_max(*h) - gsl_histogram_min(*h) < gsl_histogram_sigma(*h))){
-				if ((runstats_histFit(h))){
-					warn("Curve fitting histogram bin adaptation error");
-					// TODO: reinit?
-				}
-				return GSL_ERANGE; // RANGE??
-			}
+	ret = runstats_histFit(h);
+	if (GSL_CONTINUE != ret){
+		if (GSL_SUCCESS != ret){
+			warn("Curve fitting histogram bin adaptation error");
+			return ret;
+		}
+		return GSL_EDOM;
 	}
 
-	int ret = GSL_SUCCESS;
+	ret = GSL_SUCCESS;
 
 	// re-alloc if number of bins differs
 	if (*c && ((*c)->n != (*h)->n))

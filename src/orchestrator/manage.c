@@ -576,9 +576,27 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			item->mon.dl_rt += ts - item->mon.last_ts;
 
 			if (item->mon.last_ts > 0){
+//				#define TASK_RUNNING            0x0
+//				#define TASK_INTERRUPTIBLE      0x1
+//				#define TASK_UNINTERRUPTIBLE    0x2
+//				#define __TASK_STOPPED          0x4
+//				#define __TASK_TRACED           0x8
+//				/* in tsk->exit_state */
+//				#define EXIT_DEAD               0x10
+//				#define EXIT_ZOMBIE             0x20
+//				#define EXIT_TRACE              (EXIT_ZOMBIE | EXIT_DEAD)
+//				/* in tsk->state again */
+//				#define TASK_DEAD               0x40
+//				#define TASK_WAKEKILL           0x80
+//				#define TASK_WAKING             0x100
+//				#define TASK_PARKED             0x200
+//				#define TASK_NOLOAD             0x400
+//				#define TASK_STATE_MAX          0x800
+
 				// has it been suspended or restarted? calculate rest
-				if (pFrame->prev_state_l & 0x1) // Status 'S' = sleep
-					// update realtime stats and consolidate other values
+				if ((pFrame->prev_state_l == 0)
+						||  SCHED_DEADLINE == item->attr.sched_policy) // are always in run
+					// update real-time stats and consolidate other values
 					pickPidCons(item, ts);
 				else
 					printDbg(PFX "Status not part of preview\n");
@@ -1121,13 +1139,14 @@ manageSched(){
 			// if histogram is set and count is ok, update and fit curve
 
 			uint64_t newWCET = 0;
+			int ret;
 
 			switch (prgset->sched_mode) {
 
 			case SM_PADAPTIVE:
 
 				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){ // keep to update and fix hist
+				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){ // keep to update and fix hist
 
 					newWCET = (uint64_t)(NSEC_PER_SEC *
 								runstats_histSixSigma(item->mon.pdf_hist));
@@ -1151,18 +1170,19 @@ manageSched(){
 					else
 						warn ("Estimation error, can not update WCET");
 				}
-				else {
-					// something went wrong
-					if (!(item->status & MSK_STATHERR))
-						warn("CDF initialization/range error for PID %d", item->pid);
-					item->status |= MSK_STATHERR;
-				}
+				else
+					if (ret != 1){
+						// something went wrong
+						if (!(item->status & MSK_STATHERR))
+							warn("CDF initialization/range error for PID %d", item->pid);
+						item->status |= MSK_STATHERR;
+					}
 				break;
 
 			case SM_DYNSIMPLE:
 			case SM_DYNMCBIN:
 				// DYNAMIC, USE PROBABILISTIC WCET VALUE
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
+				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
 
 					newWCET = (uint64_t)(NSEC_PER_SEC *
 								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
@@ -1177,12 +1197,14 @@ manageSched(){
 					else
 						warn ("Estimation error, can not update WCET");
 				}
-				else{
-					// something went wrong
-					if (!(item->status & MSK_STATHERR))
-						warn("CDF initialization/range error for PID %d", item->pid);
-					item->status |= MSK_STATHERR;
-				}
+				else
+					if (ret != 0)
+					{
+						// something went wrong
+						if (!(item->status & MSK_STATHERR))
+							warn("CDF initialization/range error for PID %d", item->pid);
+						item->status |= MSK_STATHERR;
+					}
 
 				break;
 
