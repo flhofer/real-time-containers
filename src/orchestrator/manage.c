@@ -58,10 +58,10 @@ struct tr_common {
 	uint8_t common_flags;
 	uint8_t common_preempt_count;
 	int32_t common_pid;
-//	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
-//	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
-//	uint16_t _common_filler1;				// filler for C5
-//	uint16_t _common_filler2;				// filler for C5
+	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
+	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
+	uint16_t _common_filler1;				// filler for C5
+	uint16_t _common_filler2;				// filler for C5
 };
 
 struct tr_switch {		// coming from .. 12 bytes?
