@@ -252,7 +252,7 @@ static const node_t _node_default = { NULL,				// *next,
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max
-							0, 0,						//		last ts, deadline
+							0, 0, 0,					//		last ts, last ts period. deadline
 							0, 0,						//		dl rf, dl diff
 							0, 0, 0,					//		scan counters, fail, overrun
 							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
