@@ -58,10 +58,10 @@ struct tr_common {
 	uint8_t common_flags;
 	uint8_t common_preempt_count;
 	int32_t common_pid;
-	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
-	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
-	uint16_t _common_filler1;				// filler for C5
-	uint16_t _common_filler2;				// filler for C5
+//	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
+//	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
+//	uint16_t _common_filler1;				// filler for C5
+//	uint16_t _common_filler2;				// filler for C5
 };
 
 struct tr_switch {		// coming from .. 12 bytes?
@@ -594,7 +594,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 //				#define TASK_STATE_MAX          0x800
 
 				// has it been suspended or restarted? calculate rest
-				if ((pFrame->prev_state_l == 0)
+				if ((pFrame->prev_state_l != 0)
 						||  SCHED_DEADLINE == item->attr.sched_policy) // are always in run
 					// update real-time stats and consolidate other values
 					pickPidCons(item, ts);
@@ -611,8 +611,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 								getTracer(fthread->cpuno), item))
 							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
 					}
-//					else // otherwise just move
-//						(void)pidReallocAndTest(checkPeriod_R(item, 0), NULL, item);
 				}
 
 			}
