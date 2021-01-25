@@ -604,13 +604,14 @@ runstats_histFit(stat_hist **h)
 		sd = mn * 0.01;
 
 	// compute ideal bin size according to Scott 1979
-	double W = 3.49*sd*pow(N, (double)(-1/3));
+	double W = 3.49*sd*pow(N, -1.0/3.0);
 
-	// bin count to cover 10 standard deviations both sides, at least 10 bins
+	// bin count to cover 10 standard deviations both sides
 	size_t new_n = (size_t)MAX(trunc(sd*20/W), 10);
+
 	// adjust margins bin limits
 	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	double bin_max = mn + MAX(mn - bin_min, mn);
+	double bin_max = mn + ((double)n/2.0)*W;
 
 	// do we have at least a 20% change?
 	if (n * 80 > new_n * 100 || n * 120 <  new_n * 100){
