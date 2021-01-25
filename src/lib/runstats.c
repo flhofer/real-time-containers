@@ -441,11 +441,17 @@ runstats_paramInit(stat_param ** x, double b){
 int
 runstats_histInit(stat_hist ** h, double b){
 
-	if (b == 0)
+	if (0.0 == b)
 		return GSL_FAILURE;
 
 	double bin_min = b * BIN_DEFMIN;		// default ranges
 	double bin_max = b * BIN_DEFMAX;
+
+	// preventive
+	if (bin_min >= bin_max){
+		err_msg("Invalid ranges adapt %f,%f", bin_min, bin_max);
+		return GSL_FAILURE;
+	}
 
 	/* Allocate memory, histogram data for RTC accumulation */
 	*h = gsl_histogram_alloc (STARTBINS);	// number of bins to fit
