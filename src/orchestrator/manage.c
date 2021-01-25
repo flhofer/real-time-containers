@@ -575,10 +575,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == pFrame->prev_pid){
 
-			// compute runtime
-			item->mon.dl_rt += (ts - item->mon.last_ts);
-
 			if (item->mon.last_ts > 0){
+				// compute runtime
+				item->mon.dl_rt += (ts - item->mon.last_ts);
+
 //				#define TASK_RUNNING            0x0
 //				#define TASK_INTERRUPTIBLE      0x1
 //				#define TASK_UNINTERRUPTIBLE    0x2
@@ -595,11 +595,11 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 //				#define TASK_PARKED             0x200
 //				#define TASK_NOLOAD             0x400
 //				#define TASK_STATE_MAX          0x800
-
+//				1 | 2 | 4 | 8 | 10 | 20 | 40 | 80
 				// has it been suspended or restarted? calculate rest
-				if ((pFrame->prev_state_l != 0)
+				if ((pFrame->prev_state_l & (0x800 -1))
 						||  SCHED_DEADLINE == item->attr.sched_policy) // are always in run
-					// update real-time stats and consolidate other values
+					// update real-time statistics and consolidate other values
 					pickPidCons(item, ts);
 				else
 					printDbg(PFX "Status not part of preview\n");
@@ -619,7 +619,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			}
 		}
 
-		// find next PID and put timeStamp, compute period eventually
+		// find next PID and put timeStamp last seen, compute period if last time ended
 		if (item->pid == pFrame->next_pid){
 
 			// period histogram and CDF TODO: fix to use wakeup instead
