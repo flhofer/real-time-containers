@@ -403,11 +403,13 @@ pickPidCons(node_t *item, uint64_t ts){
 		// base for histogram, runtime parameter
 		double b = (double)item->attr.sched_runtime;
 		// --, try prefix if none loaded
-		if (!b && item->param && item->param->attr)
+		if (0.0 == b && item->param && item->param->attr)
 			b = (double)item->param->attr->sched_runtime;
 		// -- fall-back to last runtime
-		if (!b)
-			b = (double)item->mon.dl_rt; // at least 1ns
+		if (0.0 == b && item->mon.cdf_runtime)
+			b = (double)item->mon.cdf_runtime;
+		if (0.0 == b)
+			b = (double)item->mon.dl_rt;
 
 		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
 			warn("Histogram init failure for PID %d runtime", item->pid);
@@ -470,6 +472,7 @@ pickPidCons(node_t *item, uint64_t ts){
 	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
 	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
 
+	// reset counter, done with statistics, task in sleep (suspend)
 	item->mon.dl_rt = 0;
 
 }
