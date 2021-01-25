@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 50		// Minimum number of samples in histogram
+#define SAMP_MINCNT 50.0	// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
@@ -584,59 +584,22 @@ runstats_histFit(stat_hist **h)
 	if (!h || !*h)
 		return GSL_EINVAL;
 
+	// get parameters of bins
+	size_t maxbin = gsl_histogram_max_bin(*h);
+	size_t n = gsl_histogram_bins(*h);
+	// inside margins? 20-80%
+	if (n * 2 <= maxbin * 10 || n * 8 > maxbin * 10)
+		return GSL_CONTINUE;
+
+	double N = gsl_histogram_sum(*h);
+	if (SAMP_MINCNT > N)
+		return GSL_EDOM; // small input count
+
 	// get parameters of histogram
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
-	double N = gsl_histogram_sum(*h);
-	double bin_min = gsl_histogram_min(*h);
-	double bin_max = gsl_histogram_max(*h);
-	double range = (bin_max - bin_min);
-	size_t maxbin = gsl_histogram_max_bin(*h);
-	size_t n = gsl_histogram_bins(*h);
-
-	if (0.0 == N)
-		return GSL_FAILURE;
-
-	// are we in the very corner?, shift the histogram instead
-	if ((0.0 != bin_min)
-			&& (n * 2 > maxbin * 10 || n * 8 <= maxbin * 10)
-			&& N * 0.9 < gsl_histogram_get(*h, maxbin)){
-		range *= (double)(n-4)/(double)n; // 2 margin + 2 extra bins
-		// almost double the range to deal with misscaling
-		if (n * 2 > maxbin * 10){
-			bin_min = MAX(bin_min - 2.0 * range, 0.0);
-			bin_max = MAX(bin_max - range, 2.0 * range);
-		}
-		else {
-			bin_min = bin_min + range;
-			bin_max = bin_max + 2.0 * range;
-		}
-
-		// preventive
-		if (bin_min >= bin_max){
-			err_msg("Invalid ranges adapt %f,%f", bin_min, bin_max);
-			return GSL_FAILURE;
-		}
-
-		// clear and reset
-		return (0 != gsl_histogram_set_ranges_uniform(*h, bin_min, bin_max))
-				? GSL_FAILURE : GSL_SUCCESS;
-	}
-	if (0.0 == bin_min && maxbin * 10 < n * 2){
-		// way too big range
-
-		// preventive
-		if (bin_min >= bin_max){
-			err_msg("Invalid ranges shrink %f,%f", bin_min, bin_max);
-			return GSL_FAILURE;
-		}
-		return (0 != gsl_histogram_set_ranges_uniform(*h, 0.0, MAX (range/2, mn * 2)))
-				? GSL_FAILURE : GSL_SUCCESS;
-
-	}
 
 	// update bin range
-
 	if (0 == sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
 		sd = mn * 0.01;
 
@@ -646,8 +609,8 @@ runstats_histFit(stat_hist **h)
 	// bin count to cover 10 standard deviations both sides, at least 10 bins
 	size_t new_n = (size_t)MAX(trunc(sd*20/W), 10);
 	// adjust margins bin limits
-	bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	bin_max = mn + MAX(mn - bin_min, mn);
+	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
+	double bin_max = mn + MAX(mn - bin_min, mn);
 
 	// do we have at least a 20% change?
 	if (n * 80 > new_n * 100 || n * 120 <  new_n * 100){
@@ -659,21 +622,18 @@ runstats_histFit(stat_hist **h)
 			err_msg("Unable to allocate memory for histogram");
 			return GSL_ENOMEM;
 		}
-
-		// preventive
-		if (bin_min >= bin_max){
-			err_msg("Invalid ranges resize %f,%f", bin_min, bin_max);
-			return GSL_FAILURE;
-		}
-
-		int ret;
-		if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
-			err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
-
-		return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+	}
+	// preventive
+	if (bin_min >= bin_max){
+		err_msg("Invalid ranges resize %f,%f", bin_min, bin_max);
+		return GSL_FAILURE;
 	}
 
-	return GSL_CONTINUE;
+	int ret;
+	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
+		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
+
+	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
 }
 
 /*
