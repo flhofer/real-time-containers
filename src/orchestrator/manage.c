@@ -417,6 +417,7 @@ pickPidCons(node_t *item, uint64_t ts){
 
 	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
+	printDbg(PFX "Runtime for pid %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d runtime", item->pid);
@@ -636,6 +637,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 							warn("Histogram init failure for PID %d period", item->pid);
 					}
 
+					printDbg(PFX "Period for pid %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
 					if ((runstats_histAdd(item->mon.pdf_phist, period)))
 						warn("Histogram increment error for PID %d period", item->pid);
 				}
@@ -1119,15 +1121,19 @@ manageSched(){
 		if (SM_PADAPTIVE <= prgset->sched_mode)
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
+
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
+					(void)runstats_histFit(&item->mon.pdf_phist);
+
 					// period changed enough for a different time-slot?
-					if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)){
+					if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)
+							&& newPeriod > item->mon.cdf_runtime){
 						if (item->mon.cdf_period * 95 > newPeriod * 100
 								|| item->mon.cdf_period * 105 < newPeriod * 100){
 							// meaningful change?
-							info("Update PID %d period: %luus", item->pid, newPeriod/1000);
+							info("Update PID %d %s period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
 							item->mon.resample++;
 						}
 						item->mon.cdf_period = newPeriod;

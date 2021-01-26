@@ -587,11 +587,17 @@ runstats_histFit(stat_hist **h)
 	// get parameters of bins
 	size_t maxbin = gsl_histogram_max_bin(*h);
 	size_t n = gsl_histogram_bins(*h);
-	// inside margins? 20-80%
-	if (n * 2 <= maxbin * 10 || n * 8 > maxbin * 10)
-		return GSL_CONTINUE;
-
 	double N = gsl_histogram_sum(*h);
+	// inside margins? 20-80%
+	if (n * 2 <= maxbin * 10 || n * 8 > maxbin * 10){
+
+		int ret;
+		if ((ret = gsl_histogram_scale(*h, 0.9)))
+			err_msg ("Histogram scaling failed : %s", gsl_strerror(ret));
+
+		return GSL_CONTINUE;
+	}
+
 	if (SAMP_MINCNT > N)
 		return GSL_EDOM; // small input count
 
@@ -884,19 +890,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 	if (!c || !h || !(*h))
 		return GSL_EINVAL;
 
-	int ret;
-
-	// check and readjusts the bin size if needed. exit if that happens
-	ret = runstats_histFit(h);
-	if (GSL_CONTINUE != ret){
-		if (GSL_SUCCESS != ret){
-			warn("Curve fitting histogram bin adaptation error");
-			return ret;
-		}
-		return GSL_EDOM;
-	}
-
-	ret = GSL_SUCCESS;
+	int ret = GSL_SUCCESS;
 
 	// re-alloc if number of bins differs
 	if (*c && ((*c)->n != (*h)->n))
@@ -910,8 +904,15 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 		return ret;
 	}
 
-	if ((ret = gsl_histogram_scale(*h, 0.9)))
-		err_msg ("Histogram scaling failed : %s", gsl_strerror(ret));
+	// check and readjusts the bin size if needed. exit if that happens
+	ret = runstats_histFit(h);
+	if (GSL_CONTINUE != ret){
+		if (GSL_SUCCESS != ret){
+			warn("Curve fitting histogram bin adaptation error");
+			return ret;
+		}
+		return GSL_EDOM;
+	}
 
 	return ret;
 
