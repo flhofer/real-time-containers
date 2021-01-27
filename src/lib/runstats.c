@@ -591,9 +591,7 @@ runstats_histFit(stat_hist **h)
 	// inside margins? 20-80%
 	if (n * 2 <= maxbin * 10 || n * 8 > maxbin * 10){
 
-		int ret;
-		if ((ret = gsl_histogram_scale(*h, 0.9)))
-			err_msg ("Histogram scaling failed : %s", gsl_strerror(ret));
+		gsl_histogram_reset(*h);
 
 		return GSL_CONTINUE;
 	}

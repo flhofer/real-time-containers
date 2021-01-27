@@ -1160,8 +1160,13 @@ manageSched(){
 				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
 				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){ // keep to update and fix hist
 
-					newWCET = (uint64_t)(NSEC_PER_SEC *
-								runstats_histSixSigma(item->mon.pdf_hist));
+					if (SCHED_DEADLINE == item->attr.sched_policy)
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_histSixSigma(item->mon.pdf_hist));
+					else
+						// Otherwise, fifo ecc
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_histMean(item->mon.pdf_hist));
 
 					if (0 < newWCET){
 						if (SCHED_DEADLINE == item->attr.sched_policy){
@@ -1173,7 +1178,7 @@ manageSched(){
 						if ( item->mon.cdf_runtime * 95 > newWCET * 100
 								|| item->mon.cdf_runtime * 105 < newWCET * 100){
 							// meaningful change?
-							info("Update PID %d runtime: %luus", item->pid, newWCET/1000);
+							info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 							item->mon.resample++;
 						}
 						item->mon.cdf_runtime = newWCET;
@@ -1196,8 +1201,14 @@ manageSched(){
 				// DYNAMIC, USE PROBABILISTIC WCET VALUE
 				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
 
-					newWCET = (uint64_t)(NSEC_PER_SEC *
-								runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+					if (SCHED_DEADLINE == item->attr.sched_policy)
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+					else
+						// Otherwise, fifo ecc
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_histMean(item->mon.pdf_hist));
+
 
 					if (0 < newWCET){
 						if (SCHED_DEADLINE == item->attr.sched_policy)
