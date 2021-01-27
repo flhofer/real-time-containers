@@ -363,16 +363,17 @@ if [[ $cmd == "build" ]] ; then
 	srcDir=./src
 	dockerDir=./docker
 	cd $srcDir
+    if [ $? -eq 0 ]; then
+    	# Build binaries and copy them to the docker build directory
+    	make
+    	cp -f WorkerApp "../WorkerApp"
+    	cp -f DataGenerator "../DataGenerator"
 
-	# Build binaries and copy them to the docker build directory
-	make
-	cp -f WorkerApp "../$dockerDir/workerapp"
-	cp -f DataGenerator "../$dockerDir/datagenerator"
-
-	cd "../$dockerDir"
-
+        cd ..
+    fi
+    
 	echo "executables:"
-	ls -l datagenerator workerapp
+	ls -l DataGenerator WorkerApp
 	echo
 
 	# Stop containers and cleanup
@@ -395,16 +396,15 @@ if [[ $cmd == "build" ]] ; then
 	# Rebuild all docker images for the use case
 	for i in {0..9}
 	do
-	    docker build -f ./Dockerfile.wa$i -t rt-workerapp$i .
+	    docker build -f ${dockerDir}/Dockerfile.wa$i -t rt-workerapp$i .
 	done
 
-	docker build -f ./Dockerfile.dg -t rt-datagenerator .
-	docker build -f ./Dockerfile.dd -t rt-datadistributor .
+	docker build -f ${dockerDir}/Dockerfile.dg -t rt-datagenerator .
+	docker build -f ${dockerDir}/Dockerfile.dd -t rt-datadistributor .
 
 	echo "Docker images after build:"
 	docker images
 
-	cd ..
 elif [[ $cmd == "stopall" ]]; then
 
 	stopAllContainers

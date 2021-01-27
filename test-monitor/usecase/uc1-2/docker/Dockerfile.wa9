@@ -6,7 +6,7 @@ RUN mkdir /home/logs && \
 RUN mkdir /home/tmp && \
     chmod 777 /home/tmp
 
-COPY workerapp  /home/workerapp9
+COPY WorkerApp  /home/workerapp9
 
 CMD chrt $scheduling /home/workerapp9 $cmdargs > /home/logs/workerapp9$sch.log 2>&1
 

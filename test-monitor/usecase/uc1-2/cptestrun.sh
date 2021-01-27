@@ -9,22 +9,26 @@ function prepareTest() {
 
 		# do nothing, default setting TODO: reset all
 		sleep 1
-
-	elif [ "$no" -eq 1 ]; then
+	fi
+	# always write separation for >=1
+	if [ "$no" -ge 1 ]; then
 
 		# Manual settings with exclusive docker, 3 CPU dedicated + SMT
 		eval 'echo -1 > /proc/sys/kernel/sched_rt_runtime_us'
 		eval 'echo "1-3,5-8" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
 		eval 'echo "1" > /sys/fs/cgroup/cpuset/docker/cpuset.cpu_exclusive' 
 
-	elif [ "$no" -eq 2 ]; then
+	fi
+	# always write SMT for >=2
+	if [ "$no" -ge 2 ]; then
 
 		# Without SMT
 		for i in {4..7}; do
 			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 		done
 
-	elif [ "$no" -eq 3 ]; then
+	fi
+	if [ "$no" -eq 3 ]; then
 
 		# Environment setup only
 		eval ./orchestrator -fk >> logs/out${no}.txt 2>&1 &
@@ -83,7 +87,10 @@ function prepareTest() {
 #prepare and create orch output
 eval mkdir -p logs
 
-for k in {5..8}; do
+from=${1:-'0'}
+to=${2:-'8'}
+
+for (( k=$from; k<=$to; k++ )); do
 
 	prepareTest $k 1
 	eval ./ucexec.sh test 1
