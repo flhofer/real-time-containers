@@ -912,7 +912,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 		return GSL_EDOM;
 	}
 
-	return ret;
+	return GSL_SUCCESS;
 
 }
 
