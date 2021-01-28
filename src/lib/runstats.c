@@ -902,16 +902,6 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 		return ret;
 	}
 
-	// check and readjusts the bin size if needed. exit if that happens
-	ret = runstats_histFit(h);
-	if (GSL_CONTINUE != ret){
-		if (GSL_SUCCESS != ret){
-			warn("Curve fitting histogram bin adaptation error");
-			return ret;
-		}
-		return GSL_EDOM;
-	}
-
 	return GSL_SUCCESS;
 
 }

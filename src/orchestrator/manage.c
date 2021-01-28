@@ -1194,44 +1194,18 @@ manageSched(){
 			switch (prgset->sched_mode) {
 
 			case SM_PADAPTIVE:
-
 				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
-				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){ // keep to update and fix hist
-
-					if (SCHED_DEADLINE == item->attr.sched_policy)
-						newWCET = (uint64_t)(NSEC_PER_SEC *
-										runstats_histSixSigma(item->mon.pdf_hist));
-					else
-						// Otherwise, fifo ecc
-						newWCET = (uint64_t)(NSEC_PER_SEC *
-									runstats_histMean(item->mon.pdf_hist));
-
-					if (0 < newWCET){
-						if (SCHED_DEADLINE == item->attr.sched_policy){
-							if (item->param && item->param->attr &&
-									(item->param->attr->sched_runtime)) // max double initial WCET
-								newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
-							updatePidWCET(item, newWCET);
-						}
-						if ( item->mon.cdf_runtime * 95 > newWCET * 100
-								|| item->mon.cdf_runtime * 105 < newWCET * 100){
-							// meaningful change?
-							info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
-							item->mon.resample++;
-						}
-						item->mon.cdf_runtime = newWCET;
-						item->status &= ~MSK_STATHERR;
-					}
-					else
-						warn ("Estimation error, can not update WCET");
+				if (SCHED_DEADLINE == item->attr.sched_policy){
+					newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_histSixSigma(item->mon.pdf_hist));
+					if (item->param && item->param->attr &&
+							(item->param->attr->sched_runtime)) // max double initial WCET
+						newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
 				}
 				else
-					if (ret != 1){
-						// something went wrong
-						if (!(item->status & MSK_STATHERR))
-							warn("CDF initialization/range error for PID %d", item->pid);
-						item->status |= MSK_STATHERR;
-					}
+					// Otherwise, fifo ecc
+					newWCET = (uint64_t)(NSEC_PER_SEC *
+								runstats_histMean(item->mon.pdf_hist));
 				break;
 
 			case SM_DYNSIMPLE:
@@ -1246,17 +1220,6 @@ manageSched(){
 						// Otherwise, fifo ecc
 						newWCET = (uint64_t)(NSEC_PER_SEC *
 									runstats_histMean(item->mon.pdf_hist));
-
-
-					if (0 < newWCET){
-						if (SCHED_DEADLINE == item->attr.sched_policy)
-							updatePidWCET(item, newWCET);
-						item->mon.cdf_runtime = newWCET;
-						item->mon.resample++;
-						item->status &= ~MSK_STATHERR;
-					}
-					else
-						warn ("Estimation error, can not update WCET");
 				}
 				else
 					if (ret != 0)
@@ -1276,6 +1239,23 @@ manageSched(){
 				break;
 			}
 
+			if (0 < newWCET){
+				if (SCHED_DEADLINE == item->attr.sched_policy){
+					updatePidWCET(item, newWCET);
+				}
+				if ( item->mon.cdf_runtime * 95 > newWCET * 100
+						|| item->mon.cdf_runtime * 105 < newWCET * 100){
+					// meaningful change?
+					info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
+					item->mon.resample++;
+				}
+				item->mon.cdf_runtime = newWCET;
+				item->status &= ~MSK_STATHERR;
+			}
+			else
+				warn ("Estimation error, can not update WCET");
+
+			(void)runstats_histFit(&item->mon.pdf_hist);
 		}
     }
 
