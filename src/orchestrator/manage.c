@@ -1045,12 +1045,6 @@ get_sched_info(node_t * item)
 static int
 updateStats()
 {
-	static int prot = 0; // pipe rotation animation
-	static char const sp[4] = "/-\\|";
-
-	prot = (prot+1) % 4;
-	if (!prgset->quiet)	
-		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
 	// lock data to avoid inconsistency

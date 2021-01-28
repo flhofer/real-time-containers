@@ -611,8 +611,6 @@ thread_update (void *arg)
 			if (cc)
 				break;
 			// update, once every td
-			if (!prgset->quiet)	
-				(void)printf("\rNode Stats update  ");
 			scanNew();
 
 			break;
