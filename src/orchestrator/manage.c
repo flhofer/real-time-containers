@@ -77,6 +77,14 @@ struct tr_switch {		// coming from .. 12 bytes?
 	int32_t next_prio; // 68 - 4	/ 56
 };
 
+struct tr_wakeup {		// coming from .. 12 bytes?
+	char comm[16]; // 12 - 16	/ 0
+	pid_t pid; // 28 - 4		/ 16
+	int32_t prio; // 32 - 4		/ 20
+	int32_t success; // 36 - 4	/ 24
+	int32_t target_cpu; // 40 - 4	/ 28
+};
+
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
 
@@ -85,6 +93,7 @@ void *thread_ftrace(void *arg);
 // functions to elaborate data for tracer frames
 static int pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
 static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
+static int pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
 
 static int get_sched_info(node_t * item);
 
@@ -170,6 +179,9 @@ configureTracers(){
 	}
 
 	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
+		return -1;
+
+	if ((appendEvent(dbgpfx, "sched/sched_wakeup", pickPidInfoW)))
 		return -1;
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
@@ -656,6 +668,30 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_switch);
+}
+
+/*
+ *  pickPidInfoW(): process PID fTrace wakeup
+ * 					update data with kernel tracer debug out
+ *
+ *  Arguments: - frame containing the runtime info
+ *             - fTrace thread info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
+static int
+pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
+
+	int ret1 = pickPidCommon(addr, fthread, ts);
+	addr+= ret1;
+
+	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+
+	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
+				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
+
+	return ret1 + sizeof(struct tr_wakeup);
 }
 
 /*
