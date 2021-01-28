@@ -53,5 +53,5 @@ dates=$(date +'%b%d')
 eval mv logs logs_test_${dates}
 
 daten=$(date +'%b %d')
-version=$(./orchestrator --version | grep DC | cut -dV  -f2)
+version=$(./orchestrator --version | grep PDO | cut -dV  -f2)
 eval echo "${daten}${version}" > www/latest/date.txt
