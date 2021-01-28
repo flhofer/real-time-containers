@@ -401,7 +401,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 }
 
 /*
- *  pickPidCons(): update runtime data, init stats when needed
+ *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
  *
  *  Arguments: - item to update
  * 			   - last time stamp
@@ -409,7 +409,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
  *  Return value: -
  */
 static void
-pickPidCons(node_t *item, uint64_t ts){
+pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 	if (!item->mon.dl_rt)
 		return; // First call
@@ -427,7 +427,7 @@ pickPidCons(node_t *item, uint64_t ts){
 			b = (double)item->mon.dl_rt;
 
 		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-			warn("Histogram init failure for PID %d runtime", item->pid);
+			warn("Histogram init failure for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
 	}
 
 	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
@@ -435,7 +435,7 @@ pickPidCons(node_t *item, uint64_t ts){
 	printDbg(PFX "Runtime for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 		if (ret != 1) // GSL_EDOM
-			warn("Histogram increment error for PID %d runtime", item->pid);
+			warn("Histogram increment error for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
 
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 
@@ -527,7 +527,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 		if (item->pid == pFrame->common_pid){
 			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
 				// update real-time statistics and consolidate other values
-				pickPidCons(item, ts);
+				pickPidConsolidateRuntime(item, ts);
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -621,7 +621,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					if (SCHED_DEADLINE == item->attr.sched_policy) {
 						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
 								getTracer(fthread->cpuno), item))
-							warn("Unsuccessful first allocation of DL task PID %d", item->pid);
+							warn("Unsuccessful first allocation of DL task PID %d %s", item->pid, (item->psig) ? item->psig : "");
 					}
 				}
 
@@ -681,12 +681,12 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 					if (!(item->mon.pdf_phist)){
 						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-							warn("Histogram init failure for PID %d period", item->pid);
+							warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
 					}
 
 					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
 					if ((runstats_histAdd(item->mon.pdf_phist, period)))
-						warn("Histogram increment error for PID %d period", item->pid);
+						warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
 				}
 				item->status &= ~MSK_STATNRSCH;
 				item->mon.last_tsP = ts;
@@ -1023,8 +1023,8 @@ get_sched_info(node_t * item)
 							item->mon.dl_overrun++;
 
 							// usually: we have jitter but execution stays constant -> more than a slot?
-							printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
-								item->pid, diff, item->mon.dl_diff);
+							printDbg("\nPID %d %s Deadline overrun by %ldns, sum %ld\n",
+								item->pid, (item->psig) ? item->psig : "", diff, item->mon.dl_diff);
 						}
 
 						item->mon.dl_diff += diff;
@@ -1177,7 +1177,7 @@ manageSched(){
 						item->mon.cdf_period = newPeriod;
 						// check if there is a better fit for the period, and if it is main
 						if (0 > updateSiblings(item))
-							warn("Sibling update not possible!");
+							warn("PID %d %s Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
 					else
 						item->mon.cdf_period = newPeriod;
@@ -1226,7 +1226,7 @@ manageSched(){
 					{
 						// something went wrong
 						if (!(item->status & MSK_STATHERR))
-							warn("CDF initialization/range error for PID %d", item->pid);
+							warn("CDF initialization/range error for PID %d %s", item->pid, (item->psig) ? item->psig : "");
 						item->status |= MSK_STATHERR;
 					}
 
@@ -1306,21 +1306,23 @@ dumpStats (){
 		switch(item->attr.sched_policy){
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				policy_to_string(item->attr.sched_policy));
+				policy_to_string(item->attr.sched_policy),
+				(item->psig) ? item->psig : "");
 			break;
 
 		case SCHED_DEADLINE:
-			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
+				(item->psig) ? item->psig : "");
 			break;
 		default:
 			;
