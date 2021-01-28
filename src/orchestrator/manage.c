@@ -411,6 +411,9 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 static void
 pickPidCons(node_t *item, uint64_t ts){
 
+	if (!item->mon.dl_rt)
+		return; // First call
+
 	if (!(item->mon.pdf_hist)){
 		// base for histogram, runtime parameter
 		double b = (double)item->attr.sched_runtime;
