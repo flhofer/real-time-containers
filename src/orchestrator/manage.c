@@ -503,14 +503,32 @@ static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
-	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
+	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
-	if (pFrame->common_flags != 1)
-		{
-		// print the flag found, if different from 1
-		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
+	//thread information flags, probable meaning
+	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
+	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
+	//#define TIF_SIGPENDING	2	/* signal pending */
+	//#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
+	//#define TIF_SINGLESTEP	4	/* reenable singlestep on user return*/
+	//#define TIF_SSBD			5	/* Speculative store bypass disable */
+	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
+	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
+
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// find PID = actual running PID
+	for (node_t * item = nhead; ((item)); item=item->next )
+		// find next PID and put timeStamp last seen, compute period if last time ended
+		if (item->pid == pFrame->common_pid){
+			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+				// update real-time statistics and consolidate other values
+				pickPidCons(item, ts);
+				item->status |=  MSK_STATNRSCH;
+			}
 		}
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
 }
@@ -592,33 +610,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				// compute runtime
 				item->mon.dl_rt += (ts - item->mon.last_ts);
 
-//				#define TASK_RUNNING            0x0
-//				#define TASK_INTERRUPTIBLE      0x1
-//				#define TASK_UNINTERRUPTIBLE    0x2
-//				#define __TASK_STOPPED          0x4
-//				#define __TASK_TRACED           0x8
-//				/* in tsk->exit_state */
-//				#define EXIT_DEAD               0x10
-//				#define EXIT_ZOMBIE             0x20
-//				#define EXIT_TRACE              (EXIT_ZOMBIE | EXIT_DEAD)
-//				/* in tsk->state again */
-//				#define TASK_DEAD               0x40
-//				#define TASK_WAKEKILL           0x80
-//				#define TASK_WAKING             0x100
-//				#define TASK_PARKED             0x200
-//				#define TASK_NOLOAD             0x400
-//				#define TASK_STATE_MAX          0x800
-//				1 | 2 | 4 | 8 | 10 | 20 | 40 | 80 -> Voluntary suspension
-				// has it been suspended or restarted? calculate rest
-				if ((pFrame->prev_state_l & (0xFF))
-						||  SCHED_DEADLINE == item->attr.sched_policy){ // are always in run
-					// update real-time statistics and consolidate other values
-					pickPidCons(item, ts);
-					item->status &= ~MSK_STATRPMP;
-				}
-				else
-					item->status |= MSK_STATRPMP;
-
 				if (item->status & MSK_STATNAFF){
 					// unassigned CPU was not part of adaptive table
 					if (SCHED_NODATA == item->attr.sched_policy)
@@ -636,29 +627,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 		// find next PID and put timeStamp last seen, compute period if last time ended
 		if (item->pid == pFrame->next_pid){
-
-			// period histogram and CDF TODO: fix to use wakeup instead
-			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)
-					&& !(item->status & MSK_STATRPMP)){
-
-				if (item->mon.last_tsP){
-
-					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
-
-					if (!(item->mon.pdf_phist)){
-						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-							warn("Histogram init failure for PID %d period", item->pid);
-					}
-
-					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
-					if ((runstats_histAdd(item->mon.pdf_phist, period)))
-						warn("Histogram increment error for PID %d period", item->pid);
-				}
-
-				item->mon.last_tsP = ts;
-
-			}
 
 			item->mon.last_ts = ts;
 		}
@@ -690,6 +658,41 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
 				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
+
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// find PID that is doing a wakeup
+	for (node_t * item = nhead; ((item)); item=item->next )
+		// find next PID and put timeStamp last seen, compute period if last time ended
+		if (item->pid == pFrame->pid){
+
+			// period histogram and CDF
+			if ((SM_PADAPTIVE <= prgset->sched_mode)
+					&& (SCHED_DEADLINE != item->attr.sched_policy)
+					&& (item->status & MSK_STATNRSCH)){ // task asked for, NEED_RESCHED
+
+				if (item->mon.last_tsP){
+
+					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+					if (!(item->mon.pdf_phist)){
+						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+							warn("Histogram init failure for PID %d period", item->pid);
+					}
+
+					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+					if ((runstats_histAdd(item->mon.pdf_phist, period)))
+						warn("Histogram increment error for PID %d period", item->pid);
+				}
+				item->status &= ~MSK_STATNRSCH;
+				item->mon.last_tsP = ts;
+
+			}
+			break;
+		}
+
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_wakeup);
 }
