@@ -417,7 +417,7 @@ pickPidCons(node_t *item, uint64_t ts){
 
 	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
-	printDbg(PFX "Runtime for pid %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
+	printDbg(PFX "Runtime for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d runtime", item->pid);
@@ -596,14 +596,16 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 //				#define TASK_PARKED             0x200
 //				#define TASK_NOLOAD             0x400
 //				#define TASK_STATE_MAX          0x800
-//				1 | 2 | 4 | 8 | 10 | 20 | 40 | 80
+//				1 | 2 | 4 | 8 | 10 | 20 | 40 | 80 -> Voluntary suspension
 				// has it been suspended or restarted? calculate rest
-				if ((pFrame->prev_state_l & (0x800 -1))
-						||  SCHED_DEADLINE == item->attr.sched_policy) // are always in run
+				if ((pFrame->prev_state_l & (0xFF))
+						||  SCHED_DEADLINE == item->attr.sched_policy){ // are always in run
 					// update real-time statistics and consolidate other values
 					pickPidCons(item, ts);
+					item->status &= ~MSK_STATRPMP;
+				}
 				else
-					printDbg(PFX "Status not part of preview\n");
+					item->status |= MSK_STATRPMP;
 
 				if (item->status & MSK_STATNAFF){
 					// unassigned CPU was not part of adaptive table
@@ -626,7 +628,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			// period histogram and CDF TODO: fix to use wakeup instead
 			if ((SM_PADAPTIVE <= prgset->sched_mode)
 					&& (SCHED_DEADLINE != item->attr.sched_policy)
-					&& (!item->mon.dl_rt)){ // only if new runtime = last period ended
+					&& !(item->status & MSK_STATRPMP)){
 
 				if (item->mon.last_tsP){
 
@@ -637,7 +639,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 							warn("Histogram init failure for PID %d period", item->pid);
 					}
 
-					printDbg(PFX "Period for pid %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
 					if ((runstats_histAdd(item->mon.pdf_phist, period)))
 						warn("Histogram increment error for PID %d period", item->pid);
 				}

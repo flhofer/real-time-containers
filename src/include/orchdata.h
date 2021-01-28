@@ -21,6 +21,7 @@
 	#define MSK_STATSIBL		0x8 // PID has siblings in container
 	#define MSK_STATNAFF		0x10 // PID has no affinity yet
 	#define MSK_STATHERR		0x20 // HIST CDF initialization error
+	#define MSK_STATRPMP		0x40 // Running task has been preempted -> trace computation
 
 	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
