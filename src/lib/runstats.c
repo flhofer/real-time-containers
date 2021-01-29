@@ -590,8 +590,8 @@ runstats_histFit(stat_hist **h)
 	double N = gsl_histogram_sum(*h);
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	size_t mn_bin = n/2;
-	if (0.0 != mn)
-		mn_bin = get_gistogram_mean(*h);
+	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin)))
+			err_msg("Unable to find mean in histogram!");
 
 	// inside margins? 20-80%
 	if (n * 2 <= MIN(maxbin, mn_bin) * 10
