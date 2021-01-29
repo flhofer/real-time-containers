@@ -588,11 +588,16 @@ runstats_histFit(stat_hist **h)
 	size_t maxbin = gsl_histogram_max_bin(*h);
 	size_t n = gsl_histogram_bins(*h);
 	double N = gsl_histogram_sum(*h);
+	double mn = gsl_histogram_mean(*h);	 // sample mean
+	size_t mn_bin = n/2;
+	if (0.0 != mn)
+		mn_bin = get_gistogram_mean(*h);
+
 	// inside margins? 20-80%
-	if (n * 2 <= maxbin * 10 || n * 8 > maxbin * 10){
+	if (n * 2 <= MIN(maxbin, mn_bin) * 10
+			|| n * 8 > MAX(maxbin,mn_bin) * 10){
 
 		gsl_histogram_reset(*h);
-
 		return GSL_CONTINUE;
 	}
 
@@ -600,7 +605,6 @@ runstats_histFit(stat_hist **h)
 		return GSL_EDOM; // small input count
 
 	// get parameters of histogram
-	double mn = gsl_histogram_mean(*h);	 // sample mean
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 
 	// update bin range
