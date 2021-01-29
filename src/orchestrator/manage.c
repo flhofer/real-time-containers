@@ -506,9 +506,6 @@ static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 	struct tr_common *pFrame = (struct tr_common*)addr;
 
-	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
-
 	//thread information flags, probable meaning
 	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
@@ -532,6 +529,10 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 			}
 		}
 	(void)pthread_mutex_unlock(&dataMutex);
+
+	// print here to have both line together
+	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
 
 	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
 }
@@ -596,6 +597,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			}
 
 		}
+
+		// find next PID and put timeStamp last seen, compute period if last time ended
+		if (item->pid == pFrame->next_pid)
+			item->mon.last_ts = ts;
 	}
 
 	// recompute actual CPU, new tasks might be there now
@@ -604,8 +609,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			pickPidReallocCPU(fthread->cpuno, 0);
 
 	// find PID switching from
-	for (node_t * item = nhead; ((item)); item=item->next ){
-
+	for (node_t * item = nhead; ((item)); item=item->next )
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == pFrame->prev_pid){
 
@@ -626,15 +630,32 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 
 			}
+
+			// period histogram and CDF, update on actual switch
+			if ((SM_PADAPTIVE <= prgset->sched_mode)
+					&& (SCHED_DEADLINE != item->attr.sched_policy)
+//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED
+					&& (pFrame->prev_state_l & 0xFD)){ // ~'D' uninterruptible sleep -> system call
+
+				if (item->mon.last_tsP){
+
+					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+					if (!(item->mon.pdf_phist)){
+						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+							warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+					}
+
+					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+					if ((runstats_histAdd(item->mon.pdf_phist, period)))
+						warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+				}
+				item->status &= ~MSK_STATNRSCH;
+				item->mon.last_tsP = ts;
+
+			}
+			break;
 		}
-
-		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->next_pid){
-
-			item->mon.last_ts = ts;
-		}
-
-	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
@@ -661,41 +682,6 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
 				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
-
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
-
-	// find PID that is doing a wakeup
-	for (node_t * item = nhead; ((item)); item=item->next )
-		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->pid){
-
-			// period histogram and CDF
-			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)
-					&& (item->status & MSK_STATNRSCH)){ // task asked for, NEED_RESCHED
-
-				if (item->mon.last_tsP){
-
-					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
-
-					if (!(item->mon.pdf_phist)){
-						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-							warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
-					}
-
-					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
-					if ((runstats_histAdd(item->mon.pdf_phist, period)))
-						warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
-				}
-				item->status &= ~MSK_STATNRSCH;
-				item->mon.last_tsP = ts;
-
-			}
-			break;
-		}
-
-	(void)pthread_mutex_unlock(&dataMutex);
 
 	return ret1 + sizeof(struct tr_wakeup);
 }
