@@ -1352,6 +1352,8 @@ dumpStats (){
 		(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
 				trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
 	}
+
+	fflush(stdout);
 }
 
 /*
