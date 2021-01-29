@@ -401,19 +401,15 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 }
 
 /*
- *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
+ *  pickPidAddRuntimeHist(): Add runtime to histogram, init if needed
  *
- *  Arguments: - item to update
- * 			   - last time stamp
+ *  Arguments: - item with data for runtime
  *
  *  Return value: -
  */
 static void
-pickPidConsolidateRuntime(node_t *item, uint64_t ts){
-
-	if (!item->mon.dl_rt)
-		return; // First call
-
+pickPidAddRuntimeHist(node_t *item){
+	// ---------- Add to histogram  ----------
 	if (!(item->mon.pdf_hist)){
 		// base for histogram, runtime parameter
 		double b = (double)item->attr.sched_runtime;
@@ -437,27 +433,62 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
 
+	// ---------- Compute diffs and averages  ----------
+
+	// exponentially weighted moving average, alpha = 0.9
+	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
+	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
+	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
+
+	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
+	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
+	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+
+	// reset counter, done with statistics, task in sleep (suspend)
+	item->mon.dl_rt = 0;
+
+}
+
+/*
+ *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
+ *
+ *  Arguments: - item to update
+ * 			   - last time stamp
+ *
+ *  Return value: -
+ */
+static void
+pickPidConsolidateRuntime(node_t *item, uint64_t ts){
+
 	if (SCHED_DEADLINE == item->attr.sched_policy){
+
+		// ---------- Check first if it is a valid period ----------
 
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
 		// period should never be zero from here on
 
 		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
-		if (!item->mon.deadline				 // no deadline set?
-				|| (item->mon.deadline < ts)){// did we miss a deadline? check for update, sync
-			int is_null = (!item->mon.deadline);
-
+		if (!item->mon.deadline)
 			if (get_sched_info(item))			 // update deadline from debug buffer
 				warn("Unable to read schedule debug buffer!");
-			while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
-				item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
-				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
-			}
+
+		if (item->mon.deadline > ts){
+			item->mon.dl_rt += (ts - item->mon.last_ts);
+			return;
 		}
-		else
-			// just add a period, we rely on periodicity
+
+		// ----------  period ended ----------
+
+		// just add a period, we rely on periodicity
+		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+
+		uint64_t count = 1;
+		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.dl_scanfail++;
+			count++;
+		}
 
 		/*
 		 * Check if we had a overrun and verify buffers
@@ -472,25 +503,22 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			}
 		}
 
-		// statistics about variability
-		item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+		item->mon.dl_rt /= count; // if we had multiple periods we missed, divive
+		if (item->mon.dl_rt){
+			// statistics about variability
+			item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+			pickPidAddRuntimeHist(item);
+		}
+		// reset runtime to new value
+		if (item->mon.last_ts > 0) // compute runtime
+			item->mon.dl_rt = (ts - item->mon.last_ts);
 	}
-	else
+	else{
 		// if not DL use estimated value
+		item->mon.dl_rt += (ts - item->mon.last_ts);
 		item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
-
-	// exponentially weighted moving average, alpha = 0.9
-	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
-	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
-	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
-
-	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
-	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
-	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
-
-	// reset counter, done with statistics, task in sleep (suspend)
-	item->mon.dl_rt = 0;
-
+		pickPidAddRuntimeHist(item);
+	}
 }
 
 /*
@@ -523,8 +551,6 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 		// find next PID and put timeStamp last seen, compute period if last time ended
 		if (item->pid == pFrame->common_pid){
 			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
-				// update real-time statistics and consolidate other values
-				pickPidConsolidateRuntime(item, ts);
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -613,47 +639,50 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == pFrame->prev_pid){
 
-			if (item->mon.last_ts > 0){
-				// compute runtime
-				item->mon.dl_rt += (ts - item->mon.last_ts);
-
-				if (item->status & MSK_STATNAFF){
-					// unassigned CPU was not part of adaptive table
-					if (SCHED_NODATA == item->attr.sched_policy)
-							updatePidAttr(item);
-					// never assigned to a resource and we have data (SCHED_DL), check for fit
-					if (SCHED_DEADLINE == item->attr.sched_policy) {
-						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
-								getTracer(fthread->cpuno), item))
-							warn("Unsuccessful first allocation of DL task PID %d %s", item->pid, (item->psig) ? item->psig : "");
-					}
+			if (item->status & MSK_STATNAFF){
+				// unassigned CPU was not part of adaptive table
+				if (SCHED_NODATA == item->attr.sched_policy)
+						updatePidAttr(item);
+				// never assigned to a resource and we have data (SCHED_DL), check for fit
+				if (SCHED_DEADLINE == item->attr.sched_policy) {
+					if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
+							getTracer(fthread->cpuno), item))
+						warn("Unsuccessful first allocation of DL task PID %d %s", item->pid, (item->psig) ? item->psig : "");
 				}
-
 			}
 
-			// period histogram and CDF, update on actual switch
-			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)
-//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED
-					&& (pFrame->prev_state_l & 0xFD)){ // ~'D' uninterruptible sleep -> system call
+			if ((pFrame->prev_state_l & 0xFD) // ~'D' uninterruptible sleep -> system call
+				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
+				// update real-time statistics and consolidate other values
+				pickPidConsolidateRuntime(item, ts);
 
-				if (item->mon.last_tsP){
+				// period histogram and CDF, update on actual switch
+				if ((SM_PADAPTIVE <= prgset->sched_mode)
+						&& (SCHED_DEADLINE != item->attr.sched_policy)
+	//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED
+						){
 
-					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+					if (item->mon.last_tsP){
 
-					if (!(item->mon.pdf_phist)){
-						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-							warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+						double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+						if (!(item->mon.pdf_phist)){
+							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+								warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+						}
+
+						printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+						if ((runstats_histAdd(item->mon.pdf_phist, period)))
+							warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
 					}
-
-					printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
-					if ((runstats_histAdd(item->mon.pdf_phist, period)))
-						warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+					item->status &= ~MSK_STATNRSCH;
+					item->mon.last_tsP = ts;
 				}
-				item->status &= ~MSK_STATNRSCH;
-				item->mon.last_tsP = ts;
-
 			}
+			else
+				if (item->mon.last_ts > 0) // compute runtime
+					item->mon.dl_rt += (ts - item->mon.last_ts);
+
 			break;
 		}
 
