@@ -617,8 +617,8 @@ runstats_histFit(stat_hist **h)
 	// compute ideal bin size according to Scott 1979, with N = ~min 10 bins
 	double W = 3.49*sd*pow(N, -1.0/3.0);
 
-	// bin count to cover 5 standard deviations both sides
-	size_t new_n = (size_t)trunc(sd*10.0/W);
+	// bin count to cover 4 standard deviations both sides
+	size_t new_n = (size_t)trunc(sd*8.0/W);
 
 	// adjust margins bin limits
 	double bin_min = MAX(0.0, mn - ((double)new_n/2.0)*W); // no negative values
