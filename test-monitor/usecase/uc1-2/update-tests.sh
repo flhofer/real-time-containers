@@ -25,7 +25,7 @@ for file in {'orchestrator','WorkerApp','DataGenerator'}; do
 	    eval chmod +x $file
 	fi
 done
-# ipdate images
+# update images
 if [ $tot -ne 0 ]; then
 	eval ./ucexec.sh build
 fi
@@ -36,7 +36,7 @@ tot=$tot+$es
 if [ $es -ne 0 ]; then 
     echo "Updating orchestrator.."
     eval mv artifacts/$file $file
-    eval chmod +x artifacts/$file
+    eval chmod +x $file
 fi
 
 

@@ -593,12 +593,12 @@ runstats_histFit(stat_hist **h)
 	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin)))
 			err_msg("Unable to find mean in histogram!");
 
-	// inside margins? 20-80%
-	if (n * 2 <= MIN(maxbin, mn_bin) * 10
-			|| n * 8 > MAX(maxbin,mn_bin) * 10){
+	// outside margins? 20-80%.. STDev has no meaning!!
+	if (n * 2 > MIN(maxbin, mn_bin) * 10	// 10er bins 0-1
+			|| n * 8 <= MAX(maxbin,mn_bin) * 10){ // 10er bins 8-9
 
-		gsl_histogram_reset(*h);
-		return GSL_CONTINUE;
+		gsl_histogram_free(*h); // clear all because of out of range, force re-init
+		return GSL_EDOM; // out of range
 	}
 
 	if (SAMP_MINCNT > N)
@@ -608,21 +608,22 @@ runstats_histFit(stat_hist **h)
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 
 	// update bin range
-	if (0 == sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
+	if (0 == sd){ // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
 		sd = mn * 0.01;
+		err_msg("Error determining STDev!");
+	}
 
-	// compute ideal bin size according to Scott 1979
+	// compute ideal bin size according to Scott 1979, with N = ~min 10 bins
 	double W = 3.49*sd*pow(N, -1.0/3.0);
 
-	// bin count to cover 10 standard deviations both sides
-	size_t new_n = (size_t)MAX(trunc(sd*20/W), 10);
+	// bin count to cover 5 standard deviations both sides
+	size_t new_n = (size_t)trunc(sd*10.0/W);
 
 	// adjust margins bin limits
-	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	double bin_max = mn + ((double)n/2.0)*W;
+	double bin_min = MAX(0.0, mn - ((double)new_n/2.0)*W); // no negative values
+	double bin_max = mn + ((double)new_n/2.0)*W;
 
-	// do we have at least a 20% change?
-	if (n * 80 > new_n * 100 || n * 120 <  new_n * 100){
+	if (n !=  new_n){
 		// if bin count differs, reallocate
 		gsl_histogram_free (*h);
 		n = new_n;
@@ -642,7 +643,7 @@ runstats_histFit(stat_hist **h)
 	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
 		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
 
-	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+	return ((ret != 0) ? GSL_FAILURE : GSL_CONTINUE);
 }
 
 /*
