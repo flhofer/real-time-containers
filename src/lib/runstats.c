@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 50.0	// Minimum number of samples in histogram
+#define SAMP_MINCNT 100.0	// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
@@ -584,12 +584,16 @@ runstats_histFit(stat_hist **h)
 	if (!h || !*h)
 		return GSL_EINVAL;
 
+	double N = gsl_histogram_sum(*h);
+	if (SAMP_MINCNT > N)
+		return GSL_EDOM; // small input count
+
 	// get parameters of bins
 	size_t maxbin = gsl_histogram_max_bin(*h);
 	size_t n = gsl_histogram_bins(*h);
-	double N = gsl_histogram_sum(*h);
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	size_t mn_bin = n/2;
+
 	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin)))
 			err_msg("Unable to find mean in histogram!");
 
@@ -602,15 +606,12 @@ runstats_histFit(stat_hist **h)
 		return GSL_EDOM; // out of range
 	}
 
-	if (SAMP_MINCNT > N)
-		return GSL_EDOM; // small input count
-
 	// get parameters of histogram
 	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 
 	// update bin range
-	if (0 == sd){ // if standard deviation = 0, e.g. all points exceed histogram, default to 1% of mean
-		sd = mn * 0.01;
+	if (0 == sd){ // if standard deviation = 0, i.e., all points in one bin, set to bin-with
+		sd = (gsl_histogram_max(*h) - gsl_histogram_min(*h))/n;
 		err_msg("Error determining STDev!");
 	}
 
