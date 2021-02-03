@@ -218,7 +218,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 					err_msg("could not allocate memory!");
 					exit(EXIT_FAILURE);
 				}
-				sprintf(set->affinity, "0-%d", max_cpus-1);
+				(void)sprintf(set->affinity, "0-%d", max_cpus-1);
 				set->setaffinity = AFFINITY_USEALL;
 			}
 			break;

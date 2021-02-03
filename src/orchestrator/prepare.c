@@ -588,12 +588,12 @@ prepareEnvironment(prgset_t *set) {
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
 
-		sprintf(numastr, "0-%d", numanodes);
+		(void)sprintf(numastr, "0-%d", numanodes);
 	}
 	else{
 		warn("NUMA not enabled, defaulting to memory node '0'");
 		// default NUMA string
-		sprintf(numastr, "0");
+		(void)sprintf(numastr, "0");
 	}
 
 	/* --------------------

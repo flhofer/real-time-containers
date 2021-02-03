@@ -393,9 +393,9 @@ scanNew () {
 			// cmdline of own thread
 			char pid[SIG_LEN];
 			if (prgset->psigscan)
-				sprintf(pid, "-TC %s", prgset->cont_pidc);
+				(void)sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
-				sprintf(pid, "-C %s", prgset->cont_pidc);
+				(void)sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
 			getPids(&lnew, pid, NULL);

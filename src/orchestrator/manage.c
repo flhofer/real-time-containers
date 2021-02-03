@@ -949,7 +949,7 @@ get_sched_info(node_t * item)
 
 	FILE *fp;
 
-	sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
+	(void)sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
 
 	if (-1 == access (szFileName, R_OK)) {
 		return -1;
