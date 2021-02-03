@@ -598,6 +598,7 @@ runstats_histFit(stat_hist **h)
 			|| n * 8 <= MAX(maxbin,mn_bin) * 10){ // 10er bins 8-9
 
 		gsl_histogram_free(*h); // clear all because of out of range, force re-init
+		*h = NULL;	// reset variable
 		return GSL_EDOM; // out of range
 	}
 
