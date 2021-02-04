@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 100.0	// Minimum number of samples in histogram
+#define SAMP_MINCNT 50.0	// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
@@ -618,8 +618,8 @@ runstats_histFit(stat_hist **h)
 	// compute ideal bin size according to Scott 1979, with N = ~min 10 bins
 	double W = 3.49*sd*pow(N, -1.0/3.0);
 
-	// bin count to cover 4 standard deviations both sides
-	size_t new_n = (size_t)trunc(sd*8.0/W);
+	// bin count to cover 5 standard deviations both sides
+	size_t new_n = (size_t)trunc(sd*5.0/W);
 
 	// adjust margins bin limits
 	double bin_min = MAX(0.0, mn - ((double)new_n/2.0)*W); // no negative values
