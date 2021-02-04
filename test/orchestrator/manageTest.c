@@ -6,10 +6,17 @@
 ###############################
 */
 
-#include "../../src/orchestrator/manage.h"
+#include "manageTest.h"
+#include "../test.h"
+
+// Includes from orchestrator library
+#include "../../src/include/parse_config.h"
 #include "../../src/include/kernutil.h"
 #include "../../src/include/rt-sched.h"
-#include <check.h>
+
+// tested
+#include "../../src/orchestrator/manage.c"
+
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -19,6 +26,18 @@
 
 #define MAX_PATH 256
 #define TESTCPU "0"
+
+void buildEventConf(){
+	push((void**)&elist_head, sizeof(struct ftrace_elist));
+	elist_head->eventid = 317;
+	elist_head->event = "sched_switch";
+	elist_head->eventcall = pickPidInfoS;
+}
+
+void clearEventConf(){
+	while (elist_head)
+		pop((void**)&elist_head);
+}
 
 static void orchestrator_manage_setup() {
 	prgset = calloc (1, sizeof(prgset_t));

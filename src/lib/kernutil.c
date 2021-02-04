@@ -68,7 +68,7 @@ open_msr_file(int cpu)
 	char pathname[_POSIX_PATH_MAX];
 
 	/* SMI needs thread affinity */
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	(void)sprintf(pathname, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
 		warn("%s open failed, try modprobe msr, chown or chmod +r "
@@ -534,7 +534,7 @@ popen2(const char * command, const char * type, pid_t * pid)
         perror("Pipe creation");
 
 	if (!command || !type || !pid){ // input parameters must be written
-        perror("Invalid arguments");
+        err_msg("Invalid arguments");
 		return NULL;
 	}
 

@@ -43,7 +43,6 @@ node_t * nhead = NULL;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t resMutex; // UNUSED for now
 // heads of resource allocations for CPU and Tasks
-resAlloc_t * aHead = NULL;
 resTracer_t * rHead = NULL;
 
 // -------------- LOCAL variables for all the functions  ------------------
@@ -81,15 +80,19 @@ static void display_help(int error)
            "                           colon separated list\n"
 	       "                           run system threads on remaining inverse mask list.\n"
 		   "                           default: System=0, Containers=1-MAX_CPU\n"
-	       "-A       --adaptive        activate Adaptive Static Schedule (ASS)\n"
+	       "-A [NR] --adaptive[=NR]    activate Adaptive Static Schedule (ASS)\n"
+	       "                           0 = Adaptive schedule \n"
+		   "                           1 = Probabilistic adaptive schedule (default)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
+#ifdef DEBUG
 	       "-B       --blind           blind run (do not change environment settings\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
-	       "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
+#endif
+			"-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature,\n"
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
@@ -112,9 +115,11 @@ static void display_help(int error)
 	       "         --rr=RRTIME       set a SCHED_RR interval time in ms, default=100\n"
 	       "-s [CMD]                   use shim PPID container detection.\n"
 	       "                           optional CMD parameter specifies ppid command\n"
-	       "-S       --system          activate Dynamic System Schedule (DSS), requires \n"
+	       "-S [NR]  --system[=NR]     activate Dynamic System Schedule (DSS), alg NR \n"
+	       "                           0 = Simple period based (default)\n"
+	       "                           1 = Monte-Carlo bin (unsupported)\n"
 #ifdef ARCH_HAS_SMI_COUNTER
-               "         --smi             Enable SMI counting\n"
+           "         --smi             Enable SMI counting\n"
 #endif
 #ifdef DEBUG
 	       "-v       --verbose         verbose output for debug purposes\n"
@@ -168,8 +173,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		 * Ordered alphabetically by single letter name
 		 */
 		static struct option long_options[] = {
-			{"affinity",         required_argument, NULL, OPT_AFFINITY},
-			{"adaptive",         no_argument,       NULL, OPT_ADAPTIVE },
+			{"affinity",         optional_argument, NULL, OPT_AFFINITY},
+			{"adaptive",         optional_argument, NULL, OPT_ADAPTIVE },
 			{"bind",     		 no_argument,       NULL, OPT_BIND },
 			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
@@ -184,7 +189,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"rr",               required_argument, NULL, OPT_RRTIME },
 			{"numa",             no_argument,       NULL, OPT_NUMA },
 			{"smi",              no_argument,       NULL, OPT_SMI },
-			{"system",           no_argument,       NULL, OPT_SYSTEM },
+			{"system",           optional_argument, NULL, OPT_SYSTEM },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
 			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
@@ -192,15 +197,13 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a:AbBc:C:dDfFhi:kl:mn::p:Pqr:s:Svw:",
+		int c = getopt_long(argc, argv, "a::A::bBc:C:dDfFhi:kl:mn::p:Pqr:s::S::vw:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
 		switch (c) {
 		case 'a':
 		case OPT_AFFINITY:
-//			if (numa)
-//				break;
 			if (NULL != optarg) {
 				set->affinity = optarg;
 				set->setaffinity = AFFINITY_SPECIFIED;
@@ -215,23 +218,31 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 					err_msg("could not allocate memory!");
 					exit(EXIT_FAILURE);
 				}
-				sprintf(set->affinity, "0-%d", max_cpus-1);
+				(void)sprintf(set->affinity, "0-%d", max_cpus-1);
 				set->setaffinity = AFFINITY_USEALL;
 			}
 			break;
 		case 'A':
 		case OPT_ADAPTIVE:
-			set->sched_mode = MAX(set->sched_mode, SM_ADAPTIVE);
+			set->sched_mode = SM_PADAPTIVE;
+			if (NULL != optarg) {
+				set->sched_mode= MIN(SM_ADAPTIVE + atoi(optarg), SM_PADAPTIVE);
+			} else if (optind<argc) {
+				set->sched_mode= MIN(SM_ADAPTIVE + atoi(argv[optind]), SM_PADAPTIVE);
+				optargs++;
+			}
 			break;
 		case 'b':
 		case OPT_BIND:
 			set->affother = 1; break;
+#ifdef DEBUG
 		case 'B':
 		case OPT_BLIND:
 			set->blindrun = 1; break;
 		case 'c':
 		case OPT_CLOCK:
 			set->clocksel = atoi(optarg); break;
+#endif
 		case 'C':
 			set->use_cgroup = DM_CGRP;
 			if (NULL != optarg) {
@@ -327,7 +338,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 		case 'S':
 		case OPT_SYSTEM:
-			set->sched_mode = MAX(set->sched_mode, SM_DYNSYSTEM);
+			// base Simple, limit to +1 = Monte Carlo;
+			set->sched_mode = SM_DYNSIMPLE;
+			if (NULL != optarg) {
+				set->sched_mode += MIN(atoi(optarg), 1);
+			} else if (optind<argc) {
+				set->sched_mode += MIN(atoi(argv[optind]), 1);
+				optargs++;
+			}
 			break;
 #ifdef DEBUG
 		case 'v':
@@ -337,7 +355,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 #endif
 		case OPT_VERSION:
 			(void)printf("Source compilation date: %s\n", __DATE__);
-			(void)printf("Copyright (C) 2019 Siemens Corporate Technologies, Inc.\n"
+			(void)printf("Copyright (C) 2019-21 Siemens Corporate Technologies, Inc.\n"
 						 "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>\n"
 						 "This is free software: you are free to change and redistribute it.\n"
 						 "There is NO WARRANTY, to the extent permitted by law.\n");
@@ -384,7 +402,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	}
 
 	// create parameter structure
-	if (!(contparm = malloc (sizeof(containers_t))))
+	if (!(contparm = calloc (1, sizeof(containers_t))))
 		err_exit("Unable to allocate memory");
 
 	if (!error)
@@ -465,13 +483,17 @@ int main(int argc, char **argv)
 		prgset = tmpset;
 	}
 
-	adaptPrepareSchedule(); // prepares masks, tracers and alike
+	adaptPrepareSchedule(); // prepares masks, tracers and alike, useful for all active modes
 	if (SM_ADAPTIVE <= prgset->sched_mode
 			&& SM_DYNSIMPLE >= prgset->sched_mode){
-		// adaptive scheduling active? Clean prepare, execute, free
+		// adaptive scheduling active? Clean prepare, execute, useful for all active modes
 		adaptPlanSchedule();
 		adaptExecute();
 	}
+	if (SM_ADAPTIVE != prgset->sched_mode
+			&& SM_PADAPTIVE != prgset->sched_mode)
+		// free allocation info right away if we are not adaptive, dynamic allocation later
+		adaptFree();
 
 	pthread_t thrManage, thrUpdate;
 	int32_t t_stat1 = 0; // we control thread status 32bit to be sure read is atomic on 32 bit -> sm on treads

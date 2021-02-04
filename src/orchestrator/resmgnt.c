@@ -11,6 +11,9 @@
 #include <string.h> 		// used for string parsing
 #include <sched.h>			// scheduler functions
 #include <linux/sched.h>	// Linux specific scheduling
+#include <math.h>			// EXP and other math functions
+#include <sys/resource.h>	// resource limit constants
+#include <dirent.h>			// DIR function to read directory stats
 
 // Custom includes
 #include "orchestrator.h"
@@ -19,14 +22,19 @@
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"	// common definitions and functions
-
-// Should be needed only here
-#include <sys/resource.h>
-#include <dirent.h>
+#include "rt-sched.h"	// scheduling attribute struct
 
 #define RTLIM_UNL	"-1"		// out of 10000000 = 95%
 #define RTLIM_DEF	"950000"	// out of 10000000 = 95%
 #define RTLIM_PERC	95			// percentage limitation for calculus
+
+#define MAX_UL 1						// 90% fixed Ul for all CPUs!
+#define SCHED_UKNLOAD	10 				// 10% load extra per task if runtime and period are unknown
+#define SCHED_RRTONATTR	1000000 		// conversion factor from sched_rr_timeslice_ms to sched_attr, NSEC_PER_MS
+#define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
+#define SCHED_UHARMONIC	3				// offset for non-harmonic scores in checkUvalue (MIN)
+
+static int recomputeCPUTimes_u(int32_t CPUno, node_t * skip);
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -66,20 +74,65 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 }
 
 /*
- *	setPidAffinity: sets the affinity of a PID
- *				the task is present in the common 'docker' CGroup
+ *	setPidAffinity: sets the affinity of a PID at startup (NO CGRP)
  *
- *	Arguments: - pointer to node with data
+ *	Arguments: - PID of taks
  *			   - bit-mask for affinity
  *
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setPidAffinity (node_t * node){
+setPidAffinity(pid_t pid, struct bitmask * mask) {
+	int ret = 0;
+
+	struct bitmask * bmold = numa_allocate_cpumask();
+	if (!bmold){
+		err_msg("Could not allocate bit-mask for compare!");
+		return -1;
+	}
+
+	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
+	if ((0 > numa_sched_getaffinity(pid, bmold)))
+		err_msg_n(errno,"getting affinity for PID %d", pid);
+
+	if (numa_bitmask_equal(mask, bmold)){
+
+		// get textual representation for log
+		char affinity[CPUSTRLEN];
+		if (parse_bitmask (mask, affinity, CPUSTRLEN)){
+				warn("Can not determine inverse affinity mask!");
+				(void)sprintf(affinity, "****");
+		}
+
+		// Set affinity
+		if (numa_sched_setaffinity(pid, mask)){
+			err_msg_n(errno,"setting affinity for PID %d", pid);
+			ret = -1;
+		}
+		else
+			cont("PID %d reassigned to CPUs '%s'", pid, affinity);
+	}
+
+	numa_bitmask_free(bmold);
+	return ret;
+}
+
+
+/*
+ *	setPidAffinityNode: sets the affinity of a PID at startup based on node configuration
+ *				the task is present or moved to the in the common 'docker' CGroup (NO CGRP)
+ *
+ *	Arguments: - pointer to node with data
+ *
+ *	Return value: 0 on success, -1 otherwise
+ */
+static int
+setPidAffinityNode (node_t * node){
 
 	int ret = 0;
 
 	{	// add PID to docker CGroup
+		//TODO: warn ! this removes it if it's already present in a subgroup!
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
@@ -96,41 +149,42 @@ setPidAffinity (node_t * node){
 		return -1;
 	}
 
-	struct bitmask * bmold = numa_allocate_cpumask();
-	if (!bmold){
-		err_msg("Could not allocate bit-mask for compare!");
-		return -1;
-	}
-
-	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
-	if ((0 > numa_sched_getaffinity(node->pid, bmold)))
-		err_msg_n(errno,"getting affinity for PID %d", node->pid);
-
-	if (numa_bitmask_equal(node->param->rscs->affinity_mask, bmold)){
-
-		// get textual representation for log
-		char affinity[CPUSTRLEN];
-		if (parse_bitmask (node->param->rscs->affinity_mask, affinity, CPUSTRLEN)){
-				warn("Can not determine inverse affinity mask!");
-				(void)sprintf(affinity, "****");
-		}
-
-		// Set affinity
-		if (numa_sched_setaffinity(node->pid, node->param->rscs->affinity_mask)){
-			err_msg_n(errno,"setting affinity for PID %d",
-				node->pid);
-			ret = -1;
-		}
-		else
-			cont("PID %d reassigned to CPUs '%s'", node->pid, affinity);
-	}
-
-	numa_bitmask_free(bmold);
-	return ret;
+	// return -1(-2) if one failed
+	return ret - setPidAffinity(node->pid,
+			node->param->rscs->affinity_mask);
 }
 
 /*
- *	setContainerAffinity: sets the affinity of a container
+ *	setPidAffinityAssinged: sets the affinity of a PID based on assigned CPU
+ *				to select the assigned CPU at runtime when multiple affinity is present
+ *
+ *	Arguments: - pointer to node with data
+ *
+ *	Return value: 0 on success, -1 otherwise
+ */
+int
+setPidAffinityAssinged (node_t * node){
+	if (node->mon.assigned_mask)
+		numa_bitmask_clearall(node->mon.assigned_mask);
+	else
+		node->mon.assigned_mask = numa_allocate_cpumask();
+
+	numa_bitmask_setbit(node->mon.assigned_mask, node->mon.assigned);
+
+	// Set affinity
+	if (numa_sched_setaffinity(node->pid, node->mon.assigned_mask)){
+		err_msg_n(errno,"setting affinity for PID %d",
+			node->pid);
+		return -1;
+	}
+	// reset no affinity bit (if set)
+	node->status &= ~MSK_STATNAFF;
+	return 0;
+}
+
+
+/*
+ *	setContainerAffinity: sets the affinity of a container containing PIDs (CGRP ONLY)
  *
  *	Arguments: - pointer to node with data
  *			   - bit-mask for affinity
@@ -166,7 +220,7 @@ setContainerAffinity(node_t * node){
 		if (strcmp(affinity, affinity_old)){
 			cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
 			if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
-				warn("Can not set CPU-affinity");
+				warn("Can not set CPU-affinity : %s", strerror(errno));
 				ret = -1;
 			}
 		}
@@ -205,19 +259,37 @@ setPidResources_u(node_t * node) {
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
+		// at start, assign node to static/adaptive table affinity match, only if there is a clear candidate
+		if (node->pid && 0 <= node->param->rscs->affinity){
+			node->mon.assigned = node->param->rscs->affinity;
+
+			if (0 <= node->mon.assigned && setPidAffinityAssinged(node))
+				warn("Can not assign startup allocation for PID %d", node->pid);
+
+			// put start values as dist initial values
+			if (node->param && node->param->attr){
+				if (node->param->attr->sched_period)
+					node->mon.cdf_period = node->param->attr->sched_period;
+				if (node->param->attr->sched_runtime)
+					node->mon.cdf_runtime = node->param->attr->sched_runtime;
+			}
+		}
 	}
 	else{
+		// NO CGroups
 		if ((SCHED_DEADLINE == node->attr.sched_policy)
-				&& (SM_DYNSYSTEM == prgset->sched_mode)){
+				&& (SM_PADAPTIVE <= prgset->sched_mode)){
 			warn ("Can not set DL task to PID affinity when using G-EDF!");
 			node->status |= MSK_STATUPD;
 		}
 		else
-			node->status |= !(setPidAffinity(node)) & MSK_STATUPD;
+			node->status |= !(setPidAffinityNode(node)) & MSK_STATUPD;
 	}
 
-	if (0 == node->pid) // PID 0 = detected containers
+	if (0 == node->pid){ // PID 0 = detected containers
+		// TODO: cleanup
 		return;
+	}
 
 	// only do if different than -1, <- not set values = keep default
 	if (SCHED_NODATA != node->param->attr->sched_policy) {
@@ -268,10 +340,20 @@ setPidResources(node_t * node) {
 	else
 		warn("SetPidResources: Container not specified");
 
-	if (!node_findParams(node, contparm))  // parameter set found in list -> assign and update
+	if (!findPidParameters(node, contparm))  // parameter set found in list -> assign and update
 		setPidResources_u(node);
 	else
 		node->status |= MSK_STATUPD | MSK_STATNMTCH;
+
+	// check if we have siblings in container TODO: not all cases are found
+	int hasSiblings = node->status & MSK_STATSIBL;
+	for (node_t * item = nhead; (item) && !hasSiblings; item=item->next)
+		if (item->param && item->param->cont && node->param
+			&& item->param->cont == node->param->cont){
+			hasSiblings = MSK_STATSIBL;
+			item->status |= MSK_STATSIBL;
+		}
+	node->status |= hasSiblings;
 }
 
 /*
@@ -382,6 +464,8 @@ updatePidCmdline(node_t * node){
 
 /*
  * --------------------- UNTIL HERE WE ASSUME RW LOCK ON NHEAD ------------------------
+ *
+ * ---------------------- PREPARE - COMMON RESOURCE STUFF -----------------------------
  */
 
 
@@ -436,7 +520,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			}
 		}
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes");
+			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 
 		// rewind, start configuring
@@ -456,10 +540,10 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
 						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-							warn("Can not set CPU-affinity");
+							warn("Can not set CPU-affinity : %s", strerror(errno));
 						}
 						if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-							warn("Can not set NUMA memory nodes");
+							warn("Can not set NUMA memory nodes : %s", strerror(errno));
 						}
 					}
 					else // realloc error
@@ -471,14 +555,14 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 		// Docker CGroup settings and affinity
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-			warn("Can not set CPU-affinity");
+			warn("Can not set CPU-affinity : %s", strerror(errno));
 		}
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes");
+			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive");
+				warn("Can not set CPU exclusive : %s", strerror(errno));
 			}
 
 		closedir(d);
@@ -541,3 +625,671 @@ resetRTthrottle (prgset_t *set, int percent){
 	return -1;
 }
 
+/* ------------------- RES-TRACER resource management from here ---------------------------- */
+
+/*
+ *  createResTracer(): create resource tracing memory elements
+ *  				   set them to default value
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+void
+createResTracer(){
+	if (rHead || !(prgset->affinity_mask))	// does it exist? is the mast set?
+		fatal("Memory management inconsistency: resTracer already present!");
+
+	// backwards, cpu0 on top, we assume affinity_mask ok
+	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
+
+		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
+			push((void**)&rHead, sizeof(struct resTracer));
+			rHead->affinity = i;
+			rHead->status = MSK_STATHRMC;
+//			rHead->U = 0.0;
+//			rHead->Umax = 0.0;
+			rHead->Umin = 1.0;
+//			rHead->Uavg = 0.0;
+//			rHead->basePeriod = 0;
+	}
+}
+
+/*
+ *  findPeriodMatch(): find a Period value that fits more the typical standards
+ *
+ *  Arguments:  - measured CDF period for non periodically scheduled tasks
+ *
+ *  Return value: - an approximation (nearest) period
+ */
+uint64_t
+findPeriodMatch(uint64_t cdf_Period){
+	if (!cdf_Period) // nothing defined. use default
+		return NSEC_PER_SEC;
+
+	// closing step size => find next higher power of 10 and divide by 40
+	double step =  pow(10, ceil(log10((double)cdf_Period))) / 40.0;
+
+	// return closest match with step distance to cdf_period
+	return (uint64_t)(round((double)cdf_Period/step) * step);
+}
+
+/*
+ *  checkUvalue(): verify if task fits into Utilization limits of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ * 				- the `attr` structure of the task we are trying to fit in
+ * 				- add or test, 0 = test, 1 = add to resources
+ *
+ *  Return value: a matching score, lower is better, -1 = error
+ */
+int
+checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
+	uint64_t base = res->basePeriod;
+	uint64_t used = res->usedPeriod;
+	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
+	int hm = res->status & MSK_STATHRMC;	// harmonic?
+	int rv = 0; // return value, perfect periods, best fit
+
+	// review task parameters by scheduling type
+	switch (par->sched_policy) {
+
+		case SCHED_DEADLINE:
+			break;
+
+		case SCHED_RR:
+			// if the runtime doesn't fit into the preemption slice..
+			// reset base to slice as it will be preempted during run increasing task switching
+			if (0 != par->sched_period)
+				if (prgset->rrtime*SCHED_RRTONATTR <= par->sched_runtime)
+					baset = prgset->rrtime*SCHED_RRTONATTR;
+
+			// no break
+		case SCHED_FIFO:
+		// if set to "default", SCHED_OTHER or SCHED_BATCH, how do I react?
+		default:
+
+			if (0 == par->sched_runtime){
+				// can't do anything about computation
+				rv = INT_MAX;
+				used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+				break;
+			}
+	}
+
+	// CPU unused, score = 2, preference to used resources
+	if (0 == base){
+		base = baset;
+		rv = 2;
+	}
+	else {
+		/*
+		 * Recalculate hyper-period and check score
+		 *
+		 * base = baset = lcm  + harmonic	... 0 ideal
+		 * base < baset = lcm  + harmonic   ... 1 subideal
+		 * base = lcm > baset  + harmonic   ... 1 subideal
+		 * start non harmonic >= 2
+		 * baset < base -> ceil [ U * base / baset ] + non_harmonic
+		 *
+		 */
+
+		// compute hyper-period
+		uint64_t hyperP = lcm(base, baset);
+
+		// are the periods a perfect fit?
+		if (hm && base == baset)
+				rv = 0;				// harmonic and p_i = p_m
+		else if (hm && hyperP == baset)
+				rv = 1;				// harmonic and p_i > p_m, candidate gets interrupted
+		else if (hm && hyperP == base)
+				rv = 2;				// harmonic and p_i < p_m, candidate interrupts
+		else{
+			// interruption score -> non harmonic !: verify how often new baset fits in runtime tot -> max interr.
+			rv = MIN((int)((res->U * (double)base)/(double)baset)+SCHED_UHARMONIC, INT_MAX);
+			hm = 0;
+		}
+
+		// recompute new values of resource tracer
+		used = used * hyperP / base;
+		base = hyperP;
+	}
+
+	used += par->sched_runtime * base/baset;
+
+	// calculate and verify utilization rate
+	float U = (double)used/(double)base;
+	if (MAX_UL < U)
+		rv = -1;
+
+	if (add){ // apply changes to res structure?
+		res->usedPeriod = used;
+		res->basePeriod = base;
+		res->U=U;
+		res->status = (res->status & ~MSK_STATHRMC) | hm;
+	}
+
+	return rv;
+}
+
+/*
+ *  checkPeriod(): find a resource that fits period
+ *
+ *  Arguments: - the attr structure of the task
+ *  		   - the set affinity
+ *
+ *  Return value: a pointer to the resource tracer
+ * 					returns null if nothing is found
+ */
+// TODO: exclude CPUs not in a PIDs associated affinity_mask
+resTracer_t *
+checkPeriod(struct sched_attr * attr, int affinity) {
+	resTracer_t * ftrc = NULL;
+	int last = INT_MAX;	// last checked tracer's score, max value by default
+	float Ulast = 10.0;	// last checked traces's utilization rate
+	int res;
+
+	// loop through	all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		res = checkUvalue(trc, attr, 0);
+		if ((0 <= res && res < last) // better match, or matching favorite
+			|| ((res == last) &&
+				(  (trc->affinity == abs(affinity))
+				|| (trc->U < Ulast)) ) )	{
+			last = res;
+			// reset U if we had an affinity match
+			if (trc->affinity == abs(affinity))
+				Ulast= 0.0;
+			else
+				Ulast = trc->U;
+			ftrc = trc;
+		}
+	}
+	return ftrc;
+}
+
+/*
+ *  checkPeriod_R(): find a resource that fits period
+ *  				 uses run-time values for non-DEADLINE scheduled tasks
+ *
+ *  Arguments: - the item to check
+ *  		   - include item in count
+ *
+ *  Return value: a pointer to the resource tracer
+ * 					returns null if nothing is found
+ */
+resTracer_t *
+checkPeriod_R(node_t * item, int include) {
+
+	if (0 > item->mon.assigned)
+		return NULL;
+
+	int affinity = INT_MIN;
+	resTracer_t * ftrc = NULL;
+
+	if (!(include))
+		recomputeCPUTimes_u(item->mon.assigned, item);
+
+	if ((item->param) && (item->param->rscs))
+		affinity = item->param->rscs->affinity;
+
+	if (SCHED_DEADLINE == item->attr.sched_policy)
+		ftrc = checkPeriod(&item->attr, affinity);
+	else{
+		struct sched_attr attr = { 48 };
+		attr.sched_policy = item->attr.sched_policy;
+		attr.sched_runtime = item->mon.cdf_runtime;
+		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+		ftrc = checkPeriod(&attr, affinity);
+	}
+
+	if (!(include) && 0 < item->mon.assigned)
+		recomputeCPUTimes_u(item->mon.assigned, NULL);
+
+	return ftrc;
+}
+
+/*
+ *  getTracer(): get the resource tracer for CPU x
+ *
+ *  Arguments: - CPU number to look for
+ *
+ *  Return value: a pointer to the resource tracer
+ *					returns null if nothing is found
+ */
+resTracer_t *
+getTracer(int32_t CPUno) {
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if (CPUno == trc->affinity)
+			return trc;
+	}
+
+	return NULL;
+}
+
+/*
+ *  grepTracer(): find an empty or low UL CPU
+ * 				Either U is smaller OR within 20% and Harmonic vs. not-Harmonic
+ *
+ *  Arguments: -
+ *
+ *  Return value: a pointer to the resource tracer
+ *					returns null if nothing is found
+ */
+resTracer_t *
+grepTracer() {
+	resTracer_t * ftrc = NULL;
+	float Umax = 1.0;
+
+	// loop through all and return the best fit
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if ((trc->U < Umax)
+			|| ((ftrc) && (trc->U < ftrc->U * 1.2)
+				&& (ftrc->status & MSK_STATHRMC) && !(trc->status & MSK_STATHRMC))) {
+			Umax = trc->U;
+			ftrc = trc;
+		}
+	}
+	return ftrc;
+}
+
+/*
+ *  recomputeTimes_u(): recomputes base and utilization factor of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ *  			- node to skip for computation
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeTimes_u(struct resTracer * res, node_t * skip) {
+
+	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
+	int rv = 0;
+
+	// find PID switching from
+	for (node_t * item = nhead; ((item)); item=item->next){
+		if (item->mon.assigned != res->affinity
+				|| 0 > item->pid || item == skip)
+			continue;
+
+		if (SCHED_DEADLINE == item->attr.sched_policy)
+			rv = MIN(checkUvalue(resNew, &item->attr, 1), rv);
+		else{
+			struct sched_attr attr = { 48 };
+			attr.sched_policy = item->attr.sched_policy;
+			attr.sched_runtime = item->mon.cdf_runtime;
+			attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+			rv = MIN(checkUvalue(resNew, &attr, 1), rv);
+		}
+	}
+
+	res->basePeriod = resNew->basePeriod;
+	res->usedPeriod = resNew->usedPeriod;
+	res->U = resNew->U;
+
+	free(resNew);
+	return rv;
+}
+
+/*
+ *  recomputeCPUTimes_u(): recomputes base and utilization factor of a CPU
+ *  						variant used for updates with skip item
+ *
+ *  Arguments:  - CPU number
+ *
+ *  Return value: Negative values return error
+ */
+static int
+recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
+	if (-1 == CPUno)	// default, not assigned
+		return 0;
+
+	resTracer_t * trc;
+
+	if ((trc = getTracer(CPUno)))
+		return recomputeTimes_u(trc, skip);
+
+	return -2; // not found! ERROR
+}
+
+/*
+ *  recomputeCPUTimes(): recomputes base and utilization factor of a CPU
+ *
+ *  Arguments:  - CPU number
+ *
+ *  Return value: Negative values return error
+ */
+int
+recomputeCPUTimes(int32_t CPUno) {
+	return recomputeCPUTimes_u(CPUno, NULL);
+}
+
+/* ------------------- Node configuration management from here ---------------------------- */
+
+/*
+ *  duplicateOrRefreshContainer(): duplicate or container configuration with data based on names
+ *  						data from DockerLink
+ *
+ *  Arguments: - Node with data from docker_link
+ *  		   - Configuration structure
+ *  		   - Pointer to container/image configuration found by search
+ *
+ *	Return: - pointer to duplicate or refreshed container
+ */
+static cont_t *
+duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, cont_t * dlCont) {
+
+	cont_t * cont;
+
+	// check if the container has already been added with ID, update PIDs
+	for (cont = configuration->cont; (cont); cont=cont->next){
+		if (cont != dlCont && (cont->status & MSK_STATCCRT)
+				&& !strncmp(cont->contid, cont->contid,
+						MIN(strlen(cont->contid), strlen(dlCont->contid))))
+			break;
+	}
+	if (!cont){
+		// not found?
+		push((void**)&configuration->cont, sizeof(cont_t));
+		cont = configuration->cont;
+
+		cont->contid = dlNode->contid; // tranfer to avoid 12 vs 64 len issue
+	}
+
+	// duplicate resources if needed
+	cont->status = dlCont->status;
+	if (!(cont->status & MSK_STATSHAT)){
+		cont->attr = malloc(sizeof(struct sched_attr));
+		(void)memcpy(cont->attr, dlCont->attr, sizeof(struct sched_attr));
+	}
+	else
+		cont->attr = dlCont->attr;
+
+	if (!(cont->status & MSK_STATSHRC)){
+		cont->rscs = malloc(sizeof(struct sched_rscs));
+		(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
+		cont->rscs->affinity_mask = numa_allocate_cpumask();
+		if (dlCont->rscs->affinity_mask)
+			numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+	}
+	else
+		cont->rscs = dlCont->rscs;
+
+	// fill image field
+	cont->img = dlCont->img;
+	if (cont->img){
+		push((void**)&cont->img->conts, sizeof(conts_t));
+		cont->img->conts->cont = cont;
+	}
+
+	// update connected PIDs (if present), they share configuration with the container (= update)
+	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
+		//update container link and shared resources
+		pids->pid->attr = cont->attr;
+		pids->pid->rscs = cont->rscs;
+		pids->pid->img = cont->img;
+
+		// fill image field
+		pids->pid->img = cont->img;
+		if (cont->img){
+			push((void**)&cont->img->pids, sizeof(pids_t));
+			cont->img->pids->pid = pids->pid;
+		}
+	}
+
+	// duplicate Original container PIDs (if present)
+	for (pids_t * pids = dlCont->pids; (pids) ; pids=pids->next){
+
+		// add link to pid and pid
+		push((void**)&cont->pids, sizeof(pids_t));
+		push((void**)&configuration->pids, sizeof(pidc_t));
+		cont->pids->pid=configuration->pids;
+
+		configuration->pids->status = pids->pid->status;
+
+		if (!(configuration->pids->status & MSK_STATSHAT)){
+			configuration->pids->attr = malloc(sizeof(struct sched_attr));
+			(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
+		}
+		else
+			configuration->pids->attr = pids->pid->attr;
+
+
+		if (!(cont->status & MSK_STATSHRC)){
+			configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
+			(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
+			configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
+			if (pids->pid->rscs->affinity_mask)
+				numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+		}
+		else
+			configuration->pids->rscs = pids->pid->rscs;
+
+		// fill image field
+		configuration->pids->img = pids->pid->img;
+		if (pids->pid->img){
+			push((void**)&configuration->pids->img->pids, sizeof(pids_t));
+			configuration->pids->img->pids->pid = configuration->pids;
+		}
+	}
+
+	// update all running nodes
+	for (node_t * item = nhead; (item); item=item->next)
+		if (item->param && item->param->cont
+				&& item->param->cont == cont)
+			//set update flag
+			item->status &= ~MSK_STATUPD;
+
+	free(dlNode->psig); // clear entry to avoid confusion
+	dlNode->psig = NULL;
+
+	return cont;
+}
+
+/*
+ *  findPidParameters(): assigns the PID parameters list of a running container
+ *
+ *  Arguments: - node to chek for matching parameters
+ *  		   - pid configuration list head
+ *
+ *  Return value: 0 if successful, -1 if unsuccessful
+ */
+int
+findPidParameters(node_t* node, containers_t * configuration){
+
+	struct img_parm * img = configuration->img;
+	struct cont_parm * cont = NULL;
+	// check for image match first
+	while (NULL != img) {
+
+		// TODO: check what if image is a name? does that reflect values passed by DL?
+		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
+				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
+			conts_t * imgcont = img->conts;
+			printDbg("Image match %s\n", img->imgid);
+			// check for container match
+			while (NULL != imgcont) {
+				if (imgcont->cont->contid && node->contid) {
+
+					if  (!strncmp(imgcont->cont->contid, node->contid,
+							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))
+							&& ((node->pid) || !(imgcont->cont->status & MSK_STATCCRT))) {
+						cont = imgcont->cont;
+						break;
+					}
+					// if node pid = 0, psig is the name of the container coming from dockerlink
+					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
+						cont = imgcont->cont;
+						cont = duplicateOrRefreshContainer(node, configuration, cont);
+						break;
+					}
+				}
+				imgcont = imgcont->next;
+			}
+			break; // if imgid is found, keep trace in img -> default if nothing else found
+		}
+		img = img->next;
+	}
+
+	// we might have found the image, but still
+	// not in the images, check all containers
+	if (!cont) {
+		cont = configuration->cont;
+
+		// check for container match
+		while (NULL != cont) {
+
+			if(cont->contid && node->contid) {
+				if (!strncmp(cont->contid, node->contid,
+						MIN(strlen(cont->contid), strlen(node->contid)))
+						&& ((node->pid) || !(cont->status & MSK_STATCCRT)))
+					break;
+
+				// if node pid = 0, psig is the name of the container coming from dockerlink
+				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
+					cont = duplicateOrRefreshContainer(node, configuration, cont);
+					break;
+				}
+			}
+			cont = cont->next;
+		}
+	}
+
+	// did we find a container or image match?
+	if (img || cont) {
+		// read all associated PIDs. Is it there?
+
+		// assign pids from cont or img, depending what is found
+		int useimg = (img && !cont);
+		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
+
+		// check the first result
+		while (NULL != curr) {
+			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+				// found a matching pid inc root container
+				node->param = curr->pid;
+				return 0;
+			}
+			curr = curr->next;
+		}
+
+		// if both were found, check again in image
+		if (img && cont){
+			curr = img->pids;
+			while (NULL != curr) {
+				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
+					// found a matching pid inc root container
+					node->param = curr->pid;
+					return 0;
+				}
+				curr = curr->next;
+			}
+		}
+
+		// found? if not, create PID parameter entry
+		printDbg("... parameters not found, creating from PID and assigning container settings\n");
+		push((void**)&configuration->pids, sizeof(pidc_t));
+		if (useimg) {
+			// add new container unmatched container signature
+			push((void**)&configuration->cont, sizeof(cont_t));
+			push((void**)&img->conts, sizeof(conts_t));
+			img->conts->cont = configuration->cont;
+			cont = configuration->cont;
+			cont->img = img;
+
+			// assign values
+			// CAN be null, should not happen, i.e. img & !cont
+			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			cont->rscs = img->rscs;
+			cont->attr = img->attr;
+		}
+
+		// add new PID to container PIDs
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = configuration->pids; // add new empty item -> pid list, container pids list
+
+		configuration->pids->status |= MSK_STATSHAT | MSK_STATSHRC;
+		configuration->pids->rscs = cont->rscs;
+		configuration->pids->attr = cont->attr;
+
+		// Assign configuration to node
+		node->param = configuration->pids;
+		node->param->img = img;
+		node->param->cont = cont;
+		node->psig = node->param->psig;
+		// update counter
+		if (node->pid)
+			configuration->nthreads++;
+		return 0;
+	}
+	else
+	 if (node->pid) { // !=0 means not container or image
+		// no match found. and now?
+		printDbg("... container not found, trying PID scan\n");
+
+		// start from scratch in the PID config list only. Maybe Container ID is new
+		struct pidc_parm * curr = configuration->pids;
+
+		while (NULL != curr) {
+			if(curr->psig && node->psig && strstr(node->psig, curr->psig)
+				&& !(curr->cont) && !(curr->img) ) { // only unasociated items
+				warn("assigning configuration to unrelated PID");
+				node->param = curr; // TODO: duplicate PIDC
+				break;
+			}
+			curr = curr->next;
+		}
+
+		if (!node->contid || !node->psig){
+			// no container id and psig, can't do anything for reconstruction
+			if (curr)
+				return 0;
+			printDbg("... PID not found. Ignoring\n");
+			return -1;
+		}
+
+		// add new container for the purpose of grouping
+		push((void**)&configuration->cont, sizeof(cont_t));
+		cont = configuration->cont;
+
+		// assign values
+		cont->contid = node->contid;  // keep string, unused will be freed (node_pop)
+		cont->status |= MSK_STATCCRT | MSK_STATSHAT | MSK_STATSHRC; // (created at runtime from node)
+		cont->rscs = configuration->rscs;
+		cont->attr = configuration->attr;
+
+		if (!curr){
+			// config not found, create PID parameter entry
+			printDbg("... parameters not found, creating from PID settings and container\n");
+			// create new pidconfig
+			push((void**)&configuration->pids, sizeof(pidc_t));
+			curr = configuration->pids;
+
+			curr->psig = node->psig;  // keep string, unused will be freed (node_pop)
+			curr->status |= MSK_STATSHAT | MSK_STATSHRC;
+			curr->rscs = cont->rscs;
+			curr->attr = cont->attr;
+
+			// add new PID configuration to container PIDs
+			push((void**)&cont->pids, sizeof(pids_t));
+			cont->pids->pid = curr;
+
+			node->param = curr;
+			// update counter
+			configuration->nthreads++;
+		}
+		else {
+			// found use it's values
+			free(node->psig);
+			node->psig = node->param->psig;
+		}
+		// pidconfig curr gets container config cont
+		curr->cont = cont;
+		return 0;
+	}
+
+	return -1;
+}

@@ -1,5 +1,5 @@
-VERSION = 0.75
-VERSUFF = -beta
+VERSION = 0.90
+VERSUFF = 
 GIT_VERSION := $(shell git describe --abbrev=7 --always --tags)
 CC?=$(CROSS_COMPILE)gcc
 AR?=$(CROSS_COMPILE)ar
@@ -10,8 +10,11 @@ CPP?=$(CROSS_COMPILE)g++
 
 OBJDIR = build
 
-sources = orchestrator.c
+sources = orchestrator.c test.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
+testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
+		   adaptiveTest.o manageTest.o updateTest.o dockerlinkTest.o\
+		   kernutilTest.o orchdataTest.o parse_configTest.o errorTest.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
@@ -75,6 +78,8 @@ endif
 # define search paths
 VPATH	= src/orchestrator:
 VPATH	+= src/lib:
+VPATH	+= test/lib:
+VPATH	+= test/orchestrator:
 VPATH	+= test-monitor/usecase/uc1-2/src:
 
 .PHONY: all
@@ -103,8 +108,10 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 #testposix: $(OBJDIR)/thread.o $(OBJDIR)/librttest.a
 #	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS) $(NUMA_LIBS)
 
-check: test/test.c $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/, $(orcbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+# TODO: create missing test cases to allow removal of librttest.a
+# TODO: add checks for dependent sources change! (does not work :/)
+check: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
 	
 test:
 	./check_test

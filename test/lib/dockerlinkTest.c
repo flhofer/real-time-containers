@@ -6,8 +6,11 @@
 ###############################
 */
 
-#include "../../src/include/dockerlink.h"
-#include <check.h>
+#include "dockerlinkTest.h"
+
+// tested
+#include "../../src/lib/dockerlink.c"
+
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update

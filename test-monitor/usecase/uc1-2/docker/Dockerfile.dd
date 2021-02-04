@@ -7,7 +7,7 @@ RUN mkdir /home/logs && \
 RUN mkdir /home/tmp && \
     chmod 777 /home/tmp
 
-COPY datagenerator /home/datadistributor
+COPY DataGenerator /home/datadistributor
 
 CMD chrt $scheduling /home/datadistributor $cmdargs >/home/logs/datadistributor.log 2>&1
 

@@ -30,7 +30,7 @@
 #define FIT_GTOL	1e-5	// fitting tolerance gradient, originally set to -8
 #define FIT_FTOL	1e-5	// fitting tolerance originally set to -8
 
-#define SAMP_MINCNT 1000	// Minimum number of samples in histogram
+#define SAMP_MINCNT 50.0	// Minimum number of samples in histogram
 
 #define INT_NUMITER	20		// Number of iterations max for fitting
 #define INT_EPSABS	0		// max error absolute value (p)
@@ -441,12 +441,20 @@ runstats_paramInit(stat_param ** x, double b){
 int
 runstats_histInit(stat_hist ** h, double b){
 
-	size_t n = STARTBINS;				// number of bins to fit
-	double bin_min = b * BIN_DEFMIN;	// default ranges
+	if (0.0 == b)
+		return GSL_FAILURE;
+
+	double bin_min = b * BIN_DEFMIN;		// default ranges
 	double bin_max = b * BIN_DEFMAX;
 
+	// preventive
+	if (bin_min >= bin_max){
+		err_msg("Invalid ranges adapt %f,%f", bin_min, bin_max);
+		return GSL_FAILURE;
+	}
+
 	/* Allocate memory, histogram data for RTC accumulation */
-	*h = gsl_histogram_alloc (n);
+	*h = gsl_histogram_alloc (STARTBINS);	// number of bins to fit
 	if (!*h){
 		err_msg("Unable to allocate memory for histogram");
 		return GSL_ENOMEM;
@@ -470,6 +478,7 @@ runstats_histInit(stat_hist ** h, double b){
  */
 double
 runstats_histShape(stat_hist * h, double b){
+
 	// reshape into LIMIT
 	if (b >= gsl_histogram_max(h)){
 		double dummy;
@@ -517,8 +526,25 @@ int
 runstats_histCheck(stat_hist * h){
 	if (!h)
 		return GSL_FAILURE;
+
 	return (gsl_histogram_sum(h) < SAMP_MINCNT)
 		?  GSL_FAILURE : GSL_SUCCESS;
+}
+
+/*
+ * runstats_histMean: returns the mean value of the histogram
+ *
+ * Arguments: - pointer to the memory location for storage
+ *
+ * Return value: - double- mean value
+ */
+double
+runstats_histMean(stat_hist * h){
+	if (!h)
+		return 0.0;
+
+	return gsl_histogram_mean(h);
+
 }
 
 /*
@@ -531,6 +557,9 @@ runstats_histCheck(stat_hist * h){
  */
 int
 runstats_histAdd(stat_hist * h, double b){
+	if (!h)
+		return GSL_FAILURE;
+
 	return gsl_histogram_increment(h,
 			runstats_histShape(h, b));
 }
@@ -555,25 +584,48 @@ runstats_histFit(stat_hist **h)
 	if (!h || !*h)
 		return GSL_EINVAL;
 
-	// update bin range
-
-	// get parameters and free histogram
-	double mn = gsl_histogram_mean(*h); 	// sample mean
-	double sd = gsl_histogram_sigma(*h); // sample standard deviation
 	double N = gsl_histogram_sum(*h);
+	if (SAMP_MINCNT > N)
+		return GSL_EDOM; // small input count
 
-	if (!sd) // if standard deviation = 0, e.g. all points exceed histogram, default to 10% of mean
-		sd = mn * 0.01;
-
+	// get parameters of bins
+	size_t maxbin = gsl_histogram_max_bin(*h);
 	size_t n = gsl_histogram_bins(*h);
+	double mn = gsl_histogram_mean(*h);	 // sample mean
+	size_t mn_bin = n/2;
 
-	// compute ideal bin size according to Scott 1979
-	double W = 3.49*sd*pow(N, (double)-1/3);
+	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin)))
+			err_msg("Unable to find mean in histogram!");
 
-	// bin count to cover 10 standard deviations both sides
-	size_t new_n = (size_t)trunc(sd*20/W);
+	// outside margins? 20-80%.. STDev has no meaning!!
+	if (n * 2 > MIN(maxbin, mn_bin) * 10	// 10er bins 0-1
+			|| n * 8 <= MAX(maxbin,mn_bin) * 10){ // 10er bins 8-9
 
-	if (n != new_n) {
+		gsl_histogram_free(*h); // clear all because of out of range, force re-init
+		*h = NULL;	// reset variable
+		return GSL_EDOM; // out of range
+	}
+
+	// get parameters of histogram
+	double sd = gsl_histogram_sigma(*h); // sample standard deviation
+
+	// update bin range
+	if (0 == sd){ // if standard deviation = 0, i.e., all points in one bin, set to bin-with
+		sd = (gsl_histogram_max(*h) - gsl_histogram_min(*h))/n;
+		err_msg("Error determining STDev!");
+	}
+
+	// compute ideal bin size according to Scott 1979, with N = ~min 10 bins
+	double W = 3.49*sd*pow(N, -1.0/3.0);
+
+	// bin count to cover 5 standard deviations both sides
+	size_t new_n = (size_t)trunc(sd*5.0/W);
+
+	// adjust margins bin limits
+	double bin_min = MAX(0.0, mn - ((double)new_n/2.0)*W); // no negative values
+	double bin_max = mn + ((double)new_n/2.0)*W;
+
+	if (n !=  new_n){
 		// if bin count differs, reallocate
 		gsl_histogram_free (*h);
 		n = new_n;
@@ -583,15 +635,17 @@ runstats_histFit(stat_hist **h)
 			return GSL_ENOMEM;
 		}
 	}
+	// preventive
+	if (bin_min >= bin_max){
+		err_msg("Invalid ranges resize %f,%f", bin_min, bin_max);
+		return GSL_FAILURE;
+	}
 
-	// adjust margins bin limits
-	double bin_min = MAX(0.0, mn - ((double)n/2.0)*W); // no negative values
-	double bin_max = mn + ((double)n/2.0)*W;
 	int ret;
 	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
 		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
 
-	return ((ret != 0) ? GSL_FAILURE : GSL_SUCCESS);
+	return ((ret != 0) ? GSL_FAILURE : GSL_CONTINUE);
 }
 
 /*
@@ -653,6 +707,20 @@ runstats_histSolve(stat_hist * h, stat_param * x)
 		// check
 		return runstats_paramVerify(h, x);
 	return ret;
+}
+
+/*
+ * runstats_histSixSigma() : return six-sigma probability value of histogram = mean + 6 stdev
+ *
+ * Arguments: - histogram addr pointer
+ *
+ * Return value: time value for six sigma
+ */
+double
+runstats_histSixSigma(const stat_hist * h){
+	if (!h)
+		return 0.0;
+	return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);
 }
 
 /*
@@ -831,7 +899,7 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 
 	// re-alloc if number of bins differs
 	if (*c && ((*c)->n != (*h)->n))
-		runstats_cdffree(c);
+		runstats_cdfFree(c);
 
 	if (!*c)
 		*c = gsl_histogram_pdf_alloc((*h)->n);
@@ -841,32 +909,20 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
 		return ret;
 	}
 
-	if ((ret = gsl_histogram_scale(*h, 0.9)))
-		err_msg ("CDF creation failed : %s", gsl_strerror(ret));
-
-	// finally readjusts the bin size
-	{
-		size_t maxbin = gsl_histogram_max_bin(*h);
-		if (((*h)->n * 2 > maxbin * 10)
-			|| ((*h)->n * 8 < maxbin * 10))
-				if ((runstats_histFit(h)))
-					warn("Curve fitting histogram bin adaptation error");
-	}
-
-	return ret;
+	return GSL_SUCCESS;
 
 }
 
 /*
  * runstats_cdfsample() : CDF sample
  *
- * Arguments: - histogram addr pointer
- * 			  - CDF destination pointer
+ * Arguments: - histogram CDF pointer
+ * 			  - probability value to look for
  *
  * Return value: time value
  */
 double
-runstats_cdfsample(const stat_cdf * c, double r){
+runstats_cdfSample(const stat_cdf * c, double r){
 	if (!c)
 		return 0.0;
 	return gsl_histogram_pdf_sample(c, r);
@@ -875,12 +931,12 @@ runstats_cdfsample(const stat_cdf * c, double r){
 /*
  * runstats_cdffree() : CDF free
  *
- * Arguments: - CDF destination pointer
+ * Arguments: - CDF pointer
  *
  * Return value: -
  */
 void
-runstats_cdffree(stat_cdf ** c){
+runstats_cdfFree(stat_cdf ** c){
 
 	gsl_histogram_pdf_free(*c);
 	*c = NULL;

@@ -27,6 +27,7 @@
 #include "error.h"		// error and std error print functions
 #include "cmnutil.h"	// common definitions and functions
 #include "resmgnt.h"	// resource management
+#include "adaptive.h"	// adaptive scheduling
 
 // Things that should be needed only here
 #include <pthread.h>// used for thread management
@@ -587,12 +588,12 @@ prepareEnvironment(prgset_t *set) {
 	if (-1 != numa_available()) {
 		int numanodes = numa_max_node();
 
-		sprintf(numastr, "0-%d", numanodes);
+		(void)sprintf(numastr, "0-%d", numanodes);
 	}
 	else{
 		warn("NUMA not enabled, defaulting to memory node '0'");
 		// default NUMA string
-		sprintf(numastr, "0");
+		(void)sprintf(numastr, "0");
 	}
 
 	/* --------------------
@@ -822,7 +823,8 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
-	freeTracer(&rHead, &aHead); // free
+	freeTracer(&rHead); // free
+	adaptFree();
 
 	// unlock memory pages
 	if (set->lock_pages)

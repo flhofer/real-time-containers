@@ -32,10 +32,8 @@
 #define PIPE_BUFFER			4096
 #if __x86_64__ || __ppc64__
 	#define WORDSIZE		KBUFFER_LSIZE_8
-	#define CMNSPARE		0
 #else
 	#define WORDSIZE		KBUFFER_LSIZE_4
-	#define CMNSPARE		8
 #endif
 
 // total scan counter for update-stats
@@ -48,45 +46,43 @@ struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
-	int (*eventcall)(void *, uint64_t); // event elaboration function
+	int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t); // event elaboration function
 };
 struct ftrace_elist * elist_head;
 
 struct ftrace_thread * elist_thead = NULL;
 
+// TODO: implement parser for event list, in the long run
 struct tr_common {
 	uint16_t common_type;
 	uint8_t common_flags;
 	uint8_t common_preempt_count;
 	int32_t common_pid;
+	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
+	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
+	uint16_t _common_filler1;				// filler for C5
+	uint16_t _common_filler2;				// filler for C5
 };
 
-struct tr_wakeup {
-	char comm[16]; //24 - 16
-	pid_t pid; // 28 - 20
-	int32_t prio; // 32 - 24
-	int32_t success; // 36 - 28
-	int32_t target_cpu; // 40 - 32
+struct tr_switch {		// coming from .. 12 bytes?
+	char prev_comm[16]; // 12 - 16	/ 0
+	pid_t prev_pid; // 28 - 4		/ 16
+	int32_t prev_prio; // 32 - 4	/ 20
+//	int32_t _prev_filler; // 36 - 4	/ 24 	// filler only for BM, 8byte alignment issue
+	uint32_t prev_state_l; // 40 - 4	/ 28
+	uint32_t prev_state_h; // 44 - 4	/ 32
+
+	char next_comm[16]; // 48 - 16	/ 36
+	pid_t next_pid; // 64 - 4		/ 52
+	int32_t next_prio; // 68 - 4	/ 56
 };
 
-struct tr_switch {
-	char prev_comm[16]; //24 - 16
-	pid_t prev_pid; // 28 - 20
-	int32_t prev_prio; // 32 - 24
-	int64_t prev_state; // 40 - 32
-
-	char next_comm[16]; // 56 - 48
-	pid_t next_pid; // 60 - 52
-	int32_t next_prio; // 64 - 56
-};
-
-struct tr_runtime {
-	char comm[16]; //24 - 16
-	pid_t pid; // 28 - 20
-	uint32_t dummy  ; // 32 - 24 - alignment filler
-	uint64_t runtime; // 40 - 32
-	uint64_t vruntime; // 48 - 40
-	// filled with 0's to 52
+struct tr_wakeup {		// coming from .. 12 bytes?
+	char comm[16]; // 12 - 16	/ 0
+	pid_t pid; // 28 - 4		/ 16
+	int32_t prio; // 32 - 4		/ 20
+	int32_t success; // 36 - 4	/ 24
+	int32_t target_cpu; // 40 - 4	/ 28
 };
 
 // signal to keep status of triggers ext SIG
@@ -95,32 +91,34 @@ static volatile sig_atomic_t ftrace_stop;
 void *thread_ftrace(void *arg);
 
 // functions to elaborate data for tracer frames
-static int pickPidInfoS(void * addr, uint64_t ts);
+static int pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
+static int pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
+static int pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts);
 
 static int get_sched_info(node_t * item);
 
-
-/// ftrace_inthand(): interrupt handler for infinite while loop, help
-/// this function is called from outside, interrupt handling routine
-/// Arguments: - signal number of interrupt calling
-///
-/// Return value: -
-static void ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
+/*
+ *  ftrace_inthand(): interrupt handler for infinite while loop, help
+ *  this function is called from outside, interrupt handling routine
+ *
+ *  Arguments: - signal number of interrupt calling
+ *
+ *  Return value: -
+ */
+static void
+ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
 }
 
-void buildEventConf(){
-	push((void**)&elist_head, sizeof(struct ftrace_elist));
-	elist_head->eventid = 317;
-	elist_head->event = "sched_switch";
-	elist_head->eventcall = pickPidInfoS;
-}
-
-void clearEventConf(){
-	while (elist_head)
-		pop((void**)&elist_head);
-}
-
+/*
+ *  appendEvent(): add an event to event list to watch (fTrace)
+ *
+ *  Arguments: - debug path prefix
+ *  		   - event name (path)
+ *  		   - function (pointer) to call for the event
+ *
+ *  Return value: 0 on success, -1 on error
+ */
 static int
 appendEvent(char * dbgpfx, char * event, void* fun ){
 
@@ -149,13 +147,15 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 	return -1;
 }
 
-/// configureTracers(): setup kernel function trace system
-///
-/// Arguments: - none
-///
-/// Return value: 0 = success, else error
-///
-static int configureTracers(){
+/*
+ *  configureTracers(): setup kernel function trace system
+ *
+ *  Arguments: - none
+ *
+ *  Return value: 0 = success, else error
+ */
+static int
+configureTracers(){
 
 	char * dbgpfx = get_debugfileprefix();
 
@@ -181,6 +181,9 @@ static int configureTracers(){
 	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
 		return -1;
 
+	if ((appendEvent(dbgpfx, "sched/sched_wakeup", pickPidInfoW)))
+		return -1;
+
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
 		warn("Can not enable kernel function tracing");
 		return -1;
@@ -189,13 +192,15 @@ static int configureTracers(){
 	return 0; // setup successful?
 }
 
-/// resetTracers(): reset kernel function trace system
-///
-/// Arguments: - none
-///
-/// Return value: 0 = success, else error
-///
-static void resetTracers(){
+/*
+ * resetTracers(): reset kernel function trace system
+ *
+ *  Arguments: - none
+ *
+ *  Return value: 0 = success, else error
+ */
+static void
+resetTracers(){
 	char * dbgpfx = get_debugfileprefix();
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
@@ -208,24 +213,28 @@ static void resetTracers(){
 	if (0 > setkernvar(prgset->procfileprefix, "sched_schedstats", "0", prgset->dryrun) )
 		warn("Unable to deactivate schedstat probe");
 
-	while (elist_head)
+	while (elist_head){
+		free(elist_head->event);
 		pop((void**)&elist_head);
+	}
 }
 
-/// startTraceRead(): start CPU tracing threads
-///
-/// Arguments:
-///
-/// Return value: OR-result of pthread_create, negative if one failed
-///
-static int startTraceRead() {
+/*
+ *  startTraceRead(): start CPU tracing threads
+ *
+ *  Arguments:
+ *
+ *  Return value: OR-result of pthread_create, negative if one failed
+ */
+static int
+startTraceRead() {
 
 	int maxcpu = prgset->affinity_mask->size;
 	int ret = 0;
 	// loop through, bit set = start a thread and store in ll
 	for (int i=0;i<maxcpu;i++)
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by active
-			push((void**)&elist_thead, sizeof(struct ftrace_elist));
+			push((void**)&elist_thead, sizeof(struct ftrace_thread));
 			elist_thead->cpuno = i;
 			elist_thead->dbgfile = NULL;
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, elist_thead);
@@ -240,13 +249,15 @@ static int startTraceRead() {
 	return ret; // = 0 if OK, else negative
 }
 
-/// stopTraceRead(): stop CPU tracing threads
-///
-/// Arguments:
-///
-/// Return value: OR-result of pthread_*, negative if one failed
-///
-static int stopTraceRead() {
+/*
+ *  stopTraceRead(): stop CPU tracing threads
+ *
+ *  Arguments:
+ *
+ *  Return value: OR-result of pthread_*, negative if one failed
+ */
+static int
+stopTraceRead() {
 
 	int ret = 0;
 	void * retVal = NULL;
@@ -254,14 +265,13 @@ static int stopTraceRead() {
 	while ((elist_thead))
 		if (!elist_thead->iret) { // thread started successfully
 
-			int ret1 = pthread_kill (elist_thead->thread, SIGQUIT); // tell threads to stop
-			if (ret1)
-				perror("Failed to send signal to fTrace thread");
+			int ret1 = 0;
+			if ((ret1 = pthread_kill (elist_thead->thread, SIGQUIT))) // tell threads to stop
+				err_msg_n(ret1, "Failed to send signal to fTrace thread");
 			ret |= ret1; // combine results in OR to detect one failing
 
-			ret1 = pthread_join( elist_thead->thread, &retVal); // wait until end
-			if (ret1)
-				perror("Could not join with fTrace thread");
+			if ((ret1 = pthread_join( elist_thead->thread, &retVal))) // wait until end
+				err_msg_n(ret1, "Could not join with fTrace thread");
 			ret |= ret1 | *(int*)retVal; // combine results in OR to detect one failing
 
 			if (retVal){ // return value assigned
@@ -279,6 +289,81 @@ static int stopTraceRead() {
 // #################################### THREAD specific ############################################
 
 /*
+ *  pidReallocAndTest(): try to reallocate a PID to a new fit
+ *
+ *  Arguments: - resource tracer
+ *  		   - candidate tracer
+ *  		   - item of PID to move
+ *
+ *  Return value: -1 failed, -2 origin still full, 0 = success, 1 = no change
+ */
+static int
+pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
+
+	if (ntrc && ntrc != trc){
+		// better fit found
+
+		// move all threads of same container
+		if (node->param)
+			for (node_t * item = nhead; ((item)); item=item->next )
+				if (0 < item->pid && item->param && item->param->cont
+						&& item->param->cont == node->param->cont){
+
+					item->mon.assigned = ntrc->affinity;
+					if (!setPidAffinityAssinged (item)){
+						item->mon.resched++;
+						continue;
+					}
+					if (trc){ // Reallocate did not work, undo if possible
+						item->mon.assigned = trc->affinity;
+						for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
+							if (0 < bitem->pid && bitem->param && bitem->param->cont
+									&& bitem->param->cont == item->param->cont){
+								bitem->mon.assigned = trc->affinity;
+								(void)setPidAffinityAssinged (bitem);
+							}
+					}
+					return -1;
+				}
+
+		// all done, recompute CPU-times
+		(void)recomputeCPUTimes(ntrc->affinity);
+		if ((trc) && 0 > recomputeCPUTimes(trc->affinity))
+			return -2; // more than one task to move
+		return 0;
+	}
+	return 1;
+}
+
+/*
+ *  pickPidReallocCPU(): process PID runtime overrun,
+ *
+ *  Arguments: - CPU number to check
+ *
+ *  Return value: -1 failed, 0 = success (ok)
+ */
+static int
+pickPidReallocCPU(int32_t CPUno, uint64_t deadline){
+	resTracer_t * trc = getTracer(CPUno);
+	resTracer_t * ntrc = NULL;
+
+	for (int include = 0; include < 2; include++ )
+		// run twice, include=0 and include=1 to force move second time
+		for (node_t * item = nhead; ((item)); item=item->next){
+			if (item->mon.assigned != CPUno || 0 > item->pid
+					// consider only within next period
+				|| ((deadline) && item->mon.deadline >= deadline))
+				continue;
+
+			ntrc = checkPeriod_R(item, include);
+			if (!pidReallocAndTest(ntrc, trc, item))
+				return 0; // realloc worked and CPU ok
+		}
+	
+	return -1;
+}
+
+/*
  *  pickPidCheckBuffer(): process PID runtime overrun,
  *
  *  Arguments: - item to check
@@ -290,77 +375,68 @@ static int
 pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 	uint64_t usedtime = 0;
-	resTracer_t * testCpu;
-
-	// TODO: check actual affinity matches res-tracer
-
-	// Find res-tracer assigned to CPU
-	for (resAlloc_t *res = aHead; ((res)); res=res->next){
-		if (res->item == (struct cont_param *) item->param){
-			if (res->assigned)
-				testCpu = res->assigned;
-			else
-				break;
-		}
-	}
 
 	// find all matching, test if space is enough
+	for (node_t *citem = nhead; ((citem)); citem=citem->next){
+		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
+			continue;
 
-	for (node_t *node = nhead; ((node)); node=node->next){
-		if (node->mon.dl_deadline
-				&& node->mon.dl_deadline <= item->mon.dl_deadline){
+		// !! WARN, works only for deadline scheduled tasks
+		if (citem->mon.deadline && citem->attr.sched_period
+				&& citem->mon.deadline <= item->mon.deadline){
 			// dl present and smaller than next dl of item
 
-			for (resAlloc_t *res = aHead; ((res)); res=res->next){
-				if (res->item == node){
-					// found res for testing item
+			uint64_t stdl = citem->mon.deadline;
 
-					if (res->assigned && testCpu == res->assigned){
-						// the same node!?
-
-						uint64_t stdl = res->item->attr->sched_deadline;
-
-						// check how often period fits, add time
-						while (stdl < item->mon.dl_deadline){
-							stdl +=res->item->attr->sched_period;
-							usedtime += res->item->attr->sched_runtime;
-						}
-					}
-					break;
-				}
+			// check how often period fits, add time
+			while (stdl < item->mon.deadline){
+				stdl += citem->attr.sched_period;
+				usedtime += citem->attr.sched_runtime;
 			}
 		}
 	}
 
 	// if remaining time is enough, return 0
-	return 0 >= (item->mon.dl_deadline - ts - usedtime - extra_rt);
+	return 0 <= (item->mon.deadline - ts - usedtime - extra_rt);
 }
 
+/*
+ *  pickPidAddRuntimeHist(): Add runtime to histogram, init if needed
+ *
+ *  Arguments: - item with data for runtime
+ *
+ *  Return value: -
+ */
 static void
-pickPidCons(node_t *item, uint64_t ts){
+pickPidAddRuntimeHist(node_t *item){
+	// ---------- Add to histogram  ----------
+	if (!(item->mon.pdf_hist)){
+		// base for histogram, runtime parameter
+		double b = (double)item->attr.sched_runtime;
+		// --, try prefix if none loaded
+		if (0.0 == b && item->param && item->param->attr)
+			b = (double)item->param->attr->sched_runtime;
+		// -- fall-back to last runtime
+		if (0.0 == b && item->mon.cdf_runtime)
+			b = (double)item->mon.cdf_runtime;
+		if (0.0 == b)
+			b = (double)item->mon.dl_rt;
 
-	// -> what if we read the debug output here??
-
-	if (SCHED_DEADLINE == item->attr.sched_policy){
-		if (!item->attr.sched_period)
-			updatePidAttr(item);
-		// period should never be zero from here on
-		if (!item->mon.dl_deadline				 // no deadline set?
-				|| (item->mon.dl_deadline < ts)){// did we miss a deadline? check for update, sync
-			int is_null = (!item->mon.dl_deadline);
-
-			get_sched_info(item);				 // update deadline from debug buffer
-			while (item->mon.dl_deadline < ts){	 // after update still not in line? (buffer updates 10ms)
-				item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
-				item->mon.dl_scanfail+= is_null; // not able to clean update -> signal fail (ignore on init)
-			}
-		}
-		else
-			// just add a period, we rely on periodicity
-			item->mon.dl_deadline += MAX( item->attr.sched_period, 1000); // safety..
+		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
+			warn("Histogram init failure for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
 	}
 
-	item->mon.dl_diff = item->mon.dl_deadline - item->mon.dl_rt;
+	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
+	int ret;
+	printDbg(PFX "Runtime for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
+	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
+		if (ret != 1) // GSL_EDOM
+			warn("Histogram increment error for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
+
+	// ---------- Compute diffs and averages  ----------
+
+	// exponentially weighted moving average, alpha = 0.9
+	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
@@ -368,117 +444,245 @@ pickPidCons(node_t *item, uint64_t ts){
 	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
 	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
 
+	// reset counter, done with statistics, task in sleep (suspend)
 	item->mon.dl_rt = 0;
 
 }
 
-/// pickPidCommon(): process PID fTrace common
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
-static int
-pickPidCommon(void * addr, uint64_t ts) {
-	struct tr_common *pFrame = (struct tr_common*)addr;
+/*
+ *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
+ *
+ *  Arguments: - item to update
+ * 			   - last time stamp
+ *
+ *  Return value: -
+ */
+static void
+pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
-	printDbg( "[%lu.%09lu] type=%u flags=%u preempt=%u pid=%d\n", ts/1000000000, ts%1000000000,
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+	if (SCHED_DEADLINE == item->attr.sched_policy){
 
-	if (pFrame->common_flags != 1)
-		{
-		// print the flag found, if different from 1
-		(void)printf("FLAG DEVIATION! %d, %x\n", pFrame->common_flags, pFrame->common_flags);
+		// ---------- Check first if it is a valid period ----------
+
+		if (!item->attr.sched_period)
+			updatePidAttr(item);
+		// period should never be zero from here on
+
+		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
+		if (!item->mon.deadline)
+			if (get_sched_info(item))			 // update deadline from debug buffer
+				warn("Unable to read schedule debug buffer!");
+
+		if (item->mon.deadline > ts){
+			item->mon.dl_rt += (ts - item->mon.last_ts);
+			return;
 		}
 
-	return sizeof(*pFrame) + CMNSPARE; // not always the case!! +8, .. 8 zeros?
+		// ----------  period ended ----------
+
+		// just add a period, we rely on periodicity
+		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+
+		uint64_t count = 1;
+		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
+			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.dl_scanfail++;
+			count++;
+		}
+
+		/*
+		 * Check if we had a overrun and verify buffers
+		 */
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+			// check reschedule?
+			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
+				// reschedule
+				item->mon.dl_overrun++;	// exceeded buffer
+				pickPidReallocCPU(item->mon.assigned, item->mon.deadline);
+			}
+		}
+
+		item->mon.dl_rt /= count; // if we had multiple periods we missed, divive
+		if (item->mon.dl_rt){
+			// statistics about variability
+			item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+			pickPidAddRuntimeHist(item);
+		}
+		// reset runtime to new value
+		if (item->mon.last_ts > 0) // compute runtime
+			item->mon.dl_rt = (ts - item->mon.last_ts);
+	}
+	else{
+		// if not DL use estimated value
+		item->mon.dl_rt += (ts - item->mon.last_ts);
+		item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
+		pickPidAddRuntimeHist(item);
+	}
 }
 
-/// pickPidInfoS(): process PID fTrace sched_switch
-///					update data with kernel tracer debug out
-///
-/// Arguments: - item to update with statistics
-///			   - frame containing the runtime info
-///			   - last time stamp
-///
-/// Return value: error code, 0 = success
-///
-static int pickPidInfoS(void * addr, uint64_t ts) {
+/*
+ *  pickPidCommon(): process PID fTrace common header
+ *
+ *  Arguments: - frame address containing the runtime info
+ *             - fTrace thread info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
+static int
+pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
+	struct tr_common *pFrame = (struct tr_common*)addr;
 
-	int ret1 = pickPidCommon(addr, ts);
+	//thread information flags, probable meaning
+	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
+	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
+	//#define TIF_SIGPENDING	2	/* signal pending */
+	//#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
+	//#define TIF_SINGLESTEP	4	/* reenable singlestep on user return*/
+	//#define TIF_SSBD			5	/* Speculative store bypass disable */
+	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
+	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
+
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// find PID = actual running PID
+	for (node_t * item = nhead; ((item)); item=item->next )
+		// find next PID and put timeStamp last seen, compute period if last time ended
+		if (item->pid == pFrame->common_pid){
+			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+				item->status |=  MSK_STATNRSCH;
+			}
+		}
+	(void)pthread_mutex_unlock(&dataMutex);
+
+	// print here to have both line together
+	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
+			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+
+	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
+}
+
+/*
+ *  pickPidInfoS(): process PID fTrace sched_switch
+ * 					update data with kernel tracer debug out
+ *
+ *  Arguments: - frame containing the runtime info
+ *             - fTrace thread info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
+static int
+pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
+
+	int ret1 = pickPidCommon(addr, fthread, ts);
 	addr+= ret1;
 
 	struct tr_switch *pFrame = (struct tr_switch*)addr;
 
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, pFrame->prev_state,
-//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
-//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
-//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
-						pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
+				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, (uint64_t)pFrame->prev_state_l,
+
+				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
+				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
+				//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+
+//				(pFrame->prev_state & 0xFF ? __print_flags(pFrame->prev_state & 0xFF,"|",
+//						pFrame->prev_state & 0x100 ? "+" : "",
+
+				pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
-	// working item
-	node_t * item = NULL;
+	// find PID switching from
+	for (node_t * item = nhead; ((item)); item=item->next ){
 
-	// find previous pid switching from
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->prev_pid){
-			item = citem;
-			break;
-		}
+		// previous or next pid in list, update data
+		if ((item->pid == pFrame->prev_pid)
+				|| (item->pid == pFrame->next_pid)){
 
-	// PID in list, update data
-	if (item){
-		// compute runtime - limit between 1ns and 1 sec
-		item->mon.dl_rt += MAX(MIN(ts - item->mon.last_ts, (double)NSEC_PER_SEC), 1);
+			// check if CPU changed, exiting
+			if (item->mon.assigned != fthread->cpuno){
+				// change on exit???, reassign CPU?
+				int32_t CPU = item->mon.assigned;
+				item->mon.assigned = fthread->cpuno;
 
-		if (item->mon.last_ts > 0)
-		// TODO: call only if Need-Resched is set
-		{
-			// check statistics and add value
-			if (!(item->mon.pdf_hist)){
-				// base for histogram, runtime parameter
-				double b = (double)item->attr.sched_runtime;
-				// --, try prefix if none loaded
-				if (!b && item->param && item->param->attr)
-					b = (double)item->param->attr->sched_runtime;
-				// -- fall-back to last runtime
-				if (!b)
-					b = (double)item->mon.dl_rt; // at least 1ns
+				// Removed from, should give no issues
+				if (0 > recomputeCPUTimes(CPU))
+					if (SM_DYNSIMPLE <= prgset->sched_mode)
+						pickPidReallocCPU(CPU, 0);
 
-				if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-					warn("Curve fitting parameter init failure for PID %d", item->pid);
+				if (0 <= CPU)
+					item->mon.resched++;
+				else
+					// not assigned by orchestrator -> it sets assigned in setPidResources_u
+					item->status |= MSK_STATNAFF;
 			}
 
-			double b = (double)item->mon.dl_rt/NSEC_PER_SEC; // transform to sec
-			int ret;
-			if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
-				if (ret != 1) // GSL_EDOM
-					warn("Curve fitting histogram increment error for PID %d", item->pid);
-
-			if (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))
-				// check reschedule?
-//				if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))
-					// reschedule
-					;
-
-			// consolidate other values
-			pickPidCons(item, ts);
 		}
+
+		// find next PID and put timeStamp last seen, compute period if last time ended
+		if (item->pid == pFrame->next_pid)
+			item->mon.last_ts = ts;
 	}
 
-	// find mext pid and put ts
-	for (node_t * citem = nhead; ((citem)); citem=citem->next )
-		// skip deactivated tracking items
-		if (abs(citem->pid)==pFrame->next_pid){
-			citem->mon.last_ts = ts;
+	// recompute actual CPU, new tasks might be there now
+	if (0 > recomputeCPUTimes(fthread->cpuno))
+		if (SM_DYNSIMPLE <= prgset->sched_mode)
+			pickPidReallocCPU(fthread->cpuno, 0);
+
+	// find PID switching from
+	for (node_t * item = nhead; ((item)); item=item->next )
+		// previous PID in list, exiting, update runtime data
+		if (item->pid == pFrame->prev_pid){
+
+			if (item->status & MSK_STATNAFF){
+				// unassigned CPU was not part of adaptive table
+				if (SCHED_NODATA == item->attr.sched_policy)
+						updatePidAttr(item);
+				// never assigned to a resource and we have data (SCHED_DL), check for fit
+				if (SCHED_DEADLINE == item->attr.sched_policy) {
+					if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
+							getTracer(fthread->cpuno), item))
+						warn("Unsuccessful first allocation of DL task PID %d %s", item->pid, (item->psig) ? item->psig : "");
+				}
+			}
+
+			if ((pFrame->prev_state_l & 0xFD) // ~'D' uninterruptible sleep -> system call
+				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
+				// update real-time statistics and consolidate other values
+				pickPidConsolidateRuntime(item, ts);
+
+				// period histogram and CDF, update on actual switch
+				if ((SM_PADAPTIVE <= prgset->sched_mode)
+						&& (SCHED_DEADLINE != item->attr.sched_policy)
+	//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED
+						){
+
+					if (item->mon.last_tsP){
+
+						double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+						if (!(item->mon.pdf_phist)){
+							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+								warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+						}
+
+						printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+						if ((runstats_histAdd(item->mon.pdf_phist, period)))
+							warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+					}
+					item->status &= ~MSK_STATNRSCH;
+					item->mon.last_tsP = ts;
+				}
+			}
+			else
+				if (item->mon.last_ts > 0) // compute runtime
+					item->mon.dl_rt += (ts - item->mon.last_ts);
+
 			break;
 		}
 
@@ -487,13 +691,39 @@ static int pickPidInfoS(void * addr, uint64_t ts) {
 	return ret1 + sizeof(struct tr_switch);
 }
 
-/// thread_ftrace(): parse kernel tracer output
-///
-/// Arguments: status trace
-///
-/// Return value: pointer to error code, 0 = success
-///
-void *thread_ftrace(void *arg){
+/*
+ *  pickPidInfoW(): process PID fTrace wakeup
+ * 					update data with kernel tracer debug out
+ *
+ *  Arguments: - frame containing the runtime info
+ *             - fTrace thread info
+ * 			   - last time stamp
+ *
+ *  Return value: error code, 0 = success
+ */
+static int
+pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
+
+	int ret1 = pickPidCommon(addr, fthread, ts);
+	addr+= ret1;
+
+	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+
+	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
+				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
+
+	return ret1 + sizeof(struct tr_wakeup);
+}
+
+/*
+ *  thread_ftrace(): parse kernel tracer output
+ *
+ *  Arguments: - pointer to fTrace thread info
+ *
+ *  Return value: pointer to error code, 0 = success
+ */
+void *
+thread_ftrace(void *arg){
 
 	int pstate = 0;
 	int ret = 0;
@@ -503,7 +733,7 @@ void *thread_ftrace(void *arg){
 	*retVal = 0;
 
 	unsigned char buffer[PIPE_BUFFER];
-	void *pEvent;
+	void *pEvent = NULL;
 	struct kbuffer * kbuf; // kernel ring buffer structure
 	unsigned long long timestamp; // event time stamp, based on up-time in ns (using long long for compatibility kbuffer library)
 
@@ -604,7 +834,7 @@ void *thread_ftrace(void *arg){
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
 			while ((pEvent)  && (!ftrace_stop)) {
-				int (*eventcall)(void *, uint64_t) = pickPidCommon; // default to common for unknown formats
+				int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t) = pickPidCommon; // default to common for unknown formats
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
 					// check for ID, first value is 16 bit ID
@@ -614,7 +844,7 @@ void *thread_ftrace(void *arg){
 					}
 
 				// call event
-				int count = eventcall(pEvent, timestamp);
+				int count = eventcall(pEvent, fthread, timestamp);
 				if (0 > count){
 					// something went wrong, dump and exit
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
@@ -643,30 +873,51 @@ void *thread_ftrace(void *arg){
 
 // #################################### THREAD specific END ############################################
 
-/// manageSched(): main function called to reassign resources
-///
-/// Arguments:
-///
-/// Return value: N/D - int
-///
-static int manageSched(){
 
-	// this is for the dynamic and adaptive scheduler only
+/*
+ *  updateSiblings(): check if the item is - has - the primary sibling
+ *  				  update all and siblings if there is a better fit
+ *
+ *  Arguments: - item that triggered update request
+ *
+ *  Return value: -1 don't touch, 0 = main or no siblings
+ */
+static int
+updateSiblings(node_t * node){
 
-	// lock data to avoid inconsistency
-	(void)pthread_mutex_lock(&dataMutex);
+	node_t * mainp = node;
 
-    node_t * current = nhead;
+	if (// (node->status & MSK_STATSIBL) && // removed temporarily as flag is not reliable
+			(node->param)
+			&& (node->param->cont)){
 
-	while (current != NULL) {
+		uint64_t smp = NSEC_PER_SEC;
+		for (node_t * item = nhead; ((item)); item=item->next ){
+			if (0 < item->pid && item->param && item->param->cont
+					&& item->param->cont == node->param->cont){
+				if (SCHED_DEADLINE == item->attr.sched_policy){
+					if (item->attr.sched_period < smp){
+						mainp = item;
+						smp = item->attr.sched_period;
+					}
+				}
+				else
+					if (policy_is_realtime(item->attr.sched_policy)
+							&& (item->mon.cdf_period)	// the "periodic" task is fastest, and 0 siblings are to ignore
+							&& item->mon.cdf_period < smp){
+						mainp = item;
+						smp = item->mon.cdf_period;
+					}
+			}
+		}
+	}
 
-        current = current->next;
-    }
+	if (mainp != node) // we are not the main task
+		return -1;
 
-
-	(void)pthread_mutex_unlock(&dataMutex);
-
-	return 0;
+	// ELSE update all TIDs
+	return pidReallocAndTest(checkPeriod_R(mainp, 0),
+			getTracer(mainp->mon.assigned), node);
 }
 
 /*
@@ -698,7 +949,7 @@ get_sched_info(node_t * item)
 
 	FILE *fp;
 
-	sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
+	(void)sprintf (szFileName, "/proc/%u/sched", (unsigned) item->pid);
 
 	if (-1 == access (szFileName, R_OK)) {
 		return -1;
@@ -766,57 +1017,60 @@ get_sched_info(node_t * item)
 					item->mon.dl_count++;
 			}
 			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
-				if (0 == item->mon.dl_deadline)
-					item->mon.dl_deadline = num;
-				else if (num != item->mon.dl_deadline) {
+				if (0 == item->mon.deadline)
+					item->mon.deadline = num;
+				else if (num != item->mon.deadline) {
 					// it's not, updated deadline found
+					if (!prgset->ftrace){ // only if not from ftrace call
 
-					// calculate difference to last reading, should be 1 period
-					diff = (int64_t)(num-item->mon.dl_deadline)-(int64_t)item->attr.sched_period;
+						// calculate difference to last reading, should be 1 period
+						diff = (int64_t)(num-item->mon.deadline)-(int64_t)item->attr.sched_period;
 
-					// difference is very close to multiple of period we might have a scan fail
-					// in addition to the overshoot
-					while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) {
-						item->mon.dl_scanfail++;
-						diff -= (int64_t)item->attr.sched_period;
+						// difference is very close to multiple of period we might have a scan fail
+						// in addition to the overshoot
+						while (diff >= ((int64_t)item->attr.sched_period - TSCHS) ) {
+							item->mon.dl_scanfail++;
+							diff -= (int64_t)item->attr.sched_period;
+						}
+
+						// overrun-GRUB handling statistics -- ?
+						if (diff)  {
+							item->mon.dl_overrun++;
+
+							// usually: we have jitter but execution stays constant -> more than a slot?
+							printDbg("\nPID %d %s Deadline overrun by %ldns, sum %ld\n",
+								item->pid, (item->psig) ? item->psig : "", diff, item->mon.dl_diff);
+						}
+
+						item->mon.dl_diff += diff;
+						item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
+						item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
+
+						// exponentially weighted moving average, alpha = 0.9
+						item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
+
+						// runtime replenished - deadline changed: old value may be real RT ->
+						// Works only if scan time < slack time
+						// and if not, this here filters the hole (maybe)
+						diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+						if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
+							item->mon.rt_min = MIN (item->mon.rt_min, diff);
+							item->mon.rt_max = MAX (item->mon.rt_max, diff);
+							item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
+						}
 					}
 
-					// overrun-GRUB handling statistics -- ?
-					if (diff)  {
-						item->mon.dl_overrun++;
-
-						// usually: we have jitter but execution stays constant -> more than a slot?
-						printDbg("\nPID %d Deadline overrun by %ldns, sum %ld\n",
-							item->pid, diff, item->mon.dl_diff);
-					}
-
-					item->mon.dl_diff += diff;
-					item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, diff);
-					item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, diff);
-
-					// exponentially weighted moving average, alpha = 0.9
-					item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + diff /* *1 */)/10;
-
-					// runtime replenished - deadline changed: old value may be real RT ->
-					// Works only if scan time < slack time
-					// and if not, this here filters the hole (maybe)
-					diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
-					if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
-						item->mon.rt_min = MIN (item->mon.rt_min, diff);
-						item->mon.rt_max = MAX (item->mon.rt_max, diff);
-						item->mon.rt_avg = (item->mon.rt_avg * 9 + diff /* *1 */)/10;
-					}
-
-					item->mon.dl_deadline = num;
+					item->mon.deadline = num;
 				}
 
 				// update last seen runtime
-				item->mon.dl_rt = ltrt;
+				if (!prgset->ftrace)
+					item->mon.dl_rt = ltrt;
 				break; // we're done reading
 			}
 		}
 
-		// Advanve with token
+		// Advance with token
 		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
 
@@ -839,22 +1093,17 @@ get_sched_info(node_t * item)
   return 0;
 }
 
-/// updateStats(): update the real time statistics for all scheduled threads
-/// -- used for monitoring purposes ---
-///
-/// Arguments: - 
-///
-/// Return value: number of PIDs found (total) that exceed peak PDF
-///				  defaults to 0 for static scheduler
-///
-static int updateStats ()
+/*
+ * updateStats(): update the real time statistics for all scheduled threads
+ *  -- used for monitoring purposes ---
+ *
+ *  Arguments: -
+ *
+ *  Return value: returns 1 if a statistics update is needed
+ */
+static int
+updateStats()
 {
-	static int prot = 0; // pipe rotation animation
-	static char const sp[4] = "/-\\|";
-
-	prot = (prot+1) % 4;
-	if (!prgset->quiet)	
-		(void)printf("\b%c", sp[prot]);		
 	fflush(stdout);
 
 	// lock data to avoid inconsistency
@@ -862,20 +1111,12 @@ static int updateStats ()
 
 	scount++; // increase scan-count
 
-	if (!(( scount % (prgset->loops*10) ))){
-		// test disabling throttle again if it didn't work.
-		if (!(prgset->status & MSK_STATTRTL))
-			resetRTthrottle(prgset, -1);
-	}
-
 	// for now does only a simple update
 	for (node_t * item = nhead; ((item)); item=item->next ) {
 		// skip deactivated tracking items
 		// skip PID 0, = undefined or ROOT PID (swapper/sched)
-		if (item->pid<=0){
-			item=item->next; 
+		if (0 >= item->pid)
 			continue;
-		}
 
 		// update only when defaulting -> new entry, or every 100th scan
 		if (!(scount%prgset->loops)
@@ -883,41 +1124,6 @@ static int updateStats ()
 			updatePidAttr(item);
 
 		/*  Curve Fitting from here, for now every second (default) */
-
-		if (!(( scount % (prgset->loops*10) ))){
-			// update CMD-line once out of 10 (less often..)
-			updatePidCmdline(item);
-
-			if (!(runstats_histCheck(item->mon.pdf_hist))){
-				// if histogram is set and count is ok, update and fit curve
-
-				if (!runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf)){
-
-					// if in dynamic system and we updated the curve, update WCET for system
-					if ((SM_DYNSYSTEM == prgset->sched_mode)
-							&& (SCHED_DEADLINE == item->attr.sched_policy)) {
-
-						uint64_t newWCET = (uint64_t)(NSEC_PER_SEC *
-								runstats_cdfsample(item->mon.pdf_cdf, prgset->ptresh));
-
-						// OK, let's check the error
-						if (newWCET > 0){
-//							if (abs (newWCET-item->mon.cdf_runtime) > (newWCET/20)){ // 5% difference?
-								updatePidWCET(item, newWCET);
-								item->mon.cdf_runtime = newWCET;
-//							}
-						}
-						else
-							warn ("Estimation error, can not update WCET");
-					}
-				}
-				else{
-					// something went wrong. Reset parameters
-					warn("CDF initialization error for PID %d", item->pid);
-				}
-
-			}
-		}
 
 		// get runtime value
 		if (!prgset->ftrace) // use standard debug output for scheduler
@@ -931,23 +1137,175 @@ static int updateStats ()
 
 	(void)pthread_mutex_unlock(&dataMutex); 
 
+	return !(( scount % (prgset->loops*10) ));	// return 1 if we passed 10th time loops
+}
+
+/*
+ * manageSched(): main function called to update resources
+ * 					called once out of 10* loops (less often..)
+ *
+ * Arguments: -
+ *
+ * Return value: N/D - int
+ */
+static int
+manageSched(){
+
+	// this is for the dynamic and adaptive scheduler only
+
+	// test disabling throttle again if it didn't work.
+	if (!(prgset->status & MSK_STATTRTL)){
+		// set even if not successful. stop trying
+		(void)resetRTthrottle(prgset, -1);
+		prgset->status |= MSK_STATTRTL;
+	}
+
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	// for now does only a simple update
+	for (node_t * item = nhead; ((item)); item=item->next ) {
+		if (0 > item->pid)
+			continue;
+
+		// update CMD-line
+		updatePidCmdline(item);
+
+		if (SM_PADAPTIVE <= prgset->sched_mode){
+			if (!(runstats_histCheck(item->mon.pdf_phist))){
+				if ((SCHED_DEADLINE != item->attr.sched_policy)){
+
+					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
+							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
+
+					(void)runstats_histFit(&item->mon.pdf_phist);
+
+					// period changed enough for a different time-slot?
+					if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)
+							&& newPeriod > item->mon.cdf_runtime){
+						if (item->mon.cdf_period * 95 > newPeriod * 100
+								|| item->mon.cdf_period * 105 < newPeriod * 100){
+							// meaningful change?
+							info("Update PID %d %s period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
+							item->mon.resample++;
+						}
+						item->mon.cdf_period = newPeriod;
+						// check if there is a better fit for the period, and if it is main
+						if (0 > updateSiblings(item))
+							warn("PID %d %s Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
+					}
+					else
+						item->mon.cdf_period = newPeriod;
+					}
+				}
+
+
+			if (!(runstats_histCheck(item->mon.pdf_hist))){
+				// if histogram is set and count is ok, update and fit curve
+
+				uint64_t newWCET = 0;
+				int ret;
+
+				switch (prgset->sched_mode) {
+
+				default:
+				case SM_PADAPTIVE:
+					// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
+					if (SCHED_DEADLINE == item->attr.sched_policy){
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_histSixSigma(item->mon.pdf_hist));
+						if (item->param && item->param->attr &&
+								(item->param->attr->sched_runtime)) // max double initial WCET
+							newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
+					}
+					else
+						// Otherwise, fifo ecc
+						newWCET = (uint64_t)(NSEC_PER_SEC *
+									runstats_histMean(item->mon.pdf_hist));
+					break;
+
+				case SM_DYNSIMPLE:
+				case SM_DYNMCBIN:
+					// DYNAMIC, USE PROBABILISTIC WCET VALUE
+					if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
+
+						if (SCHED_DEADLINE == item->attr.sched_policy)
+							newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+						else
+							// Otherwise, fifo ecc
+							newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_histMean(item->mon.pdf_hist));
+					}
+					else
+						if (ret != 0)
+						{
+							// something went wrong
+							if (!(item->status & MSK_STATHERR))
+								warn("CDF initialization/range error for PID %d %s", item->pid, (item->psig) ? item->psig : "");
+							item->status |= MSK_STATHERR;
+						}
+
+					break;
+				}
+
+				if (0 < newWCET){
+					if (SCHED_DEADLINE == item->attr.sched_policy){
+						updatePidWCET(item, newWCET);
+					}
+					if ( item->mon.cdf_runtime * 95 > newWCET * 100
+							|| item->mon.cdf_runtime * 105 < newWCET * 100){
+						// meaningful change?
+						info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
+						item->mon.resample++;
+					}
+					item->mon.cdf_runtime = newWCET;
+					item->status &= ~MSK_STATHERR;
+				}
+				else
+					warn ("Estimation error, can not update WCET");
+
+				(void)runstats_histFit(&item->mon.pdf_hist);
+			}
+		}
+    }
+
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		if (0.0 != trc->U) // ignore 0 min CPU
+			trc->Umin = MIN (trc->Umin, trc->U);
+		trc->Umax = MAX (trc->Umax, trc->U);
+		if (0.0 == trc->Uavg && 0.0 != trc->U)
+			trc->Uavg = trc->U;
+		else
+			trc->Uavg = trc->Uavg * 0.9 + trc->U * 0.1;
+	}
+
+	(void)pthread_mutex_unlock(&dataMutex);
+
 	return 0;
 }
 
-/// dumpStats(): prints thread statistics to out
-///
-/// Arguments: -
-///
-/// Return value: -
-static void dumpStats (){
+/*
+ * dumpStats(): prints thread statistics to out
+ *
+ * Arguments: -
+ *
+ * Return value: -
+ */
+static void
+dumpStats (){
 
 	node_t * item = nhead;
-	(void)printf( "\nStatistics for real-time SCHED_DEADLINE PIDs, %ld scans:"
+	(void)printf( "\nStatistics for real-time SCHED_DEADLINE, FIFO and RR PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"
-					"PID - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
+					"PID - Rsh - Smpl - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
 			        "----------------------------------------------------------------------------------\n",
 					scount );
+
+	// find first matching
+	while ((item) && !policy_is_realtime(item->attr.sched_policy))
+		item=item->next;
 
 	// no PIDs in list
 	if (!item) {
@@ -957,33 +1315,50 @@ static void dumpStats (){
 
 	for (;((item)); item=item->next)
 		switch(item->attr.sched_policy){
-		default:
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				policy_to_string(item->attr.sched_policy));
+				policy_to_string(item->attr.sched_policy),
+				(item->psig) ? item->psig : "");
 			break;
 
 		case SCHED_DEADLINE:
-			(void)printf("%5d%c: %ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld)\n",
+			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
-				item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
+				item->mon.resched, item->mon.resample, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
-				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg);
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
+				(item->psig) ? item->psig : "");
 			break;
+		default:
+			;
 		}
+
+	(void)printf( "\nStatistics on resource usage:\n"
+				    "CPU : AVG (MIN/MAX)\n"
+			        "----------------------------------------------------------------------------------\n");
+
+	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+		recomputeCPUTimes(trc->affinity);
+		(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
+				trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
+	}
+
+	fflush(stdout);
 }
 
-/// thread_manage(): thread function call to manage schedule list
-///
-/// Arguments: - thread state/state machine, passed on to allow main thread stop
-///
-/// Return value: Exit Code - o for no error
+/*
+ *  thread_manage(): thread function call to manage schedule list
+ *
+ *  Arguments: - thread state/state machine, passed on to allow main thread stop
+ *
+ *  Return value: Exit Code - o for no error
+ */
 void *thread_manage (void *arg)
 {
 	// be explicit!

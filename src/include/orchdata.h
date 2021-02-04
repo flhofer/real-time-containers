@@ -18,11 +18,15 @@
 	#define MSK_STATUPD			0x1	// scheduling parameters update done
 	#define	MSK_STATNMTCH		0x2 // no parameter match
 	#define MSK_STATWCUD		0x4	// WCET changed for PID
+	#define MSK_STATSIBL		0x8 // PID has siblings in container
+	#define MSK_STATNAFF		0x10 // PID has no affinity yet
+	#define MSK_STATHERR		0x20 // HIST CDF initialization error
+	#define MSK_STATNRSCH		0x40 // Running task has requested reschedule
 
-	// masks for the status of configurations
+	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
+	#define	MSK_STATCCRT		0x2 // Configuration created from Runtime
 
-	// masks for the status of PIDs (node_t) and configurations
 	#define MSK_STATSHAT		0x10// shared attribute configuration
 	#define MSK_STATSHRC		0x20// shared resource configuration
 
@@ -30,7 +34,10 @@
 	#define MSK_STATTRTL		0x1	// setting RT throttle was successful done
 	#define	MSK_STATRUNC		0x2 // startup running containers present
 
-// default values, changeable via cli
+	// masks fot the status of a resource (resTracer_t)
+	#define MSK_STATHRMC		0x1	// resource allocation periods are harmonic
+
+	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
 	#define TDETM 100	// x*TSCAN, time check new containers
@@ -49,7 +56,6 @@
 		DM_CMDLINE = 0,	// use command line signature for detection
 		DM_CNTPID,	// use container skim instances to detect PIDs
 		DM_CGRP,	// Use CGroup to detect PIDs of processes
-		DM_DLEVNT	// docker link event
 	};
 
 	enum aff_mode {
@@ -63,9 +69,8 @@
 		SM_STATIC = 0,	// use static allocation only (NO RESCHEDULING)
 		SM_ADAPTIVE,	// use adaptive slot allocation at startup (NO RESCHEDULING)
 		SM_PADAPTIVE,	// use progressive adaptive slot allocation (NO RESCHEDULING)
-		SM_DYNSYSTEM,	// use system (Linux) based dynamic rescheduling technique
 		SM_DYNSIMPLE,	// use the simple affinity based dynamic scheduling (like adaptive)
-		SM_DYNMCBIN		// use monte carlo bin allocation style algorithm
+		SM_DYNMCBIN		// use Monte-Carlo bin allocation style algorithm
 	};
 
 	typedef struct sched_rscs { // resources 
@@ -133,44 +138,58 @@
 		uint32_t num_cont;		// number of configured containers
 	} containers_t;
 
-	typedef struct resTracer resTracer_t;
-
-	typedef struct resAlloc { 		// resource allocations mapping
-		struct resAlloc *	next;		//
-		struct cont_parm *	item; 		// default, could be any element (img, cont, pid)
-		struct resTracer *	assigned;	// null = no, pointer is resTracer assigned to
-	} resAlloc_t;
-
-	struct resTracer { // resource tracers
+	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
 		int32_t	 affinity; 		// exclusive CPU-num
 		float	 U;				// utilization factor
+		int 	 status;		// generic status info
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
-	};
+		// used during runtime for stats
+		float	 Umin;			// utilization factor
+		float	 Uavg;			// utilization factor
+		float	 Umax;			// utilization factor
+	} resTracer_t;
 
 	typedef struct sched_mon { // actual values for monitoring
+
 		// runtime statistics
 		int64_t rt_min;			// minimum run-time value
 		int64_t rt_avg;			// average run-time value
 		int64_t rt_max;			// maximum run-time value
+
 		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task
+		uint64_t last_tsP;		// last time stamp for this task's period
+		uint64_t deadline;		// deadline last read absolute value (may approximate next iter)
+
+		int64_t  dl_rt;			// deadline last read runtime value/budget
+		// Deadline diff - or runtime buffer (ftrace)
+		int64_t  dl_diff;		// overrun-GRUB handling : deadline diff sum!
+
 		uint64_t dl_count;		// deadline verification/change count
 		uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
 		uint64_t dl_overrun;	// overrun count
-		uint64_t dl_deadline;	// deadline last read absolute value (may approximate next iter)
-		int64_t  dl_rt;			// deadline last read runtime value
-		// Deadline diff - or runtime buffer (ftrace)
-		int64_t  dl_diff;		// overrun-GRUB handling : deadline diff sum!
+
 		int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
+
 		// CDF and distribution values
 		uint64_t cdf_runtime;	// CDF pthresh max runtime, trigger level
 		uint64_t cdf_period;	// ** RFU ** CDF computed periodic distance for non DL tasks
+
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
 		stat_cdf *  pdf_cdf;	// CDF data collection
+
+		stat_hist *	pdf_phist;	// histogram data to estimate the PDF of the period
+		stat_cdf *  pdf_pcdf;	// CDF data collection for the period
+
+		// Runtime allocation
+		int32_t assigned; 		// actually running CPU, -1 = unassigned
+		struct bitmask * assigned_mask;	// computed assignment mask
+		uint64_t resched;		// number of rescheduling times
+		uint64_t resample;		// number of resampling times
 	} nodemon_t;
 
 	typedef struct sched_pid { // PID management and monitoring info
@@ -250,13 +269,11 @@
 	// special - free structure
 	void freeContParm(containers_t * contparm);
 	void freePrgSet(prgset_t * prgset);
-	void freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead);
+	void freeTracer(resTracer_t ** rHead);
+	void freeParm(cont_t * item);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs
 	void node_push(node_t ** head);
 	void node_pop(node_t ** head);
-
-	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
-	int node_findParams(node_t* node, containers_t * conts);
 #endif

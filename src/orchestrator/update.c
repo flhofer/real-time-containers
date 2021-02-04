@@ -33,21 +33,27 @@ static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 // declarations 
 static void scanNew();
 
-/// cmpPidItem(): compares two pidlist items for Qsort
-///
-/// Arguments: pointers to the items to check
-///
-/// Return value: difference PID
-static int cmpPidItem (const void * a, const void * b) {
+/*
+ *  cmpPidItem(): compares two pidlist items for Qsort
+ *
+ *  Arguments: pointers to the items to check
+ *
+ *  Return value: difference PID
+ */
+static int
+cmpPidItem (const void * a, const void * b) {
 	return (((node_t *)b)->pid - ((node_t *)a)->pid);
 }
 
-/// getContPids(): utility function to get PID list of interrest from Cgroups
-/// Arguments: - pointer to linked list of PID
-///
-/// Return value: --
-///
-static void getContPids (node_t **pidlst)
+/*
+ *  getContPids(): utility function to get PID list of interest from CGroups
+ *
+ *  Arguments: - pointer to linked list storing newly found PIDs
+ *
+ *  Return value: --
+ */
+static void
+getContPids (node_t **pidlst)
 {
 	struct dirent *dir;
 	DIR *d = opendir(prgset->cpusetdfileprefix);
@@ -71,6 +77,8 @@ static void getContPids (node_t **pidlst)
 
 					int nleft = 0;	// number of bytes left to parse
 					int	ret;		// return value number of bytes read, or error code
+					int count = 0;  // number of PIDS
+
 					// Scan through string and put in array
 					while((ret = read(fd, buf+nleft,BUFRD-nleft-1))) {
 
@@ -96,6 +104,7 @@ static void getContPids (node_t **pidlst)
 							node_push(pidlst);
 							// PID found
 							(*pidlst)->pid = atoi(pid);
+							(*pidlst)->status |= MSK_STATSIBL;
 							printDbg("->%d ",(*pidlst)->pid);
 
 							updatePidCmdline(*pidlst); // checks and updates..
@@ -103,8 +112,12 @@ static void getContPids (node_t **pidlst)
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
-							pid = strtok_r (NULL,"\n", &pid_ptr);	
+							pid = strtok_r (NULL,"\n", &pid_ptr);
+							count++;
 						}
+						if (1 == count) // only 1 found, reset sibling flag
+							(*pidlst)->status &= ~MSK_STATSIBL;
+
 						printDbg("\n");
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(buf, buf+BUFRD-nleft-1, nleft); 
@@ -129,13 +142,17 @@ static void getContPids (node_t **pidlst)
 	prgset->use_cgroup = DM_CNTPID; // switch to container pid detection mode
 }
 
-/// getPids(): utility function to get list of PID
-/// Arguments: - pointer to linked list of PID
-///			   - tag string containing the command signature to look for 
-///
-/// Return value: --
-///
-static void getPids (node_t **pidlst, char * tag, int mode)
+/*
+ *  getPids(): utility function to get list of PID for DM_CMDLINE DM_CNTPID mode
+ *
+ *  Arguments: - pointer to linked list of PID
+ * 			   - tag string containing the command signature to look for
+ * 			   - parent PID if present to note it as sort of container-ID in
+ *
+ *  Return value: --
+ */
+static void
+getPids (node_t **pidlst, char * tag, char * ppid)
 {
 	FILE *fp;
 
@@ -156,6 +173,7 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 
 	char pidline[BUFRD];
 	char *pid, *pid_ptr;
+	int count = 0;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
 		printDbg(PFX "%s: Pid string return %s\n", __func__, pidline);
@@ -163,6 +181,10 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 
 		node_push(pidlst);
         (*pidlst)->pid = atoi(pid);
+		if (ppid){
+			(*pidlst)->status |= MSK_STATSIBL;
+			(*pidlst)->contid=strdup(ppid);
+		}
         printDbg(PFX "processing->%d",(*pidlst)->pid);
 
 		// find command string and copy to new allocation
@@ -173,19 +195,25 @@ static void getPids (node_t **pidlst, char * tag, int mode)
 		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
 			// FATAL, exit and execute atExit
 			fatal("Could not allocate memory!");
-		(*pidlst)->contid = NULL;							
+		(*pidlst)->contid = NULL;
+		count++;
     }
+	if (1 == count) // only 1 found, reset sibling flag
+		(*pidlst)->status &= ~MSK_STATSIBL;
 
 	pclose(fp);
 }
 
-/// getcPids(): utility function to get list of PID by PPID tag
-/// Arguments: - pointer to linked list of PID
-///			   - tag string containing the name of the parent pid to look for
-///
-/// Return value: -- 
-///
-static void getpPids (node_t **pidlst, char * tag)
+/*
+ *  getcPids(): utility function to get list of PID by PPID tag (DM_CNTPID mode)
+ *
+ *  Arguments: - pointer to linked list of new PIDs
+ * 			   - tag string containing the name of the parent PID to look for
+ *
+ *  Return value: --
+ */
+static void
+getpPids (node_t **pidlst, char * tag)
 {
 	char pidline[BUFRD];
 	if (!tag) 
@@ -215,7 +243,7 @@ static void getpPids (node_t **pidlst, char * tag)
 		(void)strcat(pids, pidline);
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
 
-		getPids(pidlst, pids, DM_CNTPID);
+		getPids(pidlst, pids, pidline);
 	}
 	pclose(fp);
 }
@@ -224,48 +252,57 @@ static contevent_t * lstevent;
 pthread_t thread_dlink;
 int  iret_dlink; // Timeout is set to 4 seconds by default
 
-/// startDockerThread(): start docker verification thread
-///
-/// Arguments: 
-///
-/// Return value: result of pthread_create, negative if failed
-///
-static int startDockerThread() {
+/*
+ *  startDockerThread(): start docker verification thread
+ *
+ *  Arguments:
+ *
+ *  Return value: result of pthread_create, negative if failed
+ */
+static int
+startDockerThread() {
 	iret_dlink = pthread_create( &thread_dlink, NULL, dlink_thread_watch, NULL);
+	if (iret_dlink)  // thread not started successfully
+		err_msg_n(iret_dlink, "Failed to start docker_link thread");
 #ifdef DEBUG
-	(void)pthread_setname_np(thread_dlink, "docker_link");
+	else
+		(void)pthread_setname_np(thread_dlink, "docker_link");
 #endif
 	return iret_dlink;
 }
 
-/// stopDockerThread(): stop docker verification thread
-///
-/// Arguments:
-///
-/// Return value: result of pthread_*, negative if one failed
-///
-static int stopDockerThread(){
+/*
+ *  stopDockerThread(): stop docker verification thread
+ *
+ *  Arguments:
+ *
+ *  Return value: result of pthread_*, negative if one failed
+ */
+static int
+stopDockerThread(){
 	// set stop signal
 	int ret = 0;
 	if (!iret_dlink) { // thread started successfully
 		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
-			perror("Failed to send signal to docker_link thread");
+			err_msg_n(iret_dlink, "Failed to send signal to docker_link thread");
 		ret |= iret_dlink;
 		if ((iret_dlink = pthread_join (thread_dlink, NULL))) // wait until end
-			perror("Could not join with docker_link thread");
+			err_msg_n(iret_dlink, "Could not join with docker_link thread");
 		ret |= iret_dlink;
 		(void)printf(PFX "Threads stopped\n");
 	}
 	return ret;
 }
 
-/// updateDocker(): pull event from dockerlink and verify
-///
-/// Arguments: 
-///
-/// Return value: 
-///
-static void updateDocker() {
+/*
+ *  updateDocker(): pull event from dockerlink and verify
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+updateDocker() {
 	
 	// NOTE: pointers are atomic
 	if (!containerEvent)
@@ -302,10 +339,17 @@ static void updateDocker() {
 				node_t * curr = &dummy;
 
 				// drop matching PIDs of this container
-				for (;((curr->next)); curr=curr->next) 
-					if (curr->next->contid == lstevent->id) 
-						node_pop(&curr->next);
-
+				while (((curr->next))){
+					if (curr->next->contid == lstevent->id){
+						if (prgset->trackpids)		// deactivate only
+							curr->next->pid = abs(curr->next->pid) * -1;
+						else {
+							node_pop(&curr->next);
+							continue; // don't move on to next item
+						}
+					}
+					curr=curr->next;
+				}
 				(void)pthread_mutex_unlock(&dataMutex);
 				break;
 
@@ -321,14 +365,16 @@ static void updateDocker() {
 	scanNew(); 
 }
 
-/// scanNew(): main function for thread_update, scans for PIDs and inserts
-/// or drops the PID list
-///
-/// Arguments: 
-///
-/// Return value: 
-///
-static void scanNew () {
+/*
+ *  scanNew(): main function for thread_update, scans for PIDs and inserts
+ *  or drops the PID list
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+scanNew () {
 	// get PIDs 
 	node_t *lnew = NULL; // pointer to new list head
 
@@ -342,16 +388,17 @@ static void scanNew () {
 			getpPids(&lnew, prgset->cont_ppidc);
 			break;
 
+		case DM_CMDLINE:
 		default: ;// detect by pid signature
 			// cmdline of own thread
 			char pid[SIG_LEN];
 			if (prgset->psigscan)
-				sprintf(pid, "-TC %s", prgset->cont_pidc);
+				(void)sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
-				sprintf(pid, "-C %s", prgset->cont_pidc);
+				(void)sprintf(pid, "-C %s", prgset->cont_pidc);
 			else 
 				pid[0] = '\0';
-			getPids(&lnew, pid, DM_CMDLINE);
+			getPids(&lnew, pid, NULL);
 			break;		
 	}
 
@@ -393,7 +440,7 @@ static void scanNew () {
 		// delete a dopped item
 		if (lnew->pid < abs(tail->next->pid)) {
 			// skip deactivated tracking items
-			if (tail->next->pid<0){
+			if (0 > tail->next->pid){
 				tail=tail->next;
 				continue; 
 			}
@@ -419,8 +466,10 @@ static void scanNew () {
 		// drop missing items
 		printDbg("\n" PFX "... Delete at end %d", tail->next->pid);// tail->next->pid);
 		// get next item, then drop old
-		if (prgset->trackpids)// deactivate only
+		if (prgset->trackpids){// deactivate only
 			tail->next->pid = abs(tail->next->pid)*-1;
+			tail = tail->next;
+		}
 		else
 			node_pop(&tail->next);
 	}
@@ -450,15 +499,18 @@ static void scanNew () {
 
 }
 
-/// thread_update(): thread function call to manage and update present pids list
-///
-/// Arguments: - thread state/state machine, passed on to allow main thread stop
-///
-/// Return value: -
-void *thread_update (void *arg)
+/*
+ *  thread_update(): thread function call to manage and update present pids list
+ *
+ *  Arguments: - thread state/state machine, passed on to allow main thread stop
+ *
+ *  Return value: -
+ */
+void *
+thread_update (void *arg)
 {
 	int32_t* pthread_state = (int32_t *)arg;
-	int cc = 0, ret, stop = 0;
+	int cc = 0, ret, stop = 0, dlink_on = 0;
 	struct timespec intervaltv, now, old;
 
 	// get clock, use it as a future reference for update time TIMER_ABS*
@@ -547,21 +599,19 @@ void *thread_update (void *arg)
 			}
 
 			// start docker link thread
-			if (startDockerThread())
-				warn("Unable to start the Docker link thread");
+			dlink_on = (0 == startDockerThread());
 
 			// set local variable -- all CPUs set.
 			*pthread_state=1;
 			//no break
 
 		case 1: // normal thread loop
-			updateDocker();
+			if (dlink_on)
+				updateDocker();
 			if (cc)
 				break;
 			// update, once every td
-			if (!prgset->quiet)	
-				(void)printf("\rNode Stats update  ");
-			scanNew(); 
+			scanNew();
 
 			break;
 		case -1:
@@ -585,8 +635,9 @@ void *thread_update (void *arg)
 			//no break
 		case -2:
 			*pthread_state=-99; // must be first thing! -> main writes -1 to stop
-			if (stopDockerThread())
-				warn("Unable to stop the Docker link thread");
+			if (dlink_on)
+				if (stopDockerThread())
+					warn("Unable to stop the Docker link thread");
 			//no break
 
 		case -99:

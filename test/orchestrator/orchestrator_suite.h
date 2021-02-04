@@ -1,0 +1,15 @@
+/*
+ * orchestrator_suite.h
+ *
+ *  Created on: Nov 30, 2020
+ *      Author: Florian Hofer
+ */
+
+#ifndef TEST_ORCHESTRATOR_SUITE_H_
+#define TEST_ORCHESTRATOR_SUITE_H_
+
+#include <check.h>
+
+Suite * orchestrator_suite(void);
+
+#endif /* TEST_ORCHESTRATOR_SUITE_H_ */

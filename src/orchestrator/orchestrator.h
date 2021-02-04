@@ -3,7 +3,7 @@
 #ifndef ORCHESTRATOR_H_
 	#define ORCHESTRATOR_H_
 
-	#define PRGNAME "DC (adaptive) static orchestrator"
+	#define PRGNAME "PDO - Probabilistic dynamic orchestrator"
 	#ifndef VERSION
 		#define VERSION "-- UNVERSIONED --"
 	#endif
@@ -20,6 +20,5 @@
 
 	// resource allocation tracing
 	extern pthread_mutex_t resMutex; // trace access mutex UNUSED for now
-	extern resAlloc_t * aHead; // heads of resource allocations for CPU and Tasks
 	extern resTracer_t * rHead;
 #endif

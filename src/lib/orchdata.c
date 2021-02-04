@@ -148,170 +148,9 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 			 getTail((struct base *)*head), compar); 
 }
 
-static inline void duplicateContainer(node_t* node, struct containers * conts, cont_t ** cont) {
-	push((void**)&conts->cont, sizeof(cont_t));
-	// copy contents but skip first pointer, PID-list can be referenced -> forking, add only
-	(void)memcpy((void*)conts->cont + sizeof(cont_t *), (void*)*cont + sizeof(cont_t *), 
-		sizeof(cont_t) - sizeof(cont_t *));
-	// update pointer to newly updated, assign id
-	*cont = conts->cont;
-	(*cont)->contid = strdup(node->contid);
-
-	free(node->psig); // clear entry to avoid confusion
-	node->psig = NULL;
-}
-
-/// node_findParams(): assigns the PID parameters list of a running container
-///
-/// Arguments: - node to chek for matching parameters
-/// 		   - pid configuration list head
-///
-/// Return value: 0 if successful, -1 if unsuccessful
-///
-int node_findParams(node_t* node, struct containers * conts){
-
-	struct img_parm * img = conts->img;
-	struct cont_parm * cont = NULL;
-	// check for image match first
-	while (NULL != img) {
-
-		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
-				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
-			conts_t * imgcont = img->conts;	
-			printDbg("Image match %s\n", img->imgid);
-			// check for container match
-			while (NULL != imgcont) {
-				if (imgcont->cont->contid && node->contid) {
-
-					if  (!strncmp(imgcont->cont->contid, node->contid,
-							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))) {
-						cont = imgcont->cont;
-						break;
-					}
-					// if node pid = 0, psig is the name of the container coming from dockerlink
-					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
-						cont = imgcont->cont;
-						duplicateContainer(node, conts, &cont);
-						break;
-					}
-				}
-				imgcont = imgcont->next; 
-			}
-			break; // if imgid is found, keep trace in img -> default if nothing else found
-		}
-		img = img->next; 
-	}
-
-	// we might have found the image, but still 
-	// not in the images, check all containers
-	if (!cont) {
-		cont = conts->cont;
-
-		// check for container match
-		while (NULL != cont) {
-
-			if(cont->contid && node->contid) {
-				if (!strncmp(cont->contid, node->contid,
-						MIN(strlen(cont->contid), strlen(node->contid))))
-					break;
-
-				// if node pid = 0, psig is the name of the container coming from dockerlink
-				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
-					duplicateContainer(node, conts, &cont);
-					break;
-				}
-			}
-			cont = cont->next; 
-		}
-	}
-
-	// did we find a container or image match?
-	if (img || cont) {
-		// read all associated PIDs. Is it there?
-
-		// assign pids from cont or img, depending what is found
-		int useimg = (img && !cont);
-		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
-
-		// check the first result
-		while (NULL != curr) {
-			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
-				// found a matching pid inc root container
-				node->param = curr->pid;
-				return 0;
-			}
-			curr = curr->next;
-		}
-
-		// if both were found, check again in image
-		if (img && cont){
-			curr = img->pids;
-			while (NULL != curr) {
-				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
-					// found a matching pid inc root container
-					node->param = curr->pid;
-					return 0;
-				}
-				curr = curr->next;
-			}
-		}
-
-		// found? if not, create PID parameter entry
-		printDbg("... parameters not found, creating from PID and assigning container settings\n");
-		push((void**)&conts->pids, sizeof(pidc_t));
-		if (useimg) {
-			// add new items
-			push((void**)&conts->cont, sizeof(cont_t));
-			push((void**)&img->conts, sizeof(conts_t));
-			img->conts->cont = conts->cont; 
-			cont = conts->cont;
-			cont->img = img;
-
-			// assign values
-			cont->contid = node->contid;
-			img->status |= MSK_STATSHAT | MSK_STATSHRC;
-			cont->rscs = img->rscs;
-			cont->attr = img->attr;
-		}
-		// add to container PIDs
-		push((void**)&cont->pids, sizeof(pids_t));
-		cont->pids->pid = conts->pids; // add new empty item -> pid list, container pids list
-		cont->status |= MSK_STATSHAT | MSK_STATSHRC;
-		conts->pids->rscs = cont->rscs;
-		conts->pids->attr = cont->attr;
-
-		node->param = conts->pids;
-		node->param->img = img;
-		node->param->cont = cont;
-		node->psig = node->param->psig;
-		// update counter
-		conts->nthreads++;
-		return 0;
-	}
-	else{ 
-		// no match found. and now?
-		printDbg("... container not found, trying PID scan\n");
-
-		// start from scratch in the PID config list only. Maybe Container ID is new
-		struct pidc_parm * curr = conts->pids;
-
-		while (NULL != curr) {
-			if(curr->psig && node->psig && strstr(node->psig, curr->psig)) {
-				warn("assigning container configuration to unrelated PID");
-				node->param = curr;
-				return 0;
-			}
-			curr = curr->next; 
-		}
-	}
-	printDbg("... PID not found. Ignoring\n");
-
-	return -1;
-}
-
 /* -------------------- special for Param structures --------------------- */
 
-static void
+void
 freeParm(cont_t * item){
 
 	if (!(item->status & MSK_STATSHAT))
@@ -361,7 +200,7 @@ freeContParm(containers_t * contparm){
 
 	free(contparm->attr);
 	contparm->attr = NULL;
-	if (contparm->rscs){
+	if (contparm->rscs && contparm->rscs->affinity_mask){
 		numa_free_cpumask(contparm->rscs->affinity_mask);
 		contparm->rscs->affinity_mask = NULL;
 	}
@@ -393,18 +232,14 @@ freePrgSet(prgset_t * prgset){
 }
 
 /*
- *  adaptFreeTracer(): free resources
+ *  freeTracer(): free resources
  *
- *  Arguments: -
+ *  Arguments: - head of resource tracer to free
  *
  *  Return value: -
  */
 void
-freeTracer(resTracer_t ** rHead, resAlloc_t ** aHead){
-	while (*aHead){
-		pop((void**)aHead);
-	}
-
+freeTracer(resTracer_t ** rHead){
 	while (*rHead)
 		pop((void**)rHead);
 }
@@ -417,11 +252,15 @@ static const node_t _node_default = { NULL,				// *next,
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max
-							0, 0, 0, 0, 0,				//
+							0, 0, 0,					//		last ts, last ts period. deadline
 							0, 0,						//		dl rf, dl diff
+							0, 0, 0,					//		scan counters, fail, overrun
 							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max
+
 							0, 0,						//		computed values histogram
-							NULL , NULL					// 		*pointer to fitting data and vectors
+							NULL, NULL,					// 		*pointer to fitting data for runtime
+							NULL, NULL,					// 		*pointer to fitting data for period (NON_RT)
+							-1, NULL, 0					//		assignment CPU, *assignment mask runtime, resched
 						},
 						NULL};							// *param structure pointer
 
@@ -470,11 +309,26 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->imgid);
 #endif
-	// curve fitting parameters
+	// curve fitting parameters runtime
 	if ((*head)->mon.pdf_hist)
 		runstats_histFree((*head)->mon.pdf_hist);
 	if ((*head)->mon.pdf_cdf)
-		runstats_cdffree(&(*head)->mon.pdf_cdf);
+		runstats_cdfFree(&(*head)->mon.pdf_cdf);
+	// curve fitting parameters period
+	if ((*head)->mon.pdf_phist)
+		runstats_histFree((*head)->mon.pdf_phist);
+	if ((*head)->mon.pdf_pcdf)
+		runstats_cdfFree(&(*head)->mon.pdf_pcdf);
+	// runtime affinity mask
+	if ((*head)->mon.assigned_mask)
+		numa_bitmask_free((*head)->mon.assigned_mask);
+#ifdef DEBUG
+	(*head)->mon.pdf_hist = NULL;
+	(*head)->mon.pdf_cdf = NULL;
+	(*head)->mon.pdf_phist = NULL;
+	(*head)->mon.pdf_pcdf = NULL;
+	(*head)->mon.assigned_mask = NULL;
+#endif
 
 	pop((void**)head);
 }

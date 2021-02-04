@@ -3,7 +3,8 @@
 	"lock_pages" : true,
 	"setdflag" : true,
 	"interval" : 6000,
-	"ftrace" : false
+	"ftrace" : true,
+    "ptresh" : 0.98
 	},
 "images": [
 		{
@@ -106,22 +107,9 @@
 			}
 		},
 		{
-			"imgid" : "rt-workerapp9",
-			"params" :{
-				"policy" : "default",
-				"runtime": 37500000,
-				"period" : 125000000
-			},
-			"res" : {
-				"affinity" : -99
-			}
-		},
-		{
 			"imgid" : "rt-datagenerator",
 			"params" :{
-				"policy" : "default",
-				"runtime": 1400000,
-				"period" : 14000000
+				"policy" : "default"
 			},
 			"res" : {
 				"affinity" : -99
@@ -130,9 +118,7 @@
 		{
 			"imgid" : "rt-datadistributor",
 			"params" :{
-				"policy" : "default",
-				"runtime": 1400000,
-				"period" : 14000000
+				"policy" : "default"
 			},
 			"res" : {
 				"affinity" : -99

@@ -6,15 +6,18 @@
 ###############################
 */
 
-#include "../../src/include/parse_config.h"
-#include <check.h>
+#include "parse_configTest.h"
+
+// tested
+#include "../../src/lib/parse_config.c"
+
 
 static prgset_t * set;
 static containers_t * conts;
 static FILE * pp;
 
-static struct sched_rscs _def_rscs = {-1, NULL, -1, -1, -1, -1};
-static struct sched_attr _def_attr = {48, 0, 0, 0, 0, 0, 0, 0}; // sched_other == 0 
+static struct sched_rscs _def_rscs = {INT_MIN, NULL, -1, -1, -1, -1};
+static struct sched_attr _def_attr = {48, SCHED_NODATA, 0, 0, 0, 0, 0, 0};
 
 
 static char * files [10] = {
@@ -33,13 +36,8 @@ static char * files [10] = {
 	};
 
 static void parse_config_tc1_startup() {
-	set = malloc(sizeof(prgset_t));
-	conts = malloc(sizeof(containers_t));
-	conts->img = NULL; // locals are not initialized
-	conts->pids = NULL;
-	conts->cont = NULL;
-	conts->nthreads = 0;
-	conts->num_cont = 0;
+	set = calloc(1, sizeof(prgset_t));
+	conts = calloc(1, sizeof(containers_t));
 }
 
 static void parse_config_tc1_teardown() {
@@ -65,6 +63,11 @@ static void checkConfigDefault(containers_t * conts) {
 	ck_assert(!conts->pids);
 	ck_assert(conts->rscs);
 	ck_assert(conts->attr);
+
+	{	// clear unallocated part of memory 'template'
+		int32_t * a = (void *)conts->rscs + sizeof(conts->rscs->affinity);
+		*a = 0;
+	}
 
 	ck_assert(!memcmp(conts->rscs, &_def_rscs, sizeof(struct sched_rscs)));
 	ck_assert(!memcmp(conts->attr, &_def_attr, sizeof(struct sched_attr)));

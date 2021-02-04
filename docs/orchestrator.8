@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH SCHEDSTAT 8 "April 15, 2019"
+.TH ORCHESTRATOR 8 "July 29, 2020"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -16,9 +16,10 @@
 orchestrator \- real-time container orchestrator
 .SH SYNOPSIS
 .B orchestrator
-.RI "[ \-bdfmP ] [\-a " proc " ] [\-c " clock " ] [\-i " intv " ] \
-[\-l " loop " ] [\-n " cmd " ] [\-p " prio " ] [\-r " time " ] [\-s " cmd "] \
-[\-w " time " ] [config.json]
+.RI "[ \-bBdDfFkmPqv ] [\-a " proc " ] [\-c " clock " ] [\-C " cgrp " ] \
+[\-i " intv " ] [\-l " loop " ] [\-n " cmd " ] [\-p " prio " ] \
+[\-\-policy=<policy>] [\-r " time " ] [\-\-rr " slice-time " ] [\-s " cmd "] \ 
+[\-S " alg "] [\-w " time " ] [config.json]
 
 .\" .SH DESCRIPTION
 .\" This manual page documents briefly the
@@ -29,12 +30,14 @@ orchestrator \- real-time container orchestrator
 .SH OPTIONS
 These programs follow the usual GNU command line syntax, with long
 options starting with two dashes ('\-\-'). The specified config file defines container
-orchestration and resource scheduling details.
+orchestration and resource scheduling details. By default the software is set to static 
+allocation, which means all task's resources are either preconfigured in the
+[config.json] file and changed accordingly, or left as-is.
 .br
 A summary of options is included below.
 .\" For a complete description, see the Info files.
 .TP
-.B \-a, \-\-affinity[=PROC-SPLIT]
+.B \-a [PROC-SPLIT], \-\-affinity[=PROC-SPLIT]
 Divide the CGroups of containers and system betweeo 0-[PROC-SPLIT-1] and 
 [PROC-SPLIT]-MAX_CPU.
 All containers will run on the latter control group, while systems processes will
@@ -44,15 +47,25 @@ The cpu numbers are the same as shown in the
 .I processor
 field in /proc/cpuinfo.  See numa(3) for more information on specifying CPU sets.
 .TP
-.B \-b
+.B \-A, \-\-adaptive
+Enable adaptive scheduling algorithm. With this flag enabled, configured
+task with affinity
+.I -1
+(all CPUs enabled, preference CPU 1) or smaller, get a precomputed affinity mask 
+depending on free allocations and are then dynamically slotted on entry. The allocation
+algorithm uses period affinity and utilization factor as selection criterion.
+.TP
+.B \-b, \-\-bind
 bind non-real-time processes of the same container to the settings of the real-time
 task settings of the container. For example, if a container hosts a non-real-time
 process which launches a real-time thread, this flag will bind the non-real-time
 main process to the same affinity and resource limit settings.
 .TP
+.B \-B, \-\-blind
+enables the blind run option, such that the pre-run environment setup does not try to force any run-time environment change.
 .TP
-.B \-c, \-\-clock=CLOCK
-select clock
+.B \-c CLOCK, \-\-clock=CLOCK
+select clock source for timers and delays
 .br
 0 = CLOCK_MONOTONIC (default)
 .br
@@ -62,34 +75,48 @@ select clock
 .br
 3 = CLOCK_THREAD_CPUTIME_ID
 .TP
-.B \-d
+.B -C [CGROUP]
+Sets the PID detection mode to CGroup with sub-group named CGROUP. By default, the
+CGROUP is set to 'docker/'. When changing, remind ending the group name with a slash.
+.TP
+.B \-d, \-\-dflag
 set the deadline overshoot scheduling flag for qualifying SCHED_DEADLINE listed
-tasks. This will enable notification via SIGXCPU to the overshooting thread, that
-the computation is exceeding its deadline.
+tasks. TThis permits the task to reclaim possible unused real-time bandwidth beyond
+the allotted amount.
+.TP
+.B \-D
+sets the dry-run flag. No kernel or environment parameters will be changed but only actual values reported.
 .TP
 .B \-f
-force execution with critical parameters. This might be needed when, e.g. the 
-period for the update task in SCHED_DEADLINE is set to 1ms. Such a small period
-could cause a system overload and starve other processes.
+force execution with critical parameters, and enables changes that might influence other services on the system. This might be needed when, e.g. the period for the
+update task in SCHED_DEADLINE is set to 1ms. Such a small period could cause a 
+system overload and starve other processes.
 .TP
-.B \-i, \-\-interval=INTV
+.B \-F, \-\-ftrace
+enables kernel function trace-based run-time statistics instead of the default
+scheduler debug output interface. The latter is limited to a run-time refresh of 10ms.
+.TP
+.B \-i INTV, \-\-interval=INTV
 Set the base interval for the update thread(s) for process data acquisition in
 microseconds (default is 5000us).
 .TP
-.B \-l, \-\-loops=LOOPS
+.B \-k
+with this flag, the data of PIDs that leave will be kept in memory, for statistical purposes only.
+.TP
+.B \-l LOOPS, \-\-loops=LOOPS
 Set the number of intervals after which the kernel memory is cheked for new PIDs
 mathing the detection pattern. Default loop numer is 100.
 .TP
 .B \-m, \-\-mlockall
 Lock current and future memory allocations to prevent the orchestrator from being
-paged out
+paged out.
 .TP
 .B \-n [CMD]
 use command line signaure detection. The optional CMD parameter specifies pid command
 to look for when identifying cotainer daemons. Default command line parameter is 
-bash.
+'bash'.
 .TP
-.B \-p, \-\-prio=PRIO
+.B \-p PRIO, \-\-prio=PRIO
 Set the priority of the update thread. This value is real-time prio for SCHED_FIFO 
 or SCHED_RR and  niceness for SCHED_OTHER, SCHED_NORMAL, SCHED_BATCH or SCHED_IDLE.
 It has no meaning for SCHED_DEADLINE as there is no prioritized hierarichacal 
@@ -103,16 +130,40 @@ as well.(used with -n)
 set the scheduler policy of the measurement threads
 where NAME is one of: other, normal, batch, idle, fifo, rr, deadline
 .TP
-.B \-r, \-\-runtime=TIME
+.B \-q
+reduces verbosity where possible.
+.TP
+.B \-r TIME, \-\-runtime=TIME
 sets the orchestrators runtime in seconds. Might come in handy when performing some
 scripted test executions.
+.TP
+.B \-\-rr=TIME
+The flag sets the slice value for Round-Robin scheduled tasks at startup.
 .TP
 .B \-s [CMD]
 use shim PPID container detection. The optional CMD parameter specifies ppid command
 to look for when identifying cotainer daemons. Default command line parameter is 
 docker-containerd-shim.
 .TP
-.B \-w, TIME
+.B \-S [NR], \-\-system[=NR]
+selects the algorithm for the dynamic system scheduler (DSS). This scheduler tries to 
+move containers when an overrun is imminent (Adaptive and Static do not do this). 
+Montecarlo is not implemented yet.
+.br
+0 = simple system schedule based (default)
+.br
+1 = simple period based
+.br
+2 = Monte Carlo randomization
+.TP
+.B \-\-smi
+enables interrupt counters to be read for each CPU. This to track the effect of 
+uncontrollable interrupts;
+.TP
+.B \-v, \-\-verbose
+adds verbosity if the binary has been compiled with the DEBUG flag
+.TP
+.B \-w TIME, \-\-wcet=TIME
 sets the worst case execution time for the update thread, default is set to 100us.
 (used with --policy=deadline)
 .SH CONFIGURATION
@@ -124,54 +175,104 @@ will be taken as input file.
 .TP
 In the following and example of a configuration file
 
-{  									// open root object
+{                                      // open root object
 
-	[  								// array of objects
+    "global" : {
+        "logdir" : "./",                          // logging directory - TODO
+        "log_basename" : "orchestrator.txt",      // logging basename - TODO
+        "prc_kernel" : "/proc/sys/kernel/",       // kernel settings vfs
+        "sys_cpuset" : "/sys/fs/cgroup/cpuset/",  // cgroup cpuset vfs
+        "sys_cpu" :    "/sys/devices/system/cpu/",// cpu settings, ol vfs
+        "cont_ppidc" : "containerd-shim",         // pid signature for container shim
+        "cont_pidc" : "",                         // pid signature, opt, for filtering
+        "cont_cgrp" : "docker/",                  // subdirectory for CGroups
+        "priority" : 0,                           // priority of update thread
+        "clock" : 0,                              // clock type to use
+        "default_policy" : "SCHED_OTHER",         // scheduling policy for update thread
+        "quiet" : 0,                              // quiet mode
+        "affother" : 0,                           // tie non-RT tasks to same settings
+        "setdflag" : 0,                           // sed dl-overrun flag  for deadline 
+        "interval" : 5000,                        // update scan interval in us
+        "dl_wcet": 100,                           // run-time budget for update thread
+        "loops" : 100,                            // number of loops bf checking conts
+        "runtime" : 0,                            // max run-time, 0 = infinite
+        "psigscan" : 0,                           // parent signature scan 
+        "trackpids" : 0,                          // keep left pids in stat
+        "lock_pages" : 0,                         // lock pages for orchestrator
+        "smi" : 0,                                // smi counter reading
+        "rrtime" : 100,                           // slice time for rr scheduling, 100us
+        "setaffinity" : "AFFINITY_UNSPECIFIED",   // affinity area for containers
+        "affinity" : "1-2",                       // CPU affinity coma separated list
+        "ftrace" : 0,                             // enable kernel function tracing 
+        "ptresh" : 0.9,                           // dynamic scheduling probability thresh
+    }
+    "images" : [                    // list of images with matching containers & PIDs
+    {                                  
+        "imgid" : "4efcb6c965de",   // full or partial id (at least 12 characters) 
+        "params" : { ... },         // real-time parameters - default to globals
+        "res" : { ... },            // resouces for image, default to globals
 
-		{  							// first container, one object per container
+        "cont" : [                  // list of containers based on this image
+        {                                  
+                "contid" : "4efcb6c965de",    // full or partial (at least 12 characters) of container id
+                "params" : { ... }, // real-time parameters, default to image
+                "res" : { ... },    // resouces to allocate, default to image
+                "pids" : [{ 
+                    "cmd" : "rt-app conf2.json",
+                    "params" : { ... }, // real-time parameters, default to container
+                    "res" : { ... },    // resouces to allocate, default to container
+                 }],    // list of PID objects for this container
+        }, ... ],
 
-			"cmd" : "rt-app conf2.json",	// process run signature identification
+        "pids" : [                  // list of default PID objects for this image
+        {
+            "cmd" : "rt-app conf2.json",
+            "params" : { ... },     // real-time parameters, default to image
+            "res" : { ... },        // resouces to allocate, default to image
+        }, ... ],
 
-			"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
+    }, ... ],
 
-			"params" : {				// real-time parameters - optional
+    "containers" : [                // list of containers not based on known image
+    {                                  
+        "contid" : "4efcb6c965de",  // full or partial id (at least 12 characters) container id
+        "params" : { ... },         // real-time parameters, defaults to global
+        "res" : { ... },            // resouces for container, defaults to global
+        "pids" : [{ ... }],         // list of PID objects for this container
+    }, ... ],
 
-				"policy" : "other", 	// required scheduling policy
+    "pids" : [                      // list of PID objects with no container or image
+    {
+        ... 
+    }, ... ],
 
-				"flags"  : 0,			// process flags -> inheritance
-
-				"nice"   : 0,			// niceness factor for CFS schedules
-
-				"prio"   : 0,			// priority for RT schedules, FIFO & RR
-
-				"runtime": 1000000,		// EDF runtime in us
-
-				"deadline": 4000000,	// EDF deadline in us
-
-				"period" : 4000000		// EDF period in us
-
-			},
-
-			"res" : {					// resouces to allocate for container/process-opt
-
-				"affinity" : -1,		// CPU affinity, -1 = all 
-
-				"rt-soft" : -1,		// real-time soft limit, execution time -> SIGXCPU
-
-				"rt-hard" : -1,		// real-time hard limit, execution time -> SIGKILL
-
-				"data-soft" : -1, 		// data/heap soft limit
-
-// -> not used		"data-hard" : -1,		// hada/heap hard limit
-
-			},
-
-		},
-
-	]
-
+    "scheduling" : {                // real-time parameters for global defaults
+        ...
+    },
+    "resources" : {                 // resouces to allocate for global defaults
+        ...
+    },
 }
 
+.TP
+where the parameters and resources all follow the following struct
+
+    "params" : {                // real-time parameters - optional
+        "policy" : "SCHED_OTHER",// required scheduling policy, 'default' leaves the setting unchanged
+        "flags"  : 0,           // process flags -> inheritance
+        "nice"   : 0,           // niceness factor for CFS schedules
+        "prio"   : 0,           // priority for RT schedules, FIFO & RR
+        "runtime": 1000000,     // EDF run-time in us
+        "deadline": 4000000,    // EDF deadline in us
+        "period" : 4000000      // EDF period in us
+    },
+    "res" : {                   // resouces to allocate for process, optional
+        "affinity" : -1,        // CPU affinity, -1 = all with preference CPU 1
+        "rt-soft" : -1,         // real-time soft limit, execution time -> SIGXCPU
+        "rt-hard" : -1,         // real-time hard limit, execution time -> SIGKILL
+        "data-soft" : -1,       // data/heap soft limit
+// -> not used    "data-hard" : -1,        // data/heap hard limit
+    },
 
 .SH SEE ALSO
 .BR numa (3),

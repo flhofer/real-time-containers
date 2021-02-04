@@ -6,9 +6,13 @@
 ###############################
 */
 
-#include "update.c"
-#include "manage.c"
-#include "adaptive.c"
+#include "orchestrator_suite.h"
+#include "../test.h"
+
+#include "adaptiveTest.h"
+#include "manageTest.h"
+#include "resmgntTest.h"
+#include "updateTest.h"
 
 Suite * orchestrator_suite(void) {
 
@@ -23,6 +27,7 @@ Suite * orchestrator_suite(void) {
 	orchestrator_update(s);
 	orchestrator_manage(s);
 	orchestrator_adaptive(s);
+	orchestrator_resmgnt(s);
 
 	return s;
 }

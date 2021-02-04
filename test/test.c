@@ -5,13 +5,7 @@
 # ©2019 all rights reserved ☺
 ###############################
 */
-
-#include <check.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
-
-#include "../../src/orchestrator/orchestrator.h"
+#include "test.h"
 
 // ############################ common global variables ###########################333
 
@@ -30,16 +24,15 @@ node_t * nhead = NULL;
 // mutex to avoid read while updater fills or empties existing threads
 pthread_mutex_t resMutex; // UNUSED for now
 // heads of resource allocations for CPU and Tasks
-resAlloc_t * aHead = NULL;
 resTracer_t * rHead = NULL;
 
 // ############################ end common global variables ###########################333
 
-#include "lib/library_suite.c"
-#include "orchestrator/orchestrator_suite.c"
+// include library and main suite code
+#include "lib/library_suite.h"
+#include "orchestrator/orchestrator_suite.h"
 
-// generic..
-#include "../src/include/error.h"
+#include <time.h>
 
 int main(void)
 {
@@ -50,19 +43,11 @@ int main(void)
     SRunner *sr;
 
 	Suite * s1 = library_suite();
-	sr = srunner_create(s1);
-	// uncomment below for debugging
-//	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_NORMAL);
-    nf += srunner_ntests_failed(sr);
-    srunner_free(sr);
-
 	Suite * s2 = orchestrator_suite();
-    sr = srunner_create(s2);
-	// uncomment below for debugging
-//	srunner_set_fork_status (sr, CK_NOFORK);
-    srunner_run_all(sr, CK_NORMAL);
-    nf += srunner_ntests_failed(sr);
+	sr = srunner_create(s1);
+	srunner_add_suite(sr, s2);
+	srunner_run_all(sr, CK_NORMAL);
+    nf = srunner_ntests_failed(sr);
     srunner_free(sr);
 
     return nf == 0 ? 0 : 1;
