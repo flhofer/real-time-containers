@@ -1171,7 +1171,7 @@ manageSched(){
 		// update CMD-line
 		updatePidCmdline(item);
 
-		if (SM_PADAPTIVE <= prgset->sched_mode)
+		if (SM_PADAPTIVE <= prgset->sched_mode){
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
 
@@ -1200,77 +1200,73 @@ manageSched(){
 				}
 
 
-		if (!(runstats_histCheck(item->mon.pdf_hist))){
-			// if histogram is set and count is ok, update and fit curve
+			if (!(runstats_histCheck(item->mon.pdf_hist))){
+				// if histogram is set and count is ok, update and fit curve
 
-			uint64_t newWCET = 0;
-			int ret;
+				uint64_t newWCET = 0;
+				int ret;
 
-			switch (prgset->sched_mode) {
+				switch (prgset->sched_mode) {
 
-			case SM_PADAPTIVE:
-				// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
-				if (SCHED_DEADLINE == item->attr.sched_policy){
-					newWCET = (uint64_t)(NSEC_PER_SEC *
-									runstats_histSixSigma(item->mon.pdf_hist));
-					if (item->param && item->param->attr &&
-							(item->param->attr->sched_runtime)) // max double initial WCET
-						newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
-				}
-				else
-					// Otherwise, fifo ecc
-					newWCET = (uint64_t)(NSEC_PER_SEC *
-								runstats_histMean(item->mon.pdf_hist));
-				break;
-
-			case SM_DYNSIMPLE:
-			case SM_DYNMCBIN:
-				// DYNAMIC, USE PROBABILISTIC WCET VALUE
-				if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
-
-					if (SCHED_DEADLINE == item->attr.sched_policy)
+				default:
+				case SM_PADAPTIVE:
+					// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
+					if (SCHED_DEADLINE == item->attr.sched_policy){
 						newWCET = (uint64_t)(NSEC_PER_SEC *
-									runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+										runstats_histSixSigma(item->mon.pdf_hist));
+						if (item->param && item->param->attr &&
+								(item->param->attr->sched_runtime)) // max double initial WCET
+							newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
+					}
 					else
 						// Otherwise, fifo ecc
 						newWCET = (uint64_t)(NSEC_PER_SEC *
 									runstats_histMean(item->mon.pdf_hist));
+					break;
+
+				case SM_DYNSIMPLE:
+				case SM_DYNMCBIN:
+					// DYNAMIC, USE PROBABILISTIC WCET VALUE
+					if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
+
+						if (SCHED_DEADLINE == item->attr.sched_policy)
+							newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+						else
+							// Otherwise, fifo ecc
+							newWCET = (uint64_t)(NSEC_PER_SEC *
+										runstats_histMean(item->mon.pdf_hist));
+					}
+					else
+						if (ret != 0)
+						{
+							// something went wrong
+							if (!(item->status & MSK_STATHERR))
+								warn("CDF initialization/range error for PID %d %s", item->pid, (item->psig) ? item->psig : "");
+							item->status |= MSK_STATHERR;
+						}
+
+					break;
+				}
+
+				if (0 < newWCET){
+					if (SCHED_DEADLINE == item->attr.sched_policy){
+						updatePidWCET(item, newWCET);
+					}
+					if ( item->mon.cdf_runtime * 95 > newWCET * 100
+							|| item->mon.cdf_runtime * 105 < newWCET * 100){
+						// meaningful change?
+						info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
+						item->mon.resample++;
+					}
+					item->mon.cdf_runtime = newWCET;
+					item->status &= ~MSK_STATHERR;
 				}
 				else
-					if (ret != 0)
-					{
-						// something went wrong
-						if (!(item->status & MSK_STATHERR))
-							warn("CDF initialization/range error for PID %d %s", item->pid, (item->psig) ? item->psig : "");
-						item->status |= MSK_STATHERR;
-					}
+					warn ("Estimation error, can not update WCET");
 
-				break;
-
-			case SM_STATIC:
-			case SM_ADAPTIVE:
-			default:
-				// ELSE, DO NOTHING
-				break;
+				(void)runstats_histFit(&item->mon.pdf_hist);
 			}
-
-			if (0 < newWCET){
-				if (SCHED_DEADLINE == item->attr.sched_policy){
-					updatePidWCET(item, newWCET);
-				}
-				if ( item->mon.cdf_runtime * 95 > newWCET * 100
-						|| item->mon.cdf_runtime * 105 < newWCET * 100){
-					// meaningful change?
-					info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
-					item->mon.resample++;
-				}
-				item->mon.cdf_runtime = newWCET;
-				item->status &= ~MSK_STATHERR;
-			}
-			else
-				warn ("Estimation error, can not update WCET");
-
-			(void)runstats_histFit(&item->mon.pdf_hist);
 		}
     }
 
