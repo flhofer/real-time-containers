@@ -15,7 +15,7 @@ function prepareTest() {
 
 		# Manual settings with exclusive docker, 3 CPU dedicated + SMT
 		eval 'echo -1 > /proc/sys/kernel/sched_rt_runtime_us'
-		eval 'echo "1-3,5-8" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
+		eval 'echo "1-3,5-7" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
 		eval 'echo "1" > /sys/fs/cgroup/cpuset/docker/cpuset.cpu_exclusive' 
 
 	fi
