@@ -12,7 +12,7 @@ WFILE="cicd.yml"
 
 # generic extension of call with auth token header
 function gh_curl() {
-  curl -H "Authorization: token $TOKEN" \
+  curl -H "Authorization: $TOKEN" \
        -H "Accept: application/vnd.github.v3.raw" \
        $@
 }
