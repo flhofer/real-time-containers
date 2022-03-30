@@ -43,12 +43,12 @@ fpsFile=$fifoDir/fps
 #chrt parameters for event-driven workers
 ######################
 workerPolicyEvent="--fifo"
-workerPriorityEvent=48
+workerPriorityEvent=47
 
 datageneratorPolicy="--fifo"
 datageneratorPriority=49
 datadistributorPolicy="--fifo"
-datadistributorPriority=47
+datadistributorPriority=48
 
 #TODO: FROM USECASE 1!!
 #REGULAR
