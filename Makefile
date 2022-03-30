@@ -150,9 +150,8 @@ help:
 	@echo " DC orchestrator useful Makefile targets:"
 	@echo ""
 	@echo "    all       :  build all tests (default)"
-	@echo "    install   :  install tests to local filesystem"
-	@echo "    check     :  build unit tests
-	@echo "    test      :  run unit tests
+	@echo "    check     :  build unit tests"
+	@echo "    test      :  run unit tests"
 	@echo "    clean     :  remove object files"
 	@echo "    tarball   :  make a tarball suitable for release"
 	@echo "    help      :  print this message"
