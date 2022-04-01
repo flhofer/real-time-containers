@@ -42,13 +42,15 @@ fpsFile=$fifoDir/fps
 ######################
 #chrt parameters for event-driven workers
 ######################
+# Workers should only be interrupted by incoming I/O
 workerPolicyEvent="--fifo"
-workerPriorityEvent=47
-
+workerPriorityEvent=48
+# Highest priority, simulates I/O intertupt coming from camera
 datageneratorPolicy="--fifo"
 datageneratorPriority=49
+# Data dtistributor continues once workers on the resource are done
 datadistributorPolicy="--fifo"
-datadistributorPriority=48
+datadistributorPriority=47
 
 #TODO: FROM USECASE 1!!
 #REGULAR
