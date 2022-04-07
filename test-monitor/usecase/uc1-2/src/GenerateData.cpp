@@ -202,7 +202,7 @@ void GenerateData::mainLoop()
     prevTimeSpec = nowSpec; //Reinitialize so we delay the next from this time
 
     fprintf(stderr, "%s GenerateData::mainLoop\n", progName.c_str());
-    for (int n = 0, loopct=0; !terminateProcess; )
+    for (int n = 0, loopct=0, cnt=0; !terminateProcess; )
     {
         /**************************************************************
         * If Distributor (generator type 0), reads from pipe.  
@@ -216,6 +216,7 @@ void GenerateData::mainLoop()
             break;
         }
 
+    	cnt=0;
         // -- Pipe is not open, loop through until one is
         while ((!terminateProcess) && p->fd == -1 )
         {
@@ -241,10 +242,16 @@ void GenerateData::mainLoop()
                     }
                 }
             }
-            else 
+            else
             {
                 ++p;
                 ++n;
+                ++cnt;
+                // tried all pipes, yield to avoid low priority lock
+                if (cnt >= maxWritePipes){
+                	cnt=0;
+                    usleep(1000);	// WARN: hard coded
+                }
             }
         }
 
