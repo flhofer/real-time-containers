@@ -18,11 +18,11 @@ struct OptParams {
     unsigned long timingHistMinValue;
     unsigned long timingHistMaxValue;
     unsigned long histCount;
+    unsigned long endInSeconds;
     int  maxTests;
     int  testSecs;
     int  firstFPS;
     int  lastFPS;
-    unsigned long endInSeconds;
     int  datagenerator;     //0=>data distributor
                             //1=>usecase1 data generator
                             //2=>usecase2 data generator

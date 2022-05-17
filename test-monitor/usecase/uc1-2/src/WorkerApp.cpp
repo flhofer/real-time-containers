@@ -135,8 +135,8 @@ void workerFunc(int tloops, int iloops, int oloops, unsigned long pollPeriod, ul
 
     double inMsg;
     const int maxMsg = 200;
-    double msg[maxMsg+1];
-    int i = 0;
+//    double msg[maxMsg+1];	// thought as future receive buffer
+//    int i = 0;
     int loopCt = 0;
     ulong totalLoops = 0;
     long double totalDuration = 0.0, totalPerInterval = 0.0;
@@ -295,7 +295,6 @@ void printHelp(std::string msg)
 int main(int argc, char *argv[])
 {
 
-    int optargs = 0;
     const char * const short_opts = "b:dhi:m:n:o:p:l:r:t:e:";
     const option long_opts[] = {
         {"basePipeName",required_argument, nullptr, 'b'},

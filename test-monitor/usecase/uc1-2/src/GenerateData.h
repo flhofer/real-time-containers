@@ -11,6 +11,7 @@ class GenerateData
 {
     PipeStruct *    pWritePipes;
     PipeStruct *    pReadPipe;
+    SimulatedMsg *	pSimulatedMsg;
     OptParams       params;
     std::atomic_int &numPipes;
     int             maxWritePipes;
@@ -19,12 +20,11 @@ class GenerateData
     int             prevDesiredFPS;
     int             constIntervalUsec;
     struct timespec prevTimeSpec;
-    SimulatedMsg *pSimulatedMsg;
     struct timespec nowSpec;
     struct timespec sleepSpec;
-    int sleepIntervalRange;
+    int 			sleepIntervalRange;
     DoSleep         sleeper;
-    double mMsg;
+    double 			mMsg;
 
     void setSleepSpecFromFPS(int fps);
     void useCase1Sleep();

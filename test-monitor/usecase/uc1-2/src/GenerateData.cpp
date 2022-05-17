@@ -260,7 +260,7 @@ void GenerateData::mainLoop()
 
         if ( p->fd != -1)
         {
-            write(p->fd, &mMsg, sizeof(mMsg));
+            (void)write(p->fd, &mMsg, sizeof(mMsg));
             if (generator == 0)
             {
                 //data distributor
@@ -323,7 +323,7 @@ void GenerateData::endProcessing()
         p = pWritePipes + n;
         if (p->fd != -1)
         {
-            write(p->fd, &terminationMsg, sizeof(terminationMsg));
+            (void)write(p->fd, &terminationMsg, sizeof(terminationMsg));
         }
     }
 

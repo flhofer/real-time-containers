@@ -109,7 +109,7 @@ void start_low_latency(int &fd)
             fprintf(stderr, "start_low_latency: Failed to open PM QOS file: %s\n", strerror(errno));
             exit(errno);
         } 
-        write(fd, &value, sizeof(value));
+        (void)write(fd, &value, sizeof(value));
     }
 }
 
@@ -124,7 +124,9 @@ int main(int argc, char *argv[])
 {
     progName = argv[0];
     size_t index = progName.rfind('/');
+#ifdef LOCKALL
     int pm_qos_fd = -1;
+#endif
 
     if (index != std::string::npos)
         progName = progName.substr(index+1);
@@ -155,7 +157,7 @@ int main(int argc, char *argv[])
 
     /* Delete and recreate FPS file */
     
-    int fd = open(fpsName, O_WRONLY|O_CREAT|O_TRUNC);
+    int fd = open(fpsName, O_WRONLY|O_CREAT|O_TRUNC, 0644);
     close(fd);
 
     /********************************************
