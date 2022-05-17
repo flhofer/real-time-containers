@@ -303,6 +303,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%s: Closing fifo %s\n", progName.c_str(), pReadPipe->fifoName.c_str());
         close(pReadPipe->fd);
     }
+#ifdef LOCKALL
+    end_low_latency(pm_qos_fd);
+#endif
 
     fprintf(stderr, "%s: Exiting\n", progName.c_str());
     exit(0);
