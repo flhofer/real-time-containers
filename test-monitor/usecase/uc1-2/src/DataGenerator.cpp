@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
             }
 
             fprintf(stderr, "Use Case 1: %s Creating singleThread generateData \n", 
-                    (optParams.datagenerator ? "DataDistributor":"DataGenerator") );
+                    (optParams.datagenerator == 0 ? "DataDistributor":"DataGenerator") );
             singleThread = std::thread(generateData, pWritePipes, pReadPipe, std::ref(optParams), std::ref(numPipes), optParams.maxWritePipes );
         
             if (optParams.datagenerator == 1)
