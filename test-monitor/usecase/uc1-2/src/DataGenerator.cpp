@@ -20,6 +20,9 @@ volatile bool terminateProcess{false};
 int desiredFPS{-1};
 const char * fpsName = "/tmp/fps";
 
+#define STRINGIFY(s) #s
+#define FILELINE(line) __FILE__ ":" STRINGIFY(line)
+
 bool createPipes(PipeStruct * pWritePipes, PipeStruct **ppReadPipe, OptParams &optParams)
 {
     /********************************************
@@ -73,7 +76,7 @@ void openPipeAndGenerateData(PipeStruct *pWritePipe, PipeStruct * pReadPipe, Opt
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:393: Error Opening pipe for %s\n", progName.c_str());
+        fprintf(stderr, FILELINE(__LINE__)" Error Opening pipe for %s\n", progName.c_str());
     }
     
 }
@@ -87,7 +90,7 @@ void updateOpenWritePipes(PipeStruct *p, std::atomic<int> &numPipes)
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:407: Error Opening pipe for %s\n", progName.c_str());
+        fprintf(stderr, FILELINE(__LINE__)": Error Opening pipe for %s\n", progName.c_str());
     }
         
 }
@@ -178,7 +181,7 @@ int main(int argc, char *argv[])
                 //Data Distributor only
                 if (pReadPipe->openPipe(O_RDONLY, progName) == -1)
                 {
-                    fprintf(stderr, "DataGenerator.cpp:491: Error Opening pipe for %s\n", progName.c_str());
+                    fprintf(stderr, FILELINE(__LINE__)": Error Opening pipe for %s\n", progName.c_str());
 
                     exit(-1);
                 }
