@@ -44,13 +44,13 @@ fpsFile=$fifoDir/fps
 ######################
 # Workers should only be interrupted by incoming I/O
 workerPolicyEvent="--fifo"
-workerPriorityEvent=48
+workerPriorityEvent=47
 # Highest priority, simulates I/O intertupt coming from camera
 datageneratorPolicy="--fifo"
 datageneratorPriority=49
-# Data dtistributor continues once workers on the resource are done
+# Data distributor continues once workers on the resource are done
 datadistributorPolicy="--fifo"
-datadistributorPriority=47
+datadistributorPriority=48
 
 #TODO: FROM USECASE 1!!
 #REGULAR
