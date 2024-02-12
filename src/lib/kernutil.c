@@ -411,7 +411,7 @@ parse_bitmask(struct bitmask *mask, char * str, size_t len){
 	if (!mask || !str || !len)
 		return -1;
  
-	char num[12];
+	char num[13];
 	int mask_sz = numa_bitmask_nbytes(mask) *8;
 	int first_found = -1;
 	int last_found =-1;
