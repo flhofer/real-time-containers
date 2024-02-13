@@ -150,9 +150,10 @@ GRUB_CMDLINE_LINUX=""
 sudo mv grub /etc/default/grub
 sudo update-grub2
 
-#echo "## Installing Balena"
-#url="https://github.com/resin-os/balena/releases/download/${balena_rev}/balena-${balena_rev}-${arch}.tar.gz"
-#curl -sL "$url" | tar xzv -C /usr/local/bin --strip-components=1
+echo "## Installing Balena"
+url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"
+
+curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
 
 cat <<EOF
 
@@ -169,5 +170,25 @@ ______     _
 simply real-time containers
 
 ######################################
+
+To use balenaEngine you need to start balena-engine-daemon as a background process.
+This can be done manually or using the init system scripts provided here:
+
+    https://github.com/balena-os/balena-engine/tree/$tag/contrib/init
+
+This requires adding a \"balena-engine\" group for the daemon to run under:
+
+    sudo groupadd -r balena-engine
+
+If you want to allow non-root users to run containers they can be added to this group
+with something like:
+
+    sudo usermod -aG balena-engine <user>
+
+WARNING: Adding a user to the \"balena-engine\" group will grant the ability to run
+         containers which can be used to obtain root privileges on the
+         docker host.
+         Refer to https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface
+         for more information.
 
 EOF
