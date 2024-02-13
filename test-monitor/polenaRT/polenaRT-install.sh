@@ -40,7 +40,14 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-#echo "Selecting RT-patch ${rt_patch} for kernel root family ${linux_root}, base version ${linux_base}, release ${linux_ver}"
+cat <<EOF
+*** Polena installer ...
+
+Selecting RT-patch < ${rt_patch} > for 
+	*   kernel root family ${linux_root}
+	**  base version ${linux_base}
+	*** release ${linux_ver}
+EOF
 
 machine=$(uname -m)
 
