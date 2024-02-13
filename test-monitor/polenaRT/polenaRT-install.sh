@@ -69,6 +69,14 @@ case "$machine" in
 		exit 1
 esac
 
+# Check if kernel config exists
+config_file="linux-${machine}-${linux_patch}.config"
+
+if [ ! -f "$config_file" ]; then
+	echo "Error: required Kernel config file '${config_file}' does not exist!" >&2
+	exit 1
+fi
+
 #################################
 # Required system packages 
 #################################
@@ -111,7 +119,7 @@ xzcat ../patch-${linux_patch}.patch.xz | patch -p1
 
 echo
 echo "## Compiling kernel"
-cp ../../ubuntu-x86_64-${linux_patch}.config .config
+cp ../../${config_file} .config
 yes "" | make oldconfig
 CONCURRENCY_LEVEL=$(nproc) make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers
 cd ..
