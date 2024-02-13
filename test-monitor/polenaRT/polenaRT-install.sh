@@ -90,7 +90,7 @@ fi
 echo
 echo "## Installing dependencies..."
 sudo apt-get update
-sudo apt-get install -y kernel-package libssl-dev git autoconf libtool automake curl libncurses5-dev pkg-config bison flex libelf-dev
+sudo apt-get install -y libssl-dev git autoconf libtool automake curl libncurses5-dev pkg-config bison flex libelf-dev bc rsync kmod cpio
 # if xconfig...
 sudo apt-get install -y qt5-default
 # if create-pkg...
@@ -128,7 +128,8 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-CONCURRENCY_LEVEL=$(nproc) make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers
+# make -j16 deb-pkg LOCALVERSION=-custom
+# CONCURRENCY_LEVEL=$(nproc) make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers
 cd ..
 
 echo
@@ -150,6 +151,7 @@ GRUB_CMDLINE_LINUX=""
 sudo mv grub /etc/default/grub
 sudo update-grub2
 
+#https://download.docker.com/linux/static/stable/${machine}/docker-${tag}.tgz
 echo "## Installing Balena"
 url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"
 
