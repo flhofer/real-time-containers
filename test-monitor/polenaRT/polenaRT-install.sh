@@ -89,12 +89,16 @@ fi
 #################################
 echo
 echo "## Installing dependencies..."
-sudo apt-get update
-sudo apt-get install -y libssl-dev git autoconf libtool automake curl libncurses5-dev pkg-config bison flex libelf-dev bc rsync kmod cpio
+$sudo apt-get update
+# Tools for building
+$sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm
+# Dev Libraries for building
+$sudo apt-get install -y libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev
+
 # if xconfig...
-sudo apt-get install -y qt5-default
+#$sudo apt-get install -y qt5-default
 # if create-pkg...
-sudo apt-get install -y checkinstall
+#$sudo apt-get install -y checkinstall
 
 ################################
 # Preempt RT
