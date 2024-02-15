@@ -92,7 +92,7 @@ echo
 echo "## Installing dependencies..."
 $sudo apt-get update
 # Tools for building
-$sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm
+$sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd
 # Dev Libraries for building
 $sudo apt-get install -y libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev
 
@@ -133,7 +133,7 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu-RT
+make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu
 cd ..
 
 echo
