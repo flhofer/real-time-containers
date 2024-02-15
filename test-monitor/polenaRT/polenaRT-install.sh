@@ -9,6 +9,7 @@ set -e
 
 linux_patch=${1:-'6.1.77-rt24'}
 balena_tag=${2:-'v20.10.19'}
+docker_tag=${3:-'v25.0.3'}
 
 rt_patch=$(echo "$linux_patch" | sed -n 's/[0-9.]*-\(.*\)/\1/p')
 linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
@@ -154,11 +155,27 @@ GRUB_CMDLINE_LINUX=""
 $sudo mv grub /etc/default/grub
 $sudo update-grub2
 
-#https://download.docker.com/linux/static/stable/${machine}/docker-${tag}.tgz
-echo "## Installing Balena"
-url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"
+url=
+url2=
+echo "Which container daemon to install ?"
+select ins in "Docker ${docker_rev}" "Balena ${balena_rev}" "None"; do
+    case $ins in
+        Docker )	echo "## Installing Docker"
+        			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+        Balena )	echo "## Installing Balena"
+        			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
+        			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
+        None ) 		echo "## Exiting"
+					exit;;
+    esac
+done 
 
-curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+if [ ! -z "$url" ] ; then
+	curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+	if [ ! -z "$url2" ] ; then
+		curl -sL "$url2" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+	fi
+fi
 
 cat <<EOF
 
