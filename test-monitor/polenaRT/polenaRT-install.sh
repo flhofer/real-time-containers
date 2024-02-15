@@ -77,7 +77,7 @@ case "$machine" in
 esac
 
 # Check if kernel config exists
-config_file="linux-${machine}-${linux_patch}.config"
+config_file="ubuntu-${machine}-${linux_patch}.config"
 
 if [ ! -f "$config_file" ]; then
 	echo "Error: required Kernel config file '${config_file}' does not exist!" >&2
