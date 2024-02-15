@@ -116,7 +116,7 @@ else
 fi
 tar xf linux-${linux_ver}.tar.gz
 
-if [ ! -f "patch-${linux_ver}-${linux_patch}.patch.xz" ]; then
+if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
 	echo
 	echo "## Downloading RT patch"
 	wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
