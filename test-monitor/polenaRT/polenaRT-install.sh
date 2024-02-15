@@ -132,8 +132,7 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-# make -j16 deb-pkg LOCALVERSION=-custom
-# CONCURRENCY_LEVEL=$(nproc) make-kpkg --rootcmd fakeroot --initrd kernel_image kernel_headers
+make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu-RT
 cd ..
 
 echo
