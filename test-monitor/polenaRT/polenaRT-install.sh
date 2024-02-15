@@ -11,11 +11,8 @@ linux_patch=${1:-'6.1.77-rt24'}
 balena_tag=${2:-'v20.10.19'}
 docker_tag=${3:-'v25.0.3'}
 
-rt_patch=$(echo "$linux_patch" | sed -n 's/[0-9.]*-\(.*\)/\1/p')
-linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
-linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
-linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
-balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
+repo_location="flhofer/real-time-containers"
+repo_branch="develop"
 
 # Check and warn about missing required commands before doing any actual work.
 abort=0
@@ -40,15 +37,6 @@ if [ "$(id -u)" -ne 0 ]; then
 	fi
 	sudo="sudo -E"
 fi
-
-cat <<EOF
-*** Polena installer ...
-
-Selecting RT-patch < ${rt_patch} > for 
-	*   kernel root family ${linux_root}
-	**  base version ${linux_base}
-	*** release ${linux_ver}
-EOF
 
 machine=$(uname -m)
 
@@ -77,14 +65,6 @@ case "$machine" in
 		exit 1
 esac
 
-# Check if kernel config exists
-config_file="ubuntu-${machine}-${linux_patch}.config"
-
-if [ ! -f "$config_file" ]; then
-	echo "Error: required Kernel config file '${config_file}' does not exist!" >&2
-	exit 1
-fi
-
 #################################
 # Required system packages 
 #################################
@@ -95,6 +75,56 @@ $sudo apt-get update
 $sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd
 # Dev Libraries for building
 $sudo apt-get install -y libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev
+# Tools for this script 
+$sudo apt-get install -y jq
+
+
+# Check if kernel config exists
+config_file="ubuntu-${machine}-${linux_patch}.config"
+
+if [ ! -f "$config_file" ]; then
+	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
+
+	echo "Fetching list from repository..."
+	versions=$(curl -H GET "https://github.com/${repo_location}/tree/${repo_branch}/test-monitor/polenaRT" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
+
+	if [ -z "${versions}" ]; then
+		echo "Error: Could not find valid Kernel config file!" >&2
+		exit 1
+	fi
+	
+	version=
+	select version in ${versions} "Cancel"; do break; done
+	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
+		echo "Error: No valid Kernel config selected!" >&2
+		exit 1
+	fi
+	# strip from quotes
+	version=${version#\"}
+	version=${version%\"}
+	
+	# generate linux patch string
+	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
+	
+	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
+fi
+
+# parse linux patch string to find sub-elements for wget
+rt_patch=$(echo "$linux_patch" | sed -n 's/[0-9.]*-\(.*\)/\1/p')
+linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
+linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
+linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
+balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
+
+cat <<EOF
+*** Polena installer ...
+
+Selecting RT-patch < ${rt_patch} > for 
+	*   kernel root family ${linux_root}
+	**  base version ${linux_base}
+	*** release ${linux_ver}
+EOF
+exit 0
 
 # if xconfig...
 #$sudo apt-get install -y qt5-default
