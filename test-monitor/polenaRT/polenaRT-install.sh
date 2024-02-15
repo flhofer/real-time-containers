@@ -110,7 +110,7 @@ if [ ! -f "$config_file" ]; then
 fi
 
 # parse linux patch string to find sub-elements for wget
-rt_patch=$(echo "$linux_patch" | sed -n 's/[0-9.]*-\(.*\)/\1/p')
+rt_patch=$(echo "$linux_patch" | sed -n 's/\([0-9.]*-\)*\(.*\)/\2/p')
 linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
 linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
 linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
