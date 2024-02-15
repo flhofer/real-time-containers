@@ -137,12 +137,12 @@ cd ..
 
 echo
 echo "## Installing kernel"
-sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
+$sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
 
 echo
 echo "## Configuring GRUB"
-#sudo sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
-sudo cp /etc/default/grub /etc/default/grub.backup
+#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
+$sudo cp /etc/default/grub /etc/default/grub.backup
 echo '
 GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_patch}'"
 GRUB_HIDDEN_TIMEOUT_QUIET="true"
@@ -151,8 +151,8 @@ GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
 ' >> grub
-sudo mv grub /etc/default/grub
-sudo update-grub2
+$sudo mv grub /etc/default/grub
+$sudo update-grub2
 
 #https://download.docker.com/linux/static/stable/${machine}/docker-${tag}.tgz
 echo "## Installing Balena"
