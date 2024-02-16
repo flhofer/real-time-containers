@@ -303,12 +303,12 @@ std::ostream& ViolatedPeriod::print(std::ostream& os, ulong cr)
 }
 
 UC2Log::UC2Log(ulong rtime, ulong dline, ulong li): 
-        configuredDeadline(dline), 
+		overruns(0),
+		periods(0),
+		averageRuntimes(0),
         configuredRuntime(rtime),
-        loopInterval(li),
-        overruns(0),
-        periods(0),
-        averageRuntimes(0)
+        configuredDeadline(dline), 
+        loopInterval(li)
 {
 
 }

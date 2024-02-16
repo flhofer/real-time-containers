@@ -10,8 +10,7 @@ DoSleep::DoSleep()
 
 bool DoSleep::doSleep(OptParams &params, timespec &sleepSpec, timespec &prevTimeSpec, Stats *pStats)
 {
-    static bool firstEver = true;
-    struct timespec endSpec, afterSpec, delaySpec, wakeupTimeSpec;
+    struct timespec afterSpec, delaySpec, wakeupTimeSpec;
     /************************************************************* 
      * Always use ABS_TIMER, compute wakeup time from time of previous
      *************************************************************/

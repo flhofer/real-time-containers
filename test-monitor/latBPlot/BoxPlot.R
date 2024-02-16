@@ -17,6 +17,7 @@ oversh<-oversh[!(oversh$value==0),]
 means<-read.csv("stats.csv", sep=";")[10003:10003,1:12]
 means<-gather(means, "mtype", value, "BM.Std", "BM.Xen", "BM.Prt", "T3.Aws", "T3.Xen", "T3.Xen.U", "T3.Prt", "T3.Prt.U", "C5.Aws","C5.Xen","C5.Prt", na.rm = FALSE, convert = FALSE)
 
+tiff('Fig_4.tif', units="in", width=7, height=7, res=800, compression = 'lzw')
 ggplot(myData, aes(x=mtype, y=Time)) + 
 	scale_y_continuous(trans='log10') +
     geom_boxplot(fill="slateblue", alpha=0.2) +
@@ -26,4 +27,4 @@ ggplot(myData, aes(x=mtype, y=Time)) +
     geom_hline(yintercept = 100, colour="#990000", linetype="dashed") +
     geom_hline(yintercept = 10000, colour="#990000", linetype="dashed") +
 	theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
+dev.off()

@@ -20,6 +20,9 @@ volatile bool terminateProcess{false};
 int desiredFPS{-1};
 const char * fpsName = "/tmp/fps";
 
+#define STRINGIFY(s) #s
+#define FILELINE(line) __FILE__ ":" STRINGIFY(line)
+
 bool createPipes(PipeStruct * pWritePipes, PipeStruct **ppReadPipe, OptParams &optParams)
 {
     /********************************************
@@ -73,7 +76,7 @@ void openPipeAndGenerateData(PipeStruct *pWritePipe, PipeStruct * pReadPipe, Opt
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:393: Error Opening pipe for %s\n", progName.c_str());
+        fprintf(stderr, FILELINE(__LINE__)" Error Opening pipe for %s\n", progName.c_str());
     }
     
 }
@@ -87,7 +90,7 @@ void updateOpenWritePipes(PipeStruct *p, std::atomic<int> &numPipes)
     }
     else
     {
-        fprintf(stderr, "DataGenerator.cpp:407: Error Opening pipe for %s\n", progName.c_str());
+        fprintf(stderr, FILELINE(__LINE__)": Error Opening pipe for %s\n", progName.c_str());
     }
         
 }
@@ -109,7 +112,7 @@ void start_low_latency(int &fd)
             fprintf(stderr, "start_low_latency: Failed to open PM QOS file: %s\n", strerror(errno));
             exit(errno);
         } 
-        write(fd, &value, sizeof(value));
+        (void)write(fd, &value, sizeof(value));
     }
 }
 
@@ -124,7 +127,9 @@ int main(int argc, char *argv[])
 {
     progName = argv[0];
     size_t index = progName.rfind('/');
+#ifdef LOCKALL
     int pm_qos_fd = -1;
+#endif
 
     if (index != std::string::npos)
         progName = progName.substr(index+1);
@@ -155,7 +160,7 @@ int main(int argc, char *argv[])
 
     /* Delete and recreate FPS file */
     
-    int fd = open(fpsName, O_WRONLY|O_CREAT|O_TRUNC);
+    int fd = open(fpsName, O_WRONLY|O_CREAT|O_TRUNC, 0644);
     close(fd);
 
     /********************************************
@@ -176,14 +181,14 @@ int main(int argc, char *argv[])
                 //Data Distributor only
                 if (pReadPipe->openPipe(O_RDONLY, progName) == -1)
                 {
-                    fprintf(stderr, "DataGenerator.cpp:491: Error Opening pipe for %s\n", progName.c_str());
+                    fprintf(stderr, FILELINE(__LINE__)": Error Opening pipe for %s\n", progName.c_str());
 
                     exit(-1);
                 }
             }
 
             fprintf(stderr, "Use Case 1: %s Creating singleThread generateData \n", 
-                    (optParams.datagenerator ? "DataDistributor":"DataGenerator") );
+                    (optParams.datagenerator == 0 ? "DataDistributor":"DataGenerator") );
             singleThread = std::thread(generateData, pWritePipes, pReadPipe, std::ref(optParams), std::ref(numPipes), optParams.maxWritePipes );
         
             if (optParams.datagenerator == 1)
@@ -298,6 +303,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "%s: Closing fifo %s\n", progName.c_str(), pReadPipe->fifoName.c_str());
         close(pReadPipe->fd);
     }
+#ifdef LOCKALL
+    end_low_latency(pm_qos_fd);
+#endif
 
     fprintf(stderr, "%s: Exiting\n", progName.c_str());
     exit(0);

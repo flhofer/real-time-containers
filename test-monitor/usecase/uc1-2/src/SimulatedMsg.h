@@ -66,10 +66,10 @@ class UC2Log
 {
     std::vector<Overrun> overruns;
     std::vector<ViolatedPeriod> periods;
+    std::vector<ulong> averageRuntimes;
     ulong configuredRuntime = 0;
     ulong configuredDeadline = 0;
     ulong loopInterval = 0;
-    std::vector<ulong> averageRuntimes;
 
 public:
     UC2Log(ulong rtime, ulong dline, ulong li);

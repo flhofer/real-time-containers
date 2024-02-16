@@ -65,7 +65,6 @@ void OptParams::printHelp(std::string msg)
 int OptParams::processOptions(int argc, char **argv)
 {
 
-    int optargs = 0;
     const char * const short_opts = "a:b:d:g:hi:j:l:m:n:p:r:sS:tw:x:z:e:?";
     const option long_opts[] = {
     {"histMin",     required_argument,  nullptr, 'a'},

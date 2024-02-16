@@ -14,6 +14,7 @@ sudo docker run --rm -v "$PWD/../":/home --name build2 -it debianbuild
 sudo docker build -t fedorabuild -f Dockerfile-Build-fedora .
 sudo docker run --rm -v "$PWD/../":/home --name build3 -it fedorabuild
 
+#This container builds, but alpine musl does not provide all used interfaces/structs
 sudo docker build -t alpinebuild -f Dockerfile-Build-alpine .
 sudo docker run --rm -v "$PWD/../":/home --name build4 -it alpinebuild
 
