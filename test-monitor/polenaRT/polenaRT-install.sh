@@ -114,6 +114,7 @@ case "$machine" in
 		exit 1
 esac
 
+if false; then
 #################################
 # Required system packages 
 #################################
@@ -126,6 +127,7 @@ $sudo $pgkmgmt $packages1
 $sudo $pgkmgmt $packages2
 # Tools for this script 
 $sudo $pgkmgmt $packages3
+fi
 
 # Check if kernel config exists
 config_file="ubuntu-${machine}-${linux_patch}.config"
@@ -141,8 +143,22 @@ if [ ! -f "$config_file" ]; then
 		exit 1
 	fi
 	
-	version=
-	select version in ${versions} "Cancel"; do break; done
+	i=0
+	for v in ${versions} "Cancel"; do i=$(( ${i}+1 )); echo "$i) $v"; done  
+	sel=-1
+	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -le ${i} ]  ; do
+		read -p "select Version (1-${i}): " sel
+	done
+	
+	i=0
+	for v in ${versions} "Cancel"; do 
+		i=$(( ${i}+1 ));
+		if [ $i -eq $sel ]; then
+			version=$v
+			break;
+		fi
+	done
+
 	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
 		echo "Error: No valid Kernel config selected!" >&2
 		exit 1
