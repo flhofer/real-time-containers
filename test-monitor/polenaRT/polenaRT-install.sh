@@ -52,9 +52,28 @@ if [ $abort = 1 ] ; then
 	EOF
 fi	
 
-packages[1]="autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
-packages[2]="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
-packages[3]="jq"
+# Detect distro to select package names
+packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+packages3="curl jq"
+release=$( cat /etc/*-release )
+case $release in 
+	*Alpine* )
+		packages1=$(echo "$packages1" | sed -n 's/dkms/akms/p')
+		packages1=$(echo "$packages1" | sed -n 's/pkg-config/pkgconfig/p')
+		packages2="openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
+		#could not find libiberty-dev
+		;;
+#	*Ubuntu* 
+#	*Debian* 
+#	*Fedora* 
+#	*Red Hat* 
+#	*Mint* 
+#	*SuSe* 
+#	*OpenSuse* 
+	*)
+		;;
+esac
 
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -102,12 +121,11 @@ echo
 echo "## Installing dependencies..."
 $sudo $pgkmgmt_u
 # Tools for building
-$sudo $pgkmgmt $packages[1]
+$sudo $pgkmgmt $packages1
 # Dev Libraries for building
-$sudo $pgkmgmt $packages[2]
+$sudo $pgkmgmt $packages2
 # Tools for this script 
-$sudo $pgkmgmt $packages[3]
-
+$sudo $pgkmgmt $packages3
 
 # Check if kernel config exists
 config_file="ubuntu-${machine}-${linux_patch}.config"
@@ -220,7 +238,7 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu
+make -j$(nproc) deb-pkg LOCALVERSION=
 cd ..
 
 echo "Interrupting install of kernel/container daemon - temp" 
