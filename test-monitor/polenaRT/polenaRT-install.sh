@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -16,7 +16,7 @@ repo_branch="develop"
 
 # Check and warn about missing required commands before doing any actual work.
 abort=0
-for cmd in wget curl tar; do
+for cmd in tar; do
 	if [ -z "$(command -v $cmd)" ]; then
 		cat >&2 <<-EOF
 		Error: unable to find required command: $cmd
@@ -25,6 +25,36 @@ for cmd in wget curl tar; do
 	fi
 done
 [ $abort = 1 ] && exit 1
+
+# Find package manager
+abort=1
+for cmd in apt apt-get apk opkg rpm; do # TODO: update with system dependend package manager variable
+	if [ ! -z "$(command -v $cmd)" ]; then
+		cat <<-EOF
+		Using $cmd for package management
+		EOF
+		case "$cmd" in
+			"apk"*)
+				pgkmgmt="$cmd add --no-interactive"
+				;;
+			*)
+				pgkmgmt="$cmd install -y"
+				;;
+		esac
+		pgkmgmt_u="$cmd update"		
+		abort=0
+		break;
+	fi
+done
+if [ $abort = 1 ] ; then
+	cat >&2 <<-EOF
+	Error: unable to find package manager command from list: $pkg_list
+	EOF
+fi	
+
+packages[1]="autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+packages[2]="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+packages[3]="jq"
 
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -70,13 +100,13 @@ esac
 #################################
 echo
 echo "## Installing dependencies..."
-$sudo apt-get update
+$sudo $pgkmgmt_u
 # Tools for building
-$sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd
+$sudo $pgkmgmt $packages[1]
 # Dev Libraries for building
-$sudo apt-get install -y libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev
+$sudo $pgkmgmt $packages[2]
 # Tools for this script 
-$sudo apt-get install -y jq
+$sudo $pgkmgmt $packages[3]
 
 
 # Check if kernel config exists
@@ -193,8 +223,11 @@ yes "" | make oldconfig
 make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu
 cd ..
 
+echo "Interrupting install of kernel/container daemon - temp" 
+exit 1
+
 echo
-echo "## Installing kernel"
+echo "## Installing kernel" # TODO: make distribution independent 
 $sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
 
 echo
