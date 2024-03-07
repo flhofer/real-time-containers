@@ -14,6 +14,34 @@ docker_tag=${3:-'v25.0.3'}
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
 
+function select(){
+	# Creates a little numbered selection menu - replaces debian's select command
+	# $1  return value (variable name)
+	# $2:@ list items
+	local item=$1
+	shift
+	local items=$@
+	
+	local i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 )); 
+		echo "$i) $txt";
+	done  
+	local sel=-1
+	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -lt ${i} ]  ; do
+		read -p "Please select from list (1-${i}) : " sel
+	done
+	
+	i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 ));
+		if [ $i -eq $sel ]; then
+			break;
+		fi
+	done
+	eval ${item}=${txt}
+}
+
 # Check and warn about missing required commands before doing any actual work.
 abort=0
 for cmd in tar; do
@@ -142,22 +170,8 @@ if [ ! -f "$config_file" ]; then
 		echo "Error: Could not find valid Kernel config file!" >&2
 		exit 1
 	fi
-	
-	i=0
-	for v in ${versions} "Cancel"; do i=$(( ${i}+1 )); echo "$i) $v"; done  
-	sel=-1
-	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -le ${i} ]  ; do
-		read -p "select Version (1-${i}): " sel
-	done
-	
-	i=0
-	for v in ${versions} "Cancel"; do 
-		i=$(( ${i}+1 ));
-		if [ $i -eq $sel ]; then
-			version=$v
-			break;
-		fi
-	done
+
+	select version ${versions} "Cancel"
 
 	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
 		echo "Error: No valid Kernel config selected!" >&2
