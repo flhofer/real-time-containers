@@ -89,7 +89,7 @@ case $release in
 	*Alpine* )
 		packages1=$(echo "$packages1" | sed -n 's/dkms/akms/p')
 		packages1=$(echo "$packages1" | sed -n 's/pkg-config/pkgconfig/p')
-		packages2="openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
+		packages2="openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev patch tar dpkg-dev"
 		#could not find libiberty-dev
 		;;
 #	*Ubuntu* 
@@ -142,7 +142,6 @@ case "$machine" in
 		exit 1
 esac
 
-if false; then
 #################################
 # Required system packages 
 #################################
@@ -155,7 +154,6 @@ $sudo $pgkmgmt $packages1
 $sudo $pgkmgmt $packages2
 # Tools for this script 
 $sudo $pgkmgmt $packages3
-fi
 
 # Check if kernel config exists
 config_file="ubuntu-${machine}-${linux_patch}.config"
@@ -171,6 +169,7 @@ if [ ! -f "$config_file" ]; then
 		exit 1
 	fi
 
+	echo "Available configuration files in the polenaRT repository"
 	select version ${versions} "Cancel"
 
 	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
@@ -185,6 +184,9 @@ if [ ! -f "$config_file" ]; then
 	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
 	
 	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
+	
+	# reset kernel config file
+	config_file="ubuntu-${machine}-${linux_patch}.config" # TODO: more universal distrodep
 fi
 
 # parse linux patch string to find sub-elements for wget
@@ -202,7 +204,6 @@ Selecting RT-patch < ${rt_patch} > for
 	**  base version ${linux_base}
 	*** release ${linux_ver}
 EOF
-exit 0
 
 # if xconfig...
 #$sudo apt-get install -y qt5-default
@@ -296,17 +297,16 @@ $sudo update-grub2
 url=
 url2=
 echo "Which container daemon to install ?"
-select ins in "Docker ${docker_rev}" "Balena ${balena_rev}" "None"; do
-    case $ins in
-        Docker )	echo "## Installing Docker"
-        			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
-        Balena )	echo "## Installing Balena"
-        			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
-        			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-        None ) 		echo "## Exiting"
-					exit;;
-    esac
-done 
+select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
+case $ins in
+    Docker )	echo "## Installing Docker"
+    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+    Balena )	echo "## Installing Balena"
+    			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
+    			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
+    None ) 		echo "## Exiting"
+				exit;;
+esac
 
 if [ ! -z "$url" ] ; then
 	curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
