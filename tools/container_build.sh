@@ -6,15 +6,15 @@
 ###############################
 
 sudo docker build -t ubuntubuild -f Dockerfile-Build-ubuntu .
-sudo docker run --rm -v "$PWD/../":/home --name build1 -it ubuntubuild
+sudo docker run --rm -v "$PWD/../":/home --name build1 ubuntubuild
 
 sudo docker build -t debianbuild -f Dockerfile-Build-debian .
-sudo docker run --rm -v "$PWD/../":/home --name build2 -it debianbuild
+sudo docker run --rm -v "$PWD/../":/home --name build2 debianbuild
 
 sudo docker build -t fedorabuild -f Dockerfile-Build-fedora .
-sudo docker run --rm -v "$PWD/../":/home --name build3 -it fedorabuild
+sudo docker run --rm -v "$PWD/../":/home --name build3 fedorabuild
 
 #This container builds, but alpine musl does not provide all used interfaces/structs
 sudo docker build -t alpinebuild -f Dockerfile-Build-alpine .
-sudo docker run --rm -v "$PWD/../":/home --name build4 -it alpinebuild
+sudo docker run --rm -v "$PWD/../":/home --name build4 alpinebuild
 
