@@ -79,13 +79,16 @@ setPidMask (char * tag, struct bitmask * amask, char * cpus)
 		if (!tag)
 			err_exit("Process signature tag is a null pointer!");
 
-		int tlen = strlen (tag) + 35;
+		int tlen = strlen (tag) + 52;
 		char req[tlen];
 
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process
-		(void)sprintf (req,  "ps h -eo spid,command | grep -G '%s'", tag);
-
+#ifdef BUSYBOX		
+		(void)sprintf (req,  "ps -o pid,comm | grep -v 'grep' | grep '%s'", tag);
+#else
+		(void)sprintf (req,  "ps h -eo spid,command | grep -v 'grep' | grep -G '%s'", tag);
+#endif
 		if(!(fp = popen(req,"r")))
 			return;
 	}
