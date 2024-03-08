@@ -41,3 +41,19 @@ jobs:
       with:
         name: binaries
         path: bin/
+
+  test_containers:
+  
+    steps:
+    - name: Enter
+      run : cd tools
+    
+    - name: "Build distro containers"
+      run: ./container_build.sh
+      
+    - name: "Build ubuntu runner container"
+      run: docker build -t ubuntusched .
+      
+    - name: Exit
+      run: cd ..
+
