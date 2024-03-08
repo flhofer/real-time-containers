@@ -110,10 +110,10 @@ orchestrator: $(addprefix $(OBJDIR)/,orchestrator.o $(orcbins) librttest.a)
 
 # TODO: create missing test cases to allow removal of librttest.a
 # TODO: add checks for dependent sources change! (does not work :/)
-check: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o $@_test $< $(TLIBS) $(NUMA_LIBS)
+test: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(testbins) librttest.a)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o check_$@ $< $(TLIBS) $(NUMA_LIBS)
 	
-test:
+check:
 	./check_test
 
 # lib containing include lib in one binary file
@@ -150,8 +150,8 @@ help:
 	@echo " DC orchestrator useful Makefile targets:"
 	@echo ""
 	@echo "    all       :  build all tests (default)"
-	@echo "    check     :  build unit tests"
-	@echo "    test      :  run unit tests"
+	@echo "    test      :  build unit tests"
+	@echo "    check     :  run unit tests"
 	@echo "    clean     :  remove object files"
 	@echo "    tarball   :  make a tarball suitable for release"
 	@echo "    help      :  print this message"
