@@ -1,7 +1,7 @@
 FROM debian:latest
 
 RUN apt-get update && \
-	apt-get install -y gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg \
+	apt-get install -y gcc g++ make git procps check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home
