@@ -42,21 +42,9 @@ function select(){
 	eval ${item}=${txt}
 }
 
-# Check and warn about missing required commands before doing any actual work.
-abort=0
-for cmd in tar; do
-	if [ -z "$(command -v $cmd)" ]; then
-		cat >&2 <<-EOF
-		Error: unable to find required command: $cmd
-		EOF
-		abort=1
-	fi
-done
-[ $abort = 1 ] && exit 1
-
-# Find package manager
+############### Find package manager ######################
 abort=1
-for cmd in apt apt-get apk opkg rpm; do # TODO: update with system dependend package manager variable
+for cmd in apt apt-get apk opkg rpm yum pacman emerge zypp; do
 	if [ ! -z "$(command -v $cmd)" ]; then
 		cat <<-EOF
 		Using $cmd for package management
@@ -80,28 +68,181 @@ if [ $abort = 1 ] ; then
 	EOF
 fi	
 
-# Detect distro to select package names
+############### Detect distro to select package names ######################
+# -default Build tools
 packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+# -default source pkgs
 packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+# -default pkgs required for this script
 packages3="curl jq"
-release=$( cat /etc/*-release )
-case $release in 
+
+# read distro release info
+case $( cat /etc/*-release ) in 
 	*Alpine* )
-		packages1=$(echo "$packages1" | sed -n 's/dkms/akms/p')
-		packages1=$(echo "$packages1" | sed -n 's/pkg-config/pkgconfig/p')
-		packages2="openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev patch tar dpkg-dev"
+		echo "Alpine Linux detected"
+		packages1="tar flex bison perl"
+		packages2="alpine-sdk linux-headers"
+		packages3="jq"
+
+		distname="alpine"
+		pkgbuild="tarzst-pkg"
+
+		#"openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
+		#"pkgconfig dpkg-dev"
+		#packages1="autoconf automake libtool bc rsync kmod cpio gawk akms llvm "
 		#could not find libiberty-dev
 		;;
-#	*Ubuntu* 
-#	*Debian* 
-#	*Fedora* 
-#	*Red Hat* 
-#	*Mint* 
-#	*SuSe* 
-#	*OpenSuse* 
+	*Ubuntu* )
+		echo "Ubuntu Linux detected"
+		pkgbuild="deb-pkg"
+		distname="ubuntu"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		;;
+	*Mint* )
+		echo "Linux Mint detected"
+		pkgbuild="deb-pkg"
+		distname="mint"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Debian* )
+		echo "Debian Linux detected"
+		pkgbuild="deb-pkg"
+		distname="debian"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Fedora* )
+		echo "Fedora Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="fedora"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Red\ Hat* )
+		echo "Red Hat Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="redhat"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*SuSe* )
+		echo "SuSe Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="suse"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*OpenSuSe* )
+		echo "OpenSuSe Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="opensuse"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
 	*)
+		cat <<-EOF
+		
+		Unsupported distribution detected. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+		
+		EOF
+		pkgbuild="tarzst-pkg"
+		distname="custom"
 		;;
 esac
+
+############### Check commands ######################
+#- and warn about missing required commands before doing any actual work.
+abort=0
+for cmd in tar curl fakeroot jq; do
+	if [ -z "$(command -v $cmd)" ]; then
+		cat >&2 <<-EOF
+		Error: unable to find required command: $cmd
+		EOF
+		abort=1
+	fi
+done
+[ $abort = 1 ] && exit 1
 
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -269,7 +410,7 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-make -j$(nproc) deb-pkg LOCALVERSION=
+make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
 cd ..
 
 echo "Interrupting install of kernel/container daemon - temp" 
