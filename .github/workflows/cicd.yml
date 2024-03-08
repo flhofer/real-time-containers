@@ -43,19 +43,17 @@ jobs:
         path: bin/
 
   test_containers:
-  
-    runs-on: ubuntu-22.04
 
+    runs-on: ubuntu-22.04
+          
     steps:
-    - name: Enter
-      run : cd tools
-    
+    - name: Checkout
+      uses: actions/checkout@v4
+
     - name: "Build distro containers"
-      run: ./container_build.sh
+      run: cd tools ; ./container_build.sh; cd ..
       
     - name: "Build ubuntu runner container"
-      run: docker build -t ubuntusched .
+      run: docker build -t ubuntusched tools/.
       
-    - name: Exit
-      run: cd ..
 
