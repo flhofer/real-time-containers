@@ -441,11 +441,11 @@ echo "Which container daemon to install ?"
 select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
 case $ins in
     Docker )	echo "## Installing Docker"
-    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
-    Balena )	echo "## Installing Balena"
     			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
     			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-    None ) 		echo "## Exiting"
+balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+    Balena )	echo "## Installing Balena"
+    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
 				exit;;
 esac
 
