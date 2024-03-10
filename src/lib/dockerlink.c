@@ -123,14 +123,15 @@ static int read_pipe(struct eventData * evnt){
 				attrib = get_in_object(actor, "Attributes", TRUE);
 				if (attrib)
 					evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);
-
-				json_object_put(attrib);
-				json_object_put(actor);
 			}
 		}
 		evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
 		evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
-		json_object_put(root); // free object
+		if (!json_object_put(root)){ // free object
+			printDbg(PFX "Could not free objects!");
+			th_return = EXIT_FAILURE;
+			pthread_exit(&th_return);
+		}
 		return 1;
 	}
 
