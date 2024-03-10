@@ -160,13 +160,13 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 		if (!tag) 
 			err_exit("Process signature tag is a null pointer!");
 
-		int tlen = strlen (tag) + 44;
+		int tlen = strlen (tag) + 22;
 		char req[tlen];
 		
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process
 #ifdef BUSYBOX
-		(void)sprintf (req,  "ps -o pid,ppid,comm %s | grep -E '%s'", tag, ppid);
+		(void)sprintf (req,  "ps -o pid,ppid,comm %s", tag);
 #else
 		(void)sprintf (req,  "ps h -o spid,command %s", tag);
 #endif
@@ -222,7 +222,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 static void
 getpPids (node_t **pidlst, char * tag)
 {
-	char pidline[BUFRD];
+	char pidline[BUFRD-18];
 	if (!tag) 
 		err_exit("Process signature tag is a null pointer!");
 
@@ -237,7 +237,7 @@ getpPids (node_t **pidlst, char * tag)
 		return;
 
 	// read list of PPIDs
-	if (fgets(pidline,BUFRD-10,fp)) { // len -10 (+\n), limit maximum (see below)
+	if (fgets(pidline,BUFRD-18,fp)) { // len -10 (+\n), limit maximum (see below)
 		int i=0;
 		// replace space with, for PID list
 		while (pidline[i] && i<BUFRD) {
@@ -251,11 +251,12 @@ getpPids (node_t **pidlst, char * tag)
 		}
 
 #ifdef BUSYBOX
-		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
+		char pids[BUFRD];
+		(void)sprintf(pids, "-T | grep -E '%s'", pidline); // len = 17, sum = total buffer
 #else
-		char pids[BUFRD] = "-T "; // len = 10, sum = total buffer
-#endif
+		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
 		(void)strcat(pids, pidline);
+#endif
 		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
 
 		getPids(pidlst, pids, pidline);
@@ -407,23 +408,23 @@ scanNew () {
 		default: ;// detect by pid signature
 			// cmdline of own thread
 			char pid[SIG_LEN];
-			if (prgset->psigscan)
 #ifdef BUSYBOX
-				(void)sprintf(pid, "-T");
+			if (prgset->psigscan && strlen (prgset->cont_pidc))// FIXME: len check necessary? was not present
+				(void)sprintf(pid, "-T | grep -E '%s'", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
-				(void)sprintf(pid, "");
+				(void)sprintf(pid, "| grep -E '%s'", prgset->cont_pidc);
+			else
+				(void)sprintf(pid, "| grep -v '^PID'");
 #else
+			if (prgset->psigscan && strlen (prgset->cont_pidc))// FIXME: len check necessary? was not present
 				(void)sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "-C %s", prgset->cont_pidc);
-#endif
 			else 
 				pid[0] = '\0';
-#ifdef BUSYBOX
-			getPids(&lnew, pid, prgset->cont_pidc);
-#else
-			getPids(&lnew, pid, NULL);
 #endif
+
+			getPids(&lnew, pid, NULL);
 			break;		
 	}
 
