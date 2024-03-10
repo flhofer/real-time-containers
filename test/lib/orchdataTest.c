@@ -93,14 +93,16 @@ START_TEST(orchdata_ndpop)
 	static const char *c[] = {"90", "ab", NULL};
 
 	node_push(&nhead);
-	nhead->psig = a == NULL ? strdup(a[_i]) : NULL;
-	nhead->contid = b == NULL ? strdup(b[_i]) : NULL;
-	nhead->imgid = c == NULL ? strdup(c[_i]) : NULL;
+	nhead->psig = a[_i] != NULL ? strdup(a[_i]) : NULL;
+	nhead->contid = b[_i] != NULL ? strdup(b[_i]) : NULL;
+	nhead->imgid = c[_i] != NULL ? strdup(c[_i]) : NULL;
 	node_pop(&nhead);
 
 	ck_assert(!nhead);
 }
 END_TEST
+
+#ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
 
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should not free elements as they are pointing to conf values
@@ -135,8 +137,6 @@ START_TEST(orchdata_ndpop2)
 	free(c);
 }
 END_TEST
-
-#ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
 
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free elements, they differ from conf values
@@ -329,8 +329,8 @@ void library_orchdata (Suite * s) {
 	TCase *tc0 = tcase_create("orchdata_memory");
 	tcase_add_test(tc0, orchdata_ndpush);
 	tcase_add_test(tc0, orchdata_ndpop);
-	tcase_add_test(tc0, orchdata_ndpop2);
 #ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
+	tcase_add_test(tc0, orchdata_ndpop2);
 	tcase_add_test(tc0, orchdata_ndpop3);
 #endif
 	tcase_add_test(tc0, orchdata_qsort);
