@@ -31,6 +31,12 @@ srcdir	?= $(prefix)/src
 CFLAGS ?= -Wall -Wno-nonnull -D _GNU_SOURCE
 LDFLAGS ?= -lrttest -L $(OBJDIR) -pthread
 
+# If we are running a multibinary, prob busybox, enable the option for compiling change
+BBOX=$(shell [ -h /bin/sh ] && [ -h /bin/ls ] && [ -e /bin/busybox ] && echo 1 || echo 0 )
+ifeq (1, $(BBOX))
+	CFLAGS	+= -D BUSYBOX
+endif
+
 # If debug is defined, disable optimization level
 ifndef DEBUG
 	CFLAGS	+= -O2 -D VERSION=\"$(VERSION)\"
