@@ -15,14 +15,14 @@ struct OptParams {
     bool bReadPipe;
     std::string readPipeName;
     std::string baseWritePipeName;
-    unsigned long timingHistMinValue;
-    unsigned long timingHistMaxValue;
+//    unsigned long timingHistMinValue;
+//    unsigned long timingHistMaxValue;
     unsigned long histCount;
     unsigned long endInSeconds;
     int  maxTests;
-    int  testSecs;
-    int  firstFPS;
-    int  lastFPS;
+//    int  testSecs;
+//    int  firstFPS;
+//    int  lastFPS;
     int  datagenerator;     //0=>data distributor
                             //1=>usecase1 data generator
                             //2=>usecase2 data generator
