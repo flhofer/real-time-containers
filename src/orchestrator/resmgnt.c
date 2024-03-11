@@ -1104,7 +1104,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 	// check for image match first
 	while (NULL != img) {
 
-		// TODO: check what if image is a name? does that reflect values passed by DL?
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			conts_t * imgcont = img->conts;

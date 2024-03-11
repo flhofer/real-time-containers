@@ -186,7 +186,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
         (*pidlst)->pid = atoi(pid);
 		if (ppid){
 			(*pidlst)->status |= MSK_STATSIBL;
-			(*pidlst)->contid=strdup(ppid); // FIXME: parent pid list to cont-id?
+			(*pidlst)->contid=strdup(ppid);		// string containing the list of parent PIDs
 		}
         printDbg(PFX "processing->%d",(*pidlst)->pid);
 
@@ -409,14 +409,14 @@ scanNew () {
 			// cmdline of own thread
 			char pid[SIG_LEN];
 #ifdef BUSYBOX
-			if (prgset->psigscan && strlen (prgset->cont_pidc))// FIXME: len check necessary? was not present
+			if (prgset->psigscan && strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "-T | grep -E '%s'", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "| grep -E '%s'", prgset->cont_pidc);
 			else
 				(void)sprintf(pid, "| grep -v '^PID'");
 #else
-			if (prgset->psigscan && strlen (prgset->cont_pidc))// FIXME: len check necessary? was not present
+			if (prgset->psigscan && strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "-TC %s", prgset->cont_pidc);
 			else if (strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "-C %s", prgset->cont_pidc);
