@@ -2,15 +2,17 @@ name: C/C++ CI
 
 on: 
   push:
-    branches: # Run when pushed to develop and master
-      - master
-      - develop
-        
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - 'Makefile'
+      
   schedule:
     - cron: "0 2 * * 0" # Run at 2am UTC on Sun
 
 jobs:
   build_and_test:
+  	name: "Compile artifacts"
 
     runs-on: ubuntu-22.04
           
@@ -48,6 +50,7 @@ jobs:
         path: bin/
 
   test_containers:
+  	name: "Test against distros"
 
     runs-on: ubuntu-22.04
           
@@ -55,10 +58,20 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: "Build distro containers"
-      run: cd tools ; ./container_build.sh; cd ..
-      
-    - name: "Build ubuntu runner container"
-      run: docker build -t ubuntusched tools/.
-      
+    - name: "Build ubuntu container and run tests"
+      run : docker build -t ubuntubuild-f tools/Dockerfile-Build-ubuntu . && \
+            docker run --rm -v "$PWD":/home ubuntubuild
+
+    - name: "Build debian container and run tests"
+      run:  docker build -t debianbuild -f tools/Dockerfile-Build-debian . && \
+            docker run --rm -v "$PWD":/home debianbuild
+
+    - name: "Build fedora container and run tests"
+      run:  docker build -t fedorabuild -f Dockerfile-Build-fedora . && \
+            docker run --rm -v "$PWD":/home fedorabuild
+
+    - name: "Build alpine container and run tests"
+      run:  docker build -t alpinebuild -f Dockerfile-Build-alpine . && \
+            docker run --rm -v "$PWD":/home alpinebuild
+
 
