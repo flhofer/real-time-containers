@@ -668,7 +668,6 @@ thread_update (void *arg)
 
 		case -99:
 			// exit
-			//		pthread_exit(0); // exit the thread signaling normal return
 			break;
 		}
 
