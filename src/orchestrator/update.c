@@ -299,10 +299,11 @@ stopDockerThread(){
 	// set stop signal
 	int ret = 0;
 	if (!iret_dlink) { // thread started successfully
+		int * dlink_return;
 		if ((iret_dlink = pthread_kill (thread_dlink, SIGHUP))) // tell linking threads to stop
 			err_msg_n(iret_dlink, "Failed to send signal to docker_link thread");
 		ret |= iret_dlink;
-		if ((iret_dlink = pthread_join (thread_dlink, NULL))) // wait until end
+		if ((iret_dlink = pthread_join (thread_dlink, (void**)&dlink_return))) // wait until end
 			err_msg_n(iret_dlink, "Could not join with docker_link thread");
 		ret |= iret_dlink;
 		(void)printf(PFX "Threads stopped\n");

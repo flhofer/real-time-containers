@@ -18,6 +18,8 @@
 #define JSON_FILE_BUF_SIZE 4096
 #define DEFAULT_MEM_BUF_SIZE (4 * 1024 * 1024)
 
+#define DOCKER_CMD_LINE "docker events --format '{{json .}}'"
+
 int th_return = EXIT_SUCCESS;
 
 // signal to keep status of triggers ext SIG
@@ -95,7 +97,7 @@ static int read_pipe(struct eventData * evnt){
 
 		// buf read successfully?
 		if ((!got) || '\0' == buf[0]) {
-			printDbg(PFX "Empty JSON buffer");
+			printDbg(PFX "Empty JSON buffer\n");
 			continue;
 		}
 
@@ -239,7 +241,7 @@ void *dlink_thread_watch(void *arg) {
 	if (NULL != arg)
 		pcmd = (char *)arg;
 	else
-		pcmd = "docker events --format '{{json .}}'"; // CONSTANT!
+		pcmd = DOCKER_CMD_LINE;
 
 	int ret;
 	struct timespec intervaltv;
@@ -292,7 +294,7 @@ void *dlink_thread_watch(void *arg) {
 			case 4:
 				if (inpipe)
 					pclose2(inpipe, pid, SIGHUP);
-				printDbg(PFX "Stopped");
+				printDbg(PFX "Stopped\n");
 				pthread_exit(&th_return);
 		}
 
