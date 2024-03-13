@@ -289,20 +289,16 @@ void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
-#ifndef BUSYBOX // FIXME: these tests go in timeout on busybox - see ps command differences
 	tcase_add_test(tc1, orchestrator_update_findprocs);
 	tcase_add_test(tc1, orchestrator_update_findprocsall);
-#endif
 
     suite_add_tcase(s, tc1);
 
-#ifndef BUSYBOX // FIXME: these tests go in timeout on busybox - see ps command differences
 	TCase *tc2 = tcase_create("update_thread_resources");
 	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc2, orchestrator_update_rscs);
 
     suite_add_tcase(s, tc2);
-#endif
 
 	return;
 }

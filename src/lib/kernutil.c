@@ -581,7 +581,8 @@ popen2(const char * command, const char * type, pid_t * pid)
 			close(fd[READ]);
 		else
 			close(fd[WRITE]);
-        exit(0);
+
+        exit(EXIT_FAILURE);
     }
 
     *pid = child_pid;
@@ -620,7 +621,13 @@ pclose2(FILE * fp, pid_t pid, int killsig)
 
     fclose(fp);
 
+    // TODO: verify NOHANG Behavior when running normally
+    //Avoid HUP if child never run
+#ifdef BUSYBOX
+    while (waitpid(pid, &stat, WNOHANG) == -1)
+#else
     while (waitpid(pid, &stat, 0) == -1)
+#endif
     {
         if (errno != EINTR)
         {
@@ -628,7 +635,6 @@ pclose2(FILE * fp, pid_t pid, int killsig)
             break;
         }
     }
-
     return stat;
 }
 
