@@ -59,7 +59,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: "Build ubuntu container and run tests"
-      run : docker build -t ubuntubuild-f tools/Dockerfile-Build-ubuntu . && \
+      run : docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . && \
             docker run --rm -v "$PWD":/home ubuntubuild
 
     - name: "Build debian container and run tests"
