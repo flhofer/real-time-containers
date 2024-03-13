@@ -2,33 +2,40 @@ name: C/C++ CI
 
 on: 
   push:
-    branches: # Run when pushed to develop and master
-      - master
-      - develop
-        
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - 'Makefile'
+      
   schedule:
     - cron: "0 2 * * 0" # Run at 2am UTC on Sun
 
 jobs:
   build_and_test:
+    name: "Compile artifacts"
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
           
     steps:
     - name: Checkout
-      uses: actions/checkout@v2.0.0
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
             sudo apt-get update \
             && sudo apt-get install -y gcc make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg
 
-    - name: "Build Orchestrator, tests and Use cases"
-      run: make
+    - name: "Build Orchestrator"
+      run: make orchestrator
       env: 
         DEBUG: ${{ !endsWith(github.ref, '/master') }}
       
-    - name: Run and build test code - libcheck
+    - name: "Build Use cases"
+      run: make usecases
+      env: 
+        DEBUG: ${{ !endsWith(github.ref, '/master') }}
+
+    - name: Build test code - libcheck
       run: make test
 
     - name: Move binaries to new folder
@@ -41,3 +48,30 @@ jobs:
       with:
         name: binaries
         path: bin/
+
+  test_containers:
+    name: "Test against distros"
+
+    runs-on: ubuntu-22.04
+          
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: "Build ubuntu container and run tests"
+      run : docker build -t ubuntubuild-f tools/Dockerfile-Build-ubuntu . && \
+            docker run --rm -v "$PWD":/home ubuntubuild
+
+    - name: "Build debian container and run tests"
+      run:  docker build -t debianbuild -f tools/Dockerfile-Build-debian . && \
+            docker run --rm -v "$PWD":/home debianbuild
+
+    - name: "Build fedora container and run tests"
+      run:  docker build -t fedorabuild -f Dockerfile-Build-fedora . && \
+            docker run --rm -v "$PWD":/home fedorabuild
+
+    - name: "Build alpine container and run tests"
+      run:  docker build -t alpinebuild -f Dockerfile-Build-alpine . && \
+            docker run --rm -v "$PWD":/home alpinebuild
+
+

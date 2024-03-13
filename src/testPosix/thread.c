@@ -84,7 +84,7 @@ int updateSched(){
 			if (ret == 0)
 				printDbg("Pid %d reassigned to CPU0\n", current->pid);
 
-			// TODO: ret value evaluation 
+			// TO_DO: ret value evaluation 
 		}
 
 		// affinity not set?? default is 0, affinity of system stuff
@@ -221,7 +221,7 @@ void prepareEnvironment() {
 	// here the other threads are not started yet.. no lock needed
 	int cnt = getpids(&pidno[0], MAX_PIDS, "bash");
 
-	// TODO: set all non concerning tasks to background resources	
+	// TO_DO: set all non concerning tasks to background resources	
 	
 	// push into linked list
 	for (int i=0; i<cnt; i++){
@@ -299,8 +299,8 @@ int main(int argc, char **argv)
 	printDbg("%s V %1.2f\n", PRGNAME, VERSION);	
 	printDbg("Source compilation date: %s\n\n", __DATE__);
 
-	// TODO: ADD check for SYS_NICE
-	// TODO: ADD check for task prio
+	// TO_DO: ADD check for SYS_NICE
+	// TO_DO: ADD check for task prio
 
 	// gather actual information at startup, prepare environment
 	prepareEnvironment();
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 	/* Create independent threads each of which will execute function */
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &t_stat1);
 	iret2 = pthread_create( &thread2, NULL, thread_manage, (void*) &t_stat2);
-	// TODO: set thread prio and sched to RR -> maybe 
+	// TO_DO: set thread prio and sched to RR -> maybe 
 
 	// set interrupt sig hand
 	signal(SIGINT, inthand);

@@ -18,14 +18,14 @@ OptParams::OptParams() :
     bReadPipe( false),
     readPipeName("none"),
     baseWritePipeName("/tmp/worker"),
-    timingHistMinValue(1),		 // TODO: unused. what is this for?
-    timingHistMaxValue(5000000), // TODO: unused. what is this for?
-    histCount(10000),		// TODO: unused. what is this for?
+//    timingHistMinValue(1),		 // unused. what is this for?
+//    timingHistMaxValue(5000000), // unused. what is this for?
+    histCount(10000),		//  unused. what is this for?
     maxTests(8),
-    testSecs(6666660),		// TODO: unused. what is this for?
+//    testSecs(6666660),		// unused. what is this for?
     endInSeconds(0),
-    firstFPS(24),			// debugging only? TODO: unused. what is this for?
-    lastFPS(64),       		// debugging only? TODO: unused. what is this for?
+//    firstFPS(24),			// debugging only? unused. what is this for?
+//    lastFPS(64),       		// debugging only? unused. what is this for?
     datagenerator(1)
 {}
 
@@ -40,12 +40,12 @@ void OptParams::printHelp(std::string msg)
     printf("       --help        (-h)        : help\n");
     printf("       --baseWritePipeName (-w) <name>: base name of pipes to be written (default %s)\n", baseWritePipeName.c_str());
     printf("       --dbg         (-d) <n>    : produce more output (default %d, 1=>minimal, 2=>all\n", dbg);
-    printf("       --firstFPS    (-i) <n>    : (testing ONLY) firstFPS (default %d)\n", firstFPS );
+//    printf("       --firstFPS    (-i) <n>    : (testing ONLY) firstFPS (default %d)\n", firstFPS );
     printf("       --generator   (-g) <n>    : 0->UseCase1 distributor, 1=>UseCase 1 Event generator, 2=>UseCase2 Polling-Driven Generator (default %d)\n",datagenerator );
-    printf("       --histMin     (-a)        : minimum usecs for delay/duration histogram (default %lu)\n", timingHistMinValue);
-    printf("       --histMax     (-b)        : maximum usecs for delay/duration histogram (default %lu\n", timingHistMaxValue);
+//    printf("       --histMin     (-a)        : minimum usecs for delay/duration histogram (default %lu)\n", timingHistMinValue);
+//    printf("       --histMax     (-b)        : maximum usecs for delay/duration histogram (default %lu\n", timingHistMaxValue);
     printf("       --histCount   (-c)        : bin count for delay/duration histogram (default %lu\n", histCount);
-    printf("       --lastFPS     (-j) <n>    : (testing ONLY) lastFPS (default %d)\n", lastFPS );
+//    printf("       --lastFPS     (-j) <n>    : (testing ONLY) lastFPS (default %d)\n", lastFPS );
     printf("       --loops       (-l) <n>    : maximum number of inputs per pipe (default unlimited)\n" );
     printf("       --mininterval (-m) <usec> : if NOT reading from a pipe, minimum time between simulated inputs (usecs) (default %d)\n", mininterval );
     printf("       --maxinterval (-x) <usec> : if NOT reading from a pipe, maximum time between simulated inputs (usecs) (default %d)\n", maxinterval);
@@ -55,7 +55,7 @@ void OptParams::printHelp(std::string msg)
     printf("       --sleeptimer  (-s)        : log the actual duration of sleep interval between simulated inputs (default %s)\n", (bTimeSleep?"true":"false") );
     printf("       --startWritePipes(-S) <n> : offset for of write pipes (default %d)\n", startWritePipes);
     printf("       --threaded    (-t)        : multi-threaded (one thread per write pipe) (default false)\n");
-    printf("       --testSecs    (-n) <n>    : (testing only) seconds between FPS changes by timeBasedDesiredFPS (default %d)\n", testSecs);
+//    printf("       --testSecs    (-n) <n>    : (testing only) seconds between FPS changes by timeBasedDesiredFPS (default %d)\n", testSecs);
     printf("       --endInSeconds(-n) <n>    : controls lifetime of Process, value must be in seconds (default %lu)\n", endInSeconds);
     printf("\n");
     printf("NOTE: short form of all options is also accepted, eg -h for --help\n");
@@ -96,12 +96,12 @@ int OptParams::processOptions(int argc, char **argv)
             break;
         switch(opt)
         {
-        case 'a':
-            timingHistMinValue = std::stoul(optarg);
-            break;
-        case 'b':
-            timingHistMaxValue = std::stoul(optarg);
-            break;
+//        case 'a':
+//            timingHistMinValue = std::stoul(optarg);
+//            break;
+//        case 'b':
+//            timingHistMaxValue = std::stoul(optarg);
+//            break;
         case 'c':
             histCount = std::stoul(optarg);
             break;
@@ -111,12 +111,12 @@ int OptParams::processOptions(int argc, char **argv)
         case 'g':
             datagenerator = std::stoi(optarg);
             break;
-        case 'i':
-            firstFPS = std::stoi(optarg);
-            break;
-        case 'j':
-            lastFPS = std::stoi(optarg);
-            break;
+//        case 'i':
+//            firstFPS = std::stoi(optarg);
+//            break;
+//        case 'j':
+//            lastFPS = std::stoi(optarg);
+//            break;
         case 'l':
             loops = std::stoi(optarg);
             break;
@@ -149,9 +149,9 @@ int OptParams::processOptions(int argc, char **argv)
         case 'x':
             maxinterval = std::stoi(optarg);
             break;
-        case 'z':
-            testSecs = std::stoi(optarg);
-            break;
+//        case 'z':
+//            testSecs = std::stoi(optarg);
+//            break;
         case 'e':
             endInSeconds = std::stol(optarg);
             break;
@@ -168,6 +168,7 @@ int OptParams::processOptions(int argc, char **argv)
     {
         mininterval = maxinterval = 0;
     }
-    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d offset %d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%lu/%lu/%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, startWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
+//    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d offset %d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, timingHistMin/Max/Count=%lu/%lu/%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, startWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),timingHistMinValue,timingHistMaxValue,histCount);
+    fprintf(stderr, "%s started (generator %d) with maxTests=%d, maxWritePipes=%d offset %d, baseWritePipe=%s, readPipe=%s timeSleep option=%s, Count=%lu\n",progName.c_str(), datagenerator, maxTests, maxWritePipes, startWritePipes, baseWritePipeName.c_str(), readPipeName.c_str(), (bTimeSleep?"True":"False"),histCount);
     return 0;
 }

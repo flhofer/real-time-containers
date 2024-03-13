@@ -998,24 +998,27 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		cont->contid = dlNode->contid; // tranfer to avoid 12 vs 64 len issue
 	}
 
-	// duplicate resources if needed
-	cont->status = dlCont->status;
-	if (!(cont->status & MSK_STATSHAT)){
-		cont->attr = malloc(sizeof(struct sched_attr));
-		(void)memcpy(cont->attr, dlCont->attr, sizeof(struct sched_attr));
-	}
-	else
-		cont->attr = dlCont->attr;
+	{
+		// TODO: refactor - combine with others in findPidParameters
+		// duplicate resources if needed
+		cont->status = dlCont->status;
+		if (!(cont->status & MSK_STATSHAT)){
+			cont->attr = malloc(sizeof(struct sched_attr));
+			(void)memcpy(cont->attr, dlCont->attr, sizeof(struct sched_attr));
+		}
+		else
+			cont->attr = dlCont->attr;
 
-	if (!(cont->status & MSK_STATSHRC)){
-		cont->rscs = malloc(sizeof(struct sched_rscs));
-		(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
-		cont->rscs->affinity_mask = numa_allocate_cpumask();
-		if (dlCont->rscs->affinity_mask)
-			numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+		if (!(cont->status & MSK_STATSHRC)){
+			cont->rscs = malloc(sizeof(struct sched_rscs));
+			(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
+			cont->rscs->affinity_mask = numa_allocate_cpumask();
+			if (dlCont->rscs->affinity_mask)
+				numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+		}
+		else
+			cont->rscs = dlCont->rscs;
 	}
-	else
-		cont->rscs = dlCont->rscs;
 
 	// fill image field
 	cont->img = dlCont->img;
@@ -1027,6 +1030,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	// update connected PIDs (if present), they share configuration with the container (= update)
 	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
 		//update container link and shared resources
+		// TODO: needs shared rcs flag?
 		pids->pid->attr = cont->attr;
 		pids->pid->rscs = cont->rscs;
 		pids->pid->img = cont->img;
@@ -1049,23 +1053,26 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 
 		configuration->pids->status = pids->pid->status;
 
-		if (!(configuration->pids->status & MSK_STATSHAT)){
-			configuration->pids->attr = malloc(sizeof(struct sched_attr));
-			(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
-		}
-		else
-			configuration->pids->attr = pids->pid->attr;
+		{
+			// TODO: Refactor with above and findPidParameters
+			if (!(configuration->pids->status & MSK_STATSHAT)){
+				configuration->pids->attr = malloc(sizeof(struct sched_attr));
+				(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
+			}
+			else
+				configuration->pids->attr = pids->pid->attr;
 
 
-		if (!(cont->status & MSK_STATSHRC)){
-			configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
-			(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
-			configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
-			if (pids->pid->rscs->affinity_mask)
-				numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+			if (!(cont->status & MSK_STATSHRC)){
+				configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
+				(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
+				configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
+				if (pids->pid->rscs->affinity_mask)
+					numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+			}
+			else
+				configuration->pids->rscs = pids->pid->rscs;
 		}
-		else
-			configuration->pids->rscs = pids->pid->rscs;
 
 		// fill image field
 		configuration->pids->img = pids->pid->img;
@@ -1091,7 +1098,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 /*
  *  findPidParameters(): assigns the PID parameters list of a running container
  *
- *  Arguments: - node to chek for matching parameters
+ *  Arguments: - node to check for matching parameters
  *  		   - pid configuration list head
  *
  *  Return value: 0 if successful, -1 if unsuccessful
@@ -1104,9 +1111,9 @@ findPidParameters(node_t* node, containers_t * configuration){
 	// check for image match first
 	while (NULL != img) {
 
-		// TODO: check what if image is a name? does that reflect values passed by DL?
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
+			// TODO: refactor below with cont!
 			conts_t * imgcont = img->conts;
 			printDbg("Image match %s\n", img->imgid);
 			// check for container match
@@ -1235,9 +1242,26 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		while (NULL != curr) {
 			if(curr->psig && node->psig && strstr(node->psig, curr->psig)
-				&& !(curr->cont) && !(curr->img) ) { // only unasociated items
+				&& !(curr->cont) && !(curr->img) ) { // only un-asociated items
 				warn("assigning configuration to unrelated PID");
-				node->param = curr; // TODO: duplicate PIDC
+
+				// TODO: make function - refactor
+				// duplicate pidc and copy all info (can not detect if config is shared!)
+				push((void**)&configuration->pids, sizeof(pidc_t));
+				node->param = configuration->pids;
+				node->param->psig = strdup(curr->psig);
+
+				node->param->rscs = malloc(sizeof(rscs_t));
+				(void)memcpy(node->param->rscs, curr->rscs, sizeof(rscs_t));
+				if (curr->rscs->affinity_mask){
+					node->param->rscs->affinity_mask = numa_allocate_cpumask();
+					copy_bitmask_to_bitmask(node->param->rscs->affinity_mask, curr->rscs->affinity_mask);
+				}
+				node->param->attr = malloc(sizeof(struct sched_attr));
+				(void)memcpy(node->param->attr, curr->rscs, sizeof(struct sched_attr));
+
+				// update counter FIXME: needed?
+				configuration->nthreads++;
 				break;
 			}
 			curr = curr->next;

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -14,9 +14,227 @@ docker_tag=${3:-'v25.0.3'}
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
 
-# Check and warn about missing required commands before doing any actual work.
+function select(){
+	# Creates a little numbered selection menu - replaces debian's select command
+	# $1  return value (variable name)
+	# $2:@ list items
+	local item=$1
+	shift
+	local items=$@
+	
+	local i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 )); 
+		echo "$i) $txt";
+	done  
+	local sel=-1
+	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -lt ${i} ]  ; do
+		read -p "Please select from list (1-${i}) : " sel
+	done
+	
+	i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 ));
+		if [ $i -eq $sel ]; then
+			break;
+		fi
+	done
+	eval ${item}=${txt}
+}
+
+############### Find package manager ######################
+abort=1
+for cmd in apt apt-get apk opkg rpm yum pacman emerge zypp; do
+	if [ ! -z "$(command -v $cmd)" ]; then
+		cat <<-EOF
+		Using $cmd for package management
+		EOF
+		case "$cmd" in
+			"apk"*)
+				pgkmgmt="$cmd add --no-interactive"
+				;;
+			*)
+				pgkmgmt="$cmd install -y"
+				;;
+		esac
+		pgkmgmt_u="$cmd update"		
+		abort=0
+		break;
+	fi
+done
+if [ $abort = 1 ] ; then
+	cat >&2 <<-EOF
+	Error: unable to find package manager command from list: $pkg_list
+	EOF
+fi	
+
+############### Detect distro to select package names ######################
+# -default Build tools
+packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+# -default source pkgs
+packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+# -default pkgs required for this script
+packages3="curl jq"
+
+# read distro release info
+case $( cat /etc/*-release ) in 
+	*Alpine* )
+		echo "Alpine Linux detected"
+		packages1="tar flex bison perl"
+		packages2="alpine-sdk linux-headers"
+		packages3="jq"
+
+		distname="alpine"
+		pkgbuild="tarzst-pkg"
+
+		#"openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
+		#"pkgconfig dpkg-dev"
+		#packages1="autoconf automake libtool bc rsync kmod cpio gawk akms llvm "
+		#could not find libiberty-dev
+		;;
+	*Ubuntu* )
+		echo "Ubuntu Linux detected"
+		pkgbuild="deb-pkg"
+		distname="ubuntu"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		;;
+	*Mint* )
+		echo "Linux Mint detected"
+		pkgbuild="deb-pkg"
+		distname="mint"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Debian* )
+		echo "Debian Linux detected"
+		pkgbuild="deb-pkg"
+		distname="debian"
+
+		# Build tools
+		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+		# source pkgs
+		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Fedora* )
+		echo "Fedora Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="fedora"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*Red\ Hat* )
+		echo "Red Hat Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="redhat"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*SuSe* )
+		echo "SuSe Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="suse"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*OpenSuSe* )
+		echo "OpenSuSe Linux detected"
+		pkgbuild="rpm-pkg"
+		distname="opensuse"
+
+		# Build tools
+		packages1=""
+		# source pkgs
+		packages2=""
+		# pkgs required for this script
+		packages3="curl jq"
+
+		cat >&2 <<-EOF
+		
+		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+	
+		EOF
+		;;
+	*)
+		cat <<-EOF
+		
+		Unsupported distribution detected. Make sure all dependencies are fullfilled!
+		Using default Linux distro setting..
+		
+		EOF
+		pkgbuild="tarzst-pkg"
+		distname="custom"
+		;;
+esac
+
+############### Check commands ######################
+#- and warn about missing required commands before doing any actual work.
 abort=0
-for cmd in wget curl tar; do
+for cmd in tar curl fakeroot jq; do
 	if [ -z "$(command -v $cmd)" ]; then
 		cat >&2 <<-EOF
 		Error: unable to find required command: $cmd
@@ -70,14 +288,13 @@ esac
 #################################
 echo
 echo "## Installing dependencies..."
-$sudo apt-get update
+$sudo $pgkmgmt_u
 # Tools for building
-$sudo apt-get install -y autoconf automake libtool curl pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd
+$sudo $pgkmgmt $packages1
 # Dev Libraries for building
-$sudo apt-get install -y libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev
+$sudo $pgkmgmt $packages2
 # Tools for this script 
-$sudo apt-get install -y jq
-
+$sudo $pgkmgmt $packages3
 
 # Check if kernel config exists
 config_file="ubuntu-${machine}-${linux_patch}.config"
@@ -92,9 +309,10 @@ if [ ! -f "$config_file" ]; then
 		echo "Error: Could not find valid Kernel config file!" >&2
 		exit 1
 	fi
-	
-	version=
-	select version in ${versions} "Cancel"; do break; done
+
+	echo "Available configuration files in the polenaRT repository"
+	select version ${versions} "Cancel"
+
 	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
 		echo "Error: No valid Kernel config selected!" >&2
 		exit 1
@@ -107,6 +325,9 @@ if [ ! -f "$config_file" ]; then
 	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
 	
 	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
+	
+	# reset kernel config file
+	config_file="ubuntu-${machine}-${linux_patch}.config" # TODO: more universal distrodep
 fi
 
 # parse linux patch string to find sub-elements for wget
@@ -124,7 +345,6 @@ Selecting RT-patch < ${rt_patch} > for
 	**  base version ${linux_base}
 	*** release ${linux_ver}
 EOF
-exit 0
 
 # if xconfig...
 #$sudo apt-get install -y qt5-default
@@ -190,11 +410,14 @@ echo
 echo "## Compiling kernel"
 cp ../../${config_file} .config
 yes "" | make oldconfig
-make -j$(nproc) deb-pkg LOCALVERSION=-ubuntu
+make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
 cd ..
 
+echo "Interrupting install of kernel/container daemon - temp" 
+exit 1
+
 echo
-echo "## Installing kernel"
+echo "## Installing kernel" # TODO: make distribution independent 
 $sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
 
 echo
@@ -215,17 +438,16 @@ $sudo update-grub2
 url=
 url2=
 echo "Which container daemon to install ?"
-select ins in "Docker ${docker_rev}" "Balena ${balena_rev}" "None"; do
-    case $ins in
-        Docker )	echo "## Installing Docker"
-        			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
-        Balena )	echo "## Installing Balena"
-        			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
-        			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-        None ) 		echo "## Exiting"
-					exit;;
-    esac
-done 
+select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
+case $ins in
+    Docker )	echo "## Installing Docker"
+    			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
+    			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
+balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+    Balena )	echo "## Installing Balena"
+    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
+				exit;;
+esac
 
 if [ ! -z "$url" ] ; then
 	curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1

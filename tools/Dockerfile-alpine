@@ -1,0 +1,7 @@
+FROM alpine:latest
+
+RUN apk add --no-cache json-c numactl libcap git gdb check subunit valgrind gsl
+
+WORKDIR /home
+CMD ["/bin/sh"]
+

@@ -23,8 +23,9 @@ bool DoSleep::doSleep(OptParams &params, timespec &sleepSpec, timespec &prevTime
         wakeupTimeSpec.tv_nsec -= 1e9;
     }
 
-    // TODO: check return values?
     int ret = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &wakeupTimeSpec, NULL);
+    if (0 != ret)
+        fprintf(stderr, "ERROR: could not set sleep timer (errno=%d)\n", ret);
 
     if (params.bTimeSleep )
     {

@@ -17,6 +17,10 @@
 #include <gsl/gsl_histogram.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_roots.h>
+// for MUSL based systems
+#ifndef _STRUCT_TIMESPEC
+	#include <linux/time.h>
+#endif
 
 #include <errno.h>			// system error management (LIBC)
 #include <string.h>			// strerror print

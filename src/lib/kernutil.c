@@ -552,16 +552,19 @@ popen2(const char * command, const char * type, pid_t * pid)
     {
         if (write) {
             close(fd[WRITE]);    //Close the WRITE end of the pipe since the child's fd is read-only
-            dup2(fd[READ], STDIN_FILENO);   //Redirect stdin to pipe
+            if (-1 == (fd[READ] = dup2(fd[READ], STDIN_FILENO)))   //Redirect stdin to pipe
+            	err_msg_n(errno, "Error redirecting std-in");
         }
         else {
             close(fd[READ]);    //Close the READ end of the pipe since the child's fd is write-only
-            dup2(fd[WRITE], STDOUT_FILENO); //Redirect stdout to pipe
+            if (-1 == (fd[WRITE] = dup2(fd[WRITE], STDOUT_FILENO))) //Redirect stdout to pipe
+				err_msg_n(errno, "Error redirecting std-out");
         }
 
 		if (strstr(command, "&&")){ // Temporary, if we have a && combination, use sh
 	        setpgid(child_pid, child_pid); //Needed so negative PIDs can kill children of /bin/sh
-		    execl("/bin/sh", "/bin/sh", "-c", command, NULL);
+		    if(execl("/bin/sh", "/bin/sh", "-c", command, NULL))
+				err_msg_n(errno, "Error when executing command");
 		}
 		else {
 			// parse string according to POSIX expansion
@@ -573,7 +576,13 @@ popen2(const char * command, const char * type, pid_t * pid)
 				err_msg_n(errno, "Error when executing command");
 			wordfree(&argvt);
 		}
-        exit(0);
+		// close child pipes on error
+		if (write)
+			close(fd[READ]);
+		else
+			close(fd[WRITE]);
+
+        exit(EXIT_FAILURE);
     }
 
     *pid = child_pid;
@@ -612,7 +621,13 @@ pclose2(FILE * fp, pid_t pid, int killsig)
 
     fclose(fp);
 
+    // TODO: verify NOHANG Behavior when running normally
+    //Avoid HUP if child never run
+#ifdef BUSYBOX
+    while (waitpid(pid, &stat, WNOHANG) == -1)
+#else
     while (waitpid(pid, &stat, 0) == -1)
+#endif
     {
         if (errno != EINTR)
         {
@@ -620,7 +635,6 @@ pclose2(FILE * fp, pid_t pid, int killsig)
             break;
         }
     }
-
     return stat;
 }
 
