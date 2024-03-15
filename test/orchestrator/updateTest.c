@@ -42,7 +42,7 @@ static void orchestrator_update_setup() {
 	// signatures and folders
 	prgset->cont_ppidc = strdup(CONT_PPID);
 	prgset->cont_pidc = strdup(CONT_PID);
-	prgset->cont_cgrp = strdup(CONT_DCKR);
+	prgset->cont_cgrp = strdup(CGRP_DCKR);
 
 	// filepaths virtual file system
 	prgset->procfileprefix = strdup("/proc/sys/kernel/");

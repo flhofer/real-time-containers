@@ -92,7 +92,7 @@ static void display_help(int error)
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 #endif
-			"-C [CGRP]                  use CGRP Docker directory to identify containers\n"
+           "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature,\n"
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
@@ -125,7 +125,7 @@ static void display_help(int error)
 	       "-v       --verbose         verbose output for debug purposes\n"
 #endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
-			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
+			, CGRP_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);

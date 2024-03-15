@@ -440,6 +440,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!global) {
 		printDbg(PFX " No global section Found: Use default value\n");
 
+		// NOTE: errors here occur only if out of memory!
 		// logging
 		if (!(set->logdir = strdup("./")) || 
 			!(set->logbasename = strdup("orchestrator.txt")))
@@ -453,7 +454,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			if (!(set->cont_pidc = strdup(CONT_PID)))
 				err_exit_n(errno, "Can not set parameter");
 		if (!set->cont_cgrp)
-			if (!(set->cont_cgrp = strdup(CONT_DCKR)))
+			if (!(set->cont_cgrp = strdup(CGRP_DCKR)))
 				err_exit_n(errno, "Can not set parameter");
 
 		// filepaths virtual file system
@@ -507,7 +508,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!set->cont_pidc)
 		set->cont_pidc = get_string_value_from(global, "cont_pidc", TRUE, CONT_PID);
 	if (!set->cont_cgrp){
-		set->cont_cgrp = get_string_value_from(global, "cont_cgrp", TRUE, CONT_DCKR);
+		set->cont_cgrp = get_string_value_from(global, "cont_cgrp", TRUE, CGRP_DCKR);
 		parse_dockerfileprefix(set);
 	}
 

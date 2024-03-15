@@ -46,7 +46,7 @@
 	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" 	// default program signature (test)
 	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
-	#define CONT_DCKR "docker/" // default CGroup sub-directory for containers
+	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
 	#define CSET_SYS  "system/" // default CGroup sub-directory for system
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
