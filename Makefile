@@ -36,10 +36,10 @@ BBOX=$(shell [ -h /bin/sh ] && [ -h /bin/ls ] && [ -e /bin/busybox ] && echo 1 |
 ifeq (1, $(BBOX))
 	CFLAGS	+= -D BUSYBOX
 endif
-# should we compile for CGROUPS v2? check if v1 tree exists
-CG2=$(shell [ -e /sys/fs/cgroup/cpuset ] && [ -e /sys/fs/cgroup/memory ] && echo 0 || echo 1 )
+# should we compile for CGROUP v2? check if controller settings exist
+CG2=$(shell [ -e /sys/fs/cgroup/cgroup.controllers ] && echo 1 || echo 0 )
 ifeq (1, $(CG2))
-	CFLAGS	+= -D CGROUPS2
+	CFLAGS	+= -D CGROUP2
 endif
 
 # If debug is defined, disable optimization level
