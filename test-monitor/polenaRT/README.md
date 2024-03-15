@@ -40,4 +40,21 @@ TBD
 
 ## Other provisions
 
-TBD
+### Create separate CGroup trees
+
+Recently, Kernel and Docker configuration switched to CGroup v2 with `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPUsets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
+
+To create a separate `slice`, proceed as follows.
+Edit or create a text-file named `daemon.json` located in most cases in `/etc/docker/`. If you use the Ubuntu snap version of docker, you may need to edit the file in `/var/snap/docker/current/config`. It will access and modify the mounted file for the user running the snap. Add `"cgroup-parent": "docker.slice"`, which with default settings should result as:
+
+```json
+{
+    "cgroup-parent":    "docker.slice",
+    "log-level":        "error"
+}
+```
+
+Restart the docker daemon for changes to take effect.
+`systemctl restart docker` or `snap restart docker` -- sudo where needed.
+With this change, new and running containers will depend on the restrictions for the `docker.slice`, "inheriting" also its resource assignment, e.g. cpu(set) affinity.
+
