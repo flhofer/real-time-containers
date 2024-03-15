@@ -2,6 +2,7 @@
 
 Author: [Florian Hofer](https://github.com/flhofer)
 
+**WIP**
 
 ## 1. Introduction
 
@@ -28,19 +29,39 @@ Please note that all but the first can be changed on an existing machine without
 
 ## Kernel build parameters 
 
-TBD
+**WIP**
+
+### Kernel Tick Rate
+
+
+### RCU and Spinlocks
+
+
 
 ## Kernel runtime parameters
 
-TBD
+**WIP**
+
+### Scheduler isolation
+
+(see also CGroup `isolated` partitions)
+
+
+### RCU back-off
+
 
 ## System runtime settings
 
-TBD
+**WIP**
+
+### IRQs and affinity
+
 
 ## Other provisions
 
-### Create separate CGroup trees
+**WIP**
+
+### Create separate CGroup trees {#cgroup2}
 
 Recently, Kernel and Docker configuration switched to CGroup v2 with `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPUsets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
 
@@ -58,3 +79,17 @@ Restart the docker daemon for changes to take effect.
 `systemctl restart docker` or `snap restart docker` -- sudo where needed.
 With this change, new and running containers will depend on the restrictions for the `docker.slice`, "inheriting" also its resource assignment, e.g. cpu(set) affinity.
 
+### Moving system tasks Cgroup {#cgroup-system}
+
+A futher step to better control latency and jitter is to isolate tasks performing system duties from tasks running inside our containers. Typically, as the docker case, this is done with control groups. Once the group is established, it is possible to reduce the resources assigned to system tasks and exclusively assign some to the running of containers.
+
+As said in the previous section, recent system configurations moved to Cgroup v2. This new setup automatically creates a `system.slice` and `user.slice` containing all system and user tasks, respectively. However, for those still using the older VFS, here are some steps you can perform to move all non container-related tasks in a separate control group.
+
+Inside the `/sys/fs/cgroup/` directory, enter one of the controller trees, e.g. `cpuset`, and do the following (with privileges):
+```
+mkdir system
+cat tasks > system/tasks
+```
+Tasks contains a list of PIDs that are running and assigned to the present control group, by default the `root` control group. by creating a directory, we basically create a subgroup. Echoing the PID numbers into its tasks file will thus move the assignment from `cpuset`-cgroup `root` to `system`. 
+
+N.B. Docker will automatically create a CGroup v1 subgroup `docker`, thus allowing us, by default, to control resources assigned to  daemon and containers.
