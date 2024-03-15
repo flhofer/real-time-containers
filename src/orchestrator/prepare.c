@@ -261,7 +261,7 @@ countCGroupTasks(prgset_t *set) {
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find container IDs
-				if  ((DT_DIR == dir->d_type)
+				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1+strlen("/" CGRP_PIDS)))) { // \0 + /tasks
@@ -537,7 +537,7 @@ prepareEnvironment(prgset_t *set) {
 	int err = stat(set->cpusetdfileprefix, &s);
 	if(-1 == err) {
 		// Docker CGroup not found, set->force enabled = try creating
-		if(ENOENT == errno && set->force) {
+		if(ENOENT == errno && set->force) { // TODO: check docker setting of CGroup.slice for v2
 			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
@@ -658,14 +658,14 @@ prepareEnvironment(prgset_t *set) {
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
 
 			// check if a valid and full sha256 id
-			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))  //TODO: update string for CGroups v2
 				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
 
-				// try to create directory
+				// try to create directory // TODO update string for v2
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 				{
 					warn("Can not set CGroup: %s", strerror(errno));
@@ -700,7 +700,7 @@ prepareEnvironment(prgset_t *set) {
 		// copy to new prefix
 		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET	CGRP_SYS);
 
-#ifdef CGROUP2
+#ifndef CGROUP2
 // try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -718,15 +718,12 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
-#ifdef CGROUP2
-		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
-			if (0 > setkernvar(fileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
-				warn("Can not set new CGroup CPU partition root");
-			}
-#else
+#ifndef CGROUP2
+		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
+		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
 			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive");
+				warn("Can not set CPU exclusive partition: %s", strerror(errno));
 			}
 
 		cont( "moving tasks..");

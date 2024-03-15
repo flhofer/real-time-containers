@@ -214,7 +214,7 @@ setContainerAffinity(node_t * node){
 		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), node->contid);
 
 		// read old, then compare -> update if different
-		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN))
+		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN)) // TODO: all cpuset.cpus have to be checked -> read from effective
 			warn("Can not read %.12s's CGroups CPU's", node->contid);
 
 		if (strcmp(affinity, affinity_old)){
@@ -491,15 +491,19 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find container IDs
-				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {
+				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {  //TODO: update string for CGroups v2
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						// copy to new prefix
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
 						// remove exclusive!
+#ifdef CGROUP2
+						if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
+#else
 						if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-							warn("Can not remove CPU exclusive : %s", strerror(errno));
+#endif
+							warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 						}
 					}
 					else // realloc error
@@ -510,8 +514,12 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 		}
 
 		// clear Docker CGroup settings and affinity first..
+#ifdef CGROUP2
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
+#else
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
-			warn("Can not remove CPU exclusive : %s", strerror(errno));
+#endif
+			warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 		}
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
 			// global reset failed, try affinity only
@@ -532,7 +540,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			/// Reassigning pre-existing containers?
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find them?
-				if  ((DT_DIR == dir->d_type)
+				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
 					 && (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
@@ -561,8 +569,12 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
+#ifdef CGROUP2
+			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+#else
 			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive : %s", strerror(errno));
+#endif
+				warn("Can not set CPU exclusive partition: %s", strerror(errno));
 			}
 
 		closedir(d);
