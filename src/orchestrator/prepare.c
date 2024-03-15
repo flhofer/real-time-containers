@@ -264,10 +264,10 @@ countCGroupTasks(prgset_t *set) {
 				if  ((DT_DIR == dir->d_type)
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-						+ strlen(dir->d_name)+1+6))) { // \0 + /tasks
+						+ strlen(dir->d_name)+1+strlen("/" CGRP_PIDS)))) { // \0 + /tasks
 						// copy to new prefix
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
-						contp = strcat(contp,"/tasks");
+						contp = strcat(contp,"/" CGRP_PIDS);
 
 						// Open the file
 						FILE * fp = fopen(contp, "r");
@@ -731,9 +731,9 @@ prepareEnvironment(prgset_t *set) {
 
 		cont( "moving tasks..");
 
-		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET "tasks")+1))) {
+		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_PIDS)+1))) {
 			// copy to new prefix
-			nfileprefix = strcat(strcpy(nfileprefix,set->cgroupfileprefix), CGRP_CSET "tasks");
+			nfileprefix = strcat(strcpy(nfileprefix,set->cgroupfileprefix), CGRP_CSET CGRP_PIDS);
 
 			int mtask = 0;
 
@@ -764,7 +764,7 @@ prepareEnvironment(prgset_t *set) {
 					// DO STUFF
 
 					// file prefix still pointing to CGRP_SYS
-					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
+					if (0 > setkernvar(fileprefix, CGRP_PIDS, pid, set->dryrun)){
 						//printDbg( "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}

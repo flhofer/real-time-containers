@@ -49,10 +49,12 @@
 	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
 	#define CGRP_CSET "" 			  // CGroup v1 value, unused
+	#define CGRP_PIDS "pids.current"  // CGv2 file for running pids //TODO: check if use threads.current
 #else
 	#define CGRP_SYS  "system/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
 	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
+	#define CGRP_PIDS "tasks"	// CGv1 file for running PIDs
 #endif
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system

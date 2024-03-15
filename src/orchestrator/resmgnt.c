@@ -136,8 +136,8 @@ setPidAffinityNode (node_t * node){
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
-
-		if (0 > setkernvar(prgset->cpusetdfileprefix , "tasks", pid, prgset->dryrun)){
+		// TODO: this is invalid for CGroup v2
+		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun)){
 			printDbg( "Warn! Can not move task %s\n", pid);
 			ret = -1;
 		}
