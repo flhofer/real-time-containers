@@ -46,11 +46,10 @@ static void orchestrator_update_setup() {
 
 	// filepaths virtual file system
 	prgset->procfileprefix = strdup("/proc/sys/kernel/");
-	prgset->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/");
+	prgset->cgroupfileprefix = strdup("/sys/fs/cgroup/");
 	prgset->cpusystemfileprefix = strdup("/sys/devices/system/cpu/");
 
-	prgset->cpusetdfileprefix = malloc(strlen(prgset->cpusetfileprefix) + strlen(prgset->cont_cgrp)+1);
-	prgset->cpusetdfileprefix = strcat(strcpy(prgset->cpusetdfileprefix, prgset->cpusetfileprefix), prgset->cont_cgrp);
+	parse_dockerfileprefix(prgset);
 
 	contparm = calloc (1, sizeof(containers_t));
 }

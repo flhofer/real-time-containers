@@ -45,6 +45,7 @@
 	#define BUFRD 1024  // buffer read size
 	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" 	// default program signature (test)
+	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
 	#define CONT_DCKR "docker/" // default CGroup sub-directory for containers
 	#define CSET_SYS  "system/" // default CGroup sub-directory for system
 
@@ -218,7 +219,7 @@
 
 		// file-paths virtual file system
 		char *procfileprefix;
-		char *cpusetfileprefix;
+		char *cgroupfileprefix;
 		char *cpusystemfileprefix;
 		char *cpusetdfileprefix; // file prefix for Docker's Cgroups, default = [CGROUP/]docker/
 

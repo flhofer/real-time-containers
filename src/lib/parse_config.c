@@ -413,6 +413,20 @@ static void parse_images(struct json_object *images, containers_t *conts)
 	}
 }
 
+/// parse_dockerfileprefix(): extract parameter values from JSON tokens
+///
+/// Arguments: - structure storing program values
+///
+/// Return value: no return value, exits on error
+void parse_dockerfileprefix(prgset_t *set)
+{
+	set->cpusetdfileprefix = malloc(strlen(set->cgroupfileprefix) + strlen(CGRP_CSET) + strlen(set->cont_cgrp)+1);
+	if (!set->cpusetdfileprefix)
+		err_exit_n(errno, "Could not allocate memory");
+
+	set->cpusetdfileprefix = strcat(strcat (strcpy(set->cpusetdfileprefix, set->cgroupfileprefix), CGRP_CSET), set->cont_cgrp);
+}
+
 /// parse_global(): extract parameter values from JSON tokens
 ///
 /// Arguments: - JSON object of tree containing global configuration
@@ -444,15 +458,11 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 		// filepaths virtual file system
 		if (!(set->procfileprefix = strdup("/proc/sys/kernel/")) ||
-			!(set->cpusetfileprefix = strdup("/sys/fs/cgroup/cpuset/")) ||
+			!(set->cgroupfileprefix = strdup("/sys/fs/cgroup/")) ||
 			!(set->cpusystemfileprefix = strdup("/sys/devices/system/cpu/")))
 			err_exit_n(errno, "Can not set parameter");
 
-		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-		if (!set->cpusetdfileprefix)
-			err_exit_n(errno, "Could not allocate memory");
-
-		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
+		parse_dockerfileprefix(set);
 
 		// affinity default setting
 		if (!set->affinity){
@@ -483,9 +493,9 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!set->procfileprefix)
 		set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
 			"/proc/sys/kernel/");
-	if (!set->cpusetfileprefix)
-		set->cpusetfileprefix = get_string_value_from(global, "sys_cpuset", TRUE,
-		"/sys/fs/cgroup/cpuset/");
+	if (!set->cgroupfileprefix)
+		set->cgroupfileprefix = get_string_value_from(global, "sys_cgroup", TRUE,
+		"/sys/fs/cgroup/");
 	if (!set->cpusystemfileprefix)
 		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
 		"/sys/devices/system/cpu/");
@@ -498,13 +508,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		set->cont_pidc = get_string_value_from(global, "cont_pidc", TRUE, CONT_PID);
 	if (!set->cont_cgrp){
 		set->cont_cgrp = get_string_value_from(global, "cont_cgrp", TRUE, CONT_DCKR);
-	
-		// create depending virtual file system entry
-		set->cpusetdfileprefix = malloc(strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-		if (!set->cpusetdfileprefix)
-			err_exit_n(errno, "Could not allocate memory");
-
-		set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
+		parse_dockerfileprefix(set);
 	}
 
 	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);
@@ -595,7 +599,7 @@ void parse_config_set_default(prgset_t *set) {
 
 	// filepaths virtual file system
 	set->procfileprefix = NULL;
-	set->cpusetfileprefix = NULL;
+	set->cgroupfileprefix = NULL;
 	set->cpusystemfileprefix = NULL;
 
 	set->cpusetdfileprefix = NULL;

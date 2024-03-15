@@ -256,12 +256,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 			/// -------------------- DOCKER & CGROUP CONFIGURATION
 			// create Docker CGroup prefix
-			set->cpusetdfileprefix = realloc(set->cpusetdfileprefix, strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-			if (!set->cpusetdfileprefix)
-				err_exit("could not allocate memory!");
-
-			set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
-
+			parse_dockerfileprefix(set);
 			break;
 		case 'd':
 		case OPT_DFLAG:

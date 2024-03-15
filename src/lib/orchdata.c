@@ -223,7 +223,7 @@ freePrgSet(prgset_t * prgset){
 
 	// filepaths virtual file system
 	free(prgset->procfileprefix);
-	free(prgset->cpusetfileprefix);
+	free(prgset->cgroupfileprefix);
 	free(prgset->cpusystemfileprefix);
 
 	free(prgset->cpusetdfileprefix);

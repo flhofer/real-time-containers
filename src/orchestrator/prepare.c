@@ -693,11 +693,11 @@ prepareEnvironment(prgset_t *set) {
 
 	cont("creating CGroup for system on %s", cpus);
 
-	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
+	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CSET_SYS)+1))) {
 		char * nfileprefix = NULL;
 
 		// copy to new prefix
-		fileprefix = strcat(strcpy(fileprefix,set->cpusetfileprefix), CSET_SYS);
+		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET CSET_SYS);
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -721,9 +721,9 @@ prepareEnvironment(prgset_t *set) {
 
 		cont( "moving tasks..");
 
-		if ((nfileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("tasks")+1))) {
+		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET "tasks")+1))) {
 			// copy to new prefix
-			nfileprefix = strcat(strcpy(nfileprefix,set->cpusetfileprefix),"tasks");
+			nfileprefix = strcat(strcpy(nfileprefix,set->cgroupfileprefix), CGRP_CSET "tasks");
 
 			int mtask = 0;
 
