@@ -33,10 +33,11 @@ Please note that all but the first can be changed on an existing machine without
 
 ### Kernel Tick Rate
 
+**WIP**
 
 ### RCU and Spinlocks
 
-
+**WIP**
 
 ## Kernel boot parameters
 
@@ -74,6 +75,7 @@ The required kernel boot parameter to make this change permanent is `nosmt`.
 
 ### RCU back-off
 
+**WIP**
 
 ## System runtime settings
 
@@ -120,13 +122,45 @@ cat /sys/devices/system/cpu/cpu0/power/pm_qos_resume_latency_us
 
 The value displayed should either be `n/a` or `0`. We can change the value the same way as above.
 
-### RT throttling, or not?
+### RR slicing and RT-throttling, or not?
+
+Depending on the system configuration, it might be possible to disable real-time task throttling. The basic requirement here is that we are not applying a G-EDF schedule, but rather a P-EDF variant. The differnece between the two is simply the use of CGroups to limit the amount of resources real-time tasks can use. 
+
+In the normal case, the Linux kernel limits the RT CPU usage to (default) 95% of CPU time, or more precisely, 950000 µs (`sched_rt_runtime_us`) every 1000000 µs (`sched_rt_period_us`). This would mean that, even if we have dedicated CPUs to execute the code and we do not incur in overload and consequent hang, the kernel throttles down all active real-time tasks in order to execute pending lesser priority tasks. If thus we have a partitioned system (P-EDF), we can deactivate (`-1`) this limit once we make sure all of the latter tasks are run on dedicated resources and are not compromised.
+
+```
+echo -1 > /proc/sys/kernel/sched_rt_runtime_us
+```
+
+Similarly, depending on your task configuration, it might be possible that you run a great quantity of round-robin (`RR`) tasks. These tasks, by default, are limited to a rather generous 100ms time-slice, i.e. they can lock CPU resources for that amount of time and are only preempted by higher priorities or EDF tasks.
+
+If thus you execute more time-sensitive RR tasks and  you want to avoid that software mishaps break your system, you can reduce this maximum slice limit.
+
+```
+echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
+```
+
+### Changing kernel thread affinity
 
 **WIP**
+
+`ehca_comp/*`
+`irq/*-*"`
+`kcmtpd_ctr_*`
+`rcuop/*`
+`rcuos/*`
 
 ### IRQs and affinity
 
 **WIP**
+
+Could change IRQ affinity.. but -> see paper Cloudcom
+
+move ksoftirqd
+```
+cat /sys/devices/system/cpu/cpu1/online
+```
+
 
 ## Other provisions
 
@@ -167,7 +201,7 @@ N.B. Docker will automatically create a CGroup v1 subgroup `docker`, thus allowi
 
 ### Setting restrictions with CGroup {#cgroup-res}
 
-There esist tools such as `taskset` to set affinity and perform cpu-pinning. Nonetheless, I believe the easiest and most structured way of managing resources is through CGroup trees. Depending on the version, the files and usage changes a little, but in short it's all about  echoing to virtual files.
+There esist tools such as `taskset` and `cset` to set affinity and perform cpu-pinning. Nonetheless, I believe the easiest and most structured way of managing resources is through CGroup trees. Depending on the version, the files and usage changes a little, but in short it's all about  echoing to virtual files.
 
 For example, enter the `system` or `system.slice` folder in `/sys/fs/cgroup` and type:
 
