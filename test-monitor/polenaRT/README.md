@@ -38,9 +38,34 @@ Please note that all but the first can be changed on an existing machine without
 
 
 
-## Kernel runtime parameters
+## Kernel boot parameters
 
 **WIP**
+
+Kernel boot parameters are parameters that are passed at system boot to the process reading the kernel image. Such parameters are typically specified in the `grub` boot configuration and can be changed as follows:[^1]
+
+The default `grub` configuration is located at `/etc/default/grub`. Open the file with your favorite editor, e.g. `nano` and change the parameters required by adding or removing from `GRUB_CMDLINE_LINUX` and/or `GRUB_CMDLINE_LINUX_DEFAULT`, in quotes, and separated by spaces. The former always effective, the latter is added to the former in case of a normal -automatic- boot. For Ubuntu systems, the only two parameters set for `*DEFAULT` are `quiet` and `splash`.
+
+To apply the changes and rebuild the `grub` boot menu, run `update-grub`. You can check the resulting generated boot parameters with `cat /boot/grub/grub.cfg | grep /boot`.
+
+Please note that the contents of `grub.d` may be added and even overwrite your changes. If you wish, you can also add a file with only the `GRUB_CMDLINE_LINUX*` parameter lines in this directory and the changes are kept between kernel upgrades.
+
+The description of parameters follows below.
+
+[^1] for Ubuntu, other systems please read online
+
+### Disable SMT
+
+Simultaneous multi-threading (SMT) is a very useful feature for day-to-day operations, increasing CPU speed due to reduced flushing and filling of CPU-registers up to 30%. This, however holds only true as long as we don't need a guarantee on reaction and processing times. 
+In Linux, threads that are served by the same CPU core are enumerated as separate CPU. Thus, a CPU with a computing power of 1 would be addressed as if it had a computing power of 2 or more. In reality though, not cores but only CPU-registrers are typically doubled creating therefore unforeseen delay and jitter while competing for the processing unit.
+
+We can disable SMT at runtime by the following.
+
+```
+echo 0 > /sys/devices/system/cpu/smt/control
+```
+
+The required kernel boot parameter to make this change permanent is `nosmt`.
 
 ### Scheduler isolation
 
@@ -54,8 +79,54 @@ Please note that all but the first can be changed on an existing machine without
 
 **WIP**
 
+### Disable SMT
+
+See kernel boot parameters.
+
+### Restricting power saving modes
+
+CPUs, in addition to SMT capabilities, are able to change power and sleep states, `P-*` and `C-*` states. This means, the operating system can change speed and performance of CPUs in order to reduce power consumption. Although generally acceptable, this is a cause for jitter and unpredictability we would like to remove.
+
+How these states are controlled depends on a component called `governor` while the actual controlling depends on a `driver`. For each CPU, the Linux VFS allows inspection and configuration of such in `/sys/devices/system/cpu`. Lets see how to detect and change governors.
+
+We can query available governors with
+
+```
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+```
+
+where `cpu0` can be changed with any CPU number. A typical output here is
+```
+performance powersave
+```
+
+As we desire less latency, `performance` is our choice. If we want to change this, we echo the desired setting for CPU0 as follows
+
+```
+echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+```
+
+or for all at once 
+
+```
+for i in /sys/devices/system/cpu/cpu[0-9]* ; do  echo "performance" > $i/cpufreq/scaling_governor; done
+```
+
+Once done, let's check a newly introduced parameter `power/pm_qos_resume_latency_us`, which, if set, reduces the reactivity of the system. Now, true, we never should require a resume being in constant "wake" state, but just to be sure, lets verify.
+
+```
+cat /sys/devices/system/cpu/cpu0/power/pm_qos_resume_latency_us
+```
+
+The value displayed should either be `n/a` or `0`. We can change the value the same way as above.
+
+### RT throttling, or not?
+
+**WIP**
+
 ### IRQs and affinity
 
+**WIP**
 
 ## Other provisions
 
@@ -130,4 +201,9 @@ We therefore remove the listed CPUs from the parent group and create a new contr
 
 Please note: setting a `root` partition removes the set cpus from the availability list from the rest of the groups. If you remove or rewrite the subgroup (docker does that), it does not restore them automatically. You have to recreate the steps above and echo `member` again into a correctly configured subgroup for the resources to return.
 
+### Switching to CGroup v2 
+
+On `systemd`-based systems, if they still stick to CGroup v1, it is possible to manually switch to CGroup v2 using the following Kernel boot parameter `systemd.unified_cgroup_hierarchy=1`. Use the procedure described above to perform the change.
+
 Further information can be found in the Kernel Wiki for [CGroups v1](https://docs.kernel.org/admin-guide/cgroup-v1/index.html) and [CGroups v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)
+
