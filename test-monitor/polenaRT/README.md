@@ -61,7 +61,7 @@ Please note that all but the first can be changed on an existing machine without
 
 **WIP**
 
-### Create separate CGroup trees {#cgroup2}
+### Create separate CGroup trees {#cgroup2-tree}
 
 Recently, Kernel and Docker configuration switched to CGroup v2 with `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPUsets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
 
@@ -93,3 +93,39 @@ cat tasks > system/tasks
 Tasks contains a list of PIDs that are running and assigned to the present control group, by default the `root` control group. by creating a directory, we basically create a subgroup. Echoing the PID numbers into its tasks file will thus move the assignment from `cpuset`-cgroup `root` to `system`. 
 
 N.B. Docker will automatically create a CGroup v1 subgroup `docker`, thus allowing us, by default, to control resources assigned to  daemon and containers.
+
+### Setting restrictions with CGroup {#cgroup-res}
+
+There esist tools such as `taskset` to set affinity and perform cpu-pinning. Nonetheless, I believe the easiest and most structured way of managing resources is through CGroup trees. Depending on the version, the files and usage changes a little, but in short it's all about  echoing to virtual files.
+
+For example, enter the `system` or `system.slice` folder in `/sys/fs/cgroup` and type:
+
+```
+echo "0-3" > cpuset.cpus
+```
+
+This sets the number of CPUs assigned to the system slice, and thus all tasks running in it, to CPUs 0,1,2 and 3. Note that this works on CGroups v1 only if you performed the migration steps above. In case you're not `root` but have `sudo` privileges, run `sudo sh -c "<command listed>"`.
+
+Similarly, if your memory controller exposes multiple nodes, (see NUMA), you can limit the reserved memory nodes.
+
+```
+echo "0" > cpuset.mems
+```
+
+Please pay attention, though, that on some systems, the architecture either prohibits or limits the access of nodes among CPUs.
+
+Once you configured the resources of your subtrees -- or groups --, you can further restrict access on the system. The change above restricts system processes to CPUs 0-3, but does not prevent other tasks to use them, too. On v1 systems you can restrict this by simply setting the `exclusive` flag of the subgroup.
+
+```
+echo "1" > cpuset.cpu_exclusive
+```
+Of course, this only works if no other subgroup "uses" the mentioned resources. Uses here is understood as "has been specified explicitly in the `cpuset` settings".
+
+For v2 systems instead, we reach exclusivity by changing the partition status from `member` (..of the parent resources) to `root` (..of a new partition). Thus, once set the CPUs, we change the partition setting of our subgroup as follows:
+
+```
+echo "root" > cpuset.cpu.partition
+```
+We therefore remove the listed CPUs from the parent group and create a new control group `root` which handles these exclusively. They can thus only be used by the processes in this group and their children. Effective allocation can always be checked through `cat cpuset.*.*` for memory and CPU.
+
+Further information can be found in the Kernel Wiki for [CGroups v1](https://docs.kernel.org/admin-guide/cgroup-v1/index.html) and [CGroups v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)
