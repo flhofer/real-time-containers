@@ -684,21 +684,24 @@ prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-
+	// TODO: add function to detect if GGv2 docker slice has been created
 	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	 * system CGroup, possible tasks are moved -> do for all
 	 * --------------------
 	 */
 	char *fileprefix = NULL;
 
+#ifndef CGROUP2
 	cont("creating CGroup for system on %s", cpus);
-
+#endif
 	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_SYS)+1))) {
 		char * nfileprefix = NULL;
 
 		// copy to new prefix
-		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET CGRP_SYS);
-		// try to create directory
+		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET	CGRP_SYS);
+
+#ifdef CGROUP2
+// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
 			// IF: error - excluding not already existing
@@ -707,6 +710,7 @@ prepareEnvironment(prgset_t *set) {
 			goto sysend; // skip all system things
 		}
 		// ELSE: created, or directory already exists
+#endif
 
 		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
 			warn("Can not set CPU-affinity");
@@ -714,6 +718,12 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
+#ifdef CGROUP2
+		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
+			if (0 > setkernvar(fileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+				warn("Can not set new CGroup CPU partition root");
+			}
+#else
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
 			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 				warn("Can not set CPU exclusive");
@@ -773,6 +783,7 @@ prepareEnvironment(prgset_t *set) {
 		}
 
 sysend: // jumped here if not possible to create system
+#endif
 
 		// free string buffers
 		free (fileprefix);

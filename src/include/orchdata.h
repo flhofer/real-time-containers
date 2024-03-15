@@ -45,13 +45,14 @@
 	#define BUFRD 1024  // buffer read size
 	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" 	// default program signature (test)
-	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
 #ifdef CGROUP2
 	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
+	#define CGRP_CSET "" 			  // CGroup v1 value, unused
 #else
 	#define CGRP_SYS  "system/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
+	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
 #endif
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
