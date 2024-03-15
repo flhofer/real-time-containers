@@ -46,8 +46,13 @@
 	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" 	// default program signature (test)
 	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
+#ifdef CGROUP2
+	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
+	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
+#else
+	#define CGRP_SYS  "system/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
-	#define CSET_SYS  "system/" // default CGroup sub-directory for system
+#endif
 
 	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
 	#define CPUGOVR	"performance" // desired configuration for CPU governor

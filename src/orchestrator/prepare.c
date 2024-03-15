@@ -693,11 +693,11 @@ prepareEnvironment(prgset_t *set) {
 
 	cont("creating CGroup for system on %s", cpus);
 
-	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CSET_SYS)+1))) {
+	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_SYS)+1))) {
 		char * nfileprefix = NULL;
 
 		// copy to new prefix
-		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET CSET_SYS);
+		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET CGRP_SYS);
 		// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
@@ -753,7 +753,7 @@ prepareEnvironment(prgset_t *set) {
 				while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 					// DO STUFF
 
-					// file prefix still pointing to CSET_SYS
+					// file prefix still pointing to CGRP_SYS
 					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
 						//printDbg( "Warn! Can not move task %s\n", pid);
 						mtask++;
