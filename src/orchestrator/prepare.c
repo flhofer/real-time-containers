@@ -185,7 +185,7 @@ getRRslice(prgset_t * set){
 	}
 	else{
 		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
-			warn("Could not read RR time slice! Setting to default 100ms");
+			warn("Could not read RR time slice! Assuming a default of 100ms");
 			set->rrtime=100; // default to 100ms
 		}
 		else{
@@ -435,7 +435,7 @@ prepareEnvironment(prgset_t *set) {
 				} // end block
 
 				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
-				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
+				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i); // TODO: value dependent on governor>
 				if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 					// value act read ok
 					if (strcmp(str, "n/a")) {
@@ -604,12 +604,12 @@ prepareEnvironment(prgset_t *set) {
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
 	 */
-	set->kernelversion = check_kernel();
+	set->kernelversion = check_kernel(); // TODO: update
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	if (resetRTthrottle (set, -1)){
+	if (resetRTthrottle (set, -1)){ // TODO: throttle is limited if no affinity lock is set
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, numastr);
@@ -834,6 +834,7 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
+	// TODO: restore CGroup 2 to member
 	freeTracer(&rHead); // free
 	adaptFree();
 
