@@ -2,7 +2,7 @@
 
 Author: [Florian Hofer](https://github.com/flhofer)
 
-**WIP**
+**WIP --- This page is still a work in progress**
 
 ## 1. Introduction
 
@@ -84,7 +84,7 @@ CONFIG_COMPACT_UNEVICTABLE_DEFAULT=0 # set to 0 from 1
 # CONFIG_NET_RX_BUSY_POLL is un-set
 ```
 
-You can search for symbols in the menuconfig using the `/` key.
+You can search for symbols when inside the `menuconfig` using the `/` key. To check the kernel configuration of the running system, check for a `config-*` file in either `/boot` or `/etc`. 
 
 [^1]: If the last entry is not available, despite applying the patch, you will need to enable expert mode first, see below.
 
@@ -92,15 +92,23 @@ You can search for symbols in the menuconfig using the `/` key.
 
 Newer kernels require Expert mode to be enabled for certain features to be visible. In some cases it might be enough to enter `General setup` and select `Embedded system`. If this is not available, open the resulting `.config` file in the root folder and find/add `CONFIG_EXPERT=y` to enable the menu entries.
 
-### Kernel Tick Rate
+### Changing kernel Tick Rate
 
 On a system with a task scheduler, a tick rate defines how frequent and at which interval the execution is interrupted (see interrupts below) to verify if the scheduled task holds still priority. Therefore, we are not waiting for a task to yield, but rather preempt it -- at regular intervals. 
 
 The correct value for this setting depends widely on your application. A typical RTOS embedded system, Bachmann's M200 PLC-family for example, runs tick rates between 2000 and 5000Hz. This means, the scheduler interrupts the running task up to 5000x per second, i.e. every 0.2 milliseconds. At interrupt the waiting tasks are surveyed and the one in front of the queue with the highest priority is run next[^3]. If instead you have EDF scheduled tasks only, you ideally not interrupt at all. Their priority won't change, unless new tasks arrive or old ones leave. How to determine the best tick rate then? (see `Processor type and features->Timer frequency`)
 
+```
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
+```
+
 The Linux kernel default is 250Hz, while the maximum is 1000Hz and the minimum 0Hz ("no_hz"). Select the tick rate that better suits your system. If you have any doubt, err on the higher value. The scheduler interrupts for EDF tasks add interruptions, but they are predictable. The pace and duration of a scheduler interrupt, especially if the schedule remains the same, is constant. For EDF thus, higher rates equal some constant extension of the worst case execution time (WCET). For traditional FIFO and RR tasks instead, they might radically improve the reactivity of the system.
 
-A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then). If you wish to use this option, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically offloads RCU callbacks (see below)
+A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then). If you wish to use this option, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically offloads RCU callbacks onh the listed CPUs (see below).
 
 Finally, a note on dynamic ticks. It is possible to disable the tick as above only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default for desktop systems. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU call-backs. You must thus offload RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT-applications. If you nonetheless would like to use dyntick, use the `nohz=on`boot parameter in addition to the flag. The setting can be found in `General setup->Timer subsystem`.
 
@@ -108,10 +116,10 @@ Further reading [Kernel Wiki](https://www.kernel.org/doc/html/latest/timers/no_h
 
 [^3]: It is worth noting that on such a system almost all tasks run as FIFO or RR scheduled real-time tasks, including the repetitive, cyclically scheduled PLC tasks and drivers. Instead of running a EDF schedule with regular period, the tasks implement the remainder of the period, once running is done, as sleep and yield to the scheduler.
 
-### RCU and Spinlocks
+### RCU call-backs
 
 RCU callbacks 
-`General setup->RCU-Subsystem` Select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `RCU_NOCB_CPU` to y. On newer kernels there (may) exists the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel
+`General setup->RCU-Subsystem` Select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `RCU_NOCB_CPU` to `y`. On newer kernels there (may) exists the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel
 
 **WIP**
 rcu_nocbs=1,3-4
@@ -121,9 +129,10 @@ rcu_nocb_poll
 
 
 
-### Kernel debug features
+### Disable kernel debug features
 
 **WIP**
+
 
 ## Kernel boot parameters
 
