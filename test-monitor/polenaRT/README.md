@@ -6,7 +6,7 @@ Author: [Florian Hofer](https://github.com/flhofer)
 
 ## 1. Introduction
 
-`polenaRT` is the name of the environment for running `Moby`-compatible containers and container engines in real-time with the (optional) help of a userspace orchestrator. This environment foresees the following components and tasks found in the present folder:
+`polenaRT` is the name of the environment for running [`Moby`](https://mobyproject.org/)-compatible containers and container engines in real-time with the (optional) help of a userspace orchestrator. This environment foresees the following components and tasks found in the present folder:
 
 - An install script `polenaRT-installer.sh` is used to build and configure custom kernel builds starting from Linux vanilla. If the target kernel is for a different distribution, it sets up a docker container for the required environment and builds the kernel there. It furthermore installs the selected container engine and, if of interest, the kernel with optimized parameters. (**TBD**)
 - a configuration script to reconfigure the runtime environment and kernel boot parameters to state-of-the-art latency and jitter reduction settings - `polenaRT-configure.sh`. The list and a description of possible system optimizations are described below. (**TBD**)
@@ -29,21 +29,88 @@ Please note that all but the first can be changed on an existing machine without
 
 ## Kernel build parameters 
 
-**WIP**
+Before compiling a kernel, the user has the option of flipping one of the hundreds of switches available for kernel configuration. In addition to the option whether drivers and extensions should be compiled into the kernel or rather be load-able as modules, the kernel flags include real-time relevant settings such as the allowed preemption.
+
+The probably easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig` run inside the root of the kernel source. If no configuration exists yet (not loaded from file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavour.
+
+As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preeption` would put the system towards a batch programmed server, in which, any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution which adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the main-line kernel to reduce the overall latency of a system that might need be more responsive and switch tasks more often. Finally, `Fully preemptible kernel` enables all preemption points available at the moment (only visible with `PREEMPT-RT` patch) and our choice[^1]. 
+
+The kernel config file will thus be changed as follows 
+
+```
+# CONFIG_PREEMPT_VOLUNTARY is un-set
+# CONFIG_PREEMPT_BUILD is un-set
+# CONFIG_PREEMPT_VOLUNTARY is un-set
+# CONFIG_PREEMPT_DYNAMIC is un-set
+CONFIG_PREEMPT_LAZY=y # enabled for ll points
+CONFIG_PREEMPT_RT=y
+CONFIG_ARCH_SUPPORTS_RT=y
+```
+
+Something that might not be clear is that enabling the fully preemptive model, `CONFIG_PREEMPT_RT` -- or `CONFIG_PREEMPT_FULL` on older kernels, will change also other parameters. Most notably, it has a big influence on locks and memory.
+
+```
+# CONFIG_UNINLINE_SPIN_UNLOCK is un-set
+# CONFIG_QUEUED_RWLOCKS is un-set
+CONFIG_RCU_BOOST=y
+CONFIG_RCU_BOOST_DELAY=500
+
+# CONFIG_NUMA_BALANCING is un-set
+# CONFIG_NUMA_BALANCING_DEFAULT_ENABLED is un-set
+
+# CONFIG_ARCH_ENABLE_THP_MIGRATION is un-set
+# CONFIG_TRANSPARENT_HUGEPAGE is un-set
+# CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is un-set
+# CONFIG_THP_SWAP is un-set
+
+# CONFIG_SOFTIRQ_ON_OWN_STACK is un-set
+
+```
+
+Other affected parameters, for completeness only.
+
+```
+CONFIG_PAHOLE_VERSION=0 # parameter is set o 0
+CONFIG_HAVE_ATOMIC_CONSOLE=y
+
+CONFIG_COMPACT_UNEVICTABLE_DEFAULT=0 # set to 0 from 1
+
+# CONFIG_NET_RX_BUSY_POLL is un-set
+```
+
+[^1]: If the last entry is not available, despite applying the patch, you will need to enable expert mode first, see below.
+
+[^rttuning]: [Other infos](https://ubuntu.com/blog/real-time-kernel-tuning)
+
+### Enabling of expert mode
 
 ### Kernel Tick Rate
 
 **WIP**
 
+
+CONFIG_NO_HZ_FULL
+nohz_full
+
+
 ### RCU and Spinlocks
+
+**WIP**
+CONFIG_RCU_NOCB_CPU
+rcu_nocbs=1,3-4
+CONFIG_RCU_NOCB_CPU_ALL
+
+rcu_nocb_poll
+
+
+
+### Kernel debug features
 
 **WIP**
 
 ## Kernel boot parameters
 
-**WIP**
-
-Kernel boot parameters are parameters that are passed at system boot to the process reading the kernel image. Such parameters are typically specified in the `grub` boot configuration and can be changed as follows:[^1]
+Kernel boot parameters are parameters that are passed at system boot to the process reading the kernel image. Such parameters are typically specified in the `grub` boot configuration and can be changed as follows[^2].
 
 The default `grub` configuration is located at `/etc/default/grub`. Open the file with your favorite editor, e.g. `nano` and change the parameters required by adding or removing from `GRUB_CMDLINE_LINUX` and/or `GRUB_CMDLINE_LINUX_DEFAULT`, in quotes, and separated by spaces. The former always effective, the latter is added to the former in case of a normal -automatic- boot. For Ubuntu systems, the only two parameters set for `*DEFAULT` are `quiet` and `splash`.
 
@@ -53,7 +120,7 @@ Please note that the contents of `grub.d` may be added and even overwrite your c
 
 The description of parameters follows below.
 
-[^1] for Ubuntu, other systems please read online
+[^2]: for Ubuntu, other systems please research online
 
 ### Disable SMT
 
@@ -71,11 +138,19 @@ The required kernel boot parameter to make this change permanent is `nosmt`.
 ### Scheduler isolation
 
 (see also CGroup `isolated` partitions)
+isolcpus
 
 
 ### RCU back-off
 
 **WIP**
+
+### other
+kthread_cpus
+timer_migration
+sched_rt_runtime
+
+skew_tick=1 rcu_nocb_poll rcu_nocbs=1-95 nohz=on nohz_full=1-95 kthread_cpus=0 irqaffinity=0 isolcpus=managed_irq,domain,1-95 intel_pstate=disable nosoftlockup tsc=nowatchdog
 
 ## System runtime settings
 
