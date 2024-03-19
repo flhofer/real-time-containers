@@ -25,17 +25,20 @@ Parameter optimization can occur at several levels. As we have to compile a kern
 - System parameters at runtime
 - Other application provisions to improve runtime
 
-Please note that all but the first can be changed on an existing machine without further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`
+Please note that all but the first can be changed on an existing machine without further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`.
+
+Further reads: [Ubuntu PRO - real-time kernel technical](https://ubuntu.com/blog/real-time-kernel-technical)
+[Ubuntu PRO real-time - kernel tuning](https://ubuntu.com/blog/real-time-kernel-tuning)
 
 ## Kernel build parameters 
 
 Before compiling a kernel, the user has the option of flipping one of the hundreds of switches available for kernel configuration. In addition to the option whether drivers and extensions should be compiled into the kernel or rather be load-able as modules, the kernel flags include real-time relevant settings such as the allowed preemption.
 
-The probably easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig` run inside the root of the kernel source. If no configuration exists yet (not loaded from file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavour.
+The probably easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig` run inside the root of the kernel source. If no configuration exists yet (not loaded from file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavor.
 
 As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preeption` would put the system towards a batch programmed server, in which, any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution which adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the main-line kernel to reduce the overall latency of a system that might need be more responsive and switch tasks more often. Finally, `Fully preemptible kernel` enables all preemption points available at the moment (only visible with `PREEMPT-RT` patch) and our choice[^1]. 
 
-The kernel config file will thus be changed as follows 
+The kernel `.config` file will thus be changed as follows 
 
 ```
 # CONFIG_PREEMPT_VOLUNTARY is un-set
@@ -54,17 +57,20 @@ Something that might not be clear is that enabling the fully preemptive model, `
 # CONFIG_QUEUED_RWLOCKS is un-set
 CONFIG_RCU_BOOST=y
 CONFIG_RCU_BOOST_DELAY=500
+```
 
+Spinning locks in RT kernels are "sleep-able", meaning that the replacing implementation allows now for spinning locks to be preempted (note - this could affect drivers!). Read-Copy-update instructions can be run in background and are offloaded. The RCU boost here helps to regain priority if it is on hold for too long. NUMA balancing and transparent huge pages (THP) are also disabled.
+
+```
 # CONFIG_NUMA_BALANCING is un-set
 # CONFIG_NUMA_BALANCING_DEFAULT_ENABLED is un-set
 
-# CONFIG_ARCH_ENABLE_THP_MIGRATION is un-set
 # CONFIG_TRANSPARENT_HUGEPAGE is un-set
+# CONFIG_ARCH_ENABLE_THP_MIGRATION is un-set
 # CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is un-set
 # CONFIG_THP_SWAP is un-set
 
 # CONFIG_SOFTIRQ_ON_OWN_STACK is un-set
-
 ```
 
 Other affected parameters, for completeness only.
@@ -78,27 +84,38 @@ CONFIG_COMPACT_UNEVICTABLE_DEFAULT=0 # set to 0 from 1
 # CONFIG_NET_RX_BUSY_POLL is un-set
 ```
 
-[^1]: If the last entry is not available, despite applying the patch, you will need to enable expert mode first, see below.
+You can search for symbols in the menuconfig using the `/` key.
 
-[^rttuning]: [Other infos](https://ubuntu.com/blog/real-time-kernel-tuning)
+[^1]: If the last entry is not available, despite applying the patch, you will need to enable expert mode first, see below.
 
 ### Enabling of expert mode
 
+Newer kernels require Expert mode to be enabled for certain features to be visible. In some cases it might be enough to enter `General setup` and select `Embedded system`. If this is not available, open the resulting `.config` file in the root folder and find/add `CONFIG_EXPERT=y` to enable the menu entries.
+
 ### Kernel Tick Rate
 
-**WIP**
+On a system with a task scheduler, a tick rate defines how frequent and at which interval the execution is interrupted (see interrupts below) to verify if the scheduled task holds still priority. Therefore, we are not waiting for a task to yield, but rather preempt it -- at regular intervals. 
 
+The correct value for this setting depends widely on your application. A typical RTOS embedded system, Bachmann's M200 PLC-family for example, runs tick rates between 2000 and 5000Hz. This means, the scheduler interrupts the running task up to 5000x per second, i.e. every 0.2 milliseconds. At interrupt the waiting tasks are surveyed and the one in front of the queue with the highest priority is run next[^3]. If instead you have EDF scheduled tasks only, you ideally not interrupt at all. Their priority won't change, unless new tasks arrive or old ones leave. How to determine the best tick rate then? (see `Processor type and features->Timer frequency`)
 
-CONFIG_NO_HZ_FULL
-nohz_full
+The Linux kernel default is 250Hz, while the maximum is 1000Hz and the minimum 0Hz ("no_hz"). Select the tick rate that better suits your system. If you have any doubt, err on the higher value. The scheduler interrupts for EDF tasks add interruptions, but they are predictable. The pace and duration of a scheduler interrupt, especially if the schedule remains the same, is constant. For EDF thus, higher rates equal some constant extension of the worst case execution time (WCET). For traditional FIFO and RR tasks instead, they might radically improve the reactivity of the system.
 
+A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then). If you wish to use this option, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically offloads RCU callbacks (see below)
+
+Finally, a note on dynamic ticks. It is possible to disable the tick as above only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default for desktop systems. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU call-backs. You must thus offload RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT-applications. If you nonetheless would like to use dyntick, use the `nohz=on`boot parameter in addition to the flag. The setting can be found in `General setup->Timer subsystem`.
+
+Further reading [Kernel Wiki](https://www.kernel.org/doc/html/latest/timers/no_hz.html)
+
+[^3]: It is worth noting that on such a system almost all tasks run as FIFO or RR scheduled real-time tasks, including the repetitive, cyclically scheduled PLC tasks and drivers. Instead of running a EDF schedule with regular period, the tasks implement the remainder of the period, once running is done, as sleep and yield to the scheduler.
 
 ### RCU and Spinlocks
 
+RCU callbacks 
+`General setup->RCU-Subsystem` Select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `RCU_NOCB_CPU` to y. On newer kernels there (may) exists the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel
+
 **WIP**
-CONFIG_RCU_NOCB_CPU
 rcu_nocbs=1,3-4
-CONFIG_RCU_NOCB_CPU_ALL
+
 
 rcu_nocb_poll
 
