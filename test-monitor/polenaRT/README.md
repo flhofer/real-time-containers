@@ -206,6 +206,8 @@ The boot parameter `irqaffinity=<list-cpus>` determines which CPU should, by def
 
 - `nosoftlockup` and `tsc=nowatchdog` disable some kernel internal watchdogs, removing thus a further source of jitter. Of course, we are also loosing the watchdog's protection this way.
 
+- `timer_migration=0` disables the migration of timer between CPU sockets (if multiple are present) and mitigates resulting jitter.
+
 - Some kernels expose the flag `kthread_cpus=<list-cpus>`, which allows to set the CPUs dedicated for kernel threads, and preempting the requirement to manually pin them to specific resources. If present, you can use this parameter instead. (Unused kernel parameters trigger a warning)
 
 ## System runtime settings
@@ -225,6 +227,8 @@ This said, we must also note another point. If we aim for a jitter free real-tim
 The above setting, indeed, disables hyper-threading on all cores. To selectively disable hyper-threading we could, instead, take note of the point discussed above: every thread on Linux is seen as separate CPU. Thus, instead of disabling SMT overall, we just use "hot-plug" to disable the CPUs, or threads, that are a sibling of a running real-time core.
 
 Performing this, however, is a little more difficult as the layout and numbering of CPUs depends on the system architecture. What we can do is to explore the systems VFS and detect the siblings of the CPUs we deem for real-time use only.
+
+** WIP **
 
 ```
 ECHO WIP -- cpux/sibling
@@ -288,47 +292,58 @@ If thus you execute more time-sensitive RR tasks and  you want to avoid that sof
 echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
 ```
 
-### Changing kernel thread affinity
-
-**WIP**
-
-[Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
-
-
-`ehca_comp/*`
-`irq/*-*"`
-`kcmtpd_ctr_*`
-`rcuop/*`
-`rcuos/*`
-
-
-In kernels built with CONFIG_RCU_NOCB_CPU=y, this enables the no-callback CPU mode on the selected spus, which prevents such CPUs' callbacks from being invoked in softirq context.  Invocation of such CPUs' RCU callbacks will instead be offloaded to "rcuox/N" kthreads created for that purpose, where "x" is "p" for RCU-preempt, "s" for RCU-sched, and "g" for the kthreads that mediate grace periods; and                        "N" is the CPU number. This reduces OS jitter on the offloaded CPUs, which can be useful for HPC and real-time workloads.  It can also improve
-
 ### IRQs and affinity
 
-**WIP**
+`/proc/irq/default_smp_affinity` specifies default affinity mask that applies to all non-active IRQs. It is also set through the `irqaffinity=` boot parameter. Once IRQ is allocated/activated its affinity bitmask will be set to the default mask. It can then be changed as described below. Default mask is 0xffffffff. [](https://docs.kernel.org/core-api/irq/irq-affinity.html)
 
-See also boot parameter
+```
+echo "0x00ff" > /proc/irq/default_smp_affinity
+```
 
+Single, active, IRQ affinity can be changed instead by setting the `smp_affinity` variable inside the VFS folder named after the IRQ number in `/proc/irq/`. As detailed in the boot parameter section, setting IRQ affinity should be done after considering eventual side effects and only with allocating enough resources to deal with the IRQs[^mig].
 
-Could change IRQ affinity.. but -> see paper [^mig]
+** WIP **
+
+`ksoftirqd/N` are softirq handlers and must be forced to the target CPUs through hotplug. To do this, disable and reenable all CPUs but 0 in sequence.
+
+```
+echo 0 > /sys/devices/system/cpu/cpu1/online
+```
+Once hotplug is done, do not put CPUs offline and online again.
 
 [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
 
-Timer_softirq
-move ksoftirqd
-```
-cat /sys/devices/system/cpu/cpu1/online
-```
+### Changing kernel thread affinity
 
+** WIP **
+
+- `ehca_comp/*` are eHCA Infiniband hardware threads. 
+
+	` `
+
+- `irq/*-*"` are IRQ kernel threads which affinity is changed by using the settings in the previous section for new entries, or the command below for running threads.
+
+	` `
+
+- `rcuop/*`and `rcuos/*` are present in kernels built with CONFIG_RCU_NOCB_CPU=y for no-callback CPU. Each "rcuox/N" kthread is created for that purpose, where "x" is "p" for RCU-preempt, "s" for RCU-sched, and "g" for the kthreads that mediate grace periods; and "N" is the CPU number. We can pin these to specific CPUs with the automated code below.
+
+	` ` 
+
+- `kworker/*:**` are worker threads for the kernel. They are automatically preempted if your tasks run with a real-time priority.
+
+	` ` 
+
+Further information at [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html).
 
 ## Other provisions
 
-**WIP**
-timer_migration
+We can stop timer migration between sockets at runtime with
 
+```
+echo 0 > /proc/sys/kernel/timer_migration
+```
 
-### Create separate CGroup trees {#cgroup2-tree}
+### Create separate CGroup trees
 
 Recently, Kernel and Docker configuration switched to CGroup v2 with `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPUsets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
 
