@@ -119,7 +119,7 @@ Finally, a note on dynamic ticks. It is possible to disable the tick as above on
 
 ### RCU call-backs
 
-[Read-copy-update](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) call-backs are performed by the kernel to keep memory between concurring threads up-to date. To reduce the interference with real-time tasks, they can be delayed in execution or even limited to run on certain CPUs through off-loading into separate threads. The latter are strictly necessary for adaptive or dynamic ticks (`CONFIG_NO_HZ*`) to exclude call-backs on the schedule-tick reduced CPUs. 
+[Read-copy-update](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) call-backs are performed by the kernel as soft-irqs to keep memory between concurring threads up-to date. To reduce the interference with real-time tasks, they can be delayed in execution or even limited to run on certain CPUs through off-loading into separate threads. The latter are strictly necessary for adaptive or dynamic ticks (`CONFIG_NO_HZ*`) to exclude call-backs on the schedule-tick reduced CPUs. 
 
 To activate the off-loading of these call-backs into kernel threads, go to `General setup->RCU-Subsystem` and select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `CONFIG_RCU_NOCB_CPU` to `y`. You will then need to specify the boot parameter `rcu_nocbs=<list-cpus>` to tell the kernel on which CPUs to off-load the call-backs into threads. On newer kernels there (may) exists the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel.
 
@@ -167,6 +167,7 @@ The description of parameters follows below.
 ### Disable SMT
 
 Simultaneous multi-threading (SMT) is a very useful feature for day-to-day operations, increasing CPU speed due to reduced flushing and filling of CPU-registers up to 30%. This, however holds only true as long as we don't need a guarantee on reaction and processing times. 
+
 In Linux, threads that are served by the same CPU core are enumerated as separate CPU. Thus, a CPU with a computing power of 1 would be addressed as if it had a computing power of 2 or more. In reality though, not cores but only CPU-registrers are typically doubled creating therefore unforeseen delay and jitter while competing for the processing unit.
 
 We can disable SMT at runtime by the following.
@@ -175,23 +176,24 @@ We can disable SMT at runtime by the following.
 echo 0 > /sys/devices/system/cpu/smt/control
 ```
 
-The required kernel boot parameter to make this change permanent is `nosmt`.
+The required kernel boot parameter to make this change permanent is `nosmt`. For notes on selective disabling, see System runtime settings, Disable SMT.
 
 ### Scheduler isolation
 
-(see also CGroup `isolated` partitions)
-isolcpus
+On older kernels there existed a boot parameter called `isolcpus` that allowed to isolate CPU ranges from the system scheduler, IRQs and other kernel related tasks and threads. Newer kernels still export the feature but it is now widely seen as deprecated. Since the introduction of CGroup v2, administrators are advised to use `isolated` control groups instead. (see also "Setting restrictions with CGroup" below).
 
+Nonetheless, for the sake of completeness, here the suggested parameters for this boot entry on older kernels.
+
+`isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a cpu range `<list-of-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-of-cpus>,domain,managed_irq`.
+
+Please note that these settings are on a best effort basis and guarantee thus no "perfect" isolation. Use CGroups v2 instead for better isolation. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
 
 ### RCU call-backs
 
 **WIP**
 
 
-
-rcu_nocbs=<list-cpus>
-
-rcu_nocb_poll
+                        
 
 ### IRQs and affinity
 
@@ -228,11 +230,26 @@ skew_tick=1 rcu_nocb_poll rcu_nocbs=1-95 nohz=on nohz_full=1-95 kthread_cpus=0 i
 
 ## System runtime settings
 
-**WIP**
+In the remainder of this sections, we describe features and steps that may be performed at runtime to optimize isolation and response and reduce interference. Different than above, these may be undone at runtime, too, and are thus a good place to start.
 
 ### Disable SMT
 
-See kernel boot parameters, "Disable SMT".
+We can disable SMT at runtime by the following (See kernel boot parameters, "Disable SMT")
+
+```
+echo 0 > /sys/devices/system/cpu/smt/control
+```
+
+This said, we must also note another point. If we aim for a jitter free real-time partition, and thus want to disable the SMT feature on the cores, it does not mean that we have to disable it too on the cores we keep for best-effort and system tasks. 
+
+The above setting, indeed, disables hyper-threading on all cores. To selectively disable hyper-threading we could, instead, take note of the point discussed above: every thread on Linux is seen as separate CPU. Thus, instead of disabling SMT overall, we just use "hot-plug" to disable the CPUs, or threads, that are a sibling of a running real-time core.
+
+Performing this, however, is a little more difficult as the layout and numbering of CPUs depends on the system architecture. What we can do is to explore the systems VFS and detect the siblings of the CPUs we deem for real-time use only.
+
+```
+ECHO WIP -- cpux/sibling
+
+```
 
 ### Restricting power saving modes
 
@@ -262,6 +279,8 @@ or for all at once
 ```
 for i in /sys/devices/system/cpu/cpu[0-9]* ; do  echo "performance" > $i/cpufreq/scaling_governor; done
 ```
+
+As described in the boot parameter section, we could disable the p-state driver through `intel_pstate=disable`. This however does not guarantee that BIOS or hardware enforcement of p-states does not take place, but only tells the Linux kernel not to try to manage p-states exclusively. We advise thus to stick with the performance governor settings.
 
 Once done, let's check a newly introduced parameter `power/pm_qos_resume_latency_us`, which, if set, reduces the reactivity of the system. Now, true, we never should require a resume being in constant "wake" state, but just to be sure, lets verify.
 
@@ -390,6 +409,8 @@ echo "root" > cpuset.cpu.partition
 We therefore remove the listed CPUs from the parent group and create a new control group `root` which handles these exclusively. They can thus only be used by the processes in this group and their children. Effective allocation can always be checked through `cat cpuset.*.*` for memory and CPU.
 
 Please note: setting a `root` partition removes the set cpus from the availability list from the rest of the groups. If you remove or rewrite the subgroup (docker does that), it does not restore them automatically. You have to recreate the steps above and echo `member` again into a correctly configured subgroup for the resources to return.
+
+**WIP - isolated partitions **
 
 ### Switching to CGroup v2 
 
