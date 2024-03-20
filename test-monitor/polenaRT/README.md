@@ -178,55 +178,35 @@ echo 0 > /sys/devices/system/cpu/smt/control
 
 The required kernel boot parameter to make this change permanent is `nosmt`. For notes on selective disabling, see System runtime settings, Disable SMT.
 
-### Scheduler isolation
+### Scheduler (and) isolation
 
 On older kernels there existed a boot parameter called `isolcpus` that allowed to isolate CPU ranges from the system scheduler, IRQs and other kernel related tasks and threads. Newer kernels still export the feature but it is now widely seen as deprecated. Since the introduction of CGroup v2, administrators are advised to use `isolated` control groups instead. (see also "Setting restrictions with CGroup" below).
 
 Nonetheless, for the sake of completeness, here the suggested parameters for this boot entry on older kernels.
 
-`isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a cpu range `<list-of-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-of-cpus>,domain,managed_irq`.
+`isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a cpu range `<list-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-cpus>,domain,managed_irq`.
 
 Please note that these settings are on a best effort basis and guarantee thus no "perfect" isolation. Use CGroups v2 instead for better isolation. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
 
 ### RCU call-backs
 
-**WIP**
+As discussed in the kernel build parameter section, once we configured to off-load kernel call-backs for RCU operations into threads, we also have to decide for which CPUs we want that to happen. This is done at boot time with the `rcu_nocbs=<list-cpus>` parameter. If the '=' sign and the cpulist arguments are omitted, no CPU will be set to no-callback mode from boot but the mode may be toggled at runtime via cpusets.
 
-
-                        
+The kernel foresees another parameter regarding RCU call-backs, `rcu_nocb_poll`. If set, Rather than requiring that off-loaded CPUs awaken the corresponding RCU-kthreads, it make kthreads poll for callbacks. This improves the real-time response for the off-loaded CPUs by relieving them of the need to wake up the corresponding kthread. However, the kthreads periodically wake up to do the polling and must thus be pinned ideally to other CPUs (see "Other" and "Runtime settings" below).
 
 ### IRQs and affinity
 
-irqaffinity=0
-
-https://wiki.linuxfoundation.org/realtime/documentation/howto/applications/cpuidle
-
-
+The boot parameter `irqaffinity=<list-cpus>` determines which CPU should, by default, be in charge of handling interrupts. The listed CPUs should thus NOT include any CPU required for real-time applications. Furthermore, the setting is best-effort, and is thus not guaranteed. As a warning: try not to limit IRQ computations on too little CPUs. The amount of work, in addition to all other system tasks, may render the system unresponsive[^mig]. [Source](https://wiki.linuxfoundation.org/realtime/documentation/howto/applications/cpuidle)
 
 ### other
-kthread_cpus
 
-isolcpus deprecated
-https://docs.kernel.org/admin-guide/kernel-parameters.html
+- `skew_tick=`, if set to 1, offsets the periodic timer tick per CPU to mitigate RCU lock contention on all systems with CONFIG_MAXSMP set (usually true)
 
+- `intel_pstate=disable` disables the Intel P-state driver. However, this does not prevent eventual  BIOS of Hardware to enforce P-states otherwise. Unless proven otherwise, it is thus advised to use the Intel governor with profile `performance` instead, running the CPU always at max power.
 
-does not guarantee harware Pstates are enforced
-intel_pstate=disable
+- `nosoftlockup` and `tsc=nowatchdog` disable some kernel internal watchdogs, removing thus a further source of jitter. Of course, we are also loosing the watchdog's protection this way.
 
-disable watchdogs
-nosoftlockup tsc=nowatchdog
-
-unknown to wiki
-kthread_cpus=0
-
-skew_tick=      [KNL] Offset the periodic timer tick per cpu to mitigate
-                        xtime_lock contention on larger systems, and/or RCU lock
-                        contention on all systems with CONFIG_MAXSMP set.
-                        Format: { "0" | "1" }
-                        
-
-skew_tick=1 rcu_nocb_poll rcu_nocbs=1-95 nohz=on nohz_full=1-95 kthread_cpus=0 irqaffinity=0 isolcpus=managed_irq,domain,1-95 intel_pstate=disable nosoftlockup tsc=nowatchdog
-
+- Some kernels expose the flag `kthread_cpus=<list-cpus>`, which allows to set the CPUs dedicated for kernel threads, and preempting the requirement to manually pin them to specific resources. If present, you can use this parameter instead. (Unused kernel parameters trigger a warning)
 
 ## System runtime settings
 
@@ -280,17 +260,15 @@ or for all at once
 for i in /sys/devices/system/cpu/cpu[0-9]* ; do  echo "performance" > $i/cpufreq/scaling_governor; done
 ```
 
-As described in the boot parameter section, we could disable the p-state driver through `intel_pstate=disable`. This however does not guarantee that BIOS or hardware enforcement of p-states does not take place, but only tells the Linux kernel not to try to manage p-states exclusively. We advise thus to stick with the performance governor settings.
+As described in the boot parameter section, we could disable the p-state driver through `intel_pstate=disable`. This however does not guarantee that BIOS or hardware enforcement of p-states does not take place, but only tells the Linux kernel not to try to manage p-states exclusively. We advise thus to stick with the performance governor settings. [Source](https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt)
 
-Once done, let's check a newly introduced parameter `power/pm_qos_resume_latency_us`, which, if set, reduces the reactivity of the system. Now, true, we never should require a resume being in constant "wake" state, but just to be sure, lets verify.
+Once done, let's check a newly introduced parameter `power/pm_qos_resume_latency_us`. PM QoS is an infrastructure in the kernel that can be used to fine tune the CPU idle system governance. It can be used to limit C - or sleep - states in all CPUs system wide or per core. The following sections explain the user level interface. Now, true, we never should require a resume being in constant "wake" state, but just to be sure, lets verify.
 
 ```
 cat /sys/devices/system/cpu/cpu0/power/pm_qos_resume_latency_us
 ```
 
-The value displayed should either be `n/a` or `0`. We can change the value the same way as above.
-
-[Kernel Wiki documentation](https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt)
+The value displayed should be `n/a` in order to disable all C-states. We can change the value the same way as above. [Source](https://wiki.linuxfoundation.org/realtime/documentation/howto/applications/cpuidle)
 
 ### RR slicing and RT-throttling, or not?
 
@@ -314,11 +292,17 @@ echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
 
 **WIP**
 
+[Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
+
+
 `ehca_comp/*`
 `irq/*-*"`
 `kcmtpd_ctr_*`
 `rcuop/*`
 `rcuos/*`
+
+
+In kernels built with CONFIG_RCU_NOCB_CPU=y, this enables the no-callback CPU mode on the selected spus, which prevents such CPUs' callbacks from being invoked in softirq context.  Invocation of such CPUs' RCU callbacks will instead be offloaded to "rcuox/N" kthreads created for that purpose, where "x" is "p" for RCU-preempt, "s" for RCU-sched, and "g" for the kthreads that mediate grace periods; and                        "N" is the CPU number. This reduces OS jitter on the offloaded CPUs, which can be useful for HPC and real-time workloads.  It can also improve
 
 ### IRQs and affinity
 
@@ -327,8 +311,11 @@ echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
 See also boot parameter
 
 
-Could change IRQ affinity.. but -> see paper Cloudcom
+Could change IRQ affinity.. but -> see paper [^mig]
 
+[Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
+
+Timer_softirq
 move ksoftirqd
 ```
 cat /sys/devices/system/cpu/cpu1/online
@@ -418,3 +405,4 @@ On `systemd`-based systems, if they still stick to CGroup v1, it is possible to 
 
 Further information can be found in the Kernel Wiki for [CGroups v1](https://docs.kernel.org/admin-guide/cgroup-v1/index.html) and [CGroups v2](https://docs.kernel.org/admin-guide/cgroup-v2.html)
 
+[^mig]: Hofer et. al. [Industrial Control via Application Containers: Migrating from Bare-Metal to IAAS](https://www.semanticscholar.org/paper/Industrial-Control-via-Application-Containers%3A-from-Hofer-Sehr/dff2213ab3dea999a60580271b8086960264260f)
