@@ -183,6 +183,37 @@ GRUB_CMDLINE_LINUX=""
 	$sudo update-grub2
 }
 
+function installContainerD {
+	################################
+	# Select and install daemon
+	################################
+	
+	local balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
+	local docker_rev=$(echo "$docker_tag" | sed 's|+|.|g')
+
+	local url=
+	local url2=
+	
+	echo "Which container daemon to install ?"
+	select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
+	case $ins in
+		Docker )	echo "## Installing Docker"
+					url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
+					url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
+	balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+		Balena )	echo "## Installing Balena"
+					url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
+					exit;;
+	esac
+
+	if [ ! -z "$url" ] ; then
+		curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+		if [ ! -z "$url2" ] ; then
+			curl -sL "$url2" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+		fi
+	fi
+}
+
 ############### Find package manager ######################
 abort=1
 for cmd in apt apt-get apk opkg rpm yum pacman emerge zypp; do
@@ -473,10 +504,9 @@ if [ ! -f "$config_file" ]; then
 fi
 
 patchVersion $linux_patch
-balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
-docker_rev=$(echo "$docker_tag" | sed 's|+|.|g')
 
 checkSignKey
+
 buildKernel $config_file
 
 echo "Interrupting install of kernel/container daemon - temp" 
@@ -484,26 +514,7 @@ exit 1
 
 installKernel $linux_patch
 
-url=
-url2=
-echo "Which container daemon to install ?"
-select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
-case $ins in
-    Docker )	echo "## Installing Docker"
-    			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
-    			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
-    Balena )	echo "## Installing Balena"
-    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
-				exit;;
-esac
-
-if [ ! -z "$url" ] ; then
-	curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
-	if [ ! -z "$url2" ] ; then
-		curl -sL "$url2" | $sudo tar xzv -C /usr/local/bin --strip-components=1
-	fi
-fi
+installContainerD
 
 cat <<EOF
 
