@@ -14,6 +14,8 @@ docker_tag=${3:-'v25.0.3'}
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
 
+machine=$(uname -m)
+
 ############### Functions ######################
 
 function select(){
@@ -97,7 +99,7 @@ function patchVersion {
 	local linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
 	local linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
 	
-		cat <<-EOF
+	cat <<-EOF
 	*** Polena installer ...
 
 	Selecting RT-patch < ${rt_patch} > for 
@@ -193,7 +195,32 @@ function installContainerD {
 
 	local url=
 	local url2=
-	
+	local arch=
+	# Detect the system architecture
+	case "$machine" in
+		"armv5"*)
+			arch="armv5e"
+			;;
+		"armv6"*)
+			arch="armv6l"
+			;;
+		"armv7"*)
+			arch="armv7hf"
+			;;
+		"armv8"*)
+			arch="arm64"
+			;;
+		"aarch64"*)
+			arch="arm64"
+			;;
+		"x86_64")
+			arch="amd64"
+			;;
+		*)
+			echo "Unknown machine type: $machine" >&2
+			exit 1
+	esac
+
 	echo "Which container daemon to install ?"
 	select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
 	case $ins in
@@ -427,33 +454,6 @@ if [ "$(id -u)" -ne 0 ]; then
 	fi
 	sudo="sudo -E"
 fi
-
-machine=$(uname -m)
-
-# Detect the system architecture
-case "$machine" in
-	"armv5"*)
-		arch="armv5e"
-		;;
-	"armv6"*)
-		arch="armv6l"
-		;;
-	"armv7"*)
-		arch="armv7hf"
-		;;
-	"armv8"*)
-		arch="arm64"
-		;;
-	"aarch64"*)
-		arch="arm64"
-		;;
-	"x86_64")
-		arch="amd64"
-		;;
-	*)
-		echo "Unknown machine type: $machine" >&2
-		exit 1
-esac
 
 #################################
 # Required system packages 
