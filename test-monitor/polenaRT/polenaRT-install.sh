@@ -297,7 +297,7 @@ $sudo $pgkmgmt $packages2
 $sudo $pgkmgmt $packages3
 
 # Check if kernel config exists
-config_file="ubuntu-${machine}-${linux_patch}.config"
+config_file="${distname}-${machine}-${linux_patch}.config"
 
 if [ ! -f "$config_file" ]; then
 	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
@@ -321,13 +321,14 @@ if [ ! -f "$config_file" ]; then
 	version=${version#\"}
 	version=${version%\"}
 	
+	#TODO: assign distro as well
 	# generate linux patch string
 	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
 	
 	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
 	
 	# reset kernel config file
-	config_file="ubuntu-${machine}-${linux_patch}.config" # TODO: more universal distrodep
+	config_file="${distname}-${machine}-${linux_patch}.config" # TODO: more universal distrodep
 fi
 
 # parse linux patch string to find sub-elements for wget
@@ -345,11 +346,6 @@ Selecting RT-patch < ${rt_patch} > for
 	**  base version ${linux_base}
 	*** release ${linux_ver}
 EOF
-
-# if xconfig...
-#$sudo apt-get install -y qt5-default
-# if create-pkg...
-#$sudo apt-get install -y checkinstall
 
 ################################
 # Preempt RT
