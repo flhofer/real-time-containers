@@ -185,7 +185,7 @@ getRRslice(prgset_t * set){
 	}
 	else{
 		if (0 > getkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, sizeof(str))){
-			warn("Could not read RR time slice! Setting to default 100ms");
+			warn("Could not read RR time slice! Assuming a default of 100ms");
 			set->rrtime=100; // default to 100ms
 		}
 		else{
@@ -261,13 +261,13 @@ countCGroupTasks(prgset_t *set) {
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find container IDs
-				if  ((DT_DIR == dir->d_type)
+				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-						+ strlen(dir->d_name)+1+6))) { // \0 + /tasks
+						+ strlen(dir->d_name)+1+strlen("/" CGRP_PIDS)))) { // \0 + /tasks
 						// copy to new prefix
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
-						contp = strcat(contp,"/tasks");
+						contp = strcat(contp,"/" CGRP_PIDS);
 
 						// Open the file
 						FILE * fp = fopen(contp, "r");
@@ -435,7 +435,7 @@ prepareEnvironment(prgset_t *set) {
 				} // end block
 
 				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
-				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i);
+				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i); // TODO: value dependent on governor>
 				if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 					// value act read ok
 					if (strcmp(str, "n/a")) {
@@ -537,7 +537,7 @@ prepareEnvironment(prgset_t *set) {
 	int err = stat(set->cpusetdfileprefix, &s);
 	if(-1 == err) {
 		// Docker CGroup not found, set->force enabled = try creating
-		if(ENOENT == errno && set->force) {
+		if(ENOENT == errno && set->force) { // TODO: check docker setting of CGroup.slice for v2
 			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
@@ -604,12 +604,12 @@ prepareEnvironment(prgset_t *set) {
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
 	 */
-	set->kernelversion = check_kernel();
+	set->kernelversion = check_kernel(); // TODO: update
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	if (resetRTthrottle (set, -1)){
+	if (resetRTthrottle (set, -1)){ // TODO: throttle is limited if no affinity lock is set
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, numastr);
@@ -625,8 +625,10 @@ prepareEnvironment(prgset_t *set) {
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
 	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[kworker[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+	setPidMask("\\B\\[rcuog[/][[:digit:]]*", naffinity, cpus);
 
 
 	if (0 == countCGroupTasks(set))
@@ -658,14 +660,14 @@ prepareEnvironment(prgset_t *set) {
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
 
 			// check if a valid and full sha256 id
-			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))  //TODO: update string for CGroups v2
 				continue;
 			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
 
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
 
-				// try to create directory
+				// try to create directory // TODO update string for v2
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 				{
 					warn("Can not set CGroup: %s", strerror(errno));
@@ -684,21 +686,24 @@ prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-
+	// TODO: add function to detect if GGv2 docker slice has been created
 	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	 * system CGroup, possible tasks are moved -> do for all
 	 * --------------------
 	 */
 	char *fileprefix = NULL;
 
+#ifndef CGROUP2
 	cont("creating CGroup for system on %s", cpus);
-
-	if ((fileprefix=malloc(strlen(set->cpusetfileprefix)+strlen(CSET_SYS)+1))) {
+#endif
+	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_SYS)+1))) {
 		char * nfileprefix = NULL;
 
 		// copy to new prefix
-		fileprefix = strcat(strcpy(fileprefix,set->cpusetfileprefix), CSET_SYS);
-		// try to create directory
+		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET	CGRP_SYS);
+
+#ifndef CGROUP2
+// try to create directory
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
 			// IF: error - excluding not already existing
@@ -707,6 +712,7 @@ prepareEnvironment(prgset_t *set) {
 			goto sysend; // skip all system things
 		}
 		// ELSE: created, or directory already exists
+#endif
 
 		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
 			warn("Can not set CPU-affinity");
@@ -714,16 +720,19 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
+#ifndef CGROUP2
+		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
+		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
 			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-				warn("Can not set CPU exclusive");
+				warn("Can not set CPU exclusive partition: %s", strerror(errno));
 			}
 
 		cont( "moving tasks..");
 
-		if ((nfileprefix=malloc(strlen(set->cpusetfileprefix)+strlen("tasks")+1))) {
+		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_PIDS)+1))) {
 			// copy to new prefix
-			nfileprefix = strcat(strcpy(nfileprefix,set->cpusetfileprefix),"tasks");
+			nfileprefix = strcat(strcpy(nfileprefix,set->cgroupfileprefix), CGRP_CSET CGRP_PIDS);
 
 			int mtask = 0;
 
@@ -753,8 +762,8 @@ prepareEnvironment(prgset_t *set) {
 				while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 					// DO STUFF
 
-					// file prefix still pointing to CSET_SYS
-					if (0 > setkernvar(fileprefix, "tasks", pid, set->dryrun)){
+					// file prefix still pointing to CGRP_SYS
+					if (0 > setkernvar(fileprefix, CGRP_PIDS, pid, set->dryrun)){
 						//printDbg( "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}
@@ -773,6 +782,7 @@ prepareEnvironment(prgset_t *set) {
 		}
 
 sysend: // jumped here if not possible to create system
+#endif
 
 		// free string buffers
 		free (fileprefix);
@@ -826,6 +836,7 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
+	// TODO: restore CGroup 2 to member
 	freeTracer(&rHead); // free
 	adaptFree();
 

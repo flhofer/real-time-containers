@@ -67,10 +67,10 @@ getContPids (node_t **pidlst)
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
 			if ((strlen(dir->d_name)>60)) {// container strings are very long!
-				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/tasks")+1))) {
+				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/" CGRP_PIDS)+1))) {
 					// copy to new prefix
 					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
-					fname = strcat(fname,"/tasks");
+					fname = strcat(fname,"/" CGRP_PIDS);
 
 					// prepare literal and open pipe request
 					int fd = open(fname, O_RDONLY);

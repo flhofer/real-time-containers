@@ -59,19 +59,18 @@ jobs:
       uses: actions/checkout@v4
 
     - name: "Build ubuntu container and run tests"
-      run : docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . && \
-            docker run --rm -v "$PWD":/home ubuntubuild
+      run : docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . \
+            && docker run --rm -v "$PWD":/home ubuntubuild
 
     - name: "Build debian container and run tests"
-      run:  docker build -t debianbuild -f tools/Dockerfile-Build-debian . && \
-            docker run --rm -v "$PWD":/home debianbuild
+      run:  docker build -t debianbuild -f tools/Dockerfile-Build-debian . \
+            && docker run --rm -v "$PWD":/home debianbuild
 
     - name: "Build fedora container and run tests"
-      run:  docker build -t fedorabuild -f Dockerfile-Build-fedora . && \
-            docker run --rm -v "$PWD":/home fedorabuild
+      run:  docker build -t fedorabuild -f Dockerfile-Build-fedora . \
+            && docker run --rm -v "$PWD":/home fedorabuild
 
     - name: "Build alpine container and run tests"
-      run:  docker build -t alpinebuild -f Dockerfile-Build-alpine . && \
-            docker run --rm -v "$PWD":/home alpinebuild
-
+      run:  docker build -t alpinebuild -f Dockerfile-Build-alpine . \
+            && docker run --rm -v "$PWD":/home alpinebuild
 

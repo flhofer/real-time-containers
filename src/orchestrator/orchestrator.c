@@ -92,7 +92,7 @@ static void display_help(int error)
 	       "                           2 = CLOCK_PROCESS_CPUTIME_ID\n"
 	       "                           3 = CLOCK_THREAD_CPUTIME_ID\n"
 #endif
-			"-C [CGRP]                  use CGRP Docker directory to identify containers\n"
+           "-C [CGRP]                  use CGRP Docker directory to identify containers\n"
 	       "                           optional CGRP parameter specifies base signature,\n"
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
@@ -125,7 +125,7 @@ static void display_help(int error)
 	       "-v       --verbose         verbose output for debug purposes\n"
 #endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
-			, CONT_DCKR, TSCAN, TDETM, CONT_PID, TWCET
+			, CGRP_DCKR, TSCAN, TDETM, CONT_PID, TWCET
 		);
 	if (error)
 		exit(EXIT_FAILURE);
@@ -256,12 +256,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 
 			/// -------------------- DOCKER & CGROUP CONFIGURATION
 			// create Docker CGroup prefix
-			set->cpusetdfileprefix = realloc(set->cpusetdfileprefix, strlen(set->cpusetfileprefix) + strlen(set->cont_cgrp)+1);
-			if (!set->cpusetdfileprefix)
-				err_exit("could not allocate memory!");
-
-			set->cpusetdfileprefix = strcat(strcpy(set->cpusetdfileprefix, set->cpusetfileprefix), set->cont_cgrp);
-
+			parse_dockerfileprefix(set);
 			break;
 		case 'd':
 		case OPT_DFLAG:
