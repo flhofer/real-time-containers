@@ -107,9 +107,9 @@ CONFIG_HZ=250
 
 The Linux kernel default is 250Hz, while the maximum is 1000Hz and the minimum 0Hz ("no_hz"). Select the tick rate that better suits your system. If you have any doubt, err on the higher value. The scheduler interrupts for EDF tasks add interruptions, but they are predictable. The pace and duration of a scheduler interrupt, especially if the schedule remains the same, is constant. For EDF thus, higher rates equal some constant extension of the worst case execution time (WCET). For traditional FIFO and RR tasks instead, they might radically improve the reactivity of the system[^4].
 
-A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then - see wiki[^nohz], it's a **wip**). In a shared resources, however, where multiple containers are scheduled to share CPU-time it seems non-viable. If you wish to use this option nonetheless, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically off-loads RCU call-backs on the listed CPUs (see below). It is a good practice to always have some CPUs (more than one), which do not use dynamic or adaptive ticks, nor any of the other changes below.
+A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then - see wiki[^nohz], it's a **wip**). In a shared resources, however, where multiple containers are scheduled to share CPU-time it seems non-viable. If you wish to use this option nonetheless, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically off-loads RCU call-backs on the listed CPUs (see below). It is a good practice to always have some CPUs (more than one), which do not use dynamic or adaptive ticks, nor any of the other changes below. If you use adaptive ticks, you still need to select a tick rate for the excluded CPUs, e.g. 250Hz.
 
-Finally, a note on dynamic ticks. It is possible to disable the tick as above only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default build parameter for desktop systems or any other kernel unless specified otherwise. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU call-backs. If enabled, you must thus off-load RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT-applications. If you nonetheless would like to use dyntick, use the `nohz=on`boot parameter in addition to the flag to enable it. The setting can be found in `General setup->Timer subsystem`.
+Finally, a note on dynamic ticks. It is possible to disable the tick as above only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default build parameter for desktop systems or any other kernel unless specified otherwise. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU call-backs. If enabled, you must thus off-load RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT-applications. If you nonetheless would like to use dyntick, use the `nohz=on`boot parameter in addition to the flag to enable it. The setting can be found in `General setup->Timer subsystem`. If you use dynamic ticks, you still need to select a tick rate for the excluded CPUs, e.g. 250Hz.
 
 [^nohz]: Further reading [Kernel Wiki](https://www.kernel.org/doc/html/latest/timers/no_hz.html)
 
@@ -192,7 +192,7 @@ Please note that these settings are on a best effort basis and guarantee thus no
 
 As discussed in the kernel build parameter section, once we configured to off-load kernel call-backs for RCU operations into threads, we also have to decide for which CPUs we want that to happen. This is done at boot time with the `rcu_nocbs=<list-cpus>` parameter. If the '=' sign and the cpulist arguments are omitted, no CPU will be set to no-callback mode from boot but the mode may be toggled at runtime via cpusets.
 
-The kernel foresees another parameter regarding RCU call-backs, `rcu_nocb_poll`. If set, Rather than requiring that off-loaded CPUs awaken the corresponding RCU-kthreads, it make kthreads poll for callbacks. This improves the real-time response for the off-loaded CPUs by relieving them of the need to wake up the corresponding kthread. However, the kthreads periodically wake up to do the polling and must thus be pinned ideally to other CPUs (see "Other" and "Runtime settings" below).
+The kernel foresees another parameter regarding RCU call-backs, `rcu_nocb_poll`. If set, Rather than requiring that off-loaded CPUs awaken the corresponding RCU-kthreads, it make kthreads poll for call-backs. This improves the real-time response for the off-loaded CPUs by relieving them of the need to wake up the corresponding kthread. However, the kthreads periodically wake up to do the polling and must thus be pinned ideally to other CPUs (see "Other" and "Runtime settings" below).
 
 ### IRQs and affinity
 
@@ -226,14 +226,16 @@ This said, we must also note another point. If we aim for a jitter free real-tim
 
 The above setting, indeed, disables hyper-threading on all cores. To selectively disable hyper-threading we could, instead, take note of the point discussed above: every thread on Linux is seen as separate CPU. Thus, instead of disabling SMT overall, we just use "hot-plug" to disable the CPUs, or threads, that are a sibling of a running real-time core.
 
-Performing this, however, is a little more difficult as the layout and numbering of CPUs depends on the system architecture. What we can do is to explore the systems VFS and detect the siblings of the CPUs we deem for real-time use only.
-
-** WIP **
+Performing this, however, is a little more difficult as the layout and numbering of CPUs depends on the system architecture. What we can do is to explore the systems VFS and detect the siblings of the CPUs we deem for real-time use only. The following prints the CPU-mask for the siblings of each thread. You can use this information to, e.g., disable only one of the threads for each real-time core.
 
 ```
-ECHO WIP -- cpux/sibling
-
+prcs=$(nproc --all) #get number of cpu-threads
+for ((i=0;i<$prcs;i++)); do 
+	cd=$(cat cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<($i-1) ) ))
+done
 ```
+
+(NOTE: needs more detailed example)
 
 ### Restricting power saving modes
 
@@ -294,7 +296,11 @@ echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
 
 ### IRQs and affinity
 
-`/proc/irq/default_smp_affinity` specifies default affinity mask that applies to all non-active IRQs. It is also set through the `irqaffinity=` boot parameter. Once IRQ is allocated/activated its affinity bitmask will be set to the default mask. It can then be changed as described below. Default mask is 0xffffffff. [](https://docs.kernel.org/core-api/irq/irq-affinity.html)
+Most modern OS include a service that balances the IRQs, e.g., every 10 seconds and may overwrite any manual setting you perform. If that is the case, check with `service irqbalance status`, you may add the real-time critical CPUs to the service configuration as banned, or disable the service completely.
+
+To add the CPUs, edit the configuration file `/etc/default/irqbalance` in Ubuntu, remove the `#` in front of `IRQBALANCE_BANNED_CPULIST=` and insert the CPUs. To disable the service run `systemctl disable irqbalance.service ` (works on systemd systems)
+
+If you don't have a balancing daemon, you can proceed by editing the affinity yourself.`/proc/irq/default_smp_affinity` specifies default affinity mask that applies to all non-active IRQs. It is also set through the `irqaffinity=` boot parameter. Once IRQ is allocated/activated its affinity bitmask will be set to the default mask. It can then be changed as described below. Default mask is 0xffffffff. [](https://docs.kernel.org/core-api/irq/irq-affinity.html)
 
 ```
 echo "0x00ff" > /proc/irq/default_smp_affinity
@@ -302,36 +308,51 @@ echo "0x00ff" > /proc/irq/default_smp_affinity
 
 Single, active, IRQ affinity can be changed instead by setting the `smp_affinity` variable inside the VFS folder named after the IRQ number in `/proc/irq/`. As detailed in the boot parameter section, setting IRQ affinity should be done after considering eventual side effects and only with allocating enough resources to deal with the IRQs[^mig].
 
-** WIP **
-
-`ksoftirqd/N` are softirq handlers and must be forced to the target CPUs through hotplug. To do this, disable and reenable all CPUs but 0 in sequence.
+`ksoftirqd/N` are softirq handlers and must be forced to the target CPUs through hotplug. In most cases they relate to timers and can just be forced away by unplugging its CPU. To do this, disable and re-enable all CPUs but 0 in sequence. Here an example for the mentioned task.
 
 ```
-echo 0 > /sys/devices/system/cpu/cpu1/online
+prcs=$(nproc --all) #get number of cpu-threads
+#shut down cores
+for ((i=$prcs-1;i>0;i--)); do 
+	$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+	sleep 1
+done
+sleep 1
+
+# put them back online
+for ((i=1;i<$prcs;i++)); do
+	$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+	sleep 1
+done
 ```
-Once hotplug is done, do not put CPUs offline and online again.
+Once hotplug is done, do not put CPUs offline and online again. Please note that you may want to only selectively reactivate CPUs (threads) to only keep one thread of each multi-threading core active for the real-time CPUs. See "Disable SMT".
 
 [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
 
 ### Changing kernel thread affinity
 
-** WIP **
+To change a kernel threads affinity mask and make them thus run only on CPUs to our liking we can execute code with the pattern below. The first line identifies the list of PIDs corresponding to the mentioned thread, the second assigns them a new mask, one by one. Replace `<MASK HERE>` with the basic regex specified in the descriptions below. The CPU-mask in the example is 0xff, replace where needed and execute them together.
 
-- `ehca_comp/*` are eHCA Infiniband hardware threads. 
+```
+ps h -eo spid,command | grep -v 'grep' | grep -G "<MASK HERE>" | awk '{ print $1 }' | \
+while read -t 1 pid ; do taskset -p 0xff $pid ; done
+```
 
-	` `
+- `ehca_comp/*` are eHCA Infiniband hardware threads. Unless you use such hardware, you will not find any of these threads.
+
+	`\B\[ehca_comp[/][[:digit:]]*`
 
 - `irq/*-*"` are IRQ kernel threads which affinity is changed by using the settings in the previous section for new entries, or the command below for running threads.
 
-	` `
+	`\B\[irq[/][[:digit:]]*-[[:alnum:]]*`
 
 - `rcuop/*`and `rcuos/*` are present in kernels built with CONFIG_RCU_NOCB_CPU=y for no-callback CPU. Each "rcuox/N" kthread is created for that purpose, where "x" is "p" for RCU-preempt, "s" for RCU-sched, and "g" for the kthreads that mediate grace periods; and "N" is the CPU number. We can pin these to specific CPUs with the automated code below.
 
-	` ` 
+	`\B\[rcuop[/][[:digit:]]*`, `\B\[rcuos[/][[:digit:]]*` and `\B\[rcuog[/][[:digit:]]*` 
 
-- `kworker/*:**` are worker threads for the kernel. They are automatically preempted if your tasks run with a real-time priority.
+- `kworker/*:**` are worker threads for the kernel. They are automatically preempted if your tasks run with a real-time priority. The grep mask for this thread is
 
-	` ` 
+	`\B\[kworker[/][[:digit:]]*` 
 
 Further information at [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html).
 
@@ -412,7 +433,7 @@ We therefore remove the listed CPUs from the parent group and create a new contr
 
 Please note: setting a `root` partition removes the set cpus from the availability list from the rest of the groups. If you remove or rewrite the subgroup (docker does that), it does not restore them automatically. You have to recreate the steps above and echo `member` again into a correctly configured subgroup for the resources to return.
 
-**WIP - isolated partitions **
+Another mode that can be selected in CGroup v2 is `isolated`. In addition to the function of `root`, the isolated control group is also shielded from the scheduler and other kernel interferece, replacing the now deprecated `isolcpus` kernel boot flag. The usage is identical to `root`.
 
 ### Switching to CGroup v2 
 
