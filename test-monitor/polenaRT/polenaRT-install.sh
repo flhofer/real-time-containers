@@ -14,7 +14,13 @@ docker_tag=${3:-'v25.0.3'}
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
 
+############### Functions ######################
+
 function select(){
+	################################
+	# Manual imp. select (interop)
+	################################
+
 	# Creates a little numbered selection menu - replaces debian's select command
 	# $1  return value (variable name)
 	# $2:@ list items
@@ -40,6 +46,63 @@ function select(){
 		fi
 	done
 	eval ${item}=${txt}
+}
+
+function patchSource {
+	################################
+	# Preempt RT
+	################################
+
+	local linux_ver=$1
+	local linux_root=$2
+	local linux_base=$3
+	local linux_patch=$4
+
+	mkdir -p polena-build
+	cd polena-build
+
+	if [ ! -e "./linux-${linux_ver}" ]; then
+		echo
+		echo "## Downloading Linux Kernel"
+		wget https://www.kernel.org/pub/linux/kernel/v${linux_root}.x/linux-${linux_ver}.tar.gz
+	else
+		# cleanup
+		rm -r linux-${linux_ver}
+	fi
+	tar xf linux-${linux_ver}.tar.gz
+
+	if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
+		echo
+		echo "## Downloading RT patch"
+		wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
+
+	fi
+
+	echo
+	echo "## Patching Linux Kernel"
+	cd linux-${linux_ver}
+	xzcat ../patch-${linux_patch}.patch.xz | patch -p1
+}
+
+function patchVersion {
+	local linux_patch=$1
+	
+	# parse linux patch string to find sub-elements for wget
+	local rt_patch=$(echo "$linux_patch" | sed -n 's/\([0-9.]*-\)*\(.*\)/\2/p')
+	local linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
+	local linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
+	local linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
+	
+		cat <<-EOF
+	*** Polena installer ...
+
+	Selecting RT-patch < ${rt_patch} > for 
+		*   kernel root family ${linux_root}
+		**  base version ${linux_base}
+		*** release ${linux_ver}
+	EOF
+
+	patchSource $linux_ver $linux_root $linux_base $linux_patch
 }
 
 ############### Find package manager ######################
@@ -331,49 +394,9 @@ if [ ! -f "$config_file" ]; then
 	config_file="${distname}-${machine}-${linux_patch}.config" # TODO: more universal distrodep
 fi
 
-# parse linux patch string to find sub-elements for wget
-rt_patch=$(echo "$linux_patch" | sed -n 's/\([0-9.]*-\)*\(.*\)/\2/p')
-linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
-linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
-linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
+patchVersion $linux_patch
 balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
-
-cat <<EOF
-*** Polena installer ...
-
-Selecting RT-patch < ${rt_patch} > for 
-	*   kernel root family ${linux_root}
-	**  base version ${linux_base}
-	*** release ${linux_ver}
-EOF
-
-################################
-# Preempt RT
-################################
-mkdir -p polena-build
-cd polena-build
-
-if [ ! -e "./linux-${linux_ver}" ]; then
-	echo
-	echo "## Downloading Linux Kernel"
-	wget https://www.kernel.org/pub/linux/kernel/v${linux_root}.x/linux-${linux_ver}.tar.gz
-else
-	# cleanup
-	rm -r linux-${linux_ver}
-fi
-tar xf linux-${linux_ver}.tar.gz
-
-if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
-	echo
-	echo "## Downloading RT patch"
-	wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
-
-fi
-
-echo
-echo "## Patching Linux Kernel"
-cd linux-${linux_ver}
-xzcat ../patch-${linux_patch}.patch.xz | patch -p1
+docker_rev=$(echo "$docker_tag" | sed 's|+|.|g')
 
 # Check if keyconf is present, otherwise create and generate key
 if [ ! -e "./certs/default_x509.genkey" ]; then
