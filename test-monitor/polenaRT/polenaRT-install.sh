@@ -142,6 +142,47 @@ authorityKeyIdentifier=keyid" > x509.genkey
 	fi
 }
 
+function buildKernel {
+	################################
+	# Compile kernel with .config
+	################################
+	local config_file=$1
+
+	echo
+	echo "## Compiling kernel"
+	cp ../../${config_file} .config
+	yes "" | make oldconfig
+	make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
+	cd ..
+}
+
+function installKernel {
+	################################
+	# Kernel installer
+	################################
+	local linux_patch=$1
+
+	echo
+	echo "## Installing kernel" # TODO: make distribution independent 
+	$sudo dpkg -i linux-headers-${linux_patch}-${distname}.deb linux-image-${linux_patch}-${distname}.deb
+
+	echo
+	echo "## Configuring GRUB"
+	#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
+	$sudo cp /etc/default/grub /etc/default/grub.backup
+	#TODO: update instead of overwrite
+echo '
+GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_patch}'"
+GRUB_HIDDEN_TIMEOUT_QUIET="true"
+GRUB_TIMEOUT="10"
+GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+GRUB_CMDLINE_LINUX=""
+' >> grub
+	$sudo mv grub /etc/default/grub
+	$sudo update-grub2
+}
+
 ############### Find package manager ######################
 abort=1
 for cmd in apt apt-get apk opkg rpm yum pacman emerge zypp; do
@@ -436,36 +477,12 @@ balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
 docker_rev=$(echo "$docker_tag" | sed 's|+|.|g')
 
 checkSignKey
-
-
-echo
-echo "## Compiling kernel"
-cp ../../${config_file} .config
-yes "" | make oldconfig
-make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
-cd ..
+buildKernel $config_file
 
 echo "Interrupting install of kernel/container daemon - temp" 
 exit 1
 
-echo
-echo "## Installing kernel" # TODO: make distribution independent 
-$sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
-
-echo
-echo "## Configuring GRUB"
-#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
-$sudo cp /etc/default/grub /etc/default/grub.backup
-echo '
-GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_patch}'"
-GRUB_HIDDEN_TIMEOUT_QUIET="true"
-GRUB_TIMEOUT="10"
-GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
-GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
-GRUB_CMDLINE_LINUX=""
-' >> grub
-$sudo mv grub /etc/default/grub
-$sudo update-grub2
+installKernel $linux_patch
 
 url=
 url2=
