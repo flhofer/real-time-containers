@@ -527,7 +527,7 @@ if [ ! -f "$config_file" ]; then
 	echo "Available configuration files in the polenaRT repository"
 	select version ${versions} "Cancel"
 
-	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
+	if [ -z "${version}" ] || [ "$version" = "Cancel" ]; then
 		echo "Error: No valid Kernel config selected!" >&2
 		exit 1
 	fi
