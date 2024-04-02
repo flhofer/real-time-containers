@@ -20,6 +20,11 @@ machine=$(uname -m)
 
 ############### Functions ######################
 
+isInteger() {               
+  [ "$1" -eq "$1" ] 2> /dev/null
+}
+
+
 select () {
 	################################
 	# Manual imp. select (interop)
@@ -37,8 +42,8 @@ select () {
 		i=$(( ${i}+1 )); 
 		echo "$i) $txt";
 	done  
-	local sel=-1
-	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -lt ${i} ]  ; do
+	local sel="na"
+	until isInteger $sel && [ $sel -lt ${i} ]  ; do
 		read -p "Please select from list (1-${i}) : " sel
 	done
 	
@@ -248,6 +253,9 @@ installContainerD () {
 }
 
 installDependencies () {
+	################################
+	# Install distro depenencies
+	################################
 
 	local distname=$1
 
