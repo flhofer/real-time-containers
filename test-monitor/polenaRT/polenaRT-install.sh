@@ -83,8 +83,12 @@ patchSource () {
 	if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
 		echo
 		echo "## Downloading RT patch"
+		set +e
 		wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
-
+		if [ "$?" -ne "0" ]; then
+			wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/older/patch-${linux_patch}.patch.xz
+		fi
+		set -e
 	fi
 
 	echo
