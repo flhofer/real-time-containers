@@ -11,8 +11,10 @@ linux_patch=${1:-'6.1.77-rt24'}
 balena_tag=${2:-'v20.10.19'}
 docker_tag=${3:-'v25.0.3'}
 
+# for automatic retreival of kernel config files 
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
+repo_folder="test-monitor/polenaRT"
 
 machine=$(uname -m)
 
@@ -226,10 +228,14 @@ function installContainerD {
 	case $ins in
 		Docker )	echo "## Installing Docker"
 					url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
-					url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-	balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
+					url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz";
+					break;;
+	
 		Balena )	echo "## Installing Balena"
-					url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
+					url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz";
+					break;;
+					
+		None ) 		echo "## Exiting"
 					exit;;
 	esac
 
@@ -475,7 +481,7 @@ if [ ! -f "$config_file" ]; then
 	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
 
 	echo "Fetching list from repository..."
-	versions=$(curl -H GET "https://github.com/${repo_location}/tree/${repo_branch}/test-monitor/polenaRT" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
+	versions=$(curl -H GET "https://github.com/${repo_location}/tree/${repo_branch}/${repo_folder}" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
 
 	if [ -z "${versions}" ]; then
 		echo "Error: Could not find valid Kernel config file!" >&2
@@ -497,7 +503,7 @@ if [ ! -f "$config_file" ]; then
 	# generate linux patch string
 	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
 	
-	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
+	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/${repo_folder}/${version}.config" > ${version}.config
 	
 	# reset kernel config file
 	config_file="${distname}-${machine}-${linux_patch}.config" # TODO: more universal distrodep
