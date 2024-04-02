@@ -20,7 +20,7 @@ machine=$(uname -m)
 
 ############### Functions ######################
 
-function select(){
+select () {
 	################################
 	# Manual imp. select (interop)
 	################################
@@ -52,7 +52,7 @@ function select(){
 	eval ${item}=${txt}
 }
 
-function patchSource {
+patchSource () {
 	################################
 	# Preempt RT
 	################################
@@ -88,7 +88,7 @@ function patchSource {
 	xzcat ../patch-${linux_patch}.patch.xz | patch -p1
 }
 
-function patchVersion {
+patchVersion () {
 	################################
 	# Patch kernel print version
 	################################
@@ -113,7 +113,7 @@ function patchVersion {
 	patchSource $linux_ver $linux_root $linux_base $linux_patch
 }
 
-function checkSignKey {
+checkSignKey () {
 	################################
 	# Check if sign key is present
 	################################
@@ -146,7 +146,7 @@ authorityKeyIdentifier=keyid" > x509.genkey
 	fi
 }
 
-function buildKernel {
+buildKernel () {
 	################################
 	# Compile kernel with .config
 	################################
@@ -160,7 +160,7 @@ function buildKernel {
 	cd ..
 }
 
-function installKernel {
+installKernel () {
 	################################
 	# Kernel installer
 	################################
@@ -187,7 +187,7 @@ GRUB_CMDLINE_LINUX=""
 	$sudo update-grub2
 }
 
-function installContainerD {
+installContainerD () {
 	################################
 	# Select and install daemon
 	################################
