@@ -509,7 +509,7 @@ if [ ! -f "$config_file" ]; then
 	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
 
 	echo "Fetching list from repository..."
-	versions=$(curl -H GET "https://github.com/${repo_location}/tree/${repo_branch}/${repo_folder}" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
+	versions=$(curl -H GET -H "Accept: application/json" "https://github.com/${repo_location}/tree/${repo_branch}/${repo_folder}" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
 
 	if [ -z "${versions}" ]; then
 		echo "Error: Could not find valid Kernel config file!" >&2
