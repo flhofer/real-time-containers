@@ -474,6 +474,19 @@ case $( cat /etc/*-release ) in
 		;;
 esac
 
+############### Check privileges ######################
+sudo=
+if [ "$(id -u)" -ne 0 ]; then
+	if [ -z "$(command -v sudo)" ]; then
+		cat >&2 <<-EOF
+		Error: this installer needs the ability to run commands as root.
+		You are not running as root and we are unable to find "sudo" available.
+		EOF
+		exit 1
+	fi
+	sudo="sudo -E"
+fi
+
 installDependencies $distname
 
 ############### Check commands ######################
@@ -488,19 +501,6 @@ for cmd in tar curl fakeroot jq; do
 	fi
 done
 [ $abort = 1 ] && exit 1
-
-sudo=
-if [ "$(id -u)" -ne 0 ]; then
-	if [ -z "$(command -v sudo)" ]; then
-		cat >&2 <<-EOF
-		Error: this installer needs the ability to run commands as root.
-		You are not running as root and we are unable to find "sudo" available.
-		EOF
-		exit 1
-	fi
-	sudo="sudo -E"
-fi
-
 
 # Check if kernel config exists
 config_file="${distname}-${machine}-${linux_patch}.config"
