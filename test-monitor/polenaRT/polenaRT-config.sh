@@ -116,14 +116,18 @@ load_balancer() {
 	}
 
 restartCores () {
+	################################
+	# Hotplug to force kthead move
+	################################
+	
 	# verify if core 0 is disableable
 	if [ -e "/sys/devices/system/cpu/cpu0/online" ]; then
 		echo "Setting CPU0 offline..."
 		# if yes, disable and reenable it immediately, otherwise no cpu left XD
-		$(echo 0 > /sys/devices/system/cpu/cpu0/online)
+		$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu0/online"
 		sleep 1
 		echo "Putting CPU0 back online..."
-		$(echo 1 > /sys/devices/system/cpu/cpu0/online)
+		$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu0/online"
 	fi
 
 	if false; then
@@ -142,7 +146,7 @@ restartCores () {
 
 	#check if numa is a number or a list
 	re='^[0-9]+$';
-	if [[ $numanr -eq 1 ]]; then
+	if [ $numanr -eq 1 ]; then
 		#simple number of cores
 
 		#shut down cores
@@ -150,7 +154,7 @@ restartCores () {
 		for i in `seq $start -1 1` 
 		do 
 			echo "Setting CPU"$i" offline..."
-			$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+			$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 			sleep 1
 		done
 
@@ -161,7 +165,7 @@ restartCores () {
 		for i in `seq 1 $end`
 		do
 			echo "Putting CPU"$i" back online..."
-			$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+			$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu$i/online"
 			sleep 1
 		done
 	else
@@ -172,7 +176,7 @@ restartCores () {
 		do 
 			if [ $i -ne 0 ]; then
 				echo "Setting CPU"$i" offline..."
-				$(echo 0 > /sys/devices/system/cpu/cpu$i/online)
+				$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 				sleep 1
 			fi
 		done
@@ -184,7 +188,7 @@ restartCores () {
 		do
 			if [ $i -ne 0 ]; then
 				echo "Putting CPU"$i" back online..."
-				$(echo 1 > /sys/devices/system/cpu/cpu$i/online)
+				$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu$i/online"
 				sleep 1
 			fi
 		done
