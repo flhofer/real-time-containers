@@ -201,6 +201,21 @@ restartCores () {
 	fi
 }
 
+performance_on () {
+	################################
+	# Put all cpus to performance
+	################################
+	
+	governors=$(cat $syscpu/cpu0/cpufreq/scaling_available_governors 2> /dev/null )
+	
+	local i=0
+	while [ $i -lt $prcs ]; do 
+		$sudo sh -c "echo "performance" > $syscpu/cpu$i/cpufreq/scaling_governor"
+		$sudo sh -c "echo "n/a" > $syscpu/cpu$i/power/pm_qos_resume_latency_us"
+		i=$(( $i+1 ))			# loop increase - cpuno
+	done
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
