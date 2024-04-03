@@ -150,5 +150,10 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-smt_switch on
+local end=$(($prcs-1))
+for i in `seq 0 $end`; do 
+	cd=$(cat ${syscpu}/cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<($i-1) ) ))
+done
+
+#smt_switch off
 
