@@ -22,6 +22,7 @@ The 'polenaRT' scriptss run on any GNU/Linux compliant system with an (x)sh styl
 * sudo				(if not acting as root)
 * tar				(to extract contents of source packages)
 * patch				(to apply the RT patch)
+* wget				(temp - to fetch data from web remote)
 
 in addition, the configuration script will use
 * taskset			(to set thread affinity)
@@ -34,7 +35,13 @@ in addition, the configuration script will use
 
 Options available as of this version
 
-** WIP **
+* for polenaRT-install the parameters are as follows
+
+./polenaRT-install.sh [patch-version] [balena-tag] [docker-tag] 
+
+The default values are 6.1.77-rt24 v20.10.19 and v25.0.3 respectively.
+
+./polenaRT-configure.sh does not have parameters as of this moment.
 
 
 =============
@@ -45,6 +52,7 @@ The following command presents a possible running scenario:
 
 	$ ./polenaRT-install.sh
 
-The script will
-** WIP **
+The script will verify permissions and automatically install the dependencies for a kernel buid on the system it is running on, At the moment of writing, to switch distro just run the script inside a container of the target system.
+Then, it will check if there is a kernel config file for the selected version (argument 1) in the format `[ditstro]-[machine]-[version]-[patch].config`, e.g. `ubuntu-x86_64-6.1.77-rt24.config`. If there is no file, it will fetch the directory of configurations in the repository and prompt for a selection.
+Once selected, the kernel version will be built and installed. Finally, the user will be prompted to install (or not) either a docker or balena engine with the version specified above.
 
