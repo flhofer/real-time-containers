@@ -24,6 +24,7 @@ syscpu="/sys/devices/system/cpu"
 
 #get number of cpu-threads
 prcs=$(nproc --all)
+smt_map=0 # defaults to nothing -> detect
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -54,30 +55,56 @@ smt_switch () {
 		esac
 }
 
-smt_selective () {
+smt_selective_map () {
 	################################
-	# control SMT - selective hotplug
+	# SMT - get map of selective active
 	################################
 
 	# *** (WIP) *** 
-	local cpus=$1
+	local cpu_map=${1:-0xffffffff}
 
 	local dis_map=0				# cpu disable map - hex
 	local i=0
-	while [ $i -le $prcs ]; do 
+	while [ $i -lt $prcs ]; do 
 		local imap=$((1<<$i))	# cpu number in hex
+
+		if [ $(( $imap & $cpu_map )) -eq 0 ]; then
+			i=$(( $i+1 ))			# loop increase - cpuno
+			continue
+		fi
 
 		# if not in disable map (sibling of earlier cpu) test for siblings
 		if [ $(( $imap & $dis_map )) -eq 0 ]; then
 			sibling=$(cat ${syscpu}/cpu$i/topology/thread_siblings 2> /dev/null) 
 			if [ -n "$sibling" ]; then
 				dis_map=$(( $dis_map | (0x$sibling & ~$imap) ))
+			else
+				echo "WARNING: disabled CPU detected.. skipping"
 			fi
-		else
-		# disable selected CPU
+		fi
+		i=$(( $i+1 ))			# loop increase - cpuno
+	done
+	smt_map=$(( ~${dis_map} ))
+}
+
+smt_selective () {
+	################################
+	# SMT - comtrol selective hotplug
+	################################
+	
+	if [ $smt_map -eq 0 ]; then
+		smt_selective_map $1
+	fi
+
+	local i=1	# we do not disable cpu0
+	while [ $i -lt $prcs ]; do 
+		local imap=$((1<<$i))	# cpu number in hex
+
+		if [ $(( $imap & $smt_map )) -eq 0 ]; then
+			# disable selected CPU
 			$sudo sh -c "echo 0 > $syscpu/cpu$i/online"
 		fi
-		i=$(( $i+1 ))
+		i=$(( $i+1 ))			# loop increase - cpuno
 	done
 }
 
@@ -177,6 +204,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-smt_selective 1
+restartCores
+#smt_selective 0xFFF0
 #smt_switch off
 
