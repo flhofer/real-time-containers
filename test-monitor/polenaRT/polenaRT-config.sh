@@ -54,6 +54,30 @@ smt_switch () {
 		esac
 }
 
+smt_selective () {
+	################################
+	# control SMT - selective hotplug
+	################################
+
+	# *** (WIP) *** 
+	local cpus=$1
+
+	local end=$(($prcs-1))		# last cpu number
+	local dis_map=0				# cpu disable map - hex
+	for i in `seq 0 $end`; do 
+		local imap=$((1<<$i))	# cpu number in hex
+
+		# if not in disable map (sibling of earlier cpu) test for siblings
+		if [ $(( $imap & $dis_map )) -eq 0 ]; then
+			sibling=$(cat ${syscpu}/cpu$i/topology/thread_siblings)
+			dis_map=$(( $dis_map | (0x$sibling & ~$imap) ))
+		else
+		# disable selected CPU
+			$sudo sh -c "echo 0 > $syscpu/cpu$i/online"
+		fi
+	done
+}
+
 load_balancer() {
 	echo "Setting load balancer to "$1
 	echo $1 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
@@ -150,10 +174,6 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-local end=$(($prcs-1))
-for i in `seq 0 $end`; do 
-	cd=$(cat ${syscpu}/cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<($i-1) ) ))
-done
-
+smt_selective 1
 #smt_switch off
 
