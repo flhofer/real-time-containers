@@ -62,19 +62,22 @@ smt_selective () {
 	# *** (WIP) *** 
 	local cpus=$1
 
-	local end=$(($prcs-1))		# last cpu number
 	local dis_map=0				# cpu disable map - hex
-	for i in `seq 0 $end`; do 
+	local i=0
+	while [ $i -le $prcs ]; do 
 		local imap=$((1<<$i))	# cpu number in hex
 
 		# if not in disable map (sibling of earlier cpu) test for siblings
 		if [ $(( $imap & $dis_map )) -eq 0 ]; then
-			sibling=$(cat ${syscpu}/cpu$i/topology/thread_siblings)
-			dis_map=$(( $dis_map | (0x$sibling & ~$imap) ))
+			sibling=$(cat ${syscpu}/cpu$i/topology/thread_siblings 2> /dev/null) 
+			if [ -n "$sibling" ]; then
+				dis_map=$(( $dis_map | (0x$sibling & ~$imap) ))
+			fi
 		else
 		# disable selected CPU
 			$sudo sh -c "echo 0 > $syscpu/cpu$i/online"
 		fi
+		i=$(( $i+1 ))
 	done
 }
 
