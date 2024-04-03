@@ -109,11 +109,17 @@ smt_selective () {
 }
 
 load_balancer() {
+	################################
+	# Load balancer (CFS) switch
+	################################
+	
+	#TODO: this needs a cgroup Update!
+	
 	echo "Setting load balancer to "$1
-	echo $1 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance
-	echo $1 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance
-	echo 1 > /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance
-	}
+	$sudo sh -c "echo $1 > /sys/fs/cgroup/cpuset/cpuset.sched_load_balance"
+	$sudo sh -c "echo $1 > /sys/fs/cgroup/cpuset/user/cpuset.sched_load_balance"
+	$sudo sh -c "echo 1 >  /sys/fs/cgroup/cpuset/system/cpuset.sched_load_balance"
+}
 
 restartCores () {
 	################################
