@@ -28,7 +28,7 @@ syskern="/proc/sys/kernel"
 #get number of cpu-threads
 prcs=$(nproc --all)
 smt_map=0 # defaults to nothing -> detect
-cpu_iso=  # use all cpus, no isolation by default
+cpu_iso=1  # use all cpus, no isolation by default
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -244,12 +244,38 @@ rt_kernel_set () {
 		$sudo sh -c "echo $runtime > $syskern/sched_rt_runtime_us"
 	else	
 		if [ -z $cpu_iso ]; then
-			echo "Info: no CPU-range specified. Skipping RT-throttle off"
+			echo "Info: no real-time CPU-range specified. Skipping RT-throttle off"
 		else
 			$sudo sh -c "echo -1 > $syskern/sched_rt_runtime_us"
 		fi
 	fi
 	$sudo sh -c "echo $slice > $syskern/sched_rr_timeslice_ms"
+}
+
+irqbalance_off () {
+	################################
+	# IRQ balance daemon config
+	################################
+	# on systemd machines, use irqbalance to exlude rt-cores
+	local conf="/etc/default/irqbalance"
+	
+	if [ -z $cpu_iso ]; then
+		echo "Info: no real-time CPU-range specified. Skipping IRQ-balance daemon setting"
+		return 1
+	fi
+
+	if [ ! -e "$conf" ]; then
+		echo "WARNING: Can not find IRQbalance config file $conf"
+		return 1
+	fi
+
+	#TODO: mask vs list
+	# add list parameter
+	sed -i=rtconf_old -e 's/.\(IRQBALANCE_BANNED_CPULIST=\).*/\1'$cpu_iso'/' $conf
+	# remove mask parameter
+	sed -i -e 's/.\(IRQBALANCE_BANNED_CPUS=\).*/\1/' $conf
+	
+	$sudo service irqbalance restart
 }
 
 ############### Check privileges ######################
@@ -265,7 +291,8 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-rt_kernel_set 100 95
+irqbalance_off 
+#rt_kernel_set 100 95
 #performance_on
 #restartCores
 #smt_selective 0xFFF0
