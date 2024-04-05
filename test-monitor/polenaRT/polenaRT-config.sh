@@ -23,6 +23,7 @@ echo "*** WIP *** -- Not completed yet"
 ############### Init and defaults ######################
 
 syscpu="/sys/devices/system/cpu"
+syskern="/proc/sys/kernel"
 
 #get number of cpu-threads
 prcs=$(nproc --all)
@@ -237,18 +238,18 @@ rt_kernel_set () {
 	local perc=${2:-'-1'}
 
 	if [ $perc -ge 0 ]; then
-		local period=$(cat /proc/sys/kernel/sched_rt_period_us 2> /dev/null)
+		local period=$(cat $syskern/sched_rt_period_us 2> /dev/null)
 		: ${period:='1000000'}
 		local runtime=$(( $period * perc / 100 ))
-		$sudo sh -c "echo $runtime > /proc/sys/kernel/sched_rt_runtime_us"
+		$sudo sh -c "echo $runtime > $syskern/sched_rt_runtime_us"
 	else	
 		if [ -z $cpu_iso ]; then
 			echo "Info: no CPU-range specified. Skipping RT-throttle off"
 		else
-			$sudo sh -c "echo -1 > /proc/sys/kernel/sched_rt_runtime_us"
+			$sudo sh -c "echo -1 > $syskern/sched_rt_runtime_us"
 		fi
 	fi
-	$sudo sh -c "echo $slice > /proc/sys/kernel/sched_rr_timeslice_ms"
+	$sudo sh -c "echo $slice > $syskern/sched_rr_timeslice_ms"
 }
 
 ############### Check privileges ######################
