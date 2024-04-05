@@ -24,11 +24,13 @@ echo "*** WIP *** -- Not completed yet"
 
 syscpu="/sys/devices/system/cpu"
 syskern="/proc/sys/kernel"
+def_map=0xffffffffffffffff
 
 #get number of cpu-threads
 prcs=$(nproc --all)
-smt_map=0 # defaults to nothing -> detect
-cpu_iso=1  # use all cpus, no isolation by default
+cpu_iso=1	# list of cpus to use for realtime operation, from arguments, defaults to all
+cpu_map=0	# corresponing map for isolated realtime cpus -> computed, if 0 use no isolation
+smt_map=0	# Map for enabled SMT threads, defaults to nothing -> detect
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -67,7 +69,7 @@ smt_selective_map () {
 	################################
 
 	# *** (WIP) *** 
-	local cpu_map=${1:-0xffffffff}
+	local cpu_map=${1:-$def_map}
 
 	local dis_map=0				# cpu disable map - hex
 	local i=0
@@ -131,6 +133,8 @@ restartCores () {
 	################################
 	# Hotplug to force kthead move
 	################################
+	
+	#TODO hotplug only on cpu_map cpus
 	
 	# verify if core 0 is disableable
 	if [ -e "/sys/devices/system/cpu/cpu0/online" ]; then
@@ -257,25 +261,43 @@ irqbalance_off () {
 	# IRQ balance daemon config
 	################################
 	# on systemd machines, use irqbalance to exlude rt-cores
-	local conf="/etc/default/irqbalance"
-	
-	if [ -z $cpu_iso ]; then
-		echo "Info: no real-time CPU-range specified. Skipping IRQ-balance daemon setting"
-		return 1
+
+	local conf="/etc/default/irqalance"
+	if [ -e "$conf" ]; then
+		
+		if [ -z $cpu_iso ]; then
+			echo "Info: no real-time CPU-range specified. Skipping IRQ-balance daemon setting"
+			return 1
+		fi
+
+		#TODO: mask vs list
+		# add list parameter
+		$sudo sh -c "sed -i=rtconf_old -e 's/.\(IRQBALANCE_BANNED_CPULIST=\).*/\1'$cpu_iso'/' $conf"
+		# remove mask parameter
+		$sudo sh -c "sed -i -e 's/.\(IRQBALANCE_BANNED_CPUS=\).*/\1/' $conf"
+		
+		$sudo service irqbalance restart
+		
+		return 0
 	fi
 
-	if [ ! -e "$conf" ]; then
-		echo "WARNING: Can not find IRQbalance config file $conf"
-		return 1
-	fi
+	echo "WARNING: Can not find IRQbalance config file $conf"
+	echo ".. will use manual IRQ affinity"
 
-	#TODO: mask vs list
-	# add list parameter
-	sed -i=rtconf_old -e 's/.\(IRQBALANCE_BANNED_CPULIST=\).*/\1'$cpu_iso'/' $conf
-	# remove mask parameter
-	sed -i -e 's/.\(IRQBALANCE_BANNED_CPUS=\).*/\1/' $conf
+	local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))
+
+	$sudo sh -c "printf %x $sys_map > /proc/irq/default_smp_affinity"
+
+	for irq in /proc/irq/*/ ; do
+		local aff=$(cat ${irq}smp_affinity 2> /dev/null)
+		: ${aff:=${def_map#0x}}
+		aff=$(( 0x$aff & $sys_map ))
+		if [ $aff -eq 0 ]; then
+			aff=$sys_map
+		fi
+		$sudo sh -c "printf %x $aff > ${irq}smp_affinity"
+	done
 	
-	$sudo service irqbalance restart
 }
 
 ############### Check privileges ######################
