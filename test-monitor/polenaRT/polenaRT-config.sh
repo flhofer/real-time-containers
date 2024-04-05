@@ -20,6 +20,8 @@ EOF
 
 echo "*** WIP *** -- Not completed yet"
 
+############### Init and defaults ######################
+
 syscpu="/sys/devices/system/cpu"
 
 #get number of cpu-threads
@@ -28,6 +30,8 @@ smt_map=0 # defaults to nothing -> detect
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
+
+############### Runtime setter functions ######################
 
 irq_affinity() {
 	echo "Setting IRQ affinity to "$1
@@ -208,6 +212,11 @@ performance_on () {
 	
 	governors=$(cat $syscpu/cpu0/cpufreq/scaling_available_governors 2> /dev/null )
 	
+	if [ "${governors#*performance}" = "$governors" ]; then
+		echo "WARNING: no performance governor installed"
+		return 1
+	fi
+	
 	local i=0
 	while [ $i -lt $prcs ]; do 
 		$sudo sh -c "echo "performance" > $syscpu/cpu$i/cpufreq/scaling_governor"
@@ -229,7 +238,8 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-restartCores
+performance_on
+#restartCores
 #smt_selective 0xFFF0
 #smt_switch off
 
