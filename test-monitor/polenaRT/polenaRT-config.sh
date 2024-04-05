@@ -27,6 +27,7 @@ syscpu="/sys/devices/system/cpu"
 #get number of cpu-threads
 prcs=$(nproc --all)
 smt_map=0 # defaults to nothing -> detect
+cpu_iso=  # use all cpus, no isolation by default
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -225,6 +226,31 @@ performance_on () {
 	done
 }
 
+rt_kernel_set () {
+	################################
+	# set realtime throttle and slice
+	################################
+	# arg 1: max RR slice in ms
+	# arg 2: max percent of RT-time per period
+	
+	local slice=${1:-100}
+	local perc=${2:-'-1'}
+
+	if [ $perc -ge 0 ]; then
+		local period=$(cat /proc/sys/kernel/sched_rt_period_us 2> /dev/null)
+		: ${period:='1000000'}
+		local runtime=$(( $period * perc / 100 ))
+		$sudo sh -c "echo $runtime > /proc/sys/kernel/sched_rt_runtime_us"
+	else	
+		if [ -z $cpu_iso ]; then
+			echo "Info: no CPU-range specified. Skipping RT-throttle off"
+		else
+			$sudo sh -c "echo -1 > /proc/sys/kernel/sched_rt_runtime_us"
+		fi
+	fi
+	$sudo sh -c "echo $slice > /proc/sys/kernel/sched_rr_timeslice_ms"
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -238,7 +264,8 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-performance_on
+rt_kernel_set 100 95
+#performance_on
 #restartCores
 #smt_selective 0xFFF0
 #smt_switch off
