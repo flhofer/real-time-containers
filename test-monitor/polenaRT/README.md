@@ -231,7 +231,7 @@ Performing this, however, is a little more difficult as the layout and numbering
 ```
 prcs=$(nproc --all) #get number of cpu-threads
 for ((i=0;i<$prcs;i++)); do 
-	cd=$(cat cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<($i-1) ) ))
+	cd=$(cat cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<$i ) ))
 done
 ```
 
