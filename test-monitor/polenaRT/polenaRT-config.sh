@@ -24,6 +24,7 @@ echo "*** WIP *** -- Not completed yet"
 
 syscpu="/sys/devices/system/cpu"
 syskern="/proc/sys/kernel"
+syscg="/sys/fs/cgroup"
 def_map=0xffffffffffffffff
 
 #get number of cpu-threads
@@ -300,6 +301,36 @@ irqbalance_off () {
 	
 }
 
+detect_cgroup () {
+	################################
+	# Test CGroup version
+	################################
+	
+	# only v2 has list of controllers returns 0 if v2
+	[ -e $syscg/cgroup.controllers ]
+	return $?
+}
+
+config_docker () {
+	################################
+	# docker daemon for CGropup v2
+	################################
+	
+	# Configures the daemon to use a separate slice for docker
+	
+	# docker.slice
+	# /etc/docker/daemon.json
+	# /var/snap/docker/current/config/daemon.json 
+
+#	{
+#		"cgroup-parent":    "docker.slice",
+#		"log-level":        "error"
+#	}
+
+#	systemctl restart docker or snap restart docker
+	return 0
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -313,7 +344,10 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-irqbalance_off 
+detect_cgroup 
+echo $?
+
+#irqbalance_off 
 #rt_kernel_set 100 95
 #performance_on
 #restartCores
