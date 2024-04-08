@@ -315,20 +315,45 @@ config_docker () {
 	################################
 	# docker daemon for CGropup v2
 	################################
+	local cfile="/etc/docker/daemon.json"
+	local snap=0
 	
 	# Configures the daemon to use a separate slice for docker
+	if [ ! -e /etc/docker/daemon.json ]; then	
+		if [ -e /var/snap/docker/current/config/daemon.json ]; then
+			cfile="/var/snap/docker/current/config/daemon.json"
+			snap=1
+		else
+			# write new daemon config
+			$sudo sh -c "cat > $cfile <<-EOF
+			{
+			    "cgroup-parent":    "docker.slice",
+			    "log-level":        "error"
+			}
+			EOF"
+		fi
+	fi
 	
-	# docker.slice
-	# /etc/docker/daemon.json
-	# /var/snap/docker/current/config/daemon.json 
-
-#	{
-#		"cgroup-parent":    "docker.slice",
-#		"log-level":        "error"
-#	}
-
-#	systemctl restart docker or snap restart docker
-	return 0
+	grep "docker.slice" $cfile > /dev/null
+	if [ $? -ne 0 ]; then
+	
+		grep "cgroup-parent" $cfile > /dev/null
+		if [ $? -ne 0 ]; then
+			#substitute setting
+			$sudo sh -c "sed -i=rtconf_old -e  's/\(\"cgroup-parent\".*\"\).*\(\"\)/\1docker.slice\2/' $cfile"
+		else
+			#insert setting
+			$sudo sh -c "sed -i=rtconf_old -e  '2i\    \"cgroup-parent\":    \"docker.slice\",' $cfile"		
+		fi
+	fi
+	
+	# TODO: check, running containers ?
+	# restart docker daemon
+	if [ $snap -eq 0 ]; then
+		$sudo sh -c "systemctl restart docker"
+	else
+		$sudo sh -c "snap restart docker"
+	fi
 }
 
 ############### Check privileges ######################
@@ -344,13 +369,17 @@ if [ "$(id -u)" -ne 0 ]; then
 	sudo="sudo -E"
 fi
 
-detect_cgroup 
-echo $?
+#smt_switch off
+#smt_selective 0xFFF0
+
+#restartCores
 
 #irqbalance_off 
-#rt_kernel_set 100 95
 #performance_on
-#restartCores
-#smt_selective 0xFFF0
-#smt_switch off
+#rt_kernel_set 100 95
+
+if [ detect_cgroup ]; then
+	config_docker
+
+fi
 
