@@ -356,6 +356,24 @@ config_docker () {
 	fi
 }
 
+timer_migration_off () {
+	################################
+	# Timer migration
+	################################
+	# We can stop timer migration between sockets at runtime with
+
+	sudo sh -c "echo 0 > $syskern/timer_migration"
+	return 0
+}
+
+cg_move_tasks () {
+	################################
+	# move pid from root to subgrp
+	################################
+	$sudo sh -c "mkdir -P $syscg/system"
+	$sudo sh -c "cat $syscg/tasks $syscg/system/tasks"
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -377,9 +395,14 @@ fi
 #irqbalance_off 
 #performance_on
 #rt_kernel_set 100 95
+#timer_migration_off
 
 if [ detect_cgroup ]; then
+	# Cgroup v2
 	config_docker
 
+else
+	# Cgroup v1
+	cg_move_tasks
 fi
 
