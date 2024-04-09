@@ -29,10 +29,10 @@ def_map=0xffffffffffffffff
 
 #get number of cpu-threads
 prcs=$(nproc --all)
-cpu_iso=1	# list of cpus to use for realtime operation, from arguments, defaults to all
-cpu_sys=0	# list of cpus to use for system tasks, computed from cpu_iso
-cpu_map=0	# corresponing map for isolated realtime cpus -> computed, if 0 use no isolation
-smt_map=0	# Map for enabled SMT threads, defaults to nothing -> detect
+cpu_iso=2-$(( $prcs -1))	# list of cpus to use for realtime operation, from arguments, defaults to all, defaults to all but first two
+cpu_sys=0					# list of cpus to use for system tasks, computed from cpu_iso
+cpu_map=0					# corresponing map for isolated realtime cpus -> computed, if 0 use no isolation
+smt_map=0					# Map for enabled SMT threads, defaults to nothing -> detect
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -495,7 +495,7 @@ compute_masks () {
 
 	local i=0		# start CPU0, add to list as we go
 	local high=0	# last bit was high
-	local two=0		# second in a row?
+	local two=0		# last two bits high, =list
 	while [ $i -lt $prcs ]; do
 		if [ $(( $mapinv & 1<<$i )) -eq 0 ]; then
 			if [ $two -ne 0 ]; then
@@ -505,6 +505,7 @@ compute_masks () {
 			two=0
 			high=0
 			i=$(( $i+1 ))			# loop increase - cpuno
+			continue
 		fi
 		if [ $high -eq 1 ] && [ $two -eq 0 ]; then
 			two=1				# last two flags were high
@@ -519,6 +520,11 @@ compute_masks () {
 		fi
 		i=$(( $i+1 ))			# loop increase - cpuno
 	done
+	# ending with 'two' set = begun list, close here
+	if [ $two -ne 0 ]; then
+		# close list
+		inv="${inv}-$(( ${i} - 1 ))"
+	fi
 	
 	# set caller variables by name
 	eval ${varmap}=${map}
@@ -546,7 +552,7 @@ fi
 compute_masks $cpu_iso cpu_map cpu_sys
 info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
 info_msg $(printf "Using system cpu list: %s" $cpu_sys)
-info_msg $(printf "Using real-time cpu map: 0x%X" $tesdt $cpu_map)
+info_msg $(printf "Using real-time cpu map: 0x%x" $tesdt $cpu_map)
 exit 0
 
 ############### Execute YES/NO ######################
