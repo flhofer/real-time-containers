@@ -36,6 +36,33 @@ smt_map=0	# Map for enabled SMT threads, defaults to nothing -> detect
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
 
+############### Yes/no selector for the calls ######################
+
+yes_no () {
+	################################
+	# Manual imp. select (interop)
+	################################
+	
+	# $1 function name
+	# $2:@ function with parameters to execute if successful
+	local name=$1
+	shift 1
+	
+	local i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 )); 
+		echo "$i) $txt";
+	done  
+	local sel="na"
+	until [ $sel = "y" ] || [ $sel = "n" ]  ; do
+		read -p "Execute '$name' (y/n) : " sel
+	done
+	
+	if [ $sel = "y" ] ; then
+		eval $@
+	fi
+}
+
 ############### Runtime setter functions ######################
 
 irq_affinity() {
@@ -416,6 +443,9 @@ if [ "$(id -u)" -ne 0 ]; then
 		exit 1
 	fi
 	sudo="sudo -E"
+	# ask for password right away
+	echo "*** The following requires root or sudo privileges ***" 
+	$sudo echo ""
 fi
 
 #smt_switch off
