@@ -30,6 +30,7 @@ def_map=0xffffffffffffffff
 #get number of cpu-threads
 prcs=$(nproc --all)
 cpu_iso=1	# list of cpus to use for realtime operation, from arguments, defaults to all
+cpu_sys=0	# list of cpus to use for system tasks, computed from cpu_iso
 cpu_map=0	# corresponing map for isolated realtime cpus -> computed, if 0 use no isolation
 smt_map=0	# Map for enabled SMT threads, defaults to nothing -> detect
 
@@ -459,6 +460,74 @@ cg_set_cpus2 () {
 	$sudo sh -c "echo "root" > $syscg/docker.slice/cpuset.cpu.partition"
 }
 
+compute_masks () {
+	################################
+	# compute lists and masks
+	################################
+	local cpulist=$1	# base (input) CPU list 
+	local varmap=$2		# variable name for computed hex map
+	local varinv=$3		# variable name for computed inverted CPU list
+
+	local map=0x0
+	local list=
+
+	IFS=","
+	for el in $cpulist; do
+		local begin=
+		IFS="-"
+		for term in $el; do
+			map=$(( $map | 1<<$term ))
+			if [ ! -z "$begin" ]; then
+				# fill bits from "begin" to this bit
+				local i=$begin
+				while [ $i -lt $term ]; do
+					map=$(( $map | 1<<$i ))
+					i=$(( $i+1 ))			# loop increase - cpuno
+				done
+			else
+			 	begin=$term
+			fi
+		done
+	done
+	
+	IFS=" "
+	local mapinv=$(( ~$map & (1<<$prcs)-1 ))
+
+	local i=0		# start CPU0, add to list as we go
+	local high=0	# last bit was high
+	local two=0		# second in a row?
+	while [ $i -lt $prcs ]; do
+		if [ $(( $mapinv & 1<<$i )) -eq 0 ]; then
+			if [ $two -ne 0 ]; then
+				# close list
+				inv="${inv}-$(( ${i} - 1 ))"
+			fi
+			two=0
+			high=0
+			i=$(( $i+1 ))			# loop increase - cpuno
+		fi
+		if [ $high -eq 1 ] && [ $two -eq 0 ]; then
+			two=1				# last two flags were high
+		elif [ $high -eq 0 ]; then
+			# Init with first value or append to list with comma
+			if [ -z "$inv" ]; then
+				inv="$i"
+			else
+				inv="${inv},$i"
+			fi
+			high=1				# last flag was high
+		fi
+		i=$(( $i+1 ))			# loop increase - cpuno
+	done
+	
+	printf "list: %s map: 0x%X\\n" $inv $map
+	# set caller variables by name
+	eval ${varmap}=${map}
+	if [ ! -z "$varinv" ]; then
+		eval ${varinv}=${inv}
+	fi
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -475,6 +544,12 @@ if [ "$(id -u)" -ne 0 ]; then
 	$sudo echo ""
 fi
 
+compute_masks $cpu_iso cpu_map cpu_sys
+info_msg "Using real-time cpu list: %s" $cpu_iso
+info_msg "Using system cpu list: %s" $cpu_sys
+info_msg "Using real-time cpu map: %X\\n" $cpu_map
+exit 0
+
 ############### Execute YES/NO ######################
 if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
 	yes_no "Switch off SMT only on RT-cores" smt_selective 0xFFF0
@@ -484,7 +559,7 @@ yes_no "Restart CPU-cores to shift tasks" restartCores
 
 yes_no "Disable IRQ--balance" irqbalance_off 
 yes_no "Enable performance settings" performance_on
-yes_no "Set Real-time trottling parameters" rt_kernel_set 100 95
+yes_no "Set Real-time throttling parameters" rt_kernel_set 100 95
 yes_no "Disable timer migration" timer_migration_off
 
 if [ detect_cgroup ]; then
