@@ -60,7 +60,9 @@ yes_no () {
 	
 	if [ $sel = "y" ] ; then
 		eval $@
+		return 0
 	fi
+	return 1
 }
 
 _msg () {
@@ -470,24 +472,26 @@ if [ "$(id -u)" -ne 0 ]; then
 	info_msg "The following requires root or sudo privileges" 
 	$sudo echo ""
 fi
-exit 1
-#smt_switch off
-#smt_selective 0xFFF0
 
-#restartCores
+############### Execute YES/NO ######################
+if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
+	yes_no "Switch off SMT only on RT-cores" smt_selective 0xFFF0
+fi
 
-#irqbalance_off 
-#performance_on
-#rt_kernel_set 100 95
-#timer_migration_off
+yes_no "Restart CPU-cores to shift tasks" restartCores
+
+yes_no "Disable IRQ--balance" irqbalance_off 
+yes_no "Enable performance settings" performance_on
+yes_no "Set Real-time trottling parameters" rt_kernel_set 100 95
+yes_no "Disable timer migration" timer_migration_off
 
 if [ detect_cgroup ]; then
 	# Cgroup v2
-	config_docker
-	cg_set_cpus2 $cpu_iso
+	yes_no "Setup CGroup for Docker" config_docker
+	yes_no "Isolate Docker CGroup" cg_set_cpus2 $cpu_iso
 else
 	# Cgroup v1
-	cg_move_tasks
-	cg_set_cpus $cpu_iso
+	yes_no "Move System tasks into new CGroup" cg_move_tasks
+	yes_no "Isolate Docker CPUs" cg_set_cpus $cpu_iso
 fi
 
