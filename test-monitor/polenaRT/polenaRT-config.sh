@@ -374,6 +374,37 @@ cg_move_tasks () {
 	$sudo sh -c "cat $syscg/tasks $syscg/system/tasks"
 }
 
+cg_set_cpus () {
+	################################
+	# CG set cpus and set exclusive 
+	################################
+	local cpulist=$1
+	local memlist=${2:-0}
+	local syscpus=${3:-0}
+	local sysmems=${4:-0}
+	
+	$sudo sh -c "echo $cpulist > $syscg/docker/cpuset.cpus"
+	$sudo sh -c "echo $memlist > $syscg/docker/cpuset.mems"
+
+	$sudo sh -c "echo $syscpus > $syscg/system/cpuset.cpus"
+	$sudo sh -c "echo $sysmems > $syscg/system/cpuset.mems"
+	
+	$sudo sh -c "echo "root" > $syscg/docker/cpuset.cpu_exclusive"
+}
+
+cg_set_cpus2 () {
+	################################
+	# CG set cpus and set exclusive 
+	################################
+	local cpulist=$1
+	local memlist=${2:-0}
+	
+	$sudo sh -c "echo $cpulist > $syscg/docker.slice/cpuset.cpus"
+	$sudo sh -c "echo $memlist > $syscg/docker.slice/cpuset.mems"
+	
+	$sudo sh -c "echo "root" > $syscg/docker.slice/cpuset.cpu.partition"
+}
+
 ############### Check privileges ######################
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
@@ -400,9 +431,10 @@ fi
 if [ detect_cgroup ]; then
 	# Cgroup v2
 	config_docker
-
+	cg_set_cpus2 $cpu_iso
 else
 	# Cgroup v1
 	cg_move_tasks
+	cg_set_cpus $cpu_iso
 fi
 
