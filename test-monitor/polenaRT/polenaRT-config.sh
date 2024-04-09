@@ -63,6 +63,29 @@ yes_no () {
 	fi
 }
 
+_msg () {
+	local color=$1
+	local type=$2
+	shift 2
+	printf "$color$type: \033[22m${*}\033[m"
+}
+
+error_msg () {
+	_msg "\033[1;31m" "ERROR" ${*}
+}
+
+warning_msg () {
+	_msg "\033[1;33m" "WARNING" ${*}
+}
+
+info_msg () {
+	_msg "\033[0;37m" "Info" ${*}
+}
+
+success_msg () {
+	_msg "\033[0;32m" "Success" ${*}
+}
+
 ############### Runtime setter functions ######################
 
 irq_affinity() {
@@ -444,10 +467,10 @@ if [ "$(id -u)" -ne 0 ]; then
 	fi
 	sudo="sudo -E"
 	# ask for password right away
-	echo "*** The following requires root or sudo privileges ***" 
+	info_msg "The following requires root or sudo privileges" 
 	$sudo echo ""
 fi
-
+exit 1
 #smt_switch off
 #smt_selective 0xFFF0
 
