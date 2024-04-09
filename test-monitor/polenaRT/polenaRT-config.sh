@@ -93,9 +93,79 @@ success_msg () {
 	_msg "\033[0;32m" "Success" ${*}
 }
 
+############### Kernel parameter parsing ######################
+
+#list of available kernel parameter flags, * means n/a
+nosmt=0
+isolcpus="*"
+rcu_nocbs=*
+rcu_nocb_poll=0
+irqaffinity=*
+skew_tick=*
+intel_pstate=*
+nosoftlockup=0
+tsc=*
+timer_migration=*
+kthread_cpus=*
+systemd_cg2=0
+
+parse_boot_parameter () {
+	################################
+	# readout and parse active selected parameters
+	################################
+	
+	#WARNING: accesses global variables directly
+	cmdline=$(cat /proc/cmdline)
+	
+	# scan for parameters that interest us
+	for par in $cmdline; do 
+		case $par in 
+			nosmt )
+				nosmt=1 
+				;;
+			isolcpus=* )
+				isolcpus=${par#isolcpus=}
+				;;
+			rcu_nocbs=* )
+				rcu_nocbs=${par#rcu_nocbs=}
+				;;
+			rcu_nocb_poll )
+				rcu_nocb_poll=1
+				;;
+			irqaffinity=* )
+				irqaffinity=${par#irqaffinity=}
+				;;
+			skew_tick=* )
+				skew_tick=${par#skew_tick=}
+				;;
+			intel_pstate=* )
+				intel_pstate=${par#intel_pstate=}
+				;;
+			nosoftlockup )
+				nosoftlockup=1
+				;;
+			tsc=* )
+				tsc=${par#tsc=}
+				;;
+			timer_migration=* )
+				timer_migration=${par#timer_migration=}
+				;;
+			kthread_cpus=* )
+				kthread_cpus=${par#kthread_cpus=}
+				;;
+			systemd.unified_cgroup_hierarchy=* )
+				systemd_cg2=${par#systemd.unified_cgroup_hierarchy=}
+				;;
+		esac
+	done
+}
+
 ############### Runtime setter functions ######################
 
 irq_affinity() {
+	################################
+	# Wrties an affinity mask to IRQ
+	################################
 	echo "Setting IRQ affinity to "$1
 	for file in /proc/irq/*/; do
 	   echo $1 > $file/smp_affinity;
@@ -553,6 +623,11 @@ if [ "$(id -u)" -ne 0 ]; then
 	$sudo echo ""
 fi
 
+############# Get boot parameters of system #############
+parse_boot_parameter
+
+############# Compute CPU masks and lists #############
+
 compute_masks $cpu_iso cpu_map cpu_sys
 info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
 info_msg $(printf "Using system cpu list: %s" $cpu_sys)
@@ -561,16 +636,28 @@ info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_map)
 yes_no "Stop execution?" exit 0
 
 ############### Execute YES/NO ######################
-if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
-	yes_no "Switch off SMT only on RT-cores" smt_selective $cpu_mask
+# skip smt setting if kernel parameter is set
+if [ $nosmt -eq 0 ]; then
+	if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
+		yes_no "Switch off SMT only on RT-cores" smt_selective $cpu_mask
+	fi
 fi
 
 yes_no "Restart CPU-cores to shift tasks" restartCores
 
-yes_no "Disable IRQ--balance" irqbalance_off $cpu_isp $cpu_mask
-yes_no "Enable performance settings" performance_on
+#skip irq affinity if boot parameter is set
+if [ -z "${irqaffinity#\*}" ]; then
+	yes_no "Disable IRQ-balance" irqbalance_off $cpu_isp $cpu_mask
+fi
+# skip pstate setting if driver is disabled
+if [ "${intel_pstate#disabled}" = "${intel_pstate}" ]; then
+	yes_no "Enable performance settings" performance_on
+fi
 yes_no "Set Real-time throttling parameters" rt_kernel_set $rr_slice $rt_throt
-yes_no "Disable timer migration" timer_migration_off
+#skip timer migration if disabled at boot
+if [ "$timer_migration" = "*" ]; then
+	yes_no "Disable timer migration" timer_migration_off
+fi
 
 if [ detect_cgroup ]; then
 	# Cgroup v2
