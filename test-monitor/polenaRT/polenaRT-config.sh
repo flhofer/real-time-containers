@@ -33,6 +33,8 @@ cpu_iso=2-$(( $prcs -1))	# list of cpus to use for realtime operation, from argu
 cpu_sys=0					# list of cpus to use for system tasks, computed from cpu_iso
 cpu_map=0					# corresponing map for isolated realtime cpus -> computed, if 0 use no isolation
 smt_map=0					# Map for enabled SMT threads, defaults to nothing -> detect
+rr_slice=100				# default RR slice in ms
+rt_throt=95					# default RT percentage
 
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
@@ -317,7 +319,9 @@ irqbalance_off () {
 	# IRQ balance daemon config
 	################################
 	# on systemd machines, use irqbalance to exlude rt-cores
-
+	local cpu_iso=$1
+	local cpu_map=$2
+	
 	local conf="/etc/default/irqalance"
 	if [ -e "$conf" ]; then
 		
@@ -552,19 +556,20 @@ fi
 compute_masks $cpu_iso cpu_map cpu_sys
 info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
 info_msg $(printf "Using system cpu list: %s" $cpu_sys)
-info_msg $(printf "Using real-time cpu map: 0x%x" $tesdt $cpu_map)
-exit 0
+info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_map)
+
+yes_no "Stop execution?" exit 0
 
 ############### Execute YES/NO ######################
 if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
-	yes_no "Switch off SMT only on RT-cores" smt_selective 0xFFF0
+	yes_no "Switch off SMT only on RT-cores" smt_selective $cpu_mask
 fi
 
 yes_no "Restart CPU-cores to shift tasks" restartCores
 
-yes_no "Disable IRQ--balance" irqbalance_off 
+yes_no "Disable IRQ--balance" irqbalance_off $cpu_isp $cpu_mask
 yes_no "Enable performance settings" performance_on
-yes_no "Set Real-time throttling parameters" rt_kernel_set 100 95
+yes_no "Set Real-time throttling parameters" rt_kernel_set $rr_slice $rt_throt
 yes_no "Disable timer migration" timer_migration_off
 
 if [ detect_cgroup ]; then
