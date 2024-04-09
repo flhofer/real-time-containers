@@ -53,12 +53,14 @@ yes_no () {
 		i=$(( ${i}+1 )); 
 		echo "$i) $txt";
 	done  
-	local sel="na"
-	until [ $sel = "y" ] || [ $sel = "n" ]  ; do
-		read -p "Execute '$name' (y/n) : " sel
+	local sel=
+	until read -p "Execute '$name' (y/N) : " sel; 
+	[ "$sel" = "y" ] || [ "$sel" = "n" ] || [ "$sel" = "" ] ; 	
+	do
+	  echo "invalid selection!"
 	done
 	
-	if [ $sel = "y" ] ; then
+	if [ "$sel" = "y" ] ; then
 		eval $@
 		return 0
 	fi
@@ -69,7 +71,7 @@ _msg () {
 	local color=$1
 	local type=$2
 	shift 2
-	printf "$color$type: \033[22m${*}\033[m"
+	printf "$color$type: \033[22m${*}\033[m\\n"
 }
 
 error_msg () {
