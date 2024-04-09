@@ -520,7 +520,6 @@ compute_masks () {
 		i=$(( $i+1 ))			# loop increase - cpuno
 	done
 	
-	printf "list: %s map: 0x%X\\n" $inv $map
 	# set caller variables by name
 	eval ${varmap}=${map}
 	if [ ! -z "$varinv" ]; then
@@ -545,9 +544,9 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 compute_masks $cpu_iso cpu_map cpu_sys
-info_msg "Using real-time cpu list: %s" $cpu_iso
-info_msg "Using system cpu list: %s" $cpu_sys
-info_msg "Using real-time cpu map: %X\\n" $cpu_map
+info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
+info_msg $(printf "Using system cpu list: %s" $cpu_sys)
+info_msg $(printf "Using real-time cpu map: 0x%X" $tesdt $cpu_map)
 exit 0
 
 ############### Execute YES/NO ######################
