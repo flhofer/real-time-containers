@@ -160,6 +160,10 @@ parse_boot_parameter () {
 	done
 }
 
+set_boot_parameter () {
+	return 0
+}
+
 ############### Runtime setter functions ######################
 
 irq_affinity() {
@@ -625,6 +629,20 @@ fi
 
 ############# Get boot parameters of system #############
 parse_boot_parameter
+
+# check for required commands and files for grub update
+#- and warn about missing required commands before doing any actual work.
+abort=1
+for cmd in update-grub update-grub2; do
+	if [ ! -z "$(command -v $cmd)" ]; then
+		abort=0
+	fi
+done
+[ $abort = 1 ] && warning_msg "Unable to update grub configuration. Utils not found."
+
+if [ $abort = 0 ]; then
+	set_boot_parameter
+fi
 
 ############# Compute CPU masks and lists #############
 
