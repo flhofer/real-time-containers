@@ -206,7 +206,7 @@ smt_switch () {
 			;;
 			
 		*)
-			echo "ERROR: parameter ${switch} invalid for SMT"
+			error_msg "parameter ${switch} invalid for SMT"
 			;;
 		esac
 }
@@ -235,7 +235,7 @@ smt_selective_map () {
 			if [ -n "$sibling" ]; then
 				dis_map=$(( $dis_map | (0x$sibling & ~$imap) ))
 			else
-				echo "WARNING: disabled CPU detected.. skipping"
+				warning_msg "disabled CPU detected.. skipping"
 			fi
 		fi
 		i=$(( $i+1 ))			# loop increase - cpuno
@@ -367,7 +367,7 @@ performance_on () {
 	governors=$(cat $syscpu/cpu0/cpufreq/scaling_available_governors 2> /dev/null )
 	
 	if [ "${governors#*performance}" = "$governors" ]; then
-		echo "WARNING: no performance governor installed"
+		warning_msg "no performance governor installed"
 		return 1
 	fi
 	
@@ -431,8 +431,8 @@ irqbalance_off () {
 		return 0
 	fi
 
-	echo "WARNING: Can not find IRQbalance config file $conf"
-	echo ".. will use manual IRQ affinity"
+	warning_msg "Can not find IRQbalance config file $conf"
+	warning_msg ".. will use manual IRQ affinity"
 
 	local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))
 
@@ -631,8 +631,8 @@ compute_masks () {
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
 	if [ -z "$(command -v sudo)" ]; then
+		error_msg "this installer needs the ability to run commands as root."
 		cat >&2 <<-EOF
-		Error: this installer needs the ability to run commands as root.
 		You are not running as root and we are unable to find "sudo" available.
 		EOF
 		exit 1
