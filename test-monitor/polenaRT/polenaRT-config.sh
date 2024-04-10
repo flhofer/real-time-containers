@@ -555,7 +555,7 @@ compute_masks () {
 		IFS="-"
 		for term in $el; do
 			map=$(( $map | 1<<$term ))
-			if [ ! -z "$begin" ]; then
+			if [ -n "$begin" ]; then
 				# fill bits from "begin" to this bit
 				local i=$begin
 				while [ $i -lt $term ]; do
@@ -606,7 +606,7 @@ compute_masks () {
 	
 	# set caller variables by name
 	eval ${varmap}=${map}
-	if [ ! -z "$varinv" ]; then
+		if [ -n "$varinv" ]; then
 		eval ${varinv}=${inv}
 	fi
 }
@@ -634,13 +634,13 @@ parse_boot_parameter
 #- and warn about missing required commands before doing any actual work.
 abort=1
 for cmd in update-grub update-grub2; do
-	if [ ! -z "$(command -v $cmd)" ]; then
+	if [ -n "$(command -v $cmd)" ]; then
 		abort=0
 	fi
 done
-[ $abort = 1 ] && warning_msg "Unable to update grub configuration. Utils not found."
+[ $abort -eq 1 ] && warning_msg "Unable to update grub configuration. Utils not found."
 
-if [ $abort = 0 ]; then
+if [ $abort -eq 0 ]; then
 	set_boot_parameter
 fi
 
