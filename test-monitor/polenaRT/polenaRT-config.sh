@@ -95,26 +95,12 @@ success_msg () {
 
 ############### Kernel parameter parsing ######################
 
-#list of available kernel parameter flags, * means n/a
-nosmt=0
-isolcpus="*"
-rcu_nocbs=*
-rcu_nocb_poll=0
-irqaffinity=*
-skew_tick=*
-intel_pstate=*
-nosoftlockup=0
-tsc=*
-timer_migration=*
-kthread_cpus=*
-systemd_cg2=0
-
 parse_boot_parameter () {
 	################################
 	# readout and parse active selected parameters
 	################################
 	
-	#WARNING: accesses global variables directly
+	#WARNING: this sets global variables directly
 	cmdline=$(cat /proc/cmdline)
 	
 	# scan for parameters that interest us
@@ -655,7 +641,7 @@ yes_no "Stop execution?" exit 0
 
 ############### Execute YES/NO ######################
 # skip smt setting if kernel parameter is set
-if [ $nosmt -eq 0 ]; then
+if [ -z $nosmt ] || [ $nosmt -eq 0 ]; then
 	if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
 		yes_no "Switch off SMT only on RT-cores" smt_selective $cpu_mask
 	fi
@@ -664,7 +650,7 @@ fi
 yes_no "Restart CPU-cores to shift tasks" restartCores
 
 #skip irq affinity if boot parameter is set
-if [ -z "${irqaffinity#\*}" ]; then
+if [ -z "$irqaffinity" ]; then
 	yes_no "Disable IRQ-balance" irqbalance_off $cpu_isp $cpu_mask
 fi
 # skip pstate setting if driver is disabled
@@ -673,7 +659,7 @@ if [ "${intel_pstate#disabled}" = "${intel_pstate}" ]; then
 fi
 yes_no "Set Real-time throttling parameters" rt_kernel_set $rr_slice $rt_throt
 #skip timer migration if disabled at boot
-if [ "$timer_migration" = "*" ]; then
+if [ -z "$timer_migration" ]; then
 	yes_no "Disable timer migration" timer_migration_off
 fi
 
