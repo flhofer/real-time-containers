@@ -26,6 +26,7 @@ syscpu="/sys/devices/system/cpu"
 syskern="/proc/sys/kernel"
 syscg="/sys/fs/cgroup"
 def_map=0xffffffffffffffff
+grubfile="/etc/default/grub"
 
 #get number of cpu-threads
 prcs=$(nproc --all)
@@ -105,49 +106,78 @@ parse_boot_parameter () {
 	
 	# scan for parameters that interest us
 	for par in $cmdline; do 
-		case $par in 
+		case $par in
 			nosmt )
-				nosmt=1 
+				nosmt=1
+				cmdline=${cmdline#*${par}}
 				;;
 			isolcpus=* )
 				isolcpus=${par#isolcpus=}
+				cmdline=${cmdline#*${par}}
 				;;
 			rcu_nocbs=* )
 				rcu_nocbs=${par#rcu_nocbs=}
+				cmdline=${cmdline#*${par}}
 				;;
 			rcu_nocb_poll )
 				rcu_nocb_poll=1
+				cmdline=${cmdline#*${par}}
 				;;
 			irqaffinity=* )
 				irqaffinity=${par#irqaffinity=}
+				cmdline=${cmdline#*${par}}
 				;;
 			skew_tick=* )
 				skew_tick=${par#skew_tick=}
+				cmdline=${cmdline#*${par}}
 				;;
 			intel_pstate=* )
 				intel_pstate=${par#intel_pstate=}
+				cmdline=${cmdline#*${par}}
 				;;
 			nosoftlockup )
 				nosoftlockup=1
+				cmdline=${cmdline#*${par}}
 				;;
 			tsc=* )
 				tsc=${par#tsc=}
+				cmdline=${cmdline#*${par}}
 				;;
 			timer_migration=* )
 				timer_migration=${par#timer_migration=}
+				cmdline=${cmdline#*${par}}
 				;;
 			kthread_cpus=* )
 				kthread_cpus=${par#kthread_cpus=}
+				cmdline=${cmdline#*${par}}
 				;;
 			systemd.unified_cgroup_hierarchy=* )
 				systemd_cg2=${par#systemd.unified_cgroup_hierarchy=}
+				cmdline=${cmdline#*${par}}
 				;;
+			# Delete the following, not added by config
+			BOOT_IMAGE=*|root=*|ro|quiet )
+				cmdline=${cmdline#*${par}}			
 		esac
 	done
+	cmdline=${cmdline#\ } # delete heading space
+	info_msg "Keeping '$cmdline' parameters"
 }
 
 set_boot_parameter () {
-	return 0
+	
+	local parameters=$cmdline
+	
+	if [ ! -e "$grubfile" ] ; then
+		warning_msg "Can not read grub file $grubfile, skippring parameter update"
+		return 1
+	fi
+	
+	# write
+	echo "new Grub config"
+	$sudo sh -c "sed '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
+
+	return $?
 }
 
 ############### Runtime setter functions ######################
