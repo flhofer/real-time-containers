@@ -267,10 +267,24 @@ set_boot_parameter () {
 		irqaffinity=$cpu_iso
 	fi
 	
-			skew_tick=* )
-				skew_tick=${par#skew_tick=}
-				cmdline=${cmdline#*${par}}
-				;;
+	# skew tick recomended
+	if [ -n "$skew_tick" ] then
+		if [ $skew_tick -eq 0 ]; then 
+			if [ -n "$skew_bypass" ]; then
+				info_msg "'skew_tick' enabled, forcing ('--enable-skew' set)"
+				cmdline="$cmdline skew_tick=1"	
+			else
+				info_msg "'skew_tick' disabled but reccomended. Run with '--enable-skew' to performe change"
+				cmdline="$cmdline skew_tick=0"
+			fi
+		else
+			# if not 0, keep value
+			cmdline="$cmdline skew_tick=$skew_tick"	
+		fi
+	else
+		cmdline="$cmdline skew_tick=1"	
+	fi
+	
 			intel_pstate=* )
 				intel_pstate=${par#intel_pstate=}
 				cmdline=${cmdline#*${par}}
