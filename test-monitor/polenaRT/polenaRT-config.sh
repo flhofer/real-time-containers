@@ -40,6 +40,13 @@ rt_throt=95					# default RT percentage
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
 
+############### command line argument parsing ######################
+
+# arguments to parse
+#selsmt --selective-smt
+#nocb_poll_bypass --nocb-bypass
+
+
 ############### Yes/no selector for the calls ######################
 
 yes_no () {
@@ -172,6 +179,102 @@ set_boot_parameter () {
 		warning_msg "Can not read grub file $grubfile, skippring parameter update"
 		return 1
 	fi
+	
+	# smt disabled at boot -- allow skipping
+	if [ -n "$nosmt" ] && [ $nosmt -eq 1 ]; then
+		if [ -n "$selsmt" ]; then
+			info_msg "'nosmt' enabled, skipping ('--selective-smt' set)"
+		else
+			info_msg "'nosmt' enabled but selective smt reccomended. Run with '--selective-smt' to performe change"
+			cmdline="$cmdline nosmt"
+		fi
+	fi
+	
+	# CPU isolation boot parameter, not reccomended -- WIP what to do if
+	if [ -n "$isolcpus" ]; then
+		info_msg "The 'isolcpus' boot parameter is highhly discouraged. Please use 'isolated' CGroup partition instead"
+		IFS=","
+		line=""
+		for par in $isolcpus; do
+			case $par in
+			domain )
+				line="$line,domain"
+				;;
+			managed_irq)
+				line="$line,managed_irq"
+				;;
+			* )
+				line="$line,$par"
+			esac
+		done
+		
+		if [ -n "$line" ]; then
+			cmdline="$cmdline isolcpus=${line#,}"
+		fi
+	fi
+	
+	#if [ -n rcu_nocbs ]; then # uncomment if it becomes optional
+	#TODO add kernel build detection
+	if [ -n "$cpu_iso" ]; then
+		rcu_map=
+		compute_masks "$rcu_nocbs" rcu_mask
+		
+		if [ ! $rcu_map = $cpu_map ]; then
+			warning_msg "Resetting RCU_backoff mask from 0x$rcu_map to 0x$cpu_map"
+		fi
+		
+		cmdline="$cmdline rcu_nocbs=${cpu_iso}"
+		unset rcu_map
+		rcu_nocbs=$cpu_iso
+	fi
+	# Set poll mode if it was set
+	if [ -n "$rcu_nocbs" ] && [ -n "$rcu_nocb_poll" ] && [ $rcu_nocb_poll -eq 1 ] ; then
+		if [ -n "$nocb_poll_bypass" ] && [ $nocb_poll_bypass -eq 1 ] ; then
+			info_msg "Bypass with '--nocb-bypass'."
+		else
+			info_msg "Setting not reccomended 'rcu_nocb_poll' boot parameter. Bypass with '--nocb-bypass'."
+			cmdline="$cmdline rcu_nocb_poll"
+		fi
+	fi
+	
+			irqaffinity=* )
+				irqaffinity=${par#irqaffinity=}
+				cmdline=${cmdline#*${par}}
+				;;
+			skew_tick=* )
+				skew_tick=${par#skew_tick=}
+				cmdline=${cmdline#*${par}}
+				;;
+			intel_pstate=* )
+				intel_pstate=${par#intel_pstate=}
+				cmdline=${cmdline#*${par}}
+				;;
+			nosoftlockup )
+				nosoftlockup=1
+				cmdline=${cmdline#*${par}}
+				;;
+			tsc=* )
+				tsc=${par#tsc=}
+				cmdline=${cmdline#*${par}}
+				;;
+			timer_migration=* )
+				timer_migration=${par#timer_migration=}
+				cmdline=${cmdline#*${par}}
+				;;
+			kthread_cpus=* )
+				kthread_cpus=${par#kthread_cpus=}
+				cmdline=${cmdline#*${par}}
+				;;
+			systemd.unified_cgroup_hierarchy=* )
+				systemd_cg2=${par#systemd.unified_cgroup_hierarchy=}
+				cmdline=${cmdline#*${par}}
+				;;
+			# Delete the following, not added by config
+			BOOT_IMAGE=*|root=*|ro|quiet )
+				cmdline=${cmdline#*${par}}			
+		esac
+	done
+	
 	
 	# write
 	echo "new Grub config"
@@ -395,7 +498,7 @@ rt_kernel_set () {
 		local runtime=$(( $period * perc / 100 ))
 		$sudo sh -c "echo $runtime > $syskern/sched_rt_runtime_us"
 	else	
-		if [ -z $cpu_iso ]; then
+		if [ -z "$cpu_iso" ]; then
 			echo "Info: no real-time CPU-range specified. Skipping RT-throttle off"
 		else
 			$sudo sh -c "echo -1 > $syskern/sched_rt_runtime_us"
@@ -415,7 +518,7 @@ irqbalance_off () {
 	local conf="/etc/default/irqalance"
 	if [ -e "$conf" ]; then
 		
-		if [ -z $cpu_iso ]; then
+		if [ -z "$cpu_iso" ]; then
 			echo "Info: no real-time CPU-range specified. Skipping IRQ-balance daemon setting"
 			return 1
 		fi
@@ -631,10 +734,7 @@ compute_masks () {
 sudo=
 if [ "$(id -u)" -ne 0 ]; then
 	if [ -z "$(command -v sudo)" ]; then
-		error_msg "this installer needs the ability to run commands as root."
-		cat >&2 <<-EOF
-		You are not running as root and we are unable to find "sudo" available.
-		EOF
+		error_msg "this installer needs the ability to run commands as root.\\n  ...You are not running as root and we are unable to find \"sudo\" available."
 		exit 1
 	fi
 	sudo="sudo -E"
@@ -642,6 +742,13 @@ if [ "$(id -u)" -ne 0 ]; then
 	info_msg "The following requires root or sudo privileges" 
 	$sudo echo ""
 fi
+
+############# Compute CPU masks and lists #############
+
+compute_masks $cpu_iso cpu_map cpu_sys
+info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
+info_msg $(printf "Using system cpu list: %s" $cpu_sys)
+info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_map)
 
 ############# Get boot parameters of system #############
 parse_boot_parameter
@@ -660,18 +767,11 @@ if [ $abort -eq 0 ]; then
 	set_boot_parameter
 fi
 
-############# Compute CPU masks and lists #############
-
-compute_masks $cpu_iso cpu_map cpu_sys
-info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
-info_msg $(printf "Using system cpu list: %s" $cpu_sys)
-info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_map)
-
 yes_no "Stop execution?" exit 0
 
 ############### Execute YES/NO ######################
 # skip smt setting if kernel parameter is set
-if [ -z $nosmt ] || [ $nosmt -eq 0 ]; then
+if [ -z "$nosmt" ] || [ $nosmt -eq 0 ]; then
 	if ! yes_no "Switch off SMT on all cores" smt_switch off ; then
 		yes_no "Switch off SMT only on RT-cores" smt_selective $cpu_mask
 	fi
