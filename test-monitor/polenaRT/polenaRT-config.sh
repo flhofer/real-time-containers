@@ -45,6 +45,7 @@ numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
 # arguments to parse
 #selsmt --selective-smt
 #nocb_poll_bypass --nocb-bypass
+#skew_bypass --enable-skew
 
 
 ############### Yes/no selector for the calls ######################
@@ -197,6 +198,9 @@ set_boot_parameter () {
 		line=""
 		for par in $isolcpus; do
 			case $par in
+			nohz )
+				line="$line,nohz"
+				;;
 			domain )
 				line="$line,domain"
 				;;
@@ -262,13 +266,13 @@ set_boot_parameter () {
 			warning_msg "Resetting IRQ-affinity mask from 0x$irq_map to 0x$sys_map"
 		fi
 		
-		cmdline="$cmdline irqaffinity=${cpu_iso}"
+		cmdline="$cmdline irqaffinity=${cpu_sys}"
 		unset irq_map
-		irqaffinity=$cpu_iso
+		irqaffinity=$cpu_sys
 	fi
 	
 	# skew tick recomended
-	if [ -n "$skew_tick" ] then
+	if [ -n "$skew_tick" ]; then
 		if [ $skew_tick -eq 0 ]; then 
 			if [ -n "$skew_bypass" ]; then
 				info_msg "'skew_tick' enabled, forcing ('--enable-skew' set)"
@@ -285,42 +289,66 @@ set_boot_parameter () {
 		cmdline="$cmdline skew_tick=1"	
 	fi
 	
-			intel_pstate=* )
-				intel_pstate=${par#intel_pstate=}
-				cmdline=${cmdline#*${par}}
-				;;
-			nosoftlockup )
-				nosoftlockup=1
-				cmdline=${cmdline#*${par}}
-				;;
-			tsc=* )
-				tsc=${par#tsc=}
-				cmdline=${cmdline#*${par}}
-				;;
-			timer_migration=* )
-				timer_migration=${par#timer_migration=}
-				cmdline=${cmdline#*${par}}
-				;;
-			kthread_cpus=* )
-				kthread_cpus=${par#kthread_cpus=}
-				cmdline=${cmdline#*${par}}
-				;;
-			systemd.unified_cgroup_hierarchy=* )
-				systemd_cg2=${par#systemd.unified_cgroup_hierarchy=}
-				cmdline=${cmdline#*${par}}
-				;;
-			# Delete the following, not added by config
-			BOOT_IMAGE=*|root=*|ro|quiet )
-				cmdline=${cmdline#*${par}}			
-		esac
-	done
+	if [ -n "$intel_pstate" ]; then
+		info_msg "The kernel parameter 'intel_pstate' is set, but should not be used."
+		cmdline="$cmdline intel_pstate=$intel_pstate"
+	fi
 	
+	# no lockup is recommended
+	#if [ -n "$nosoftlockup" ]; then
+		cmdline="$cmdline nosoftlockup"
+	#fi
+
+	# Time-source settings
+	if [ -n "$tsc" ] ; then
 	
+		# set but not what we want
+		if [ "${tsc#watchdog}" = "$tsc" ] ; then
+			warning_msg "Timesource parameter set to '$tsc', not 'nowatchdog'"
+		fi
+	
+		cmdline="$cmdline tsc=$tsc"
+	else
+		cmdline="$cmdline tsc=nowatchdog"
+	fi 
+	
+	# timer migration disable -- unknown to new kernels
+	if [ -n "$timer_migration" ] && [ "$timer_migration" -eq 1 ]; then
+		warning_msg "Timer migration forced enabled"
+	else
+		cmdline="$cmdline timer_migration=0"	
+	fi
+	
+	if [ -n "$kthread_cpus" ]; then
+		info "Using ktheads cpu setting, not supported by all systems!"
+	
+		if [ -n "$cpu_iso" ]; then
+
+			local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))s
+			
+			kthread_map=
+			compute_masks "$kthread_cpus" kthread_map
+			
+			if [ ! $kthread_cpus = $sys_map ]; then
+				warning_msg "Resetting IRQ-affinity mask from 0x$kthread_cpus to 0x$sys_map"
+			fi
+			
+			cmdline="$cmdline kthread_cpus=${cpu_sys}"
+			unset kthread_map
+			irqaffinity=$cpu_sys
+		fi
+	fi
+	
+	if [ -n "$systemd_cg2" ] && [ $systemd_cg2 -eq 1 ] ; then
+		info_msg "Enabling CGroup v2 through boot parameters -- not supported on all systems!"
+		cmdline="$cmdline systemd.unified_cgroup_hierarchy=1"
+	fi
+
 	# write
 	echo "new Grub config"
 	$sudo sh -c "sed '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
 
-	return $?
+	return 0
 }
 
 ############### Runtime setter functions ######################
