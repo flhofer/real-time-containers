@@ -204,7 +204,20 @@ set_boot_parameter () {
 				line="$line,managed_irq"
 				;;
 			* )
-				line="$line,$par"
+				# this should be the cpu-number list
+				if [ -n "$cpu_iso" ]; then
+			
+					iso_map=
+					compute_masks "$par" iso_map
+
+					if [ ! $iso_map = $cpu_map ]; then
+						warning_msg "Resetting CPU isolation mask from 0x$iso_map to 0x$cpu_map"
+					fi
+					line="$line,$par"
+					unset iso_map
+				else					
+					line="$line,$par"
+				fi
 			esac
 		done
 		
@@ -217,7 +230,7 @@ set_boot_parameter () {
 	#TODO add kernel build detection
 	if [ -n "$cpu_iso" ]; then
 		rcu_map=
-		compute_masks "$rcu_nocbs" rcu_mask
+		compute_masks "$rcu_nocbs" rcu_map
 		
 		if [ ! $rcu_map = $cpu_map ]; then
 			warning_msg "Resetting RCU_backoff mask from 0x$rcu_map to 0x$cpu_map"
@@ -237,10 +250,23 @@ set_boot_parameter () {
 		fi
 	fi
 	
-			irqaffinity=* )
-				irqaffinity=${par#irqaffinity=}
-				cmdline=${cmdline#*${par}}
-				;;
+	# If set irqaffinity, check if matches
+	if [ -n "$cpu_iso" ] && [ -n "$irqaffinity" ]; then
+
+		local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))s
+		
+		irq_map=
+		compute_masks "$irqaffinity" irq_map
+		
+		if [ ! $irq_map = $sys_map ]; then
+			warning_msg "Resetting IRQ-affinity mask from 0x$irq_map to 0x$sys_map"
+		fi
+		
+		cmdline="$cmdline irqaffinity=${cpu_iso}"
+		unset irq_map
+		irqaffinity=$cpu_iso
+	fi
+	
 			skew_tick=* )
 				skew_tick=${par#skew_tick=}
 				cmdline=${cmdline#*${par}}
