@@ -346,7 +346,7 @@ set_boot_parameter () {
 
 	# write
 	echo "new Grub config"
-	$sudo sh -c "sed '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
+	$sudo sh -c "sed -i=rt_old '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
 
 	return 0
 }
