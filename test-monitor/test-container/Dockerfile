@@ -1,14 +1,14 @@
-FROM multiarch/ubuntu-core:x86_64-bionic
-MAINTAINER Florian Hofer (florian.hofer@stud-inf.unibz.it)
+FROM ubuntu:jammy
+MAINTAINER Florian Hofer (info@florianhofer.it)
 
-LABEL	it.florianhofer.version="0.2.0" \
+LABEL	it.florianhofer.version="0.3.0" \
 	vendor1="Florian Hofer" \
 	vendor2=Florian\ Hofer \
-	it.florianhofer.release-date="2019-04-12" \
+	it.florianhofer.release-date="2024-04-20" \
 	it.florianhofer.version.is-production="no"
 
 RUN apt-get update && apt-get install -y \
-	libjson-c3 \
+	libjson-c5 libnuma1\
 	&& rm -rf /var/lib/apt/lists/*
 
 #Notes! here we shoud add users and groups - or run with usermask
