@@ -24,22 +24,32 @@ else
 	shift
 fi
 
-cmd=${1:-'cont'}
-
-if [ $# -ge 3 ]; then
+function print_help {
 
 	cat <<-EOF
-	Too many arguments supplied!!
 	Usage: $0 start [number] [kernel-ver1] [kernel-ver2]
 	 or    $0 cont	[number] [kernel-ver1] [kernel-ver2]
 
+	for start or continuation of a kernel test.
+	
 	Defaults are:
 	number = *                      maximum number of cpu to use, default all cpus used
 	kernel-ver1 = 4.19.50-rt24      The specified version is base version
 	kernel-ver2 = 4.19.50-rt24loji  The specified version is compare version
 	EOF
 	
+}
+
+cmd=${1:-'help'}
+
+if [ $# -gt 4 ]; then
+	echo "Too many arguments supplied!!"
+	print_help
 	exit 1
+fi
+if [ "$cmd" = "help" ]; then
+	print_help
+	exit 0
 fi
 
 maxcpu=${2:-$(( $(nproc --all) - 1 ))}
@@ -173,7 +183,7 @@ if [[ "$cmd" == "start" ]]; then
 	eval "rm -r log/test*/"
 
 	# add to startup 
-	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -"
+	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -"
 else 
 	echo "...waiting"
 	sleep 60
