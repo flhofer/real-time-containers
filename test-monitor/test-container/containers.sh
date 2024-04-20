@@ -42,6 +42,8 @@ start                   start container after it has been stopped
 stop                    stop container after it has been stopped
 rm                      remove container
 test                    test run for container (with parallel execution of 'orchestrator')
+testsw 	                like test, with additional software to be tested, parameter 1 in quotes ""
+testcontainer           like test, with additional container to be tested, parameter 1
 update                  update container calibration value with the value specified as argument (if given) and copy to containers
 EOF
         exit 1
@@ -163,6 +165,48 @@ elif [[ "$cmd" == "update" ]]; then
 			echo $i; 
 		done 
 	done 
+elif [[ "$cmd" == "testsw" ]]; then
+# RUN TEST COMMAND AND THEN START test		
+
+	# $1 testsw, $2 program to run, save and remove from args
+	sw=$2
+	shift 2
+
+	# set sw as $@ list and extract first item $1, then restore (posix compatible)
+	mainargs="$*"
+	set -- $sw 
+	binary=$1
+ 	set -- $mainargs
+
+	# start software and store pid
+	eval $sw &
+	sleep 2
+	SWPID=$(ps h -o pid -C $binary )
+	
+	# run recursive as test
+	eval $0 test $@
+	
+	# end test software
+	kill -SIGINT $SWPID
+	sleep 1
+elif [[ "$cmd" == "testcontainer" ]]; then
+# RUN TEST CONTAINER AND THEN START test		
+
+	# $1 container, $2 container to run, save and remove from args
+	cont=$2
+	shift 2
+	
+	eval "docker container start ${cont}"
+	sleep 2
+	
+	# run recursive as test
+	eval $0 test $@
+
+	sleep 2
+
+	eval "docker container stop ${cont}"
+
+	sleep 1
 else
 	echo "Unknown command"
 fi
