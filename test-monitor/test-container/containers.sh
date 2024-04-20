@@ -25,10 +25,10 @@ fi
 
 function printhelp () {
 cat <<EOF
-Not enough arguments supplied!
-Usag: ./container.sh command testgrp 
- or   ./container.sh test testgrp [testgrp] .. [testgrp] 
- or   ./container.sh (for defaults)
+Usage: ./container.sh command testgrp [testgrp] .. [testgrp] 
+ or    ./container.sh build
+ or    ./container.sh update [calibration-value]
+ or    ./container.sh (for defaults)
 
 Defaults are:
 command = start         command to apply to containers in group
@@ -36,20 +36,21 @@ testgrp = *             all test groups present are applied (once per json)
 
 Commands:
 help                    this screen
-build                   build the containers for all JSON test files
-run                     run container specified
+build                   build the container image with rt-app (see Dockerfile)
+run                     run container specified from built image
 start                   start container after it has been stopped
 stop                    stop container after it has been stopped
 rm                      remove container
-test                    test run for container (parallel execution of orchestrator)
-update                  update container calibration value
+test                    test run for container (with parallel execution of 'orchestrator')
+update                  update container calibration value with the value specified as argument (if given) and copy to containers
 EOF
         exit 1
 }
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 
-if [ $# -eq 1 ]; then
+if [ ! "$1" = "build" ] && [ ! "$1" = "update" ] && [ ! "$1" = "help" ] && [ $# -eq 1 ]; then
+	echo "Not enough arguments supplied!"
 	printhelp
 fi
 
