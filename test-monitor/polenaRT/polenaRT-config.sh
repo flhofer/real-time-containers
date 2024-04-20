@@ -56,13 +56,17 @@ yes_no () {
 	for txt in ${items}; do 
 		i=$(( ${i}+1 )); 
 		echo "$i) $txt";
-	done  
-	local sel=
-	until read -p "Execute '$name' (y/N) : " sel; 
-	[ "$sel" = "y" ] || [ "$sel" = "n" ] || [ "$sel" = "" ] ; 	
-	do
-	  echo "invalid selection!"
 	done
+	if [ ! "${*#exit}" = "$*" ] || [ -z "$allyes" ]; then
+		local sel=
+		until read -p "Execute '$name' (y/N) : " sel; 
+		[ "$sel" = "y" ] || [ "$sel" = "n" ] || [ "$sel" = "" ] ; 	
+		do
+		  echo "invalid selection!"
+		done
+	else
+		sel="y"
+	fi
 	
 	if [ "$sel" = "y" ] ; then
 		eval $@
@@ -214,7 +218,7 @@ parse_boot_parameter () {
 		esac
 	done
 	cmdline=${cmdline#\ } # delete heading space
-	info_msg "Keeping '$cmdline' parameters"
+	info_msg "Keeping '$cmdline' kernel boot parameters"
 }
 
 set_boot_parameter () {
@@ -391,7 +395,7 @@ set_boot_parameter () {
 
 	# write
 	echo "new Grub config"
-	$sudo sh -c "sed -i=rt_old '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
+	$sudo sh -c "sed -i.rt_old '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
 
 	return 0
 }
