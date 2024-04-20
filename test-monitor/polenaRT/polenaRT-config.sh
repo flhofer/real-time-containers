@@ -40,14 +40,6 @@ rt_throt=95					# default RT percentage
 #get number of numa nodes
 numanr=$(lscpu | grep NUMA | grep 'node(s)' -m 1 | awk '{print $3}')
 
-############### command line argument parsing ######################
-
-# arguments to parse
-#selsmt --selective-smt
-#nocb_poll_bypass --nocb-bypass
-#skew_bypass --enable-skew
-
-
 ############### Yes/no selector for the calls ######################
 
 yes_no () {
@@ -101,6 +93,59 @@ info_msg () {
 success_msg () {
 	_msg "\033[0;32m" "Success" ${*}
 }
+
+############### Yes/no selector for the calls ######################
+
+print_help () {
+	cat <<-EOF
+	Run-time environment configurator.
+	
+	usage:
+	    ./polenaRT-config.sh [opt aruments] [cpu-list RT]
+	
+	Arguments and parameters: 
+	    --yes              answer with yes on all questions
+	    --help             this screen
+	    --selective-smt    force-use SMT on non-realtime CPUs, disable on others
+	    --nocb-bypass      force-disable callback polling on kernel threads
+	    --enable-skew      force-enable timer skew
+	EOF
+}
+
+############### command line argument parsing ######################
+
+for arg in $*; do
+	case $arg in
+	--selective-smt )
+		selsmt=1
+		;;
+	--nocb-bypass )
+		nocb_poll_bypass=1
+		;;
+	--enable-skew )
+		skew_bypass=1
+		;;
+	--yes )
+		allyes=1 # say yes to all questions
+		;;
+	--help )
+		print_help
+		exit 0
+		;;
+	--* ) 
+		error_msg "Unknown parameter '$arg'!"
+		print_help
+		exit 1
+		;;
+	*[!0-9,-]*|'') 
+		warning_msg "CPU-list contains invalid string '$arg'! Ignoring input.."
+		;;
+	# if the above checks passed, the non -- parameter is the cpulist for RT
+	* )
+		info_msg "Changing RT-CPU-list from '$cpu_iso' to '$arg'"
+		cpu_iso=$arg
+	esac
+done
 
 ############### Kernel parameter parsing ######################
 
