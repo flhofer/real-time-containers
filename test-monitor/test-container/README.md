@@ -40,6 +40,8 @@ In its actual configuration, the test batches are composed as follows.
 - batch 3: 1x 2ms runtime, 5ms period, 1x 3ms runtime, 9ms period, 1x 0.9ms runtime, 10ms period
 - batch 4: 10x 10ms runtime, 100ms period
 
+By default the tests will run the `containers.sh` script below with the option `test`.
+
 ### Container operation
 
 The `containers.sh` script allows the creation and update of the test container image and the start, stop, or kill of a(ll) running test container. Using the command `test` instead of `start`, the script will run the `orchestrator` app for container monitoring. Thus, it will require a correctly placed `config.json` file to run properly.
