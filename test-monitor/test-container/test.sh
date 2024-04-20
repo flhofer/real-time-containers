@@ -25,6 +25,8 @@ fi
 
 # by default does all tests
 tests=${1:-'4'}
+comm=${2:-'test'}
+util=${3:-''}
 
 # cleanup and prepare environment
 rm log-rt-app-tst-*/log-thread1-0.log
@@ -33,7 +35,7 @@ function testc () {
 	# agruments grp - test count 
 
 	for ((i=0; i<$2; i++)); do
-		./containers.sh quiet test $(seq -s " " ${1}0 $1$i )
+		./containers.sh quiet ${comm} ${util} $(seq -s " " ${1}0 $1$i )
 		./containers.sh stop ${1}*
 		mkdir -p log/${1}-$(($i+1))
 		cp log/rt-app-tst-${1}* log/${1}-$(($i+1))
