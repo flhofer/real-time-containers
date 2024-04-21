@@ -154,11 +154,11 @@ Here is more info on [dynamic debuging](https://www.kernel.org/doc/html/latest/a
 
 Kernel boot parameters are parameters that are passed at system boot to the process reading the kernel image. Such parameters are typically specified in the `grub` boot configuration and can be changed as follows[^2].
 
-The default `grub` configuration is located at `/etc/default/grub`. Open the file with your favorite editor, e.g. `nano` and change the parameters required by adding or removing from `GRUB_CMDLINE_LINUX` and/or `GRUB_CMDLINE_LINUX_DEFAULT`, in quotes, and separated by spaces. The former always effective, the latter is added to the former in case of a normal -automatic- boot. For Ubuntu systems, the only two parameters set for `*DEFAULT` are `quiet` and `splash`.
+The default `grub` configuration is located at `/etc/default/grub`. Open the file with your favorite editor, e.g. `nano` and change the parameters required by adding or removing from `GRUB_CMDLINE_LINUX` and/or `GRUB_CMDLINE_LINUX_DEFAULT`, in quotes, and separated by spaces. The former is always effective, and the latter is added to the former in the case of a normal-automatic- boot. For Ubuntu systems, the only two parameters set for `*DEFAULT` are `quiet` and `splash`.
 
-To apply the changes and rebuild the `grub` boot menu, run `update-grub`. You can check the resulting generated boot parameters with `cat /boot/grub/grub.cfg | grep /boot`.
+Run `update-grub` to apply the changes and rebuild the `grub` boot menu. You can check the resulting generated boot parameters with `cat /boot/grub/grub.cfg | grep /boot`.
 
-Please note that the contents of `grub.d` may be added and even overwrite your changes. If you wish, you can also add a file with only the `GRUB_CMDLINE_LINUX*` parameter lines in this directory and the changes are kept between kernel upgrades.
+Please note that the contents of `grub.d` may be added and even overwritten your changes. If you wish, you can also add a file with only the `GRUB_CMDLINE_LINUX*` parameter lines in this directory, and the changes are kept between kernel upgrades.
 
 The description of parameters follows below.
 
@@ -166,9 +166,9 @@ The description of parameters follows below.
 
 ### Disable SMT
 
-Simultaneous multi-threading (SMT) is a very useful feature for day-to-day operations, increasing CPU speed due to reduced flushing and filling of CPU-registers up to 30%. This, however holds only true as long as we don't need a guarantee on reaction and processing times. 
+Simultaneous multi-threading (SMT) is a very useful feature for day-to-day operations. It increases CPU speed by up to 30% due to reduced flushing and filling of CPU registers. However, this holds only true as long as we don't need a guarantee on reaction and processing times. 
 
-In Linux, threads that are served by the same CPU core are enumerated as separate CPU. Thus, a CPU with a computing power of 1 would be addressed as if it had a computing power of 2 or more. In reality though, not cores but only CPU-registrers are typically doubled creating therefore unforeseen delay and jitter while competing for the processing unit.
+In Linux, threads served by the same CPU core are enumerated as separate CPUs. Thus, a CPU with a computing power of 1 would be addressed as if it had a computing power of 2 or more. In reality, though, not cores but only CPU registers are typically doubled, creating unforeseen delay and jitter while competing for the processing unit.
 
 We can disable SMT at runtime by the following.
 
@@ -180,39 +180,39 @@ The required kernel boot parameter to make this change permanent is `nosmt`. For
 
 ### Scheduler (and) isolation
 
-On older kernels there existed a boot parameter called `isolcpus` that allowed to isolate CPU ranges from the system scheduler, IRQs and other kernel related tasks and threads. Newer kernels still export the feature but it is now widely seen as deprecated. Since the introduction of CGroup v2, administrators are advised to use `isolated` control groups instead. (see also "Setting restrictions with CGroup" below).
+On older kernels, a boot parameter called `isolcpus` allowed to isolate CPU ranges from the system scheduler, IRQs, and other kernel-related tasks and threads. Newer kernels still export the feature, but it is now widely seen as deprecated. Since the introduction of CGroup v2, administrators are advised to use `isolated` control groups instead (see also "Setting restrictions with CGroup" below).
 
-Nonetheless, for the sake of completeness, here the suggested parameters for this boot entry on older kernels.
+Nonetheless, for the sake of completeness, here are the suggested parameters for this boot entry on older kernels.
 
-`isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a cpu range `<list-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-cpus>,domain,managed_irq`.
+`isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a CPU range `<list-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being the target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-cpus>,domain,managed_irq`.
 
-Please note that these settings are on a best effort basis and guarantee thus no "perfect" isolation. Use CGroups v2 instead for better isolation. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
+Please note that these settings are on a best-effort basis and do not guarantee "perfect" isolation. Use CGroups v2 instead for better isolation. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
 
 ### RCU call-backs
 
 As discussed in the kernel build parameter section, once we configured to off-load kernel call-backs for RCU operations into threads, we also have to decide for which CPUs we want that to happen. This is done at boot time with the `rcu_nocbs=<list-cpus>` parameter. If the '=' sign and the cpulist arguments are omitted, no CPU will be set to no-callback mode from boot but the mode may be toggled at runtime via cpusets.
 
-The kernel foresees another parameter regarding RCU call-backs, `rcu_nocb_poll`. If set, Rather than requiring that off-loaded CPUs awaken the corresponding RCU-kthreads, it make kthreads poll for call-backs. This improves the real-time response for the off-loaded CPUs by relieving them of the need to wake up the corresponding kthread. However, the kthreads periodically wake up to do the polling and must thus be pinned ideally to other CPUs (see "Other" and "Runtime settings" below).
+The kernel foresees another parameter regarding RCU call-backs, `rcu_nocb_poll`. If set, Rather than requiring that off-loaded CPUs awaken the corresponding RCU-kthreads, it makes kthreads poll for callbacks. This improves the real-time response for the off-loaded CPUs by relieving them of the need to wake up the corresponding kthread. However, the kthreads periodically wake up to do the polling and must thus be pinned ideally to other CPUs (see "Other" and "Runtime settings" below).
 
 ### IRQs and affinity
 
-The boot parameter `irqaffinity=<list-cpus>` determines which CPU should, by default, be in charge of handling interrupts. The listed CPUs should thus NOT include any CPU required for real-time applications. Furthermore, the setting is best-effort, and is thus not guaranteed. As a warning: try not to limit IRQ computations on too little CPUs. The amount of work, in addition to all other system tasks, may render the system unresponsive[^mig]. [Source](https://wiki.linuxfoundation.org/realtime/documentation/howto/applications/cpuidle)
+The boot parameter `irqaffinity=<list-cpus>` determines which CPU should, by default, be in charge of handling interrupts. The listed CPUs should thus NOT include any CPU required for real-time applications. Furthermore, the setting is best-effort and is thus not guaranteed. As a warning: try not to limit IRQ computations on too few CPUs. The amount of work, in addition to all other system tasks, may render the system unresponsive[^mig]. [Source](https://wiki.linuxfoundation.org/realtime/documentation/howto/applications/cpuidle)
 
 ### other
 
 - `skew_tick=`, if set to 1, offsets the periodic timer tick per CPU to mitigate RCU lock contention on all systems with CONFIG_MAXSMP set (usually true)
 
-- `intel_pstate=disable` disables the Intel P-state driver. However, this does not prevent eventual  BIOS of Hardware to enforce P-states otherwise. Unless proven otherwise, it is thus advised to use the Intel governor with profile `performance` instead, running the CPU always at max power.
+- `intel_pstate=disable` disables the Intel P-state driver. However, this does not prevent the eventual BIOS of Hardware from enforcing P-states otherwise. Unless proven otherwise, it is thus advised to use the Intel governor with profile `performance` instead, running the CPU always at max power.
 
 - `nosoftlockup` and `tsc=nowatchdog` disable some kernel internal watchdogs, removing thus a further source of jitter. Of course, we are also loosing the watchdog's protection this way.
 
 - `timer_migration=0` disables the migration of timer between CPU sockets (if multiple are present) and mitigates resulting jitter.
 
-- Some kernels expose the flag `kthread_cpus=<list-cpus>`, which allows to set the CPUs dedicated for kernel threads, and preempting the requirement to manually pin them to specific resources. If present, you can use this parameter instead. (Unused kernel parameters trigger a warning)
+- Some kernels expose the flag `kthread_cpus=<list-cpus>`, which allows the setting of the CPUs dedicated for kernel threads, and preempts the requirement to manually pin them to specific resources. If present, you can use this parameter instead. (Unused kernel parameters trigger a warning)
 
 ## System runtime settings
 
-In the remainder of this sections, we describe features and steps that may be performed at runtime to optimize isolation and response and reduce interference. Different than above, these may be undone at runtime, too, and are thus a good place to start.
+In the remainder of this section, we describe features and steps that may be performed at runtime to optimize isolation and response and reduce interference. Unlike above, these may be undone at runtime, too, and are thus a good place to start.
 
 ### Disable SMT
 
@@ -222,11 +222,11 @@ We can disable SMT at runtime by the following (See kernel boot parameters, "Dis
 echo 0 > /sys/devices/system/cpu/smt/control
 ```
 
-This said, we must also note another point. If we aim for a jitter free real-time partition, and thus want to disable the SMT feature on the cores, it does not mean that we have to disable it too on the cores we keep for best-effort and system tasks. 
+This said we must also note another point. If we aim for a jitter-free real-time partition and thus want to disable the SMT feature on the cores, it does not mean that we have to disable it too on the cores we keep for best-effort and system tasks. 
 
-The above setting, indeed, disables hyper-threading on all cores. To selectively disable hyper-threading we could, instead, take note of the point discussed above: every thread on Linux is seen as separate CPU. Thus, instead of disabling SMT overall, we just use "hot-plug" to disable the CPUs, or threads, that are a sibling of a running real-time core.
+The above setting indeed disables hyper-threading on all cores. To selectively disable hyper-threading, we could instead take note of the point discussed above: every thread on Linux is seen as a separate CPU. Thus, instead of disabling SMT overall, we just use "hot-plug" to disable the CPUs, or threads, that are siblings of a running real-time core.
 
-Performing this, however, is a little more difficult as the layout and numbering of CPUs depends on the system architecture. What we can do is to explore the systems VFS and detect the siblings of the CPUs we deem for real-time use only. The following prints the CPU-mask for the siblings of each thread. You can use this information to, e.g., disable only one of the threads for each real-time core.
+Performing this, however, is a little more difficult as the layout and numbering of CPUs depend on the system architecture. What we can do is explore the system's VFS and detect the siblings of the CPUs we deem for real-time use only. The following prints the CPU mask for the siblings of each thread. You can use this information to e.g. disable only one of the threads for each real-time core.
 
 ```
 prcs=$(nproc --all) #get number of cpu-threads
@@ -237,11 +237,11 @@ done
 
 (NOTE: needs more detailed example)
 
-### Restricting power saving modes
+### Restricting power-saving modes
 
-CPUs, in addition to SMT capabilities, are able to change power and sleep states, `P-*` and `C-*` states. This means, the operating system can change speed and performance of CPUs in order to reduce power consumption. Although generally acceptable, this is a cause for jitter and unpredictability we would like to remove.
+CPUs, in addition to SMT capabilities, are able to change power and sleep states, `P-*` and `C-*` states. This means the operating system can change the speed and performance of CPUs in order to reduce power consumption. Although generally acceptable, this is a cause for jitter and unpredictability we would like to remove.
 
-How these states are controlled depends on a component called `governor` while the actual controlling depends on a `driver`. For each CPU, the Linux VFS allows inspection and configuration of such in `/sys/devices/system/cpu`. Lets see how to detect and change governors.
+How these states are controlled depends on a component called `governor` while the actual controlling depends on a `driver`. For each CPU, the Linux VFS allows inspection and configuration of such in `/sys/devices/system/cpu`. Let's see how to detect and change governors.
 
 We can query available governors with
 
@@ -266,9 +266,9 @@ or for all at once
 for i in /sys/devices/system/cpu/cpu[0-9]* ; do  echo "performance" > $i/cpufreq/scaling_governor; done
 ```
 
-As described in the boot parameter section, we could disable the p-state driver through `intel_pstate=disable`. This however does not guarantee that BIOS or hardware enforcement of p-states does not take place, but only tells the Linux kernel not to try to manage p-states exclusively. We advise thus to stick with the performance governor settings. [Source](https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt)
+As described in the boot parameter section, we could disable the p-state driver through `intel_pstate=disable`. This, however, does not guarantee that BIOS or hardware enforcement of p-states does not take place, but only tells the Linux kernel not to try to manage p-states exclusively. We advise thus to stick with the performance governor settings. [Source](https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt)
 
-Once done, let's check a newly introduced parameter `power/pm_qos_resume_latency_us`. PM QoS is an infrastructure in the kernel that can be used to fine tune the CPU idle system governance. It can be used to limit C - or sleep - states in all CPUs system wide or per core. The following sections explain the user level interface. Now, true, we never should require a resume being in constant "wake" state, but just to be sure, lets verify.
+Once done, let's check a newly introduced parameter, `power/pm_qos_resume_latency_us`. PM QoS is an infrastructure in the kernel that can be used to fine-tune the CPU idle system governance. It can be used to limit C—or sleep—states in all CPUs system-wide or per core. The following sections explain the user-level interface. Now, true, we never should require a resume as we are in a constant "wake" state, but just to be sure, let's verify.
 
 ```
 cat /sys/devices/system/cpu/cpu0/power/pm_qos_resume_latency_us
@@ -278,17 +278,17 @@ The value displayed should be `n/a` in order to disable all C-states. We can cha
 
 ### RR slicing and RT-throttling, or not?
 
-Depending on the system configuration, it might be possible to disable real-time task throttling. The basic requirement here is that we are not applying a G-EDF schedule, but rather a P-EDF variant. The differnece between the two is simply the use of CGroups to limit the amount of resources real-time tasks can use. 
+Depending on the system configuration, it might be possible to disable real-time task throttling. The basic requirement here is that we are not applying a G-EDF schedule, but rather a P-EDF variant. The difference between the two is simply the use of CGroups to limit the amount of resources real-time tasks can use. 
 
-In the normal case, the Linux kernel limits the RT CPU usage to (default) 95% of CPU time, or more precisely, 950000 µs (`sched_rt_runtime_us`) every 1000000 µs (`sched_rt_period_us`). This would mean that, even if we have dedicated CPUs to execute the code and we do not incur in overload and consequent hang, the kernel throttles down all active real-time tasks in order to execute pending lesser priority tasks. If thus we have a partitioned system (P-EDF), we can deactivate (`-1`) this limit once we make sure all of the latter tasks are run on dedicated resources and are not compromised.
+In the normal case, the Linux kernel limits the RT CPU usage to (default) 95% of CPU time, or more precisely, 950000 µs (`sched_rt_runtime_us`) every 1000000 µs (`sched_rt_period_us`). This would mean that even if we have dedicated CPUs to execute the code and we do not incur overload and consequent hang, the kernel throttles down all active real-time tasks in order to execute pending lesser-priority tasks. If thus we have a partitioned system (P-EDF), we can deactivate (`-1`) this limit once we make sure all of the latter tasks are run on dedicated resources and are not compromised.
 
 ```
 echo -1 > /proc/sys/kernel/sched_rt_runtime_us
 ```
 
-Similarly, depending on your task configuration, it might be possible that you run a great quantity of round-robin (`RR`) tasks. These tasks, by default, are limited to a rather generous 100ms time-slice, i.e. they can lock CPU resources for that amount of time and are only preempted by higher priorities or EDF tasks.
+Similarly, depending on your task configuration, it might be possible to run a large number of round-robin (`RR`) tasks. These tasks, by default, are limited to a rather generous 100ms time slice, i.e., they can lock CPU resources for that amount of time and are only preempted by higher priorities or EDF tasks.
 
-If thus you execute more time-sensitive RR tasks and  you want to avoid that software mishaps break your system, you can reduce this maximum slice limit.
+If thus you execute more time-sensitive RR tasks and you want to avoid software mishaps breaking your system, you can reduce this maximum slice limit.
 
 ```
 echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
@@ -296,19 +296,19 @@ echo 50 > /proc/sys/kernel/sched_rr_timeslice_ms
 
 ### IRQs and affinity
 
-Most modern OS include a service that balances the IRQs, e.g., every 10 seconds and may overwrite any manual setting you perform. If that is the case, check with `service irqbalance status`, you may add the real-time critical CPUs to the service configuration as banned, or disable the service completely.
+Most modern OSs include a service that balances the IRQs, e.g., every 10 seconds and may overwrite any manual setting you perform. If that is the case, check with `service irqbalance status`. You may add the real-time critical CPUs to the service configuration as banned or disable the service completely.
 
-To add the CPUs, edit the configuration file `/etc/default/irqbalance` in Ubuntu, remove the `#` in front of `IRQBALANCE_BANNED_CPULIST=` and insert the CPUs. To disable the service run `systemctl disable irqbalance.service ` (works on systemd systems)
+To add the CPUs, edit the configuration file `/etc/default/irqbalance` in Ubuntu, remove the `#` in front of `IRQBALANCE_BANNED_CPULIST=`, and insert the CPUs. To disable the service run `systemctl disable irqbalance.service ` (works on systemd systems)
 
-If you don't have a balancing daemon, you can proceed by editing the affinity yourself.`/proc/irq/default_smp_affinity` specifies default affinity mask that applies to all non-active IRQs. It is also set through the `irqaffinity=` boot parameter. Once IRQ is allocated/activated its affinity bitmask will be set to the default mask. It can then be changed as described below. Default mask is 0xffffffff. [](https://docs.kernel.org/core-api/irq/irq-affinity.html)
+If you don't have a balancing daemon, you can proceed by editing the affinity yourself.`/proc/irq/default_smp_affinity` specifies a default affinity mask that applies to all non-active IRQs. It is also set through the `irqaffinity=` boot parameter. Once IRQ is allocated/activated its affinity bitmask will be set to the default mask. It can then be changed as described below. The default mask is 0xffffffff. [](https://docs.kernel.org/core-api/irq/irq-affinity.html)
 
 ```
 echo "0x00ff" > /proc/irq/default_smp_affinity
 ```
 
-Single, active, IRQ affinity can be changed instead by setting the `smp_affinity` variable inside the VFS folder named after the IRQ number in `/proc/irq/`. As detailed in the boot parameter section, setting IRQ affinity should be done after considering eventual side effects and only with allocating enough resources to deal with the IRQs[^mig].
+Single, active IRQ affinity can be changed instead by setting the `smp_affinity` variable inside the VFS folder named after the IRQ number in `/proc/irq/`. As detailed in the boot parameter section, setting IRQ affinity should be done after considering eventual side effects and only by allocating enough resources to deal with the IRQs[^mig].
 
-`ksoftirqd/N` are softirq handlers and must be forced to the target CPUs through hotplug. In most cases they relate to timers and can just be forced away by unplugging its CPU. To do this, disable and re-enable all CPUs but 0 in sequence. Here an example for the mentioned task.
+`ksoftirqd/N` are softirq handlers and must be forced to the target CPUs through a hotplug. In most cases, they relate to timers and can just be forced away by unplugging their CPU. To do this, disable and re-enable all CPUs but 0 in sequence. Here is an example of the mentioned task.
 
 ```
 prcs=$(nproc --all) #get number of cpu-threads
@@ -325,13 +325,13 @@ for ((i=1;i<$prcs;i++)); do
 	sleep 1
 done
 ```
-Once hotplug is done, do not put CPUs offline and online again. Please note that you may want to only selectively reactivate CPUs (threads) to only keep one thread of each multi-threading core active for the real-time CPUs. See "Disable SMT".
+Once the hotplug is done, do not put CPUs offline and online again. Please note that you may want to only selectively reactivate CPUs (threads) to only keep one thread of each multi-threading core active for the real-time CPUs. See "Disable SMT".
 
 [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
 
 ### Changing kernel thread affinity
 
-To change a kernel threads affinity mask and make them thus run only on CPUs to our liking we can execute code with the pattern below. The first line identifies the list of PIDs corresponding to the mentioned thread, the second assigns them a new mask, one by one. Replace `<MASK HERE>` with the basic regex specified in the descriptions below. The CPU-mask in the example is 0xff, replace where needed and execute them together.
+To change a kernel thread affinity mask and make it run only on CPUs to our liking, we can execute code with the pattern below. The first line identifies the list of PIDs corresponding to the mentioned thread, the second assigns them a new mask, one by one. Replace `<MASK HERE>` with the basic regex specified in the descriptions below. The CPU-mask in the example is 0xff, replace where needed and execute them together.
 
 ```
 ps h -eo spid,command | grep -v 'grep' | grep -G "<MASK HERE>" | awk '{ print $1 }' | \
@@ -342,7 +342,7 @@ while read -t 1 pid ; do taskset -p 0xff $pid ; done
 
 	`\B\[ehca_comp[/][[:digit:]]*`
 
-- `irq/*-*"` are IRQ kernel threads which affinity is changed by using the settings in the previous section for new entries, or the command below for running threads.
+- `irq/*-*"` are IRQ kernel threads whose affinity is changed by using the settings in the previous section for new entries, or the command below for running threads.
 
 	`\B\[irq[/][[:digit:]]*-[[:alnum:]]*`
 
