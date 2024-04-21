@@ -8,11 +8,11 @@ Author: [Florian Hofer](https://github.com/flhofer)
 
 `polenaRT` is the name of the environment for running [`Moby`](https://mobyproject.org/)-compatible containers and container engines in real-time with the (optional) help of a userspace orchestrator. This environment foresees the following components and tasks found in the present folder:
 
-- An install script `polenaRT-installer.sh` is used to build and configure custom kernel builds starting from Linux vanilla. If the target kernel is for a different distribution, it sets up a docker container for the required environment and builds the kernel there. It furthermore installs the selected container engine and, if of interest, the kernel with optimized parameters. (**TBD**)
-- a configuration script to reconfigure the runtime environment and kernel boot parameters to state-of-the-art latency and jitter reduction settings - `polenaRT-configure.sh`. The list and a description of possible system optimizations are described below. (**TBD**)
+- An install script `polenaRT-installer.sh` is used to build and configure custom kernel builds starting from Linux vanilla. If the target kernel is for a different distribution, it sets up a docker container for the required environment and builds the kernel there. It installs the selected container engine and, if of interest, the kernel with optimized parameters. (**TBD**)
+- a configuration script to reconfigure the runtime environment and kernel boot parameters to state-of-the-art latency and jitter reduction settings - `polenaRT-configure.sh`. The list and a description of possible system optimizations are described below.
 - several optimized kernel configurations for selected operating systems and kernels.
 
-All the scripts are (x)sh compatible, meaning they are designed to run on `ash`, `dash`, `zsh`, `ksh`, and `bash` on various Linux distributions.
+All the scripts are (x)sh compatible, which is designed to run on `ash`, `dash`, `zsh`, `ksh`, and `bash` on various Linux distributions.
 
 Further information on the use and parameters for the mentioned scripts can be found in the `README`.
 
@@ -25,18 +25,18 @@ Parameter optimization can occur at several levels. As we have to compile a kern
 - System parameters at runtime
 - Other application provisions to improve runtime
 
-Please note that all but the first can be changed on an existing machine without further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`. It will automatically configure your system (if kernel build parameters allow it) with the best - at the moment - known configuration.
+All but the first can be changed on an existing machine without further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`. It will automatically configure your system (if the kernel build parameters allow it) with the best-known configuration at the moment.
 
 Further reads: [Ubuntu PRO - real-time kernel technical](https://ubuntu.com/blog/real-time-kernel-technical), 
 [Ubuntu PRO real-time - kernel tuning](https://ubuntu.com/blog/real-time-kernel-tuning)
 
 ## Kernel build parameters 
 
-Before compiling a kernel, the user has the option of flipping one of the hundreds of switches available for kernel configuration. These flags include real-time relevant settings such as the level of allowed preemption.
+Before compiling a kernel, the user can flip one of the hundreds of switches available for kernel configuration. These flags include real-time relevant settings such as the level of allowed preemption.
 
-The probably easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig` run inside the root of the kernel source. If no configuration exists yet (not loaded from file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavor. To check the kernel configuration of the running system, check for a `config-*` file in either `/boot` or `/etc`. To keep the settings of your actual system, you can copy the file to the source root as `oldconfig` and run `yes "" | make oldconfig` to apply the same settings to your new source code.
+The easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig`, which runs inside the root of the kernel source. If no configuration exists yet (not loaded from the file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavor. To check the kernel configuration of the running system, check for a `config-*` file in either `/boot` or `/etc`. To keep the settings of your actual system, you can copy the file to the source root as `oldconfig` and run `yes "" | make oldconfig` to apply the same settings to your new source code.
 
-As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preemption` would put the system towards a batch programmed server, in which, any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution which adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the main-line kernel to reduce the overall latency of a system that might need be more responsive and switch tasks more often. Finally, `Fully preemptible kernel` enables all preemption points available at the moment (only visible with `PREEMPT-RT` patch) reducing the added latency until preemption and thus our choice[^1]. 
+As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preemption` would put the system towards a batch-programmed server, in which any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution that adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the mainline kernel to reduce the overall latency of a system that might need to be more responsive and switch tasks more often. Finally, the `Fully preemptible kernel` enables all preemption points available at the moment (only visible with the `PREEMPT-RT` patch), reducing the added latency until preemption and thus our choice[^1]. 
 
 The kernel `.config` file will thus be changed as follows 
 
@@ -50,7 +50,7 @@ CONFIG_PREEMPT_RT=y
 CONFIG_ARCH_SUPPORTS_RT=y
 ```
 
-Something that might not be clear is that enabling the fully preemptive model, `CONFIG_PREEMPT_RT` -- or `CONFIG_PREEMPT_FULL` on older kernels, will change also other parameters. Most notably, it has a big influence on locks and memory.
+Something that might not be clear is that enabling the fully preemptive model, `CONFIG_PREEMPT_RT` — or `CONFIG_PREEMPT_FULL` on older kernels — will also change other parameters. Most notably, it has a big influence on locks and memory.
 
 ```
 # CONFIG_UNINLINE_SPIN_UNLOCK is un-set
@@ -59,7 +59,7 @@ CONFIG_RCU_BOOST=y
 CONFIG_RCU_BOOST_DELAY=500
 ```
 
-Spinning locks in RT kernels are ["sleep-able"](https://wiki.linuxfoundation.org/realtime/documentation/technical_details/sleeping_spinlocks), meaning that the replacing implementation allows now for spinning locks to be preempted (note - this could affect drivers!). Read-Copy-update forsee now a priority boost function as real-time tasks may otherwise defer their execution indefinitely. NUMA balancing and transparent huge pages (THP) are also disabled.
+Spinning locks in RT kernels are ["sleep-able"](https://wiki.linuxfoundation.org/realtime/documentation/technical_details/sleeping_spinlocks), meaning that the replacing implementation now allows spinning locks to be preempted (note—this could affect drivers!). Read-Copy-update foresees now a priority boost function as real-time tasks may otherwise defer their execution indefinitely. NUMA balancing and transparent huge pages (THP) are also disabled.
 
 ```
 # CONFIG_NUMA_BALANCING is un-set
@@ -75,7 +75,7 @@ Other affected parameters, for completeness only.
 
 ```
 # CONFIG_SOFTIRQ_ON_OWN_STACK is un-set
-CONFIG_PAHOLE_VERSION=0 # parameter is set o 0
+CONFIG_PAHOLE_VERSION=0 # parameter is set to 0
 CONFIG_HAVE_ATOMIC_CONSOLE=y
 
 CONFIG_COMPACT_UNEVICTABLE_DEFAULT=0 # set to 0 from 1
@@ -83,13 +83,13 @@ CONFIG_COMPACT_UNEVICTABLE_DEFAULT=0 # set to 0 from 1
 # CONFIG_NET_RX_BUSY_POLL is un-set
 ```
 
-You can search for configuration symbols when inside the `menuconfig` using the `/` key. 
+You can search for configuration symbols inside the `menuconfig` using the `/` key. 
 
 [^1]: If the last entry is not available, despite applying the patch, you will need to enable expert mode first, see below.
 
 ### Enabling of expert mode
 
-Newer kernels require Expert mode to be enabled for certain features to be visible. In some cases it might be enough to enter `General setup` and select `Embedded system`. If this is not available, open the resulting `.config` file in the root folder and find/add `CONFIG_EXPERT=y` to enable the menu entries.
+Newer kernels require Expert mode to be enabled to make certain features visible. In some cases, entering `General setup` and selecting `Embedded system` might be enough. If this is unavailable, open the resulting `.config` file in the root folder and find/add `CONFIG_EXPERT=y` to enable the menu entries.
 
 ### Changing kernel Tick Rate
 
@@ -231,7 +231,7 @@ Performing this, however, is a little more difficult as the layout and numbering
 ```
 prcs=$(nproc --all) #get number of cpu-threads
 for ((i=0;i<$prcs;i++)); do 
-	cd=$(cat cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<$i ) ))
+	cd=$(cat cpu$i/topology/thread_siblings); printf %X $(( 0x$cd & ~( 1<<($i-1) ) ))
 done
 ```
 
