@@ -162,7 +162,7 @@ Please note that the contents of `grub.d` may be added and even overwritten your
 
 The description of parameters follows below.
 
-[^2]: for Ubuntu, other systems please research online
+[^2]: for Ubuntu; other systems please research online
 
 ### Disable SMT
 
@@ -186,7 +186,7 @@ Nonetheless, for the sake of completeness, here are the suggested parameters for
 
 `isolcpus` allows for multiple values. Ideally, we specify here 3 parameters: a CPU range `<list-cpus>`, which is the range dedicated to our real-time tasks to be isolated; `domain` to isolate from balancing and scheduling algorithms; and `managed_irq` to isolate the range from being the target of managed IRQs. The resulting boot parameter is thus `isolcpus=<list-cpus>,domain,managed_irq`.
 
-Please note that these settings are on a best-effort basis and do not guarantee "perfect" isolation. Use CGroups v2 instead for better isolation. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
+Please note that these settings are made on a best-effort basis and do not guarantee "perfect" isolation. For better isolation, use CGroups v2 instead. For help on CPU listing, see [Kernel parameter Wiki](https://docs.kernel.org/admin-guide/kernel-parameters.html).
 
 ### RCU call-backs
 
@@ -325,7 +325,7 @@ for ((i=1;i<$prcs;i++)); do
 	sleep 1
 done
 ```
-Once the hotplug is done, do not put CPUs offline and online again. Please note that you may want to only selectively reactivate CPUs (threads) to only keep one thread of each multi-threading core active for the real-time CPUs. See "Disable SMT".
+Once the hotplug is done, do not put CPUs offline and online again. Please note that you may want to selectively reactivate CPUs (threads) to keep only one thread of each multi-threading core active for the real-time CPUs. See "Disable SMT".
 
 [Kernel admin Wiki](https://docs.kernel.org/admin-guide/kernel-per-CPU-kthreads.html)
 
@@ -366,7 +366,7 @@ echo 0 > /proc/sys/kernel/timer_migration
 
 ### Create separate CGroup trees
 
-Recently, Kernel and Docker configuration switched to CGroup v2 with `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPUsets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
+Recently, Kernel and Docker configuration switched to CGroup v2 with a `systemd` driver. As a result, while for Cgroup v1 the daemon created a dedicated `docker` tree, now all containers will appear as part of the `system.slice` tree together with all other system tasks. This hinders the possibility of assigning dedicated CPU-sets or memory to the container daemon and system tasks -- unless you do it manually -- for all containers running and starting.
 
 To create a separate `slice`, proceed as follows.
 Edit or create a text-file named `daemon.json` located in most cases in `/etc/docker/`. If you use the Ubuntu snap version of docker, you may need to edit the file in `/var/snap/docker/current/config`. It will access and modify the mounted file for the user running the snap. Add `"cgroup-parent": "docker.slice"`, which with default settings should result as:
@@ -380,26 +380,26 @@ Edit or create a text-file named `daemon.json` located in most cases in `/etc/do
 
 Restart the docker daemon for changes to take effect.
 `systemctl restart docker` or `snap restart docker` -- sudo where needed.
-With this change, new and running containers will depend on the restrictions for the `docker.slice`, "inheriting" also its resource assignment, e.g. cpu(set) affinity.
+With this change, new and running containers will depend on the restrictions for the `docker.slice`, "inheriting" also its resource assignment, e.g., CPU(-set) affinity.
 
 ### Moving system tasks Cgroup
 
-A futher step to better control latency and jitter is to isolate tasks performing system duties from tasks running inside our containers. Typically, as the docker case, this is done with control groups. Once the group is established, it is possible to reduce the resources assigned to system tasks and exclusively assign some to the running of containers.
+A further step to better control latency and jitter is to isolate tasks performing system duties from tasks running inside our containers. Typically, as in the docker case, this is done with control groups. Once the group is established, it is possible to reduce the resources assigned to system tasks and exclusively assign some to running containers.
 
-As said in the previous section, recent system configurations moved to Cgroup v2. This new setup automatically creates a `system.slice` and `user.slice` containing all system and user tasks, respectively. However, for those still using the older VFS, here are some steps you can perform to move all non container-related tasks in a separate control group.
+As said in the previous section, recent system configurations moved to Cgroup v2. This new setup automatically creates a `system.slice` and `user.slice` containing all system and user tasks, respectively. However, for those still using the older VFS, here are some steps you can perform to move all non-container-related tasks into a separate control group.
 
 Inside the `/sys/fs/cgroup/` directory, enter one of the controller trees, e.g. `cpuset`, and do the following (with privileges):
 ```
 mkdir system
 cat tasks > system/tasks
 ```
-Tasks contains a list of PIDs that are running and assigned to the present control group, by default the `root` control group. by creating a directory, we basically create a subgroup. Echoing the PID numbers into its tasks file will thus move the assignment from `cpuset`-cgroup `root` to `system`. 
+`tasks` contains a list of PIDs that are running and assigned to the present control group, by default the `root` control group. by creating a directory, we basically create a subgroup. Echoing the PID numbers into its tasks file will thus move the assignment from `cpuset`-cgroup `root` to `system`. 
 
-N.B. Docker will automatically create a CGroup v1 subgroup `docker`, thus allowing us, by default, to control resources assigned to  daemon and containers.
+N.B. Docker will automatically create a CGroup v1 subgroup `docker`, which allows us to control resources assigned to daemons and containers by default.
 
 ### Setting restrictions with CGroup
 
-There esist tools such as `taskset` and `cset` to set affinity and perform cpu-pinning. Nonetheless, I believe the easiest and most structured way of managing resources is through CGroup trees. Depending on the version, the files and usage changes a little, but in short it's all about  echoing to virtual files.
+There exist tools such as `taskset` and `cset` to set affinity and perform CPU-pinning. Nonetheless, I believe the easiest and most structured way of managing resources is through CGroup trees. Depending on the version, the files and usage change a little, but in short, it's all about  echoing to virtual files.
 
 For example, enter the `system` or `system.slice` folder in `/sys/fs/cgroup` and type:
 
@@ -417,7 +417,7 @@ echo "0" > cpuset.mems
 
 Please pay attention, though, that on some systems, the architecture either prohibits or limits the access of nodes among CPUs.
 
-Once you configured the resources of your subtrees -- or groups --, you can further restrict access on the system. The change above restricts system processes to CPUs 0-3, but does not prevent other tasks to use them, too. On v1 systems you can restrict this by simply setting the `exclusive` flag of the subgroup.
+Once you configure the resources of your subtrees—or groups—you can further restrict access to the system. The change above restricts system processes to CPUs 0-3 but does not prevent other tasks from using them, either. On v1 systems, you can restrict this by simply setting the `exclusive` flag of the subgroup.
 
 ```
 echo "1" > cpuset.cpu_exclusive
@@ -429,11 +429,11 @@ For v2 systems instead, we reach exclusivity by changing the partition status fr
 ```
 echo "root" > cpuset.cpu.partition
 ```
-We therefore remove the listed CPUs from the parent group and create a new control group `root` which handles these exclusively. They can thus only be used by the processes in this group and their children. Effective allocation can always be checked through `cat cpuset.*.*` for memory and CPU.
+We, therefore, remove the listed CPUs from the parent group and create a new control group, `root`, which handles these exclusively. They can thus only be used by the processes in this group and their children. Effective allocation can always be checked through `cat cpuset.*.*` for memory and CPU.
 
-Please note: setting a `root` partition removes the set cpus from the availability list from the rest of the groups. If you remove or rewrite the subgroup (docker does that), it does not restore them automatically. You have to recreate the steps above and echo `member` again into a correctly configured subgroup for the resources to return.
+Please note: setting a `root` partition removes the set CPUs from the availability list from the rest of the groups. If you remove or rewrite the subgroup (docker does that), it does not restore them automatically. You have to recreate the steps above and echo `member` again into a correctly configured subgroup for the resources to return.
 
-Another mode that can be selected in CGroup v2 is `isolated`. In addition to the function of `root`, the isolated control group is also shielded from the scheduler and other kernel interferece, replacing the now deprecated `isolcpus` kernel boot flag. The usage is identical to `root`.
+Another mode that can be selected in CGroup v2 is `isolated`. In addition to the function of `root`, the isolated control group is also shielded from the scheduler and other kernel interference, replacing the now deprecated `isolcpus` kernel boot flag. The usage is identical to `root`.
 
 ### Switching to CGroup v2 
 
