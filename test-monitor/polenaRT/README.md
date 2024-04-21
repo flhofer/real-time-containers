@@ -12,7 +12,7 @@ Author: [Florian Hofer](https://github.com/flhofer)
 - a configuration script to reconfigure the runtime environment and kernel boot parameters to state-of-the-art latency and jitter reduction settings - `polenaRT-configure.sh`. The list and a description of possible system optimizations are described below.
 - several optimized kernel configurations for selected operating systems and kernels.
 
-All the scripts are (x)sh compatible, which is designed to run on `ash`, `dash`, `zsh`, `ksh`, and `bash` on various Linux distributions.
+All the scripts are (x)sh compatible, which means they are designed to run on `ash`, `dash`, `zsh`, `ksh`, and `bash` on various Linux distributions.
 
 Further information on the use and parameters for the mentioned scripts can be found in the `README`.
 
@@ -25,7 +25,7 @@ Parameter optimization can occur at several levels. As we have to compile a kern
 - System parameters at runtime
 - Other application provisions to improve runtime
 
-All but the first can be changed on an existing machine without further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`. It will automatically configure your system (if the kernel build parameters allow it) with the best-known configuration at the moment.
+All but the first can be changed on an existing machine without any further ado. Refer to the instructions below to manually apply those changes. For automation, use `polenaRT-configure.sh`. It will automatically configure your system with the best-known configuration (if the kernel build parameters allow it).
 
 Further reads: [Ubuntu PRO - real-time kernel technical](https://ubuntu.com/blog/real-time-kernel-technical), 
 [Ubuntu PRO real-time - kernel tuning](https://ubuntu.com/blog/real-time-kernel-tuning)
@@ -36,7 +36,7 @@ Before compiling a kernel, the user can flip one of the hundreds of switches ava
 
 The easiest way to configure such parameters is through the built-in menu, shown via `make menuconfig`, which runs inside the root of the kernel source. If no configuration exists yet (not loaded from the file or copied into the source folder as `.config`, all settings are set to default. It is worth noting that the default here are the settings for the vanilla kernel, not your distribution flavor. To check the kernel configuration of the running system, check for a `config-*` file in either `/boot` or `/etc`. To keep the settings of your actual system, you can copy the file to the source root as `oldconfig` and run `yes "" | make oldconfig` to apply the same settings to your new source code.
 
-As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preemption` would put the system towards a batch-programmed server, in which any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution that adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the mainline kernel to reduce the overall latency of a system that might need to be more responsive and switch tasks more often. Finally, the `Fully preemptible kernel` enables all preemption points available at the moment (only visible with the `PREEMPT-RT` patch), reducing the added latency until preemption and thus our choice[^1]. 
+As said, the probably most important setting here is the preemption level which can be found in the `General setup` menu as `Preemption Model`. The default here is `Voluntary preemption`, which is best for most standard servers and desktop computers. `No forced preemption` would put the system towards a batch-programmed server, in which any interruption would be additional overhead and delay as the processes are planned ahead of time. A `Preemptible kernel` is a solution that adds some further preemption points, a merge mostly of the `PREEMPT-RT` effort into the mainline kernel to reduce the overall latency of a system that might need to be more responsive and switch tasks more often. Finally, the `Fully preemptible kernel` enables all preemption points available (only visible with the `PREEMPT-RT` patch), reducing the added latency until preemption and thus our choice[^1]. 
 
 The kernel `.config` file will thus be changed as follows 
 
@@ -93,9 +93,9 @@ Newer kernels require Expert mode to be enabled to make certain features visible
 
 ### Changing kernel Tick Rate
 
-On a system with a task scheduler, a tick rate defines how frequent and at which interval the execution is interrupted (see interrupts below) to verify if the scheduled task holds still priority. Therefore, we are not waiting for a task to yield, but rather preempt it at regular intervals.
+On a system with a task scheduler, a tick rate defines how frequently and at which interval the execution is interrupted (see interrupts below) to verify if the scheduled task still holds priority. Therefore, we are not waiting for a task to yield but rather preempting it at regular intervals.
 
-The correct value for this setting depends widely on your application. A typical RTOS embedded system, Bachmann's M200 PLC-family for example, runs tick rates between 2000 and 5000Hz. This means, the scheduler interrupts the running task up to 5000x per second, i.e. every 0.2 milliseconds. At interrupt the waiting tasks are surveyed and the one in front of the queue with the highest priority is run next[^3]. If instead you have EDF scheduled tasks only, you ideally not interrupt at all. Their priority won't change, unless new tasks arrive or old ones leave. How to determine the best tick rate then? (see `Processor type and features->Timer frequency`)
+The correct value for this setting depends widely on your application. A typical RTOS embedded system, Bachmann's M200 PLC-family, runs tick rates between 2000 and 5000Hz. This means the scheduler interrupts the running task up to 5000x per second, i.e., every 0.2 milliseconds. At interrupt, the waiting tasks are surveyed, and the one in front of the queue with the highest priority is run next[^3]. If, instead, you have EDF-scheduled tasks only, you ideally do not interrupt at all. Their priority won't change unless new tasks arrive or old ones leave. How do we determine the best tick rate, then? (see `Processor type and features->Timer frequency`)
 
 ```
 # CONFIG_HZ_100 is not set
@@ -105,29 +105,29 @@ CONFIG_HZ_250=y
 CONFIG_HZ=250
 ```
 
-The Linux kernel default is 250Hz, while the maximum is 1000Hz and the minimum 0Hz ("no_hz"). Select the tick rate that better suits your system. If you have any doubt, err on the higher value. The scheduler interrupts for EDF tasks add interruptions, but they are predictable. The pace and duration of a scheduler interrupt, especially if the schedule remains the same, is constant. For EDF thus, higher rates equal some constant extension of the worst case execution time (WCET). For traditional FIFO and RR tasks instead, they might radically improve the reactivity of the system[^4].
+The Linux kernel default is 250Hz, while the maximum is 1000Hz and the minimum is 0Hz ("no_hz"). Select the tick rate that better suits your system. If you have any doubt, err on the higher value. The scheduler interrupts for EDF tasks add interruptions, but they are predictable. The pace and duration of a scheduler interrupt, especially if the schedule remains the same, is constant. For EDF, thus, higher rates equal some constant extension of the worst-case execution time (WCET). For traditional FIFO and RR tasks, instead, they might radically improve the reactivity of the system[^4].
 
-A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. If you have CPUs where there will be only one task running, this might be your choice. Maybe even with pure EDF scheduled tasks it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then - see wiki[^nohz], it's a **wip**). In a shared resources, however, where multiple containers are scheduled to share CPU-time it seems non-viable. If you wish to use this option nonetheless, you also need to use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically off-loads RCU call-backs on the listed CPUs (see below). It is a good practice to always have some CPUs (more than one), which do not use dynamic or adaptive ticks, nor any of the other changes below. If you use adaptive ticks, you still need to select a tick rate for the excluded CPUs, e.g. 250Hz.
+A note on 0Hz, or disabled scheduler tick `CONFIG_NO_HZ_FULL`. No interruption at all may only be viable in very limited scenarios. This might be your choice if you have CPUs with only one task running. Maybe even with pure EDF scheduled tasks, it may be worth a try, as the schedule is constant and a yield returns to the scheduler (tested with Kernel 4.16, was not working then - see wiki[^nohz], it's a **WIP**). However, it seems non-viable in shared resources where multiple containers are scheduled to share CPU time. If you wish to use this option, you must use `nohz=on` and `nohz_full=<list-cpus>` boot parameters. This setting automatically offloads RCU callbacks on the listed CPUs (see below). It is a good practice always to have some CPUs (more than one) that do not use dynamic or adaptive ticks, nor any of the other changes below. If you use adaptive ticks, you still need to select a tick rate for the excluded CPUs, e.g. 250Hz.
 
-Finally, a note on dynamic ticks. It is possible to disable the tick as above only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default build parameter for desktop systems or any other kernel unless specified otherwise. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU call-backs. If enabled, you must thus off-load RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT-applications. If you nonetheless would like to use dyntick, use the `nohz=on`boot parameter in addition to the flag to enable it. The setting can be found in `General setup->Timer subsystem`. If you use dynamic ticks, you still need to select a tick rate for the excluded CPUs, e.g. 250Hz.
+Finally, a note on dynamic ticks. Disabling the tick as above is possible only for idle CPUs with `CONFIG_NO_HZ_IDLE`. This is the default build parameter for desktop systems or any other kernel unless specified otherwise. Although it seems a good compromise between the two above, it has some implications. The specified CPUs, for example, can not handle RCU callbacks. If enabled, you must thus off-load RCU handling to threads (see below). POSIX timers may further prevent these idle CPUs from ever entering the dyntick mode, requiring changes in your RT applications. If you would like to use dyntick, use the `nohz=on`boot parameter and the flag to enable it. The setting can be found in `General setup->Timer subsystem`. If you use dynamic ticks, you still need to select a tick rate for the excluded CPUs, e.g., 250Hz.
 
 [^nohz]: Further reading [Kernel Wiki](https://www.kernel.org/doc/html/latest/timers/no_hz.html)
 
-[^3]: It is worth noting that on such a system almost all tasks run as FIFO or RR scheduled real-time tasks, including the repetitive, cyclically scheduled PLC tasks and drivers. Instead of running a EDF schedule with regular period, the tasks implement the remainder of the period, once running is done, as sleep and yield to the scheduler.
+[^3]: It is worth noting that on such a system, almost all tasks run as FIFO or RR-scheduled real-time tasks, including the repetitive, cyclically scheduled PLC tasks and drivers. Instead of running an EDF schedule with a regular period, the tasks are implemented for the remainder of the period, once running is done, as sleep and yield to the scheduler.
 
 [^4]: CoDeSys tasks are scheduled either in `SCHED_OTHER` or `SCHED_FIFO`, depending on the IEC Priority setting, [see CoDeSys Linux Optimization](https://content.helpme-codesys.com/en/CODESYS%20Control/_rtsl_performance_optimization_linux.html)
 
 ### RCU call-backs
 
-[Read-copy-update](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) call-backs are performed by the kernel as soft-irqs to keep memory between concurring threads up-to date. To reduce the interference with real-time tasks, they can be delayed in execution or even limited to run on certain CPUs through off-loading into separate threads. The latter are strictly necessary for adaptive or dynamic ticks (`CONFIG_NO_HZ*`) to exclude call-backs on the schedule-tick reduced CPUs. 
+[Read-copy-update](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) call-backs are performed by the kernel as soft-irqs to keep memory between concurring threads up to date. To reduce interference with real-time tasks, they can be delayed in execution or even limited to running on certain CPUs through offloading into separate threads. The latter is strictly necessary for adaptive or dynamic ticks (`CONFIG_NO_HZ*`) to exclude callbacks on the schedule-tick-reduced CPUs. 
 
-To activate the off-loading of these call-backs into kernel threads, go to `General setup->RCU-Subsystem` and select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `CONFIG_RCU_NOCB_CPU` to `y`. You will then need to specify the boot parameter `rcu_nocbs=<list-cpus>` to tell the kernel on which CPUs to off-load the call-backs into threads. On newer kernels there (may) exists the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel.
+To activate the off-loading of these call-backs into kernel threads, go to `General setup->RCU-Subsystem` and select expert mode if necessary `RCU_EXPERT`, then `Offload RCU callback processing..` which sets the parameter `CONFIG_RCU_NOCB_CPU` to `y`. You will need to specify the boot parameter `rcu_nocbs=<list-cpus>` to tell the kernel which CPUs to offload the call-backs into threads. On newer kernels, there (may) exist the `CONFIG_RCU_NOCB_CPU_ALL` flag, introduced by Ubuntu Pro Real-time kernel.
 
-Once the parameter is set, you may further proceed by changing these generated thread's affinity and thus pinning them only to a certain CPU range (see Kernel thread affinity below).
+Once the parameter is set, you may proceed further by changing these generated threads' affinity and thus pinning them only to a certain CPU range (see Kernel thread affinity below).
 
 ### Disable kernel debug features
 
-Ubuntu distributions enable more than 50 Debug flags by default. A lot, if not all of them may be disabled for most Real-Time use cases. Thus, we might as well just disable them. This might, however, be overkill. Recent kernels introduce a [dynamic debug](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html) feature, which allows to enable and disable debug code dynamically with only little overhead. 
+Ubuntu distributions enable more than 50 Debug flags by default. Many, if not all, may be disabled for most Real-Time use cases. Thus, we might as well disable them. This might, however, be overkill. Recent kernels introduce a [dynamic debug](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html) feature, which allows to enable and disable debug code dynamically with only little overhead. 
 
 If you are building an older kernel, or you still want to disable debugging, you can set all debug features to false with this command
 
@@ -135,7 +135,7 @@ If you are building an older kernel, or you still want to disable debugging, you
 sed -i "s/\(DEBUG.*=\)y\(.*\)/\1n\2/g" .config
 ```
 
-Please note that a few features can not be disabled, e.g. `DEBUG_FS`, which is required by the kernel tracer `ftrace` (* Please note, we need kernel tracer functions, part of kernel debug_fs, for the orchestration tool in this repository to work *). Rerun `make menuconfig` to restore those flags through its dependencies. You should see something like this with `grep "DEBUG.*=y" .conf`
+Please note that a few features can not be disabled, e.g., `DEBUG_FS`, which is required by the kernel tracer `ftrace` (* Please note, we need kernel tracer functions, part of kernel debug_fs, for the orchestration tool in this repository to work *). Rerun `make menuconfig` to restore those flags through its dependencies. You should see something like this with `grep "DEBUG.*=y" .conf`
 
 ```
 CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC=y
@@ -148,7 +148,7 @@ CONFIG_ARCH_HAS_DEBUG_VIRTUAL=y
 CONFIG_LOCK_DEBUGGING_SUPPORT=y
 ```
 
-Here more info on [dynamic debuging](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html)
+Here is more info on [dynamic debuging](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html)
 
 ## Kernel boot parameters
 
