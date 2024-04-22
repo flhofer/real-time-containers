@@ -11,10 +11,25 @@ linux_patch=${1:-'6.1.77-rt24'}
 balena_tag=${2:-'v20.10.19'}
 docker_tag=${3:-'v25.0.3'}
 
+# for automatic retreival of kernel config files 
 repo_location="flhofer/real-time-containers"
 repo_branch="develop"
+repo_folder="test-monitor/polenaRT"
 
-function select(){
+machine=$(uname -m)
+
+############### Functions ######################
+
+isInteger() {               
+  [ "$1" -eq "$1" ] 2> /dev/null
+}
+
+
+select () {
+	################################
+	# Manual imp. select (interop)
+	################################
+
 	# Creates a little numbered selection menu - replaces debian's select command
 	# $1  return value (variable name)
 	# $2:@ list items
@@ -27,8 +42,8 @@ function select(){
 		i=$(( ${i}+1 )); 
 		echo "$i) $txt";
 	done  
-	local sel=-1
-	until [[ $sel =~ ^[0-9]+$ ]] && [ $sel -lt ${i} ]  ; do
+	local sel="na"
+	until isInteger $sel && [ $sel -lt ${i} ]  ; do
 		read -p "Please select from list (1-${i}) : " sel
 	done
 	
@@ -42,349 +57,87 @@ function select(){
 	eval ${item}=${txt}
 }
 
-############### Find package manager ######################
-abort=1
-for cmd in apt apt-get apk opkg rpm yum pacman emerge zypp; do
-	if [ ! -z "$(command -v $cmd)" ]; then
-		cat <<-EOF
-		Using $cmd for package management
-		EOF
-		case "$cmd" in
-			"apk"*)
-				pgkmgmt="$cmd add --no-interactive"
-				;;
-			*)
-				pgkmgmt="$cmd install -y"
-				;;
-		esac
-		pgkmgmt_u="$cmd update"		
-		abort=0
-		break;
+patchSource () {
+	################################
+	# Preempt RT
+	################################
+
+	local linux_ver=$1
+	local linux_root=$2
+	local linux_base=$3
+	local linux_patch=$4
+
+	mkdir -p polena-build
+	cd polena-build
+
+	if [ ! -e "./linux-${linux_ver}" ]; then
+		echo
+		echo "## Downloading Linux Kernel"
+		wget https://www.kernel.org/pub/linux/kernel/v${linux_root}.x/linux-${linux_ver}.tar.gz
+	else
+		# cleanup
+		rm -r linux-${linux_ver}
 	fi
-done
-if [ $abort = 1 ] ; then
-	cat >&2 <<-EOF
-	Error: unable to find package manager command from list: $pkg_list
+	tar xf linux-${linux_ver}.tar.gz
+
+	if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
+		echo
+		echo "## Downloading RT patch"
+		set +e
+		wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
+		if [ "$?" -ne "0" ]; then
+			wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/older/patch-${linux_patch}.patch.xz
+		fi
+		set -e
+	fi
+
+	cd linux-${linux_ver}
+
+	echo
+	echo "## Checking sign key"
+	checkSignKey
+
+	echo
+	echo "## Patching Linux Kernel"
+	xzcat ../patch-${linux_patch}.patch.xz | patch -p1
+}
+
+patchVersion () {
+	################################
+	# Patch kernel print version
+	################################
+
+	local linux_patch=$1
+	
+	# parse linux patch string to find sub-elements for wget
+	local rt_patch=$(echo "$linux_patch" | sed -n 's/\([0-9.]*-\)*\(.*\)/\2/p')
+	local linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
+	local linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
+	local linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
+	
+	cat <<-EOF
+	*** Polena installer ...
+
+	Selecting RT-patch < ${rt_patch} > for 
+		*   kernel root family ${linux_root}
+		**  base version ${linux_base}
+		*** release ${linux_ver}
 	EOF
-fi	
 
-############### Detect distro to select package names ######################
-# -default Build tools
-packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
-# -default source pkgs
-packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
-# -default pkgs required for this script
-packages3="curl jq"
+	patchSource $linux_ver $linux_root $linux_base $linux_patch
+}
 
-# read distro release info
-case $( cat /etc/*-release ) in 
-	*Alpine* )
-		echo "Alpine Linux detected"
-		packages1="tar flex bison perl"
-		packages2="alpine-sdk linux-headers"
-		packages3="jq"
+checkSignKey () {
+	################################
+	# Check if sign key is present
+	################################
 
-		distname="alpine"
-		pkgbuild="tarzst-pkg"
+	# Check if keyconf is present, otherwise create and generate key
+	if [ ! -e "./certs/default_x509.genkey" ]; then
 
-		#"openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
-		#"pkgconfig dpkg-dev"
-		#packages1="autoconf automake libtool bc rsync kmod cpio gawk akms llvm "
-		#could not find libiberty-dev
-		;;
-	*Ubuntu* )
-		echo "Ubuntu Linux detected"
-		pkgbuild="deb-pkg"
-		distname="ubuntu"
+		echo "## Create signing key"
 
-		# Build tools
-		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
-		# source pkgs
-		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
-		# pkgs required for this script
-		packages3="curl jq"
-
-		;;
-	*Mint* )
-		echo "Linux Mint detected"
-		pkgbuild="deb-pkg"
-		distname="mint"
-
-		# Build tools
-		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
-		# source pkgs
-		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*Debian* )
-		echo "Debian Linux detected"
-		pkgbuild="deb-pkg"
-		distname="debian"
-
-		# Build tools
-		packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
-		# source pkgs
-		packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*Fedora* )
-		echo "Fedora Linux detected"
-		pkgbuild="rpm-pkg"
-		distname="fedora"
-
-		# Build tools
-		packages1=""
-		# source pkgs
-		packages2=""
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*Red\ Hat* )
-		echo "Red Hat Linux detected"
-		pkgbuild="rpm-pkg"
-		distname="redhat"
-
-		# Build tools
-		packages1=""
-		# source pkgs
-		packages2=""
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*SuSe* )
-		echo "SuSe Linux detected"
-		pkgbuild="rpm-pkg"
-		distname="suse"
-
-		# Build tools
-		packages1=""
-		# source pkgs
-		packages2=""
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*OpenSuSe* )
-		echo "OpenSuSe Linux detected"
-		pkgbuild="rpm-pkg"
-		distname="opensuse"
-
-		# Build tools
-		packages1=""
-		# source pkgs
-		packages2=""
-		# pkgs required for this script
-		packages3="curl jq"
-
-		cat >&2 <<-EOF
-		
-		WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-	
-		EOF
-		;;
-	*)
-		cat <<-EOF
-		
-		Unsupported distribution detected. Make sure all dependencies are fullfilled!
-		Using default Linux distro setting..
-		
-		EOF
-		pkgbuild="tarzst-pkg"
-		distname="custom"
-		;;
-esac
-
-############### Check commands ######################
-#- and warn about missing required commands before doing any actual work.
-abort=0
-for cmd in tar curl fakeroot jq; do
-	if [ -z "$(command -v $cmd)" ]; then
-		cat >&2 <<-EOF
-		Error: unable to find required command: $cmd
-		EOF
-		abort=1
-	fi
-done
-[ $abort = 1 ] && exit 1
-
-sudo=
-if [ "$(id -u)" -ne 0 ]; then
-	if [ -z "$(command -v sudo)" ]; then
-		cat >&2 <<-EOF
-		Error: this installer needs the ability to run commands as root.
-		You are not running as root and we are unable to find "sudo" available.
-		EOF
-		exit 1
-	fi
-	sudo="sudo -E"
-fi
-
-machine=$(uname -m)
-
-# Detect the system architecture
-case "$machine" in
-	"armv5"*)
-		arch="armv5e"
-		;;
-	"armv6"*)
-		arch="armv6l"
-		;;
-	"armv7"*)
-		arch="armv7hf"
-		;;
-	"armv8"*)
-		arch="arm64"
-		;;
-	"aarch64"*)
-		arch="arm64"
-		;;
-	"x86_64")
-		arch="amd64"
-		;;
-	*)
-		echo "Unknown machine type: $machine" >&2
-		exit 1
-esac
-
-#################################
-# Required system packages 
-#################################
-echo
-echo "## Installing dependencies..."
-$sudo $pgkmgmt_u
-# Tools for building
-$sudo $pgkmgmt $packages1
-# Dev Libraries for building
-$sudo $pgkmgmt $packages2
-# Tools for this script 
-$sudo $pgkmgmt $packages3
-
-# Check if kernel config exists
-config_file="ubuntu-${machine}-${linux_patch}.config"
-
-if [ ! -f "$config_file" ]; then
-	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
-
-	echo "Fetching list from repository..."
-	versions=$(curl -H GET "https://github.com/${repo_location}/tree/${repo_branch}/test-monitor/polenaRT" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
-
-	if [ -z "${versions}" ]; then
-		echo "Error: Could not find valid Kernel config file!" >&2
-		exit 1
-	fi
-
-	echo "Available configuration files in the polenaRT repository"
-	select version ${versions} "Cancel"
-
-	if [[ -z "${version}" || "$version" == "Cancel" ]]; then
-		echo "Error: No valid Kernel config selected!" >&2
-		exit 1
-	fi
-	# strip from quotes
-	version=${version#\"}
-	version=${version%\"}
-	
-	# generate linux patch string
-	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
-	
-	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/test-monitor/polenaRT/${version}.config" > ${version}.config
-	
-	# reset kernel config file
-	config_file="ubuntu-${machine}-${linux_patch}.config" # TODO: more universal distrodep
-fi
-
-# parse linux patch string to find sub-elements for wget
-rt_patch=$(echo "$linux_patch" | sed -n 's/\([0-9.]*-\)*\(.*\)/\2/p')
-linux_ver=$(echo "$linux_patch" | sed -n 's/\([0-9]*\(\.[0-9]*\)\{1,2\}\).*/\1/p')
-linux_root=$(echo "$linux_ver" | sed -n 's/\([0-9]*\).*/\1/p')
-linux_base=$(echo "$linux_ver" | sed -n 's/\([0-9]*\.[0-9]*\).*/\1/p')
-balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
-
-cat <<EOF
-*** Polena installer ...
-
-Selecting RT-patch < ${rt_patch} > for 
-	*   kernel root family ${linux_root}
-	**  base version ${linux_base}
-	*** release ${linux_ver}
-EOF
-
-# if xconfig...
-#$sudo apt-get install -y qt5-default
-# if create-pkg...
-#$sudo apt-get install -y checkinstall
-
-################################
-# Preempt RT
-################################
-mkdir -p polena-build
-cd polena-build
-
-if [ ! -e "./linux-${linux_ver}" ]; then
-	echo
-	echo "## Downloading Linux Kernel"
-	wget https://www.kernel.org/pub/linux/kernel/v${linux_root}.x/linux-${linux_ver}.tar.gz
-else
-	# cleanup
-	rm -r linux-${linux_ver}
-fi
-tar xf linux-${linux_ver}.tar.gz
-
-if [ ! -f "patch-${linux_patch}.patch.xz" ]; then
-	echo
-	echo "## Downloading RT patch"
-	wget https://www.kernel.org/pub/linux/kernel/projects/rt/${linux_base}/patch-${linux_patch}.patch.xz
-
-fi
-
-echo
-echo "## Patching Linux Kernel"
-cd linux-${linux_ver}
-xzcat ../patch-${linux_patch}.patch.xz | patch -p1
-
-# Check if keyconf is present, otherwise create and generate key
-if [ ! -e "./certs/default_x509.genkey" ]; then
-
-	echo "## Create signing key"
-
-	echo -e "[ req ]
+		echo -e "[ req ]
 default_bits = 4096
 distinguished_name = req_distinguished_name
 prompt = no
@@ -400,30 +153,42 @@ CN = Build time autogenerated kernel key
 basicConstraints=critical,CA:FALSE
 keyUsage=digitalSignature
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid" > x509.genkey
+authorityKeyIdentifier=keyid" > ./certs/default_x509.genkey
 
-	openssl req -new -nodes -utf8 -sha512 -days 36500 -batch -x509 -config certs/default_x509.genkey -outform DER -out certs/signing_key.x509 -keyout certs/signing_key.pem
+		openssl req -new -nodes -utf8 -sha512 -days 36500 -batch -x509 -config certs/default_x509.genkey -outform DER -out certs/signing_key.x509 -keyout certs/signing_key.pem
 
-fi
+	fi
+}
 
-echo
-echo "## Compiling kernel"
-cp ../../${config_file} .config
-yes "" | make oldconfig
-make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
-cd ..
+buildKernel () {
+	################################
+	# Compile kernel with .config
+	################################
+	local config_file=$1
 
-echo "Interrupting install of kernel/container daemon - temp" 
-exit 1
+	echo
+	echo "## Compiling kernel"
+	cp ../../${config_file} .config
+	yes "" | make oldconfig
+	make -j$(nproc) $pkgbuild LOCALVERSION=-${distname}
+	cd ..
+}
 
-echo
-echo "## Installing kernel" # TODO: make distribution independent 
-$sudo dpkg -i linux-headers-${linux_patch}.deb linux-image-${linux_patch}.deb
+installKernel () {
+	################################
+	# Kernel installer
+	################################
+	local linux_patch=$1
 
-echo
-echo "## Configuring GRUB"
-#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
-$sudo cp /etc/default/grub /etc/default/grub.backup
+	echo
+	echo "## Installing kernel" # TODO: make distribution independent 
+	$sudo dpkg -i linux-headers-${linux_patch}-${distname}.deb linux-image-${linux_patch}-${distname}.deb
+
+	echo
+	echo "## Configuring GRUB"
+	#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
+	$sudo cp /etc/default/grub /etc/default/grub.backup
+	#TODO: update instead of overwrite
 echo '
 GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_patch}'"
 GRUB_HIDDEN_TIMEOUT_QUIET="true"
@@ -432,29 +197,373 @@ GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
 ' >> grub
-$sudo mv grub /etc/default/grub
-$sudo update-grub2
+	$sudo mv grub /etc/default/grub
+	$sudo update-grub2
+}
 
-url=
-url2=
-echo "Which container daemon to install ?"
-select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
-case $ins in
-    Docker )	echo "## Installing Docker"
-    			url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
-    			url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz"; break;;
-balena-engine-${balena_rev}-${arch}.tar.gz"; break;;
-    Balena )	echo "## Installing Balena"
-    			url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/    None ) 		echo "## Exiting"
-				exit;;
+installContainerD () {
+	################################
+	# Select and install daemon
+	################################
+	
+	local balena_rev=$(echo "$balena_tag" | sed 's|+|.|g')
+	local docker_rev=$(echo "$docker_tag" | sed 's|+|.|g')
+
+	local url=
+	local url2=
+	local arch=
+	# Detect the system architecture
+	case "$machine" in
+		"armv5"*)
+			arch="armv5e"
+			;;
+		"armv6"*)
+			arch="armv6l"
+			;;
+		"armv7"*)
+			arch="armv7hf"
+			;;
+		"armv8"*)
+			arch="arm64"
+			;;
+		"aarch64"*)
+			arch="arm64"
+			;;
+		"x86_64")
+			arch="amd64"
+			;;
+		*)
+			echo "Unknown machine type: $machine" >&2
+			exit 1
+	esac
+
+	echo "Which container daemon to install ?"
+	select ins "Docker ${docker_rev}" "Balena ${balena_rev}" "None"
+	case $ins in
+		Docker )	echo "## Installing Docker"
+					url="https://download.docker.com/linux/static/stable/${machine}/docker-${docker_rev}.tgz";
+					url2="https://download.docker.com/linux/static/stable/${machine}/docker-rootless-extras-${docker_rev}.tgz";
+					break;;
+	
+		Balena )	echo "## Installing Balena"
+					url="https://github.com/balena-os/balena-engine/releases/download/${balena_rev}/balena-engine-${balena_rev}-${arch}.tar.gz";
+					break;;
+					
+		None ) 		echo "## Exiting"
+					exit;;
+	esac
+
+	if [ ! -z "$url" ] ; then
+		curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+		if [ ! -z "$url2" ] ; then
+			curl -sL "$url2" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+		fi
+	fi
+}
+
+installDependencies () {
+	################################
+	# Install distro depenencies
+	################################
+
+	local distname=$1
+
+	############### Find package manager ######################
+	local abort=1
+	local cmd=
+	local pgkmgmt=
+	local pgkmgmt_u=
+	local pkg_list="apt apt-get apk opkg rpm yum pacman emerge zypp"
+	for cmd in $pkg_list; do
+		if [ ! -z "$(command -v $cmd)" ]; then
+			cat <<-EOF
+			Using $cmd for package management
+			EOF
+			case "$cmd" in
+				"apk"*)
+					pgkmgmt="$cmd add --no-interactive"
+					;;
+				*)
+					pgkmgmt="$cmd install -y"
+					;;
+			esac
+			pgkmgmt_u="$cmd update"		
+			abort=0
+			break;
+		fi
+	done
+	if [ $abort = 1 ] ; then
+		cat >&2 <<-EOF
+		Error: unable to find package manager command from list: $pkg_list
+		EOF
+	fi	
+
+	# -default Build tools
+	local packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+	# -default source pkgs
+	local packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+	# -default pkgs required for this script
+	local packages3="curl jq"
+
+	# read distro release info
+	case $distname in 
+		alpine )
+			packages1="tar flex bison perl"
+			packages2="alpine-sdk linux-headers"
+			packages3="jq"
+
+			#"openssl-dev eudev-dev libpciaccess-dev ncurses-dev elfutils-dev"
+			#"pkgconfig dpkg-dev"
+			#packages1="autoconf automake libtool bc rsync kmod cpio gawk akms llvm "
+			#could not find libiberty-dev
+			;;
+		ubuntu )
+			# Build tools
+			packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+			# source pkgs
+			packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+			# pkgs required for this script
+			packages3="curl jq"
+
+			;;
+		mint )
+			# Build tools
+			packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+			# source pkgs
+			packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		debian )
+			# Build tools
+			packages1="autoconf automake libtool pkg-config bison flex bc rsync kmod cpio gawk dkms llvm zstd"
+			# source pkgs
+			packages2="libssl-dev libudev-dev libpci-dev libiberty-dev libncurses5-dev libelf-dev"
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		fedora )
+			# Build tools
+			packages1=""
+			# source pkgs
+			packages2=""
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		redhat )
+			# Build tools
+			packages1=""
+			# source pkgs
+			packages2=""
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		suse )
+			# Build tools
+			packages1=""
+			# source pkgs
+			packages2=""
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		opensuse )
+			# Build tools
+			packages1=""
+			# source pkgs
+			packages2=""
+			# pkgs required for this script
+			packages3="curl jq"
+
+			cat >&2 <<-EOF
+			
+			WARNING: confiuration incomoplete. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+		
+			EOF
+			;;
+		*)
+			cat <<-EOF
+			
+			Unsupported distribution detected. Make sure all dependencies are fullfilled!
+			Using default Linux distro setting..
+			
+			EOF
+			;;
+	esac
+	
+	#################################
+	# Required system packages 
+	#################################
+	echo
+	echo "## Installing dependencies..."
+	$sudo $pgkmgmt_u
+	# Tools for building
+	$sudo $pgkmgmt $packages1
+	# Dev Libraries for building
+	$sudo $pgkmgmt $packages2
+	# Tools for this script 
+	$sudo $pgkmgmt $packages3
+}
+
+
+############### Detect distro to select package names ######################
+
+# read distro release info
+case $( cat /etc/*-release ) in 
+	*Alpine* )
+		echo "Alpine Linux detected"
+		distname="alpine"
+		pkgbuild="tarzst-pkg"
+		;;
+	*Ubuntu* )
+		echo "Ubuntu Linux detected"
+		distname="ubuntu"
+		pkgbuild="deb-pkg"
+		;;
+	*Mint* )
+		echo "Linux Mint detected"
+		distname="mint"
+		pkgbuild="deb-pkg"
+		;;
+	*Debian* )
+		echo "Debian Linux detected"
+		distname="debian"
+		pkgbuild="deb-pkg"
+		;;
+	*Fedora* )
+		echo "Fedora Linux detected"
+		distname="fedora"
+		pkgbuild="rpm-pkg"
+		;;
+	*Red\ Hat* )
+		echo "Red Hat Linux detected"
+		distname="redhat"
+		pkgbuild="rpm-pkg"
+		;;
+	*SuSe* )
+		echo "SuSe Linux detected"
+		distname="suse"
+		pkgbuild="rpm-pkg"
+		;;
+	*OpenSuSe* )
+		echo "OpenSuSe Linux detected"
+		distname="opensuse"
+		pkgbuild="rpm-pkg"
+		;;
+	*)
+		distname="custom"
+		pkgbuild="tarzst-pkg"
+		;;
 esac
 
-if [ ! -z "$url" ] ; then
-	curl -sL "$url" | $sudo tar xzv -C /usr/local/bin --strip-components=1
-	if [ ! -z "$url2" ] ; then
-		curl -sL "$url2" | $sudo tar xzv -C /usr/local/bin --strip-components=1
+############### Check privileges ######################
+sudo=
+if [ "$(id -u)" -ne 0 ]; then
+	if [ -z "$(command -v sudo)" ]; then
+		cat >&2 <<-EOF
+		Error: this installer needs the ability to run commands as root.
+		You are not running as root and we are unable to find "sudo" available.
+		EOF
+		exit 1
 	fi
+	sudo="sudo -E"
 fi
+
+installDependencies $distname
+
+############### Check commands ######################
+#- and warn about missing required commands before doing any actual work.
+abort=0
+for cmd in tar curl fakeroot jq; do
+	if [ -z "$(command -v $cmd)" ]; then
+		cat >&2 <<-EOF
+		Error: unable to find required command: $cmd
+		EOF
+		abort=1
+	fi
+done
+[ $abort = 1 ] && exit 1
+
+# Check if kernel config exists
+config_file="${distname}-${machine}-${linux_patch}.config"
+
+if [ ! -f "$config_file" ]; then
+	echo "Warning: required Kernel config file '${config_file}' does not exist!" >&2
+
+	echo "Fetching list from repository..."
+	versions=$(curl -H GET -H "Accept: application/json" "https://github.com/${repo_location}/tree/${repo_branch}/${repo_folder}" | jq  '.payload.tree.items[] | select ( .name | contains ( ".config" )) | select ( .name | contains ( "'${machine}'" )) | .name | sub (".config";"") ' - )
+
+	if [ -z "${versions}" ]; then
+		echo "Error: Could not find valid Kernel config file!" >&2
+		exit 1
+	fi
+
+	echo "Available configuration files in the polenaRT repository"
+	select version ${versions} "Cancel"
+
+	if [ -z "${version}" ] || [ "$version" = "Cancel" ]; then
+		echo "Error: No valid Kernel config selected!" >&2
+		exit 1
+	fi
+	# strip from quotes
+	version=${version#\"}
+	version=${version%\"}
+	
+	#TODO: assign distro as well
+	# generate linux patch string
+	linux_patch=$(echo "$version" | sed -n 's/\([a-zA-Z0-9\_]*\-\)\{2\}\(.*\)/\2/p')
+	
+	curl -H GET "https://raw.githubusercontent.com/${repo_location}/${repo_branch}/${repo_folder}/${version}.config" > ${version}.config
+	
+	# reset kernel config file
+	config_file="${distname}-${machine}-${linux_patch}.config" # TODO: more universal distrodep
+fi
+
+patchVersion $linux_patch
+
+buildKernel $config_file
+
+echo "Interrupting install of kernel/container daemon - temp" 
+exit 1
+
+installKernel $linux_patch
+
+installContainerD
 
 cat <<EOF
 

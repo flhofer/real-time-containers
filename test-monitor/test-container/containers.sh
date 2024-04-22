@@ -1,56 +1,58 @@
-#!/bin/bash
+#!/bin/sh
 
-if [[ ! "$1" == "quiet" ]]; then
+if [ ! "$1" = "quiet" ]; then
+	cat <<-EOF
 
-cat <<EOF
+	######################################
 
-######################################
+	Test container execution
+	______     _
+	| ___ \   | |
+	| |_/ /__ | | ___ _ __   __ _ 
+	|  __/ _ \| |/ _ \ '_ \ / _' |
+	| | | (_) | |  __/ | | | (_| |
+	\_|  \___/|_|\___|_| |_|\__,_|
 
-Test container execution
-______     _
-| ___ \   | |
-| |_/ /__ | | ___ _ __   __ _ 
-|  __/ _ \| |/ _ \ '_ \ / _' |
-| | | (_) | |  __/ | | | (_| |
-\_|  \___/|_|\___|_| |_|\__,_|
+	simply real-time containers
 
-simply real-time containers
+	######################################
 
-######################################
-
-EOF
+	EOF
 else 
 	shift
 fi
 
-function printhelp () {
-cat <<EOF
-Not enough arguments supplied!
-Usag: ./container.sh command testgrp 
- or   ./container.sh test testgrp [testgrp] .. [testgrp] 
- or   ./container.sh (for defaults)
+print_help () {
+	cat <<-EOF
+	Usage: $0 command testgrp [testgrp] .. [testgrp] 
+	 or    $0 build
+	 or    $0 update [calibration-value]
+	 or    $0 (for defaults)
 
-Defaults are:
-command = start         command to apply to containers in group
-testgrp = *             all test groups present are applied (once per json)
+	Defaults are:
+	command = start         command to apply to containers in group
+	testgrp = *             all test groups present are applied (once per json)
 
-Commands:
-help                    this screen
-build                   build the containers for all JSON test files
-run                     run container specified
-start                   start container after it has been stopped
-stop                    stop container after it has been stopped
-rm                      remove container
-test                    test run for container (parallel execution of orchestrator)
-update                  update container calibration value
-EOF
-        exit 1
+	Commands:
+	help                    this screen
+	build                   build the container image with rt-app (see Dockerfile)
+	run                     run container specified from built image
+	start                   start container after it has been stopped
+	stop                    stop container after it has been stopped
+	rm                      remove container
+	test                    test run for container (with parallel execution of 'orchestrator')
+	testsw 	                like test, with additional software to be tested, parameter 1 in quotes ""
+	testcontainer           like test, with additional container to be tested, parameter 1
+	update                  update container calibration value with the value specified as argument (if given) and copy to containers
+	EOF
+	exit 1
 }
 
 ##################### DETERMINE CLI PARAMETERS ##########################
 
-if [ $# -eq 1 ]; then
-	printhelp
+if [ ! "$1" = "build" ] && [ ! "$1" = "update" ] && [ ! "$1" = "help" ] && [ $# -eq 1 ]; then
+	echo "Not enough arguments supplied!"
+	print_help
 fi
 
 cmd=${1:-'help'}
@@ -58,16 +60,16 @@ grp=${2:-'*'}
 
 ##################### EVALUATE COMMAND OUTPUT ##########################
 
-if [[ "$cmd" == "help" ]]; then
-	printhelp
+if [ "$cmd" = "help" ]; then
+	print_help
 
-elif [[ "$cmd" == "build" ]]; then
+elif [ "$cmd" = "build" ]; then
 # BUILD CONTAINER
 	echo "Build containers"
 
 	eval "docker build . -t testcnt"
 
-elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
+elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 # CREATE CONTAINERS OF GRP
 	echo "Run containers"
 
@@ -90,7 +92,7 @@ elif [[ "$cmd" == "run" ]] || [[ "$cmd" == "create" ]]; then
 	    shift
 	done
 
-elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; then
+elif [ "$cmd" = "start" ] || [ "$cmd" = "stop" ] || [ "$cmd" = "rm" ]; then
 # APPLY CMD TO ALL CONTAINERS OF GRP
 	echo "Start containers"
 
@@ -106,7 +108,7 @@ elif [[ "$cmd" == "start" ]] || [[ "$cmd" == "stop" ]] || [[ "$cmd" == "rm" ]]; 
 	    shift
 	done
 
-elif [[ "$cmd" == "test" ]]; then # run a test procedure
+elif [ "$cmd" = "test" ]; then # run a test procedure
 
 	echo "Starting 15 min tests"
 	# remove old log file first 
@@ -142,7 +144,7 @@ elif [[ "$cmd" == "test" ]]; then # run a test procedure
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
 
-elif [[ "$cmd" == "update" ]]; then
+elif [ "$cmd" = "update" ]; then
 # UPDATE ALL CONTAINERS CONFIG
 	if [ "$2" != "" ]; then
 		eval "sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json"
@@ -162,6 +164,48 @@ elif [[ "$cmd" == "update" ]]; then
 			echo $i; 
 		done 
 	done 
+elif [ "$cmd" = "testsw" ]; then
+# RUN TEST COMMAND AND THEN START test		
+
+	# $1 testsw, $2 program to run, save and remove from args
+	sw=$2
+	shift 2
+
+	# set sw as $@ list and extract first item $1, then restore (posix compatible)
+	mainargs="$*"
+	set -- $sw 
+	binary=$1
+ 	set -- $mainargs
+
+	# start software and store pid
+	eval $sw &
+	sleep 2
+	SWPID=$(ps h -o pid -C $binary )
+	
+	# run recursive as test
+	eval $0 test $@
+	
+	# end test software
+	kill -SIGINT $SWPID
+	sleep 1
+elif [ "$cmd" = "testcontainer" ]; then
+# RUN TEST CONTAINER AND THEN START test		
+
+	# $1 container, $2 container to run, save and remove from args
+	cont=$2
+	shift 2
+	
+	eval "docker container start ${cont}"
+	sleep 2
+	
+	# run recursive as test
+	eval $0 test $@
+
+	sleep 2
+
+	eval "docker container stop ${cont}"
+
+	sleep 1
 else
 	echo "Unknown command"
 fi

@@ -24,24 +24,37 @@ else
 	shift
 fi
 
-cmd=${1:-'cont'}
+function print_help {
 
-if [ $# -ge 3 ]; then
+	cat <<-EOF
+	Usage: $0 start [number] [kernel-ver1] [kernel-ver2]
+	 or    $0 cont	[number] [kernel-ver1] [kernel-ver2]
 
-cat <<EOF
-Not enough arguments supplied!
-Usag: $0 start [number]
- or   $0 cont
+	for start or continuation of a kernel test.
+	
+	Defaults are:
+	number = *                      maximum number of cpu to use, default all cpus used
+	kernel-ver1 = 4.19.50-rt24      The specified version is base version
+	kernel-ver2 = 4.19.50-rt24loji  The specified version is compare version
+	EOF
+	
+}
 
-Defaults are:
-number = *		all cpus used
-EOF
-        exit 1
+cmd=${1:-'help'}
+
+if [ $# -gt 4 ]; then
+	echo "Too many arguments supplied!!"
+	print_help
+	exit 1
+fi
+if [ "$cmd" = "help" ]; then
+	print_help
+	exit 0
 fi
 
-maxcpu=$((${2:-$(($(nproc --all)))}-1))
-std=${3:-'4.19.50-rt22'}
-fult=${4:-'4.19.50-rt22loji'}
+maxcpu=${2:-$(( $(nproc --all) - 1 ))}
+ver1=${3:-'4.19.50-rt22'}
+ver2=${4:-'4.19.50-rt22loji'}
 
 if [[ ! "$cmd" == "start" ]]; then
 
@@ -63,80 +76,80 @@ function update_kernel () {
 
 	if [ "$runno" -eq 1 ]; then
 		# Dyntick
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 2 ]; then
 		# Dyntick + backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 3 ]; then
 		# Dyntick + isolation
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpus=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 4 ]; then
 		# Dyntick + isolation + backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $fult\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 5 ]; then
 		# backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 6 ]; then
 		# isolation
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpus=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 7 ]; then
 		# isolation + backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 8 ]; then
 		# reset
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
 
 	elif [ "$runno" -eq 9 ]; then
 		# fixtick 
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 10 ]; then
 		# fixtick + backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 11 ]; then
 		# fixtick + isolation
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 12 ]; then
 		# fixtick + isolation + backoff
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
 
 	elif [ "$runno" -eq 13 ]; then
 
 		# TEMP
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux $std\"/' /etc/default/grub"
+		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
 		# remove start script
@@ -170,7 +183,7 @@ if [[ "$cmd" == "start" ]]; then
 	eval "rm -r log/test*/"
 
 	# add to startup 
-	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh' | sudo crontab -u root -"
+	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -"
 else 
 	echo "...waiting"
 	sleep 60
