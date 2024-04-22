@@ -27,4 +27,4 @@ RUN wget --output-document=/tmp/edge.package $EDGE_URL && \
 EXPOSE 11740 1217 11743
 
 # Entrypoint is service start
-ENTRYPOINT ["/bin/sh", "-c" , "/etc/init.d/codesyscontrol start"]
+ENTRYPOINT ["/bin/sh", "-c" , "/etc/init.d/codesyscontrol start && /etc/init.d/codesysedge start && tail -f /dev/null""]
