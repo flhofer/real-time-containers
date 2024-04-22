@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:jammy
 
 MAINTAINER Florian Hofer (info@florianhofer.it)
 
@@ -21,4 +21,4 @@ RUN wget --output-document=/tmp/edge.package $EDGE_URL && \
 	
 EXPOSE 11740 1217 11743
 
-ENTRYPOINT ["/bin/sh", "-c" , "/etc/init.d/codesyscontrol start && /etc/init.d/codesysedge start && tail -f /dev/null"]
+ENTRYPOINT ["/bin/sh", "-c" , "/etc/init.d/codesyscontrol start"]
