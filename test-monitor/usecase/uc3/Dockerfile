@@ -5,8 +5,8 @@ MAINTAINER Florian Hofer (info@florianhofer.it)
 RUN apt-get update && \
 		apt-get install -y wget sudo unzip libusb-1.0-0-dev procps
 	
-ENV CDS_VERSION "4.10.0.0"
-ENV EDGE_VERSION "4.10.0.0"
+ENV CDS_VERSION "4.11.0.0"
+ENV EDGE_VERSION "4.11.0.0"
 
 ENV URL "https://store-archive.codesys.com/ftp_download/3S/LinuxSL/2302000005/$CDS_VERSION/CODESYS%20Control%20for%20Linux%20SL%20$CDS_VERSION.package"
 
