@@ -6,6 +6,9 @@ This part of the repository contains use cases for the `orchestrator` and the `p
 
 These first two use cases have been created together with Siemens to simulate typical application scenarios for RT-containers in industrial environments.
 
+<img src="resources/uc0-graph.png" width="700">
+
+
 ### Use case 1 - product quality control
 
 In this fist example we consider image processing cameras o af production line which feed the container infrastructure with with an image flow. The images are then processed to look for product defects.
@@ -20,6 +23,8 @@ As first guarantee we need the timely execution and delivery of results. With 8F
 
 Ideally, `polenaRT` will create an environment where jitter and delays are reduced to a minimum. This is a test case where we can verify this.
 
+<img src="resources/uc1-graph.png" width="700">
+
 The use case will simulate this scenario with 3 components. The generator, i.e., the camera, that produces our images at a settable speed. The distributor, which is in charge of load-balancing incoming frames, and the workers. The test will use 8FPS generation per running worker and run from 3 to 8 workers. Ideally the logs will confirm reactivity and determinism of our environment.
 
 ![Task configuration 1](resources/uc1-tasks.png)
@@ -28,6 +33,8 @@ The use case will simulate this scenario with 3 components. The generator, i.e.,
 ### Use case 2 - IoT and telemetry processing server
  
 The second use case describes a server that processes incoming data from sensors -- a typical scenario for IoT. These sensors can be of two types: polling, i.e., the server asks the sensor at a regular interval about new readings, and event based. The latter furthermore can generate data inconsistently, in size and time, making scheduling and prediction hard.
+
+<img src="resources/uc2-graph.png" width="700">
 
 For this use case we will use combined generator/distributor instances that either poll regularly the worker tasks (deadline-driven) or event driven workers that generate random traffic.
 
