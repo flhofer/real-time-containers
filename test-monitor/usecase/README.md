@@ -10,11 +10,11 @@ These first two use cases have been created together with Siemens to simulate ty
 
 In this fist example we consider image processing cameras o af production line which feed the container infrastructure with with an image flow. The images are then processed to look for product defects.
 
-<img src="resources/uc12-belt.png" width="500">
+<img src="resources/uc1-belt.png" width="500">
 
 This would, in the case of two 8FPS cameras on one resource, produce a task scheduling schema like the following. Note that the processing time can not be considered constant as it widely depends on the complexity of the image and the amount of detectable objects. However, this also means that a scheduled resource can be over-subscribed.
 
-<img src="resources/uc12-schedule.png" width="700">
+<img src="resources/uc1-schedule.png" width="700">
 
 As first guarantee we need the timely execution and delivery of results. With 8FPS we require indeed that the computation requires no longer than 125ms. If we further share computation resources with another camera, this time halves. You can see the trend here.
 
