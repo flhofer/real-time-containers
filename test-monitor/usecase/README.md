@@ -22,11 +22,17 @@ Ideally, `polenaRT` will create an environment where jitter and delays are reduc
 
 The use case will simulate this scenario with 3 components. The generator, i.e., the camera, that produces our images at a settable speed. The distributor, which is in charge of load-balancing incoming frames, and the workers. The test will use 8FPS generation per running worker and run from 3 to 8 workers. Ideally the logs will confirm reactivity and determinism of our environment.
 
-<img src="resources/uc1-tasks.png" width="400">
+![Task configuration 1](resources/uc1-tasks.png)
+*Task dependency graph*
 
 ### Use case 2 - IoT and telemetry processing server
  
+The second use case describes a server that processes incoming data from sensors -- a typical scenario for IoT. These sensors can be of two types: polling, i.e., the server asks the sensor at a regular interval about new readings, and event based. The latter furthermore can generate data inconsistently, in size and time, making scheduling and prediction hard.
 
+For this use case we will use combined generator/distributor instances that either poll regularly the worker tasks (deadline-driven) or event driven workers that generate random traffic.
+
+![Task configuration 2](resources/uc2-tasks.png)
+*Task dependency graph*
 
 ## Use case 3 - Codesys Control
 
