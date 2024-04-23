@@ -22,6 +22,8 @@ Ideally, `polenaRT` will create an environment where jitter and delays are reduc
 
 The use case will simulate this scenario with 3 components. The generator, i.e., the camera, that produces our images at a settable speed. The distributor, which is in charge of load-balancing incoming frames, and the workers. The test will use 8FPS generation per running worker and run from 3 to 8 workers. Ideally the logs will confirm reactivity and determinism of our environment.
 
+<img src="resources/uc1-tasks.png" width="400">
+
 ### Use case 2 - IoT and telemetry processing server
  
 
