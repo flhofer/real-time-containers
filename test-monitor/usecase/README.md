@@ -50,9 +50,11 @@ The resulting graphs should thus have two shapes. For workers dealing with event
 
 ## Use cases 3 and 4 - Bi-Rex and the University of Bologna, Italy
 
+The following two use cases focus on industrial automation and motion control. These environments are governed by PLCs—or Programmable Logic Controllers—that execute code using a runtime written in a domain-specific language. Both use cases will determine whether and how well the migration to virtualization and shared multi-tenant systems might perform for these real-time critical devices.
+
 ### Use case 3 - Codesys Control
 
-In this scenario, we consider the run-time software for IEC61131-3 compliant Soft-PLCs in bare or virtualized settings
+In this first scenario, we consider the run-time software for CoDeSys' IEC61131-3 compliant Soft-PLCs in bare-metal or virtualized settings. The _Control SL for Linux_ software already runs as a soft real-time solution on bare metal systems. This test will also compare it to the newly introduced virtualization-optimized vPLC _Virtual Control SL_. 
 
 *** WIP ***
 
