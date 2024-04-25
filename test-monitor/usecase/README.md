@@ -60,7 +60,7 @@ In this first scenario, we consider the run-time software for CoDeSys' IEC61131-
 
 ### Use case 4 - Simatic vPLC
 
-The fourth application considers the real-time environment around Siemens's vPLC package.
+Similar to the previous experience, we are dealing with system control virtualization. Different than before, this solution comes with its environment and places Siemens's vPLC at the center of the IED; the Industrial Edge Device, which operates on Siemens' Edge Runtime, introduces a whole new ecosystem of possibilities and complexities. The multiple levels of abstraction and virtualization make it hard to test and compare this solution with the previous use case. Nonetheless, we will try running both systems on a shared host.
 
 *** WIP ***
 
