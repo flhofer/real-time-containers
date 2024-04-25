@@ -1,14 +1,20 @@
 # Use cases 
 
-This part of the repository contains use cases for the `orchestrator` and the `polena` real-time environment. I've included a short description of the use cases below.
+This part of the repository contains use cases for the `orchestrator` and the `polena` real-time environment. The main focus of the code and examples is the setup and test run inside the polenaRT environment. Specific instructions for the `orchestrator` are not given as the latter is subject to constant change and adaptation.
+I've included a short description of the use cases below.
 
-## Use cases 1 and 2 - Siemens Corporate Technology, USA
+## Use cases 1 and 2 - Siemens and University of California at Berkeley, USA
 
-These first two use cases were created with Siemens to simulate typical application scenarios for real-time containers in industrial environments.
-
+These first two use cases were created with Siemens to simulate typical application scenarios for real-time containers in industrial environments. 
+The base case is represented in the image below. 
+Imagine a remote plant that requires some remote supervision and telemetry acquisition. In such a case, the time constraints are rather minor. For example, we took the base case of 10 readings per second to monitor the plant, a 10ms computation to elaborate the data every 100ms, and are happy with sub-second reaction times to anomalies.
 
 <img src="resources/uc0-graph.png" width="700">
 
+Although this seems like a simple quest, the problem is not reaching such terms but guaranteeing them, i.e., determinism. In the following two use cases, you will see data, samples, and configurations that match this base setup. We always want to double-check our base case first and then the system's performance with new configurations and tools. 
+
+> [!NOTE]
+> Both simulations are performed using the same *C++* binary and are thus located in the same folder. For usage, refer to the parameters and the run script `ucexec.sh`.
 
 ### Use case 1 - product quality control
 
@@ -40,13 +46,15 @@ For this use case, we will use combined generator/distributor instances that eit
 
 ![Task configuration 2](resources/uc2-tasks.png)*Task dependency graph*
 
-## Use case 3 - Codesys Control
+## Use cases 3 and 4 - Bi-Rex and the University of Bologna, Italy
+
+### Use case 3 - Codesys Control
 
 In this scenario we consider the run-time software for IEC61131-3 compliant Soft-PLCs in bare or virtualized settings
 
 *** WIP ***
 
-## Use case 4 - Simatic vPLC
+### Use case 4 - Simatic vPLC
 
 The fourth application considers the real-time environment around Siemens's vPLC package.
 
