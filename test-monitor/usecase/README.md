@@ -42,15 +42,17 @@ The second use case describes a server that processes incoming data from sensors
 
 <img src="resources/uc2-graph.png" width="700">
 
-For this use case, we will use combined generator/distributor instances that either regularly poll the worker tasks (deadline-driven) or use event-driven workers that generate random traffic.
+For this use case, we will use combined generator/distributor instances that regularly poll the worker tasks (deadline-driven) or use event-driven workers that generate random traffic.
 
 ![Task configuration 2](resources/uc2-tasks.png)*Task dependency graph*
+
+The resulting graphs should thus have two shapes. For workers dealing with events, we are interested in seeing how quickly the data is fetched and elaborated. Polling workers, instead, are targeted on regular and constant execution. If correctly working, these workers will produce a graph with as many straight pillars as there are workers, displaying the exact respect of the deadlines and periodic execution without delay.
 
 ## Use cases 3 and 4 - Bi-Rex and the University of Bologna, Italy
 
 ### Use case 3 - Codesys Control
 
-In this scenario we consider the run-time software for IEC61131-3 compliant Soft-PLCs in bare or virtualized settings
+In this scenario, we consider the run-time software for IEC61131-3 compliant Soft-PLCs in bare or virtualized settings
 
 *** WIP ***
 
