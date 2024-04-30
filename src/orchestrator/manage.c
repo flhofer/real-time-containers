@@ -150,6 +150,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						(*ecfg)->sign = 1;
 						while (t){
 
+							// preset size and sign, check later
 							if (!strcmp(t,"short")){
 								(*ecfg)->type = 0;
 								(*ecfg)->size = sizeof(short);
@@ -287,6 +288,17 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 		}
 		elist_head->event = strdup(event);
 		elist_head->eventcall = fun;
+
+		{
+			char buf[4096];
+			if ( 0 < getkernvar(path, "format", buf, sizeof(buf)))
+				parseEventFields(&elist_head->fields, buf);
+			else{
+				warn("Unable to get event format '%s'", event);
+				return -1;
+			}
+		}
+
 		return 0;
 	}
 
