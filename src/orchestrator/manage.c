@@ -129,10 +129,132 @@ ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
  *
  *  Return value: 0 on success, -1 on error
  */
-int
+static int
 parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 
+	char * s, * s_tok;
+	char * delim = ": \n";
+	int fp = 0;	// field position counter, 0 = off, 1 beign, 2 name, 3...
 
+	// Scan though buffer and parse contents
+	s = strtok_r (buffer,delim, &s_tok);
+	while(s) {
+		if (fp)
+			// field parsing state machine
+			switch (fp) {
+				case 2:	// field:
+					{
+						char* name = strdup(s); // variable type and name
+						char * t, * t_tok;
+						t = strtok_r (name, " ", &t_tok);
+						(*ecfg)->sign = 1;
+						while (t){
+
+							if (!strcmp(t,"short")){
+								(*ecfg)->type = 0;
+								(*ecfg)->size = sizeof(short);
+							}
+							if (!strcmp(t,"int")){
+								(*ecfg)->type = 1;
+								(*ecfg)->size = sizeof(int);
+							}
+							if (!strcmp(t,"long") && 2 == (*ecfg)->type){
+								// long keyword for second time
+								(*ecfg)->type = 3;
+								(*ecfg)->size = 2*sizeof(long);
+							}
+							if (!strcmp(t,"long")){
+								(*ecfg)->type = 2;
+								(*ecfg)->size = sizeof(long);
+							}
+							if (!strcmp(t,"char")){
+								(*ecfg)->type = 10;
+								(*ecfg)->sign = 0;
+								(*ecfg)->size = 1;
+							}
+							if (!strcmp(t,"pid_t")){
+								(*ecfg)->type = 20;
+								(*ecfg)->size = sizeof(int);
+							}
+							if (!strcmp(t,"unsigned"))
+								(*ecfg)->sign = 0;
+
+							name = t;		// last ok value
+							t = strtok_r (NULL, " ", &t_tok);
+						}
+						(*ecfg)->name=strdup(name);
+
+						// TODO: check name for [size] for chars
+					}
+					delim = "\t;: \n";
+					fp++;
+					break;
+				case 3:	// offset:
+					if (!strcmp(s, "offset")){
+						s = strtok_r (NULL, delim, &s_tok);
+						(*ecfg)->offset=atoi(s);
+						fp++;
+					}
+					break;
+				case 4:	// size:
+					if (!strcmp(s, "size")){
+						s = strtok_r (NULL, delim, &s_tok);
+						int size = atoi(s);
+						if (size != (*ecfg)->size)
+							printDbg(PFX "ftrace event parse - Field size mismatch, type %d bytes, value %d bytes\n", (*ecfg)->size, size);
+						(*ecfg)->size=size;
+						fp++;
+					}
+					break;
+				case 5:	// signed:
+					if(!strcmp(s, "signed")){
+						s = strtok_r (NULL, delim, &s_tok);
+						int sign = atoi(s);
+						if (sign != (*ecfg)->sign)
+							printDbg(PFX "ftrace event parse - Field sign mismatch, type %s, value %s\n", ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
+						(*ecfg)->sign=sign;
+						fp=1;	// ok, return
+					}
+					break;
+				default:
+					if (!strcmp(s, "field")){
+						fp = 2;
+						push((void**)ecfg, sizeof(struct ftrace_ecfg));
+						delim = ";\n";
+					}
+					else if (!strcmp(s, "print")) {
+						fp = 0;
+						s = strtok_r (NULL, "\n", &s_tok); // read until end of line
+					}
+					else
+						printDbg(PFX "ftrace event parse - Structure mismatch; expecting 'field', got '%s'\n", s);
+			}
+		else if (!strcmp(s, "name")){
+			// read name
+			s = strtok_r (NULL, delim, &s_tok);
+		}
+		else if (!strcmp(s, "ID")){
+			// read ID
+			s = strtok_r (NULL, delim, &s_tok);
+		}
+		else if (!strcmp(s, "format")) {
+			// switch to format parsing
+			delim = "\t;: \n";
+			fp = 1;
+		}
+		else if (!strcmp(s, "print")) {
+			// dup!
+			fp = 0;
+			s = strtok_r (NULL, "\n", &s_tok); // read until end of line
+			printDbg(PFX "ftrace event parse - Structure mismatch; unexpected 'print'");
+		}
+		else
+			printDbg(PFX "ftrace event parse - Unknown token %s\n", s);
+
+		// Next Token
+		s = strtok_r (NULL, delim, &s_tok);
+
+	}
 	return -1;
 }
 
@@ -241,6 +363,10 @@ resetTracers(){
 
 	while (elist_head){
 		free(elist_head->event);
+		while (elist_head->fields){
+			free(elist_head->fields->name);
+			pop((void**)&elist_head->fields);
+		}
 		pop((void**)&elist_head);
 	}
 }
