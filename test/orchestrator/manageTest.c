@@ -35,8 +35,14 @@ void buildEventConf(){
 }
 
 void clearEventConf(){
-	while (elist_head)
+	while (elist_head){
+		//free(elist_head->event);
+		while (elist_head->fields){
+			free(elist_head->fields->name);
+			pop((void**)&elist_head->fields);
+		}
 		pop((void**)&elist_head);
+	}
 }
 
 static void orchestrator_manage_setup() {
