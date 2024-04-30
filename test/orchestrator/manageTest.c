@@ -225,68 +225,21 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	// 20 pid_t
 
 	ck_assert_ptr_nonnull(elist_head->fields );
-	ck_assert_str_eq( "common_type", elist_head->fields->name );
-	ck_assert_int_eq( 0, elist_head->fields->type );
-	ck_assert_int_eq( 0, elist_head->fields->offset );
-	ck_assert_int_eq( 2, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_flags", elist_head->fields->name );
-	ck_assert_int_eq( 10, elist_head->fields->type );
-	ck_assert_int_eq( 2, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
-	ck_assert_int_eq( 10, elist_head->fields->type );
-	ck_assert_int_eq( 3, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_pid", elist_head->fields->name );
-	ck_assert_int_eq( 1, elist_head->fields->type );
-	ck_assert_int_eq( 4, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
 
 	// specific to sched_switch
 
-	ck_assert_str_eq( "prev_comm[16]", elist_head->fields->name );
-	ck_assert_int_eq( 10, elist_head->fields->type );
-	ck_assert_int_eq( 8, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
-	ck_assert_int_eq( 20, elist_head->fields->type );
-	ck_assert_int_eq( 24, elist_head->fields->offset );
+	ck_assert_str_eq( "next_prio", elist_head->fields->name );
+	ck_assert_int_eq( 1, elist_head->fields->type );
+	ck_assert_int_eq( 60, elist_head->fields->offset );
 	ck_assert_int_eq( 4, elist_head->fields->size );
 	ck_assert_int_eq( 1, elist_head->fields->sign );
 
 	pop((void**)&elist_head->fields);
 
-	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
+	ck_assert_str_eq( "next_pid", elist_head->fields->name );
 	ck_assert_int_eq( 20, elist_head->fields->type );
-	ck_assert_int_eq( 28, elist_head->fields->offset );
+	ck_assert_int_eq( 56, elist_head->fields->offset );
 	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_state", elist_head->fields->name );
-	ck_assert_int_eq( 2, elist_head->fields->type );
-	ck_assert_int_eq( 32, elist_head->fields->offset );
-	ck_assert_int_eq( 8, elist_head->fields->size );
 	ck_assert_int_eq( 1, elist_head->fields->sign );
 
 	pop((void**)&elist_head->fields);
@@ -299,19 +252,69 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 
 	pop((void**)&elist_head->fields);
 
-	ck_assert_str_eq( "next_pid", elist_head->fields->name );
-	ck_assert_int_eq( 20, elist_head->fields->type );
-	ck_assert_int_eq( 56, elist_head->fields->offset );
+	ck_assert_str_eq( "prev_state", elist_head->fields->name );
+	ck_assert_int_eq( 2, elist_head->fields->type );
+	ck_assert_int_eq( 32, elist_head->fields->offset );
+	ck_assert_int_eq( 8, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
+	ck_assert_int_eq( 1, elist_head->fields->type );
+	ck_assert_int_eq( 28, elist_head->fields->offset );
 	ck_assert_int_eq( 4, elist_head->fields->size );
 	ck_assert_int_eq( 1, elist_head->fields->sign );
 
 	pop((void**)&elist_head->fields);
 
-	ck_assert_str_eq( "next_prio", elist_head->fields->name );
+	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
 	ck_assert_int_eq( 20, elist_head->fields->type );
-	ck_assert_int_eq( 60, elist_head->fields->offset );
+	ck_assert_int_eq( 24, elist_head->fields->offset );
 	ck_assert_int_eq( 4, elist_head->fields->size );
 	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_comm[16]", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 8, elist_head->fields->offset );
+	ck_assert_int_eq( 16, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	// Common to all events
+
+	ck_assert_str_eq( "common_pid", elist_head->fields->name );
+	ck_assert_int_eq( 1, elist_head->fields->type );
+	ck_assert_int_eq( 4, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 3, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_flags", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 2, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_type", elist_head->fields->name );
+	ck_assert_int_eq( 0, elist_head->fields->type );
+	ck_assert_int_eq( 0, elist_head->fields->offset );
+	ck_assert_int_eq( 2, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
 
 	clearEventConf();
 }
