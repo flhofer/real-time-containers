@@ -122,6 +122,21 @@ ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 }
 
 /*
+ *  parseEventFields(): parse field format for event (fTrace)
+ *
+ *  Arguments: - event entry field list head
+ *  		   - format buffer, null terminated
+ *
+ *  Return value: 0 on success, -1 on error
+ */
+int
+parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
+
+
+	return -1;
+}
+
+/*
  *  appendEvent(): add an event to event list to watch (fTrace)
  *
  *  Arguments: - debug path prefix
