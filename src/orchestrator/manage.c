@@ -41,12 +41,23 @@ static uint64_t scount = 0; // total scan count
 
 // #################################### THREAD configuration specific ############################################
 
+// linked list of event configuration fields
+struct ftrace_ecfg {
+	struct ftrace_ecfg * next;
+	char* name;
+	int type;
+	int offset;
+	int size;
+	int sign;
+};
+
 // Linked list of event configurations and handlers
 struct ftrace_elist {
 	struct ftrace_elist * next;
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
 	int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t); // event elaboration function
+	struct ftrace_ecfg* fields;
 };
 struct ftrace_elist * elist_head;
 
