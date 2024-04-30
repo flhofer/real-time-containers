@@ -41,6 +41,11 @@ CG2=$(shell [ -e /sys/fs/cgroup/cgroup.controllers ] && echo 1 || echo 0 )
 ifeq (1, $(CG2))
 	CFLAGS	+= -D CGROUP2
 endif
+# is priviledged testing available? # TODO: temp test to update
+PRIV=$(shell [ -e /sys/kernel/debug/tracing ] && echo 1 || echo 0 )
+ifeq (1, $(PRIV))
+	CFLAGS += -D PRVTEST
+endif
 
 # If debug is defined, disable optimization level
 ifndef DEBUG
