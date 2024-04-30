@@ -195,6 +195,122 @@ START_TEST(orchestrator_manage_readftrace)
 END_TEST
 #endif
 
+/// TEST CASE -> read kernel debug tracing info and prepare structures
+/// EXPECTED -> parsing of addresses
+START_TEST(orchestrator_manage_ftrc_cfgread)
+{
+	buildEventConf();
+	char * buf = malloc(4096);
+	FILE *f;
+	int ret;
+
+	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
+		ret = fread(buf, sizeof(char), 4096, f);
+		ck_assert_int_ne(ret, 0);
+		fclose(f);
+	}
+	else
+		ck_abort_msg("Could not open file: %s", strerror(errno));
+
+	parseEventFields (&elist_head->fields,buf);
+	// Types:
+	// 0  short, 1 int, 2 long, 3 long long, etc.
+	// 10 char
+	// 20 pid_t
+
+	ck_assert_ptr_nonnull(elist_head->fields );
+	ck_assert_str_eq( "common_type", elist_head->fields->name );
+	ck_assert_int_eq( 0, elist_head->fields->type );
+	ck_assert_int_eq( 0, elist_head->fields->offset );
+	ck_assert_int_eq( 2, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_flags", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 2, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 3, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_pid", elist_head->fields->name );
+	ck_assert_int_eq( 1, elist_head->fields->type );
+	ck_assert_int_eq( 4, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	// specific to sched_switch
+
+	ck_assert_str_eq( "prev_comm[16]", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 8, elist_head->fields->offset );
+	ck_assert_int_eq( 16, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
+	ck_assert_int_eq( 20, elist_head->fields->type );
+	ck_assert_int_eq( 24, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
+	ck_assert_int_eq( 20, elist_head->fields->type );
+	ck_assert_int_eq( 28, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_state", elist_head->fields->name );
+	ck_assert_int_eq( 2, elist_head->fields->type );
+	ck_assert_int_eq( 32, elist_head->fields->offset );
+	ck_assert_int_eq( 8, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_comm[16]", elist_head->fields->name );
+	ck_assert_int_eq( 10, elist_head->fields->type );
+	ck_assert_int_eq( 40, elist_head->fields->offset );
+	ck_assert_int_eq( 16, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_pid", elist_head->fields->name );
+	ck_assert_int_eq( 20, elist_head->fields->type );
+	ck_assert_int_eq( 56, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_prio", elist_head->fields->name );
+	ck_assert_int_eq( 20, elist_head->fields->type );
+	ck_assert_int_eq( 60, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	clearEventConf();
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -212,6 +328,10 @@ void orchestrator_manage (Suite * s) {
 	tcase_set_timeout(tc2, 10);
     suite_add_tcase(s, tc2);
 #endif
+
+	TCase *tc3 = tcase_create("manage_ftrace_cfg");
+	tcase_add_test(tc3, orchestrator_manage_ftrc_cfgread);
+	suite_add_tcase(s, tc3);
 
 	return;
 }
