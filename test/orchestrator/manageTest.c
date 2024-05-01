@@ -211,7 +211,7 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	int ret;
 
 	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), 4096, f);
+		ret = fread(buf, sizeof(char), 4096, f); // TODO: find constant
 		ck_assert_int_ne(ret, 0);
 		fclose(f);
 	}
@@ -316,6 +316,34 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 }
 END_TEST
 
+/// TEST CASE -> use ecfg structure
+/// EXPECTED -> tr_ structure variables initialized with offsets
+START_TEST(orchestrator_manage_ftrc_offsetparse)
+{
+	buildEventConf();
+	char * buf = malloc(4096);
+	FILE *f;
+	int ret;
+
+	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
+		ret = fread(buf, sizeof(char), 4096, f); // TODO: find constant
+		ck_assert_int_ne(ret, 0);
+		fclose(f);
+	}
+	else
+		ck_abort_msg("Could not open file: %s", strerror(errno));
+
+	parseEventFields (&elist_head->fields,buf);
+
+	ck_assert_ptr_nonnull(elist_head->fields );
+
+	// TODO: parse here the offsets
+
+	clearEventConf();
+}
+END_TEST
+
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -336,6 +364,7 @@ void orchestrator_manage (Suite * s) {
 
 	TCase *tc3 = tcase_create("manage_ftrace_cfg");
 	tcase_add_test(tc3, orchestrator_manage_ftrc_cfgread);
+	tcase_add_test(tc3, orchestrator_manage_ftrc_offsetparse);
 	suite_add_tcase(s, tc3);
 
 	return;
