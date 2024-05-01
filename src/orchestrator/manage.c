@@ -63,6 +63,9 @@ struct ftrace_elist * elist_head;
 
 struct ftrace_thread * elist_thead = NULL;
 
+// variable types
+enum tr_vtypes { trv_short, trv_int, trv_long, trv_longlong, trv_char = 10, trv_pid_t = 20 };
+
 // Parser offset structures
 struct tr_common {
 	uint16_t* common_type;
@@ -147,29 +150,29 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 
 							// preset size and sign, check later
 							if (!strcmp(t,"short")){
-								(*ecfg)->type = 0;
+								(*ecfg)->type = trv_short;
 								(*ecfg)->size = sizeof(short);
 							}
 							if (!strcmp(t,"int")){
-								(*ecfg)->type = 1;
+								(*ecfg)->type = trv_int;
 								(*ecfg)->size = sizeof(int);
 							}
-							if (!strcmp(t,"long") && 2 == (*ecfg)->type){
+							if (!strcmp(t,"long") && trv_long == (*ecfg)->type){
 								// long keyword for second time
-								(*ecfg)->type = 3;
+								(*ecfg)->type = trv_longlong;
 								(*ecfg)->size = 2*sizeof(long);
 							}
 							if (!strcmp(t,"long")){
-								(*ecfg)->type = 2;
+								(*ecfg)->type = trv_long;
 								(*ecfg)->size = sizeof(long);
 							}
 							if (!strcmp(t,"char")){
-								(*ecfg)->type = 10;
+								(*ecfg)->type = trv_char;
 								(*ecfg)->sign = 0;
 								(*ecfg)->size = sizeof(char);
 							}
 							if (!strcmp(t,"pid_t")){
-								(*ecfg)->type = 20;
+								(*ecfg)->type = trv_pid_t;
 								(*ecfg)->size = sizeof(int);
 							}
 							if (!strcmp(t,"unsigned"))
