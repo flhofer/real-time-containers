@@ -153,35 +153,43 @@ ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 
 /*
  *  parseEventOffsets(): store field offsets into structs (ftrace)
+ *				this function puts field offsets to known trace
+ *				structures based on read field configuration
  *
- *  Arguments: -
+ *  Arguments: - ( global dictionaries/arrays are used to init structures )
  *
  *  Return value: 0 on success, -1 on error
  */
 static int
 parseEventOffsets(){
-	// this function puts field offsets to known trace structures based on read field configuration
-	// Static due to limitations of C
+	//
 
 	int cmn = 1;	/// run once - always - for common structure, first in array
 
-	char const *** tr_dicts = tr_event_dict;
+	char const *** tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
+
+	// Loop through structures to init, first is 'tr_common" (cmn =1)
 	// note typecast below -> structs contain pointers we want to modify
 	for(void const *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
 
+		// Loop through loaded ftrace events to find match
 		for (struct ftrace_elist * event = elist_head; (event); event=event->next){
 
+			// Event configuration name matches structure name in dictionary (or common is set for cmn set), find field configs
 			if ((cmn) || !strcmp(**tr_dicts,event->event)){
 				// match of dict
-				void const ** tr_struct = *tr_structs;
+				void const ** tr_struct = *tr_structs;	// init working pointer to memory begin position of struct (first field)
+				// loop through dict entries for fields -> find cfgs
 				for (char const ** tr_dict = ++(*(tr_dicts)); (*tr_dict); tr_dict++, tr_struct++){
 					char * t_tok;
 					char * entry = strdup (*tr_dict);
 
 					(void)strtok_r (entry, ".", &t_tok);
 					if (t_tok)
+						// loop through field cfg to find match for field in struct
 						for (struct ftrace_ecfg * cfg = event->fields; (cfg); cfg = cfg->next)
 							if (!strcmp(t_tok, cfg->name)){
+								// set offset
 								*tr_struct = (const unsigned char*)0x0 + cfg->offset;
 								break;
 							}
