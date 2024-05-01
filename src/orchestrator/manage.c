@@ -166,11 +166,11 @@ parseEventOffsets(){
 
 	int cmn = 1;	/// run once - always - for common structure, first in array
 
-	char const *** tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
+	const char *** tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
 
 	// Loop through structures to init, first is 'tr_common" (cmn =1)
-	// note typecast below -> structs contain pointers we want to modify
-	for(void const *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
+	// note type cast below -> structs contain pointers we want to modify
+	for(const void *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
 
 		// Loop through loaded ftrace events to find match
 		for (struct ftrace_elist * event = elist_head; (event); event=event->next){
@@ -804,9 +804,10 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 
 	// use local copy and add addr's address with its offset
 	struct tr_common pFrame = tr_common;
-	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
-		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
-		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
 
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -824,7 +825,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			*pFrame.common_type, *pFrame.common_flags, *pFrame.common_preempt_count, *pFrame.common_pid);
 
-	return 0;
+	return 0;  // TODO: Fix return values
 }
 
 /*
@@ -844,9 +845,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	// use local copy and add addr's address with its offset
 	struct tr_switch pFrame = tr_switch;
-	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
-		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
-		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				pFrame.prev_comm, *pFrame.prev_pid, *pFrame.prev_prio, *pFrame.prev_state,
@@ -955,7 +957,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + sizeof(struct tr_switch);
+	return ret1 + sizeof(struct tr_switch); // TODO: Fix return values
 }
 
 /*
@@ -975,15 +977,16 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	// use local copy and add addr's address with its offset
 	struct tr_wakeup pFrame = tr_wakeup;
-	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
-		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
-		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
 
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
 				pFrame.comm, *pFrame.pid, *pFrame.prio, *pFrame.success, *pFrame.target_cpu);
 
-	return ret1 + sizeof(struct tr_wakeup);
+	return ret1 + sizeof(struct tr_wakeup); // TODO: Fix return values
 }
 
 /*
@@ -1114,7 +1117,7 @@ thread_ftrace(void *arg){
 						break;
 					}
 
-				// call event
+				// call event TODO: fix return values
 				int count = eventcall(pEvent, fthread, timestamp);
 				if (0 > count){
 					// something went wrong, dump and exit
