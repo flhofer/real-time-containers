@@ -219,6 +219,7 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 		ck_abort_msg("Could not open file: %s", strerror(errno));
 
 	parseEventFields (&elist_head->fields,buf);
+	free (buf);
 
 	ck_assert_ptr_nonnull(elist_head->fields );
 
@@ -334,6 +335,7 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 		ck_abort_msg("Could not open file: %s", strerror(errno));
 
 	parseEventFields (&elist_head->fields,buf);
+	free (buf);
 
 	ck_assert_ptr_nonnull(elist_head->fields );
 
@@ -360,6 +362,33 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 }
 END_TEST
 
+/// TEST CASE -> reads a binary frame and calls ftrace parsing functions
+/// EXPECTED -> corresponding nodes and data should change
+START_TEST(orchestrator_manage_ftrc_ppcmn)
+{
+	char * buf = malloc(PIPE_BUFFER);
+	FILE *f;
+	int ret;
+
+/*
+	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
+		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
+		ck_assert_int_ne(ret, 0);
+		fclose(f);
+	}
+	else
+		ck_abort_msg("Could not open file: %s", strerror(errno));
+*/
+
+	// Default common
+	const struct tr_common tc_common_default = { (void *)0, (void *)2, (void *)3, (void *)4 };
+	tr_common = tc_common_default;
+//	pickPidCommon((void*)0x1000, NULL, 0);
+
+
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -383,6 +412,10 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc3, orchestrator_manage_ftrc_cfgread);
 	tcase_add_test(tc3, orchestrator_manage_ftrc_offsetparse);
 	suite_add_tcase(s, tc3);
+
+	TCase *tc4 = tcase_create("manage_ftrace_pickpid");
+	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
+	suite_add_tcase(s, tc4);
 
 	return;
 }
