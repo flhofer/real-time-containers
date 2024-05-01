@@ -338,9 +338,23 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 	ck_assert_ptr_nonnull(elist_head->fields );
 
 	parseEventOffsets();
-	// TODO: parse here the offsets
 
+	// Values for Kernel 6.5 debug tracer format, sched_switch
 
+	// Offset for event common
+	ck_assert_ptr_eq((uint16_t*)0x00, tr_common.common_type);
+	ck_assert_ptr_eq((uint8_t*) 0x02, tr_common.common_flags);
+	ck_assert_ptr_eq((uint8_t*) 0x03, tr_common.common_preempt_count);
+	ck_assert_ptr_eq((int32_t*) 0x04, tr_common.common_pid);
+
+	// Offsets for sched_switch
+	ck_assert_ptr_eq((char*)	0x08, tr_switch.prev_comm);
+	ck_assert_ptr_eq((pid_t*)	0x18, tr_switch.prev_pid);
+	ck_assert_ptr_eq((int32_t*)	0x1C, tr_switch.prev_prio);
+	ck_assert_ptr_eq((int64_t*)	0x20, tr_switch.prev_state);
+	ck_assert_ptr_eq((char*)	0x28, tr_switch.next_comm);
+	ck_assert_ptr_eq((pid_t*)	0x38, tr_switch.next_pid);
+	ck_assert_ptr_eq((int32_t*)	0x3C, tr_switch.next_prio);
 
 	clearEventConf();
 }
