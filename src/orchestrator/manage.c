@@ -120,6 +120,21 @@ ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 }
 
 /*
+ *  parseEventOffsets(): store field offsets into structs (ftrace)
+ *
+ *  Arguments: -
+ *
+ *  Return value: 0 on success, -1 on error
+ */
+static int
+parseEventOffsets(){
+	// this function puts field offsets to known trace structures based on read field configuration
+	// Static due to limitations of C
+	return -1;
+}
+
+
+/*
  *  parseEventFields(): parse field format for event (fTrace)
  *
  *  Arguments: - event entry field list head
@@ -260,7 +275,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 		s = strtok_r (NULL, delim, &s_tok);
 
 	}
-	return -1;
+	return -1; // TODO: return value
 }
 
 /*
@@ -346,6 +361,9 @@ configureTracers(){
 		return -1;
 
 	if ((appendEvent(dbgpfx, "sched/sched_wakeup", pickPidInfoW)))
+		return -1;
+
+	if ((parseEventOffsets()))
 		return -1;
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
