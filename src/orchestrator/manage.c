@@ -63,38 +63,33 @@ struct ftrace_elist * elist_head;
 
 struct ftrace_thread * elist_thead = NULL;
 
-// TODO: implement parser for event list, in the long run
+// Parser offset structures
 struct tr_common {
-	uint16_t common_type;
-	uint8_t common_flags;
-	uint8_t common_preempt_count;
-	int32_t common_pid;
-	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
-	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
-	uint16_t _common_filler1;				// filler for C5
-	uint16_t _common_filler2;				// filler for C5
-};
+	uint16_t* common_type;
+	uint8_t * common_flags;
+	uint8_t * common_preempt_count;
+	int32_t * common_pid;
+} tr_common;
 
-struct tr_switch {		// coming from .. 12 bytes?
-	char prev_comm[16]; // 12 - 16	/ 0
-	pid_t prev_pid; // 28 - 4		/ 16
-	int32_t prev_prio; // 32 - 4	/ 20
-//	int32_t _prev_filler; // 36 - 4	/ 24 	// filler only for BM, 8byte alignment issue
-	uint32_t prev_state_l; // 40 - 4	/ 28
-	uint32_t prev_state_h; // 44 - 4	/ 32
+struct tr_switch {
+	char    * prev_comm;
+	pid_t   * prev_pid;
+	int32_t * prev_prio;
 
-	char next_comm[16]; // 48 - 16	/ 36
-	pid_t next_pid; // 64 - 4		/ 52
-	int32_t next_prio; // 68 - 4	/ 56
-};
+	uint64_t * prev_state;
 
-struct tr_wakeup {		// coming from .. 12 bytes?
-	char comm[16]; // 12 - 16	/ 0
-	pid_t pid; // 28 - 4		/ 16
-	int32_t prio; // 32 - 4		/ 20
-	int32_t success; // 36 - 4	/ 24
-	int32_t target_cpu; // 40 - 4	/ 28
-};
+	char   * next_comm;
+	pid_t  * next_pid;
+	int32_t* next_prio;
+} tr_switch;
+
+struct tr_wakeup {
+	char  * comm;
+	pid_t * pid;
+	int32_t * prio;
+	int32_t * success;
+	int32_t * target_cpu;
+} tr_wakeup;
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
@@ -702,7 +697,6 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
  */
 static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
-	struct tr_common *pFrame = (struct tr_common*)addr;
 
 	//thread information flags, probable meaning
 	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
@@ -714,13 +708,19 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
 	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 
+	// use local copy and add addr's address with its offset
+	struct tr_common pFrame = tr_common;
+	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
+		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
+		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
+
 	(void)pthread_mutex_lock(&dataMutex);
 
 	// find PID = actual running PID
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->common_pid){
-			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+		if (item->pid == *pFrame.common_pid){
+			if (!(*pFrame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -728,9 +728,9 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 
 	// print here to have both line together
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+			*pFrame.common_type, *pFrame.common_flags, *pFrame.common_preempt_count, *pFrame.common_pid);
 
-	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
+	return 0;
 }
 
 /*
@@ -747,13 +747,15 @@ static int
 pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, fthread, ts);
-	addr+= ret1;
 
-	struct tr_switch *pFrame = (struct tr_switch*)addr;
-
+	// use local copy and add addr's address with its offset
+	struct tr_switch pFrame = tr_switch;
+	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
+		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
+		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, (uint64_t)pFrame->prev_state_l,
+				pFrame.prev_comm, *pFrame.prev_pid, *pFrame.prev_prio, *pFrame.prev_state,
 
 				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
 				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
@@ -762,7 +764,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 //				(pFrame->prev_state & 0xFF ? __print_flags(pFrame->prev_state & 0xFF,"|",
 //						pFrame->prev_state & 0x100 ? "+" : "",
 
-				pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
+				pFrame.next_comm, *pFrame.next_pid, *pFrame.next_prio);
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -771,8 +773,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next ){
 
 		// previous or next pid in list, update data
-		if ((item->pid == pFrame->prev_pid)
-				|| (item->pid == pFrame->next_pid)){
+		if ((item->pid == *pFrame.prev_pid)
+				|| (item->pid == *pFrame.next_pid)){
 
 			// check if CPU changed, exiting
 			if (item->mon.assigned != fthread->cpuno){
@@ -795,7 +797,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		}
 
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->next_pid)
+		if (item->pid == *pFrame.next_pid)
 			item->mon.last_ts = ts;
 	}
 
@@ -807,7 +809,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// previous PID in list, exiting, update runtime data
-		if (item->pid == pFrame->prev_pid){
+		if (item->pid == *pFrame.prev_pid){
 
 			if (item->status & MSK_STATNAFF){
 				// unassigned CPU was not part of adaptive table
@@ -821,7 +823,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			if ((pFrame->prev_state_l & 0xFD) // ~'D' uninterruptible sleep -> system call
+			// TODO: check _l vs. 64 bit
+			if ((*pFrame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
 				pickPidConsolidateRuntime(item, ts);
@@ -875,12 +878,16 @@ static int
 pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, fthread, ts);
-	addr+= ret1;
 
-	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+	// use local copy and add addr's address with its offset
+	struct tr_wakeup pFrame = tr_wakeup;
+	for (void * ptr = &pFrame; ptr < (void*)(&pFrame + 1); ptr++)
+		// treat ptr as byte pointer and add addr (as byte pointer) + old value as count
+		*(const unsigned char**)ptr = (const unsigned char *)addr + *(int32_t*)ptr;
+
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
-				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
+				pFrame.comm, *pFrame.pid, *pFrame.prio, *pFrame.success, *pFrame.target_cpu);
 
 	return ret1 + sizeof(struct tr_wakeup);
 }
