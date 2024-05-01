@@ -171,7 +171,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 							if (!strcmp(t,"char")){
 								(*ecfg)->type = 10;
 								(*ecfg)->sign = 0;
-								(*ecfg)->size = 1;
+								(*ecfg)->size = sizeof(char);
 							}
 							if (!strcmp(t,"pid_t")){
 								(*ecfg)->type = 20;
@@ -183,12 +183,15 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 							name = t;		// last ok value
 							t = strtok_r (NULL, " ", &t_tok);
 						}
-
-
+						// extract name and sub-parse for array size if present
+						t = strtok_r (name, "[]", &t_tok);
 
 						(*ecfg)->name=strdup(name);
-
-						// TODO: check name for [size] for chars
+						// if an array, read size in type description
+						t = strtok_r (NULL, "[]", &t_tok);
+						if (t) {
+							(*ecfg)->size=atoi(t) * (*ecfg)->size;
+						}
 					}
 					delim = "\t;: \n";
 					fp++;
