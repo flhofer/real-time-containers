@@ -244,7 +244,7 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 
 	pop((void**)&elist_head->fields);
 
-	ck_assert_str_eq( "next_comm[16]", elist_head->fields->name );
+	ck_assert_str_eq( "next_comm", elist_head->fields->name );
 	ck_assert_int_eq( 10, elist_head->fields->type );
 	ck_assert_int_eq( 40, elist_head->fields->offset );
 	ck_assert_int_eq( 16, elist_head->fields->size );
@@ -276,7 +276,7 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 
 	pop((void**)&elist_head->fields);
 
-	ck_assert_str_eq( "prev_comm[16]", elist_head->fields->name );
+	ck_assert_str_eq( "prev_comm", elist_head->fields->name );
 	ck_assert_int_eq( 10, elist_head->fields->type );
 	ck_assert_int_eq( 8, elist_head->fields->offset );
 	ck_assert_int_eq( 16, elist_head->fields->size );
