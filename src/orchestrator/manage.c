@@ -35,6 +35,7 @@
 #else
 	#define WORDSIZE		KBUFFER_LSIZE_4
 #endif
+#define GET_VARIABLE_NAME(Variable) (#Variable)
 
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
@@ -74,6 +75,13 @@ struct tr_common {
 	int32_t * common_pid;
 } tr_common;
 
+const char * tr_common_dict[] = { "common",
+								GET_VARIABLE_NAME(tr_common.common_type),
+								GET_VARIABLE_NAME(tr_common.common_flags),
+								GET_VARIABLE_NAME(tr_common.common_preempt_count),
+								GET_VARIABLE_NAME(tr_common.common_pid),
+								NULL};
+
 struct tr_switch {
 	char    * prev_comm;
 	pid_t   * prev_pid;
@@ -86,6 +94,16 @@ struct tr_switch {
 	int32_t* next_prio;
 } tr_switch;
 
+const char * tr_switch_dict[] = { "sched_switch",
+								GET_VARIABLE_NAME(tr_switch.prev_comm),
+								GET_VARIABLE_NAME(tr_switch.prev_pid),
+								GET_VARIABLE_NAME(tr_switch.prev_prio),
+								GET_VARIABLE_NAME(tr_switch.prev_state),
+								GET_VARIABLE_NAME(tr_switch.next_comm),
+								GET_VARIABLE_NAME(tr_switch.next_pid),
+								GET_VARIABLE_NAME(tr_switch.next_prio),
+								NULL};
+
 struct tr_wakeup {
 	char  * comm;
 	pid_t * pid;
@@ -93,6 +111,17 @@ struct tr_wakeup {
 	int32_t * success;
 	int32_t * target_cpu;
 } tr_wakeup;
+
+const char * tr_wakeup_dict[] = { "sched_wakeup",
+								GET_VARIABLE_NAME(tr_wakeup.comm),
+								GET_VARIABLE_NAME(tr_wakeup.pid),
+								GET_VARIABLE_NAME(tr_wakeup.prio),
+								GET_VARIABLE_NAME(tr_wakeup.success),
+								GET_VARIABLE_NAME(tr_wakeup.target_cpu),
+								NULL};
+
+const char ** tr_event_dict [] = { tr_common_dict, tr_switch_dict, tr_wakeup_dict, NULL };
+const void * tr_event_structs [] = { &tr_common, &tr_switch, &tr_wakeup, NULL };
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
@@ -130,6 +159,32 @@ static int
 parseEventOffsets(){
 	// this function puts field offsets to known trace structures based on read field configuration
 	// Static due to limitations of C
+
+	for (struct ftrace_elist * event = elist_head; (event); event=event->next){
+
+		char const *** tr_dicts = tr_event_dict;
+		// note typecast below -> structs contain pointers we want to modify
+		for(void const *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
+
+			if (!strcmp(**tr_dicts,event->event)){
+				// match of dict
+				void const ** tr_struct = *tr_structs;
+				for (char const ** tr_dict = ++(*(tr_dicts)); (*tr_dict); tr_dict++, tr_struct++){
+					char * t_tok;
+					char * entry = strdup (*tr_dict);
+
+					(void)strtok_r (entry, ".", &t_tok);
+					if (t_tok)
+						for (struct ftrace_ecfg * cfg = event->fields; (cfg); cfg = cfg->next)
+							if (!strcmp(t_tok, cfg->name)){
+								*tr_struct = (const unsigned char*)0x0 + cfg->offset;
+							}
+					free(entry);
+				}
+			}
+		}
+	}
+
 	return -1;
 }
 
