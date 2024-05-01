@@ -67,14 +67,14 @@ struct ftrace_thread * elist_thead = NULL;
 // variable types
 enum tr_vtypes { trv_short, trv_int, trv_long, trv_longlong, trv_char = 10, trv_pid_t = 20 };
 
-// Parser offset structures
+// Parser offset structures - pointers to values for common
 struct tr_common {
 	uint16_t* common_type;
 	uint8_t * common_flags;
 	uint8_t * common_preempt_count;
 	int32_t * common_pid;
 } tr_common;
-
+// related variable name dictionary
 const char * tr_common_dict[] = { "common",
 								GET_VARIABLE_NAME(tr_common.common_type),
 								GET_VARIABLE_NAME(tr_common.common_flags),
@@ -82,6 +82,7 @@ const char * tr_common_dict[] = { "common",
 								GET_VARIABLE_NAME(tr_common.common_pid),
 								NULL};
 
+// Parser offset structures - pointers to values for sched_switch
 struct tr_switch {
 	char    * prev_comm;
 	pid_t   * prev_pid;
@@ -93,7 +94,7 @@ struct tr_switch {
 	pid_t  * next_pid;
 	int32_t* next_prio;
 } tr_switch;
-
+// related variable name dictionary
 const char * tr_switch_dict[] = { "sched_switch",
 								GET_VARIABLE_NAME(tr_switch.prev_comm),
 								GET_VARIABLE_NAME(tr_switch.prev_pid),
@@ -104,6 +105,7 @@ const char * tr_switch_dict[] = { "sched_switch",
 								GET_VARIABLE_NAME(tr_switch.next_prio),
 								NULL};
 
+// Parser offset structures - pointers to values for sched_wakeup
 struct tr_wakeup {
 	char  * comm;
 	pid_t * pid;
@@ -111,7 +113,7 @@ struct tr_wakeup {
 	int32_t * success;
 	int32_t * target_cpu;
 } tr_wakeup;
-
+// related variable name dictionary
 const char * tr_wakeup_dict[] = { "sched_wakeup",
 								GET_VARIABLE_NAME(tr_wakeup.comm),
 								GET_VARIABLE_NAME(tr_wakeup.pid),
@@ -120,6 +122,7 @@ const char * tr_wakeup_dict[] = { "sched_wakeup",
 								GET_VARIABLE_NAME(tr_wakeup.target_cpu),
 								NULL};
 
+// these are data and name dictionaries used for parsing
 const char ** tr_event_dict [] = { tr_common_dict, tr_switch_dict, tr_wakeup_dict, NULL };
 const void * tr_event_structs [] = { &tr_common, &tr_switch, &tr_wakeup, NULL };
 
@@ -160,13 +163,15 @@ parseEventOffsets(){
 	// this function puts field offsets to known trace structures based on read field configuration
 	// Static due to limitations of C
 
-	for (struct ftrace_elist * event = elist_head; (event); event=event->next){
+	int cmn = 1;	/// run once - always - for common structure, first in array
 
-		char const *** tr_dicts = tr_event_dict;
-		// note typecast below -> structs contain pointers we want to modify
-		for(void const *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
+	char const *** tr_dicts = tr_event_dict;
+	// note typecast below -> structs contain pointers we want to modify
+	for(void const *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
 
-			if (!strcmp(**tr_dicts,event->event)){
+		for (struct ftrace_elist * event = elist_head; (event); event=event->next){
+
+			if ((cmn) || !strcmp(**tr_dicts,event->event)){
 				// match of dict
 				void const ** tr_struct = *tr_structs;
 				for (char const ** tr_dict = ++(*(tr_dicts)); (*tr_dict); tr_dict++, tr_struct++){
@@ -182,6 +187,8 @@ parseEventOffsets(){
 							}
 					free(entry);
 				}
+				cmn = 0;
+				break;
 			}
 		}
 	}
