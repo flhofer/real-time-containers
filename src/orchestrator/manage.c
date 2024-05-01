@@ -144,7 +144,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 			switch (fp) {
 				case 2:	// field:
 					{
-						char* name = strdup(s); // variable type and name
+						char * name = s; // variable type and name - it's ok to edit buffer
 						char * t, * t_tok;
 						t = strtok_r (name, " ", &t_tok);
 						(*ecfg)->sign = 1;
@@ -183,6 +183,9 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 							name = t;		// last ok value
 							t = strtok_r (NULL, " ", &t_tok);
 						}
+
+
+
 						(*ecfg)->name=strdup(name);
 
 						// TODO: check name for [size] for chars
