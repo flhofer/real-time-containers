@@ -178,6 +178,7 @@ parseEventOffsets(){
 						for (struct ftrace_ecfg * cfg = event->fields; (cfg); cfg = cfg->next)
 							if (!strcmp(t_tok, cfg->name)){
 								*tr_struct = (const unsigned char*)0x0 + cfg->offset;
+								break;
 							}
 					free(entry);
 				}
@@ -294,6 +295,8 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 				default:
 					if (!strcmp(s, "field")){
 						fp = 2;
+						if (*ecfg)
+							ecfg=&(*ecfg)->next;
 						push((void**)ecfg, sizeof(struct ftrace_ecfg));
 						delim = ";\n";
 					}
