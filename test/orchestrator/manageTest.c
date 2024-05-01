@@ -206,12 +206,12 @@ END_TEST
 START_TEST(orchestrator_manage_ftrc_cfgread)
 {
 	buildEventConf();
-	char * buf = malloc(4096);
+	char * buf = malloc(PIPE_BUFFER);
 	FILE *f;
 	int ret;
 
 	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), 4096, f); // TODO: find constant
+		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
 		ck_assert_int_ne(ret, 0);
 		fclose(f);
 	}
@@ -321,12 +321,12 @@ END_TEST
 START_TEST(orchestrator_manage_ftrc_offsetparse)
 {
 	buildEventConf();
-	char * buf = malloc(4096);
+	char * buf = malloc(PIPE_BUFFER);
 	FILE *f;
 	int ret;
 
 	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), 4096, f); // TODO: find constant
+		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
 		ck_assert_int_ne(ret, 0);
 		fclose(f);
 	}
@@ -337,7 +337,10 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 
 	ck_assert_ptr_nonnull(elist_head->fields );
 
+	parseEventOffsets();
 	// TODO: parse here the offsets
+
+
 
 	clearEventConf();
 }
@@ -353,6 +356,7 @@ void orchestrator_manage (Suite * s) {
 	suite_add_tcase(s, tc1);
 
 	/* these depend on privileges and can not be run in the cloud */
+	// TODO; update test, will not work with new config read
 #ifdef PRVTEST
 	TCase *tc2 = tcase_create("manage_thread_read");
 	tcase_add_checked_fixture(tc2, orchestrator_manage_setup, orchestrator_manage_teardown);

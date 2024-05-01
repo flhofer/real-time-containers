@@ -294,7 +294,7 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 		elist_head->eventcall = fun;
 
 		{
-			char buf[4096];
+			char buf[PIPE_BUFFER];
 			if ( 0 < getkernvar(path, "format", buf, sizeof(buf)))
 				parseEventFields(&elist_head->fields, buf);
 			else{
