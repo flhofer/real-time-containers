@@ -158,7 +158,6 @@ ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
  */
 static int
 parseEventOffsets(){
-	//
 
 	int cmn = 1;	/// run once - always - for common structure, first in array
 
@@ -197,7 +196,7 @@ parseEventOffsets(){
 		}
 	}
 
-	return -1;
+	return -cmn;	// at least common has been parsed?
 }
 
 
@@ -380,7 +379,7 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 		{
 			char buf[PIPE_BUFFER];
 			if ( 0 < getkernvar(path, "format", buf, sizeof(buf)))
-				parseEventFields(&elist_head->fields, buf);
+				(void)parseEventFields(&elist_head->fields, buf);
 			else{
 				warn("Unable to get event format '%s'", event);
 				return -1;
