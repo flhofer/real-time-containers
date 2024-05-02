@@ -65,8 +65,10 @@ static void orchestrator_manage_teardown() {
 	while (nhead)
 		node_pop(&nhead);
 
-	freePrgSet(prgset);
-	freeContParm(contparm);
+	if (prgset)
+		freePrgSet(prgset);
+	if (contparm)
+		freeContParm(contparm);
 }
 
 #ifdef PRVTEST
@@ -362,30 +364,30 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 }
 END_TEST
 
-/// TEST CASE -> reads a binary frame and calls ftrace parsing functions
+/// TEST CASE -> pass a kernel tracer frame to pickPidCommon and evaluates it
 /// EXPECTED -> corresponding nodes and data should change
 START_TEST(orchestrator_manage_ftrc_ppcmn)
 {
-	char * buf = malloc(PIPE_BUFFER);
-	FILE *f;
-	int ret;
+	unsigned char frame [] = {0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00};
+	const int pid[] = { 1, 2, 3	}; // to do setup
 
-/*
-	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
-		ck_assert_int_ne(ret, 0);
-		fclose(f);
+	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
+		node_push(&nhead);
+		nhead->pid = pid[i];
+		char * name = malloc(16);
+		(void)sprintf(name, "PID %d", i);
+		nhead->psig = name;
 	}
-	else
-		ck_abort_msg("Could not open file: %s", strerror(errno));
-*/
 
 	// Default common
 	const struct tr_common tc_common_default = { (void *)0, (void *)2, (void *)3, (void *)4 };
 	tr_common = tc_common_default;
-//	pickPidCommon((void*)0x1000, NULL, 0);
+	int ret = pickPidCommon(&frame, NULL, 0);
 
-
+	ck_assert_int_eq(0, ret);
+	ck_assert(!(nhead->status & MSK_STATNRSCH));
+	ck_assert(nhead->next->status & MSK_STATNRSCH);
+	ck_assert(!(nhead->next->next->status & MSK_STATNRSCH));
 }
 END_TEST
 
@@ -414,6 +416,7 @@ void orchestrator_manage (Suite * s) {
 	suite_add_tcase(s, tc3);
 
 	TCase *tc4 = tcase_create("manage_ftrace_pickpid");
+	tcase_add_checked_fixture(tc4, NULL, orchestrator_manage_teardown);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
 	suite_add_tcase(s, tc4);
 
