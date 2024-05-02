@@ -825,7 +825,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
-	return 0;  // TODO: Fix return values
+	return 0;  // TODO: unused return value
 }
 
 /*
@@ -957,7 +957,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + sizeof(struct tr_switch); // TODO: Fix return values
+	return ret1 + 0; // TODO: unused return value
 }
 
 /*
@@ -986,7 +986,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
 				frame.comm, *frame.pid, *frame.prio, *frame.success, *frame.target_cpu);
 
-	return ret1 + sizeof(struct tr_wakeup); // TODO: Fix return values
+	return ret1 + 0; // TODO: unused return value
 }
 
 /*
@@ -1117,9 +1117,8 @@ thread_ftrace(void *arg){
 						break;
 					}
 
-				// call event TODO: fix return values
-				int count = eventcall(pEvent, fthread, timestamp);
-				if (0 > count){
+				ret = eventcall(pEvent, fthread, timestamp);
+				if (0 > ret){
 					// something went wrong, dump and exit
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
 					break;
