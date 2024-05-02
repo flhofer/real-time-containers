@@ -546,7 +546,7 @@ prepareEnvironment(prgset_t *set) {
 	int err = stat(set->cpusetdfileprefix, &s);
 	if(-1 == err) {
 		// Docker CGroup not found, set->force enabled = try creating
-		if(ENOENT == errno && set->force) { // TODO: check docker setting of CGroup.slice for v2
+		if(ENOENT == errno && set->force) {
 			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
@@ -613,7 +613,7 @@ prepareEnvironment(prgset_t *set) {
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
 	 */
-	set->kernelversion = check_kernel(); // TODO: update
+	set->kernelversion = check_kernel();
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
@@ -705,7 +705,6 @@ prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-	// TODO: add function to detect if GGv2 docker slice has been created
 	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	 * system CGroup, possible tasks are moved -> do for all
 	 * --------------------
@@ -855,7 +854,7 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
-	// TODO: restore CGroup 2 to member
+	// TODO: restore CGroup 2 to member - to discuss (containers still running ?)
 	freeTracer(&rHead); // free
 	adaptFree();
 

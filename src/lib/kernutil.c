@@ -251,7 +251,7 @@ check_kernel(void)
 			else
 				// full EDF -PA
 				kv = KV_416;
-		} else if (5 == maj) {
+		} else if (5 <= maj) {
 			// full EDF -PA, newest kernel
 			kv = KV_50;
 		}
