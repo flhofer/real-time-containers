@@ -287,7 +287,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						s = strtok_r (NULL, delim, &s_tok);
 						int size = atoi(s);
 						if (size != (*ecfg)->size)
-							printDbg(PFX "ftrace event parse - Field size mismatch, type %d bytes, value %d bytes\n", (*ecfg)->size, size);
+							printDbg(PFX "ftrace event parse - Field %s size mismatch, type %d bytes, value %d bytes!\n", (*ecfg)->name, (*ecfg)->size, size);
 						(*ecfg)->size=size;
 						fp++;
 					}
@@ -297,7 +297,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						s = strtok_r (NULL, delim, &s_tok);
 						int sign = atoi(s);
 						if (sign != (*ecfg)->sign)
-							printDbg(PFX "ftrace event parse - Field sign mismatch, type %s, value %s\n", ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
+							printDbg(PFX "ftrace event parse - Field %s sign mismatch, type %s, value %s!\n", (*ecfg)->name, ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
 						(*ecfg)->sign=sign;
 						fp=1;	// ok, return
 					}
@@ -315,7 +315,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						s = strtok_r (NULL, "\n", &s_tok); // read until end of line
 					}
 					else
-						printDbg(PFX "ftrace event parse - Structure mismatch; expecting 'field', got '%s'\n", s);
+						printDbg(PFX "ftrace event parse - Structure mismatch; expecting 'field', got '%s'!\n", s);
 			}
 		else if (!strcmp(s, "name")){
 			// read name
