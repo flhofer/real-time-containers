@@ -133,10 +133,10 @@ setPidAffinityNode (node_t * node){
 
 	{	// add PID to docker CGroup
 		//TODO: warn ! this removes it if it's already present in a subgroup!
+		// -> can not see subgroup contents! -> visible in /proc/150985/cgroup , v2 format 0::/path/from/cgroup/root
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
-		// TODO: this is invalid for CGroup v2
 		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun)){
 			printDbg( "Warn! Can not move task %s\n", pid);
 			ret = -1;
