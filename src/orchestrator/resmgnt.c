@@ -531,9 +531,25 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			warn("Can not set NUMA memory nodes : %s", strerror(errno));
 		}
 
-		// rewind, start configuring
-		rewinddir(d);
+		closedir(d);
+	}
+}
 
+/*
+ * setContCGroups : set docker group and  existing containers CGroups settings
+ *
+ * Arguments: - configuration parameter structure
+ * 			  - numa nodes string
+ *
+ * Return value: -
+ */
+void
+setContCGroups(prgset_t *set, char * numastr) {
+
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(set->cpusetdfileprefix);// -> pointing to global
+	if (d) {
 
 		{
 			char *contp = NULL; // clear pointer
