@@ -66,7 +66,7 @@ getContPids (node_t **pidlst)
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
-			if ((strlen(dir->d_name)>60)) {// container strings are very long!
+			if ((strlen(dir->d_name)>60)) {// container strings are very long! TODO: is that enough?
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/" CGRP_PIDS)+1))) {
 					// copy to new prefix
 					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
@@ -108,7 +108,12 @@ getContPids (node_t **pidlst)
 							printDbg("->%d ",(*pidlst)->pid);
 
 							updatePidCmdline(*pidlst); // checks and updates..
-							if (!(( (*pidlst)->contid = strdup(dir->d_name) )))
+							char * hex = dir->d_name;
+#ifdef CGROUP2
+							(void)strtok_r(hex, "-", &hex);	// 'docker-' part unused
+							hex = strtok_r(NULL, ".", &hex);// &hex pos read, result por to '.scope' set, but overwritten with result - pos unused
+#endif
+							if (!(( (*pidlst)->contid = strdup(hex) )))
 								fatal("Could not allocate memory!");
 
 							nleft -= strlen(pid)+1;
