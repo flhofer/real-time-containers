@@ -803,9 +803,9 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 
 	// use local copy and add addr's address with its offset
-	struct tr_common pFrame = tr_common;
+	struct tr_common frame = tr_common;
 	// NOTE:  we inherit const void from addr
-	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
@@ -814,8 +814,8 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	// find PID = actual running PID
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == *pFrame.common_pid){
-			if (!(*pFrame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+		if (item->pid == *frame.common_pid){
+			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -823,7 +823,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 
 	// print here to have both line together
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
-			*pFrame.common_type, *pFrame.common_flags, *pFrame.common_preempt_count, *pFrame.common_pid);
+			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
 	return 0;  // TODO: Fix return values
 }
@@ -844,23 +844,23 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	int ret1 = pickPidCommon(addr, fthread, ts);
 
 	// use local copy and add addr's address with its offset
-	struct tr_switch pFrame = tr_switch;
+	struct tr_switch frame = tr_switch;
 	// NOTE:  we inherit const void from addr
-	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				pFrame.prev_comm, *pFrame.prev_pid, *pFrame.prev_prio, *pFrame.prev_state,
+				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, *frame.prev_state,
 
-				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
-				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
-				//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+				//				(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
+				//				? __print_flags(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
+				//						*frame.prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
 
-//				(pFrame->prev_state & 0xFF ? __print_flags(pFrame->prev_state & 0xFF,"|",
-//						pFrame->prev_state & 0x100 ? "+" : "",
+//				(*frame.prev_state & 0xFF ? __print_flags(*frame.prev_state & 0xFF,"|",
+//						*frame.prev_state & 0x100 ? "+" : "",
 
-				pFrame.next_comm, *pFrame.next_pid, *pFrame.next_prio);
+				frame.next_comm, *frame.next_pid, *frame.next_prio);
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -869,8 +869,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next ){
 
 		// previous or next pid in list, update data
-		if ((item->pid == *pFrame.prev_pid)
-				|| (item->pid == *pFrame.next_pid)){
+		if ((item->pid == *frame.prev_pid)
+				|| (item->pid == *frame.next_pid)){
 
 			// check if CPU changed, exiting
 			if (item->mon.assigned != fthread->cpuno){
@@ -893,7 +893,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		}
 
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == *pFrame.next_pid)
+		if (item->pid == *frame.next_pid)
 			item->mon.last_ts = ts;
 	}
 
@@ -905,7 +905,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// previous PID in list, exiting, update runtime data
-		if (item->pid == *pFrame.prev_pid){
+		if (item->pid == *frame.prev_pid){
 
 			if (item->status & MSK_STATNAFF){
 				// unassigned CPU was not part of adaptive table
@@ -920,7 +920,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			}
 
 			// TODO: check _l vs. 64 bit
-			if ((*pFrame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
+			if ((*frame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
 				pickPidConsolidateRuntime(item, ts);
@@ -976,15 +976,15 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	int ret1 = pickPidCommon(addr, fthread, ts);
 
 	// use local copy and add addr's address with its offset
-	struct tr_wakeup pFrame = tr_wakeup;
+	struct tr_wakeup frame = tr_wakeup;
 	// NOTE:  we inherit const void from addr
-	for (const void ** ptr = (void*)&pFrame; ptr < (const void **)(&pFrame + 1); ptr++)
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
-				pFrame.comm, *pFrame.pid, *pFrame.prio, *pFrame.success, *pFrame.target_cpu);
+				frame.comm, *frame.pid, *frame.prio, *frame.success, *frame.target_cpu);
 
 	return ret1 + sizeof(struct tr_wakeup); // TODO: Fix return values
 }
