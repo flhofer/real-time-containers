@@ -64,6 +64,8 @@ static void orchestrator_manage_teardown() {
 	// free memory
 	while (nhead)
 		node_pop(&nhead);
+	while (elist_thead)
+		pop((void**)&elist_thead);
 
 	if (prgset)
 		freePrgSet(prgset);
@@ -368,8 +370,11 @@ END_TEST
 /// EXPECTED -> corresponding nodes and data should change
 START_TEST(orchestrator_manage_ftrc_ppcmn)
 {
+	// Test frame  - kernel 6.5
 	unsigned char frame [] = {0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00};
-	const int pid[] = { 1, 2, 3	}; // to do setup
+
+	// Generate Nodes
+	const int pid[] = { 1, 2, 3	};
 
 	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
 		node_push(&nhead);
@@ -379,10 +384,52 @@ START_TEST(orchestrator_manage_ftrc_ppcmn)
 		nhead->psig = name;
 	}
 
-	// Default common
+	// Default common  - kernel 6.5
 	const struct tr_common tc_common_default = { (void *)0, (void *)2, (void *)3, (void *)4 };
 	tr_common = tc_common_default;
 	int ret = pickPidCommon(&frame, NULL, 0);
+
+	ck_assert_int_eq(0, ret);
+	ck_assert(!(nhead->status & MSK_STATNRSCH));
+	ck_assert(nhead->next->status & MSK_STATNRSCH);
+	ck_assert(!(nhead->next->next->status & MSK_STATNRSCH));
+}
+END_TEST
+
+/// TEST CASE -> pass a kernel tracer frame to pickPidSwitch and evaluates it
+/// EXPECTED -> corresponding nodes and data should change
+START_TEST(orchestrator_manage_ftrc_ppswitch)
+{
+	// Default struct common/switch  - kernel 6.5
+	const struct tr_common tc_common_default = { (void *)0, (void *)2, (void *)3, (void *)4 };
+	tr_common = tc_common_default;
+	const struct tr_switch tc_switch_default = { (void *)0x8, (void *)0x18, (void *)0x1C, (void *)0x20, (void*)0x28, (void*)0x38, (void*)0x3C };
+	tr_switch = tc_switch_default;
+
+	// Generate Nodes
+	const int pid[] = { 1, 2, 3	};
+
+	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
+		node_push(&nhead);
+		nhead->pid = pid[i];
+		char * name = malloc(16);
+		(void)sprintf(name, "PID %d", (i+1));
+		nhead->psig = name;
+	}
+
+	// Generate ftrace thread info
+	push((void**)&elist_thead, sizeof(struct ftrace_thread));
+	elist_thead->cpuno = 2;
+
+	// Test frame  - kernel 6.5 (size = last pointer + size
+	unsigned char frame [64] = {0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00 };	// base frame from test above
+	memcpy(&frame[0x8], nhead->next->psig, 16);				// prev_comm sig
+	frame[0x18]=2;
+	memcpy(&frame[0x28], nhead->psig, 16);					// next_comm sig
+	frame[0x38]=3;
+
+	// TODOL modify to test sections of pickPidInfoS
+	int ret = pickPidInfoS(&frame, elist_thead, 0);
 
 	ck_assert_int_eq(0, ret);
 	ck_assert(!(nhead->status & MSK_STATNRSCH));
@@ -416,8 +463,9 @@ void orchestrator_manage (Suite * s) {
 	suite_add_tcase(s, tc3);
 
 	TCase *tc4 = tcase_create("manage_ftrace_pickpid");
-	tcase_add_checked_fixture(tc4, NULL, orchestrator_manage_teardown);
+	tcase_add_checked_fixture(tc4, orchestrator_manage_setup, orchestrator_manage_teardown);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
+	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch);
 	suite_add_tcase(s, tc4);
 
 	return;
