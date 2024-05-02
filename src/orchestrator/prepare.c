@@ -686,7 +686,7 @@ prepareEnvironment(prgset_t *set) {
 				fileprefix = strcat(strcat(fileprefix,cont->contid), CGRP_DCKS);
 #endif
 
-				// try to create directory // TODO update string for v2
+				// try to create directory
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 				{
 					warn("Can not set CGroup: %s", strerror(errno));

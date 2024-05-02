@@ -66,7 +66,7 @@ getContPids (node_t **pidlst)
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
-			if ((strlen(dir->d_name)>60)) {// container strings are very long! TODO: is that enough?
+			if ((strlen(dir->d_name)>60)) {// container strings are very long! - KISS as it has to be efficient
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/" CGRP_PIDS)+1))) {
 					// copy to new prefix
 					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
