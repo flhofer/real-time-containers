@@ -483,6 +483,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 	DIR *d;
 	struct dirent *dir;
+
 	d = opendir(set->cpusetdfileprefix);// -> pointing to global
 	if (d) {
 
@@ -490,8 +491,20 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 		{
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
-			// scan trough docker CGroup, find container IDs
-				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {  //TODO: update string for CGroups v2
+#ifdef CGROUP2
+				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+				t = strdup(dir->d_name);
+				if (!(strtok_r(t, "-.", &t_tok))
+						|| !(hex = strtok_r(NULL, "-.", &t_tok))) {
+					free(t);
+					continue;
+				}
+#else
+				char * hex = dir->d_name;
+#endif
+			// scan trough docker CGroup, find them?
+				if  ((DT_DIR == dir->d_type)
+					 && (64 == (strspn(hex, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						// copy to new prefix
@@ -509,6 +522,9 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 					else // realloc error
 						err_exit("could not allocate memory!");
 				}
+#ifdef CGROUP2
+				free(t);
+#endif
 			}
 			free (contp);
 		}
@@ -555,9 +571,20 @@ setContCGroups(prgset_t *set, char * numastr) {
 			char *contp = NULL; // clear pointer
 			/// Reassigning pre-existing containers?
 			while ((dir = readdir(d)) != NULL) {
+#ifdef CGROUP2
+				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+				t = strdup(dir->d_name);
+				if (!(strtok_r(t, "-.", &t_tok))
+						|| !(hex = strtok_r(NULL, "-.", &t_tok))) {
+					free(t);
+					continue;
+				}
+#else
+				char * hex = dir->d_name;
+#endif
 			// scan trough docker CGroup, find them?
-				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
-					 && (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
+				if  ((DT_DIR == dir->d_type)
+					 && (64 == (strspn(hex, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						// copy to new prefix
@@ -573,6 +600,9 @@ setContCGroups(prgset_t *set, char * numastr) {
 					else // realloc error
 						err_exit("could not allocate memory!");
 				}
+#ifdef CGROUP2
+				free(t);
+#endif
 			}
 			free (contp);
 		}
