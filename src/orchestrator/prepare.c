@@ -682,8 +682,8 @@ prepareEnvironment(prgset_t *set) {
 					+14))) { // 'docker-' + '.scope' = '\n'
 
 				// copy to new prefix
-				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), "docker-");
-				fileprefix = strcat(strcat(fileprefix,cont->contid), ".scope");
+				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), CGRP_DCKP);
+				fileprefix = strcat(strcat(fileprefix,cont->contid), CGRP_DCKPS);
 #endif
 
 				// try to create directory // TODO update string for v2
