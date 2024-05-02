@@ -679,11 +679,11 @@ prepareEnvironment(prgset_t *set) {
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
 #else
-					+14))) { // 'docker-' + '.scope' = '\n'
+					+strlen(CGRP_DCKP CGRP_DCKS)+1))) { // 'docker-' + '.scope' = '\n'
 
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), CGRP_DCKP);
-				fileprefix = strcat(strcat(fileprefix,cont->contid), CGRP_DCKPS);
+				fileprefix = strcat(strcat(fileprefix,cont->contid), CGRP_DCKS);
 #endif
 
 				// try to create directory // TODO update string for v2

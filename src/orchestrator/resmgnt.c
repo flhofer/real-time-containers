@@ -209,9 +209,18 @@ setContainerAffinity(node_t * node){
 			return -1;
 	}
 
-	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
+	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)
+#ifndef CGROUP2
+			+1))) {
 		// copy to new prefix
 		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), node->contid);
+#else
+			+strlen(CGRP_DCKP CGRP_DCKS)+1))) { // 'docker-' + '.scope' = '\n'
+
+		// copy to new prefix
+		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), CGRP_DCKP);
+		contp = strcat(strcat(contp,node->contid), CGRP_DCKS);
+#endif
 
 		// read old, then compare -> update if different
 		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN)) // TODO: all cpuset.cpus have to be checked -> read from effective
