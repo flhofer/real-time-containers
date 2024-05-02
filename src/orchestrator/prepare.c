@@ -671,12 +671,20 @@ prepareEnvironment(prgset_t *set) {
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
 
 			// check if a valid and full sha256 id
-			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))  //TODO: update string for CGroups v2
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))
 				continue;
-			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
-
+			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)
+#ifndef CGROUP2
+					+1))) {
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
+#else
+					+14))) { // 'docker-' + '.scope' = '\n'
+
+				// copy to new prefix
+				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), "docker-");
+				fileprefix = strcat(strcat(fileprefix,cont->contid), ".scope");
+#endif
 
 				// try to create directory // TODO update string for v2
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
