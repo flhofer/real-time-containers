@@ -250,6 +250,14 @@ pushCPUirqs (prgset_t *set, int mask_sz){
 static int
 countCGroupTasks(prgset_t *set) {
 
+#ifdef CGROUP2
+	char count[16];
+	if (0 > getkernvar(set->cpusetdfileprefix, "pids.current", count, 16)){
+		warn("Can not read docker number of tasks");
+		return -1;
+	}
+	return atoi(count);
+#else
 	DIR *d;
 	struct dirent *dir;
 	d = opendir(set->cpusetdfileprefix);// -> pointing to global
@@ -261,7 +269,7 @@ countCGroupTasks(prgset_t *set) {
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find container IDs
-				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
+				if  ((DT_DIR == dir->d_type)
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1+strlen("/" CGRP_PIDS)))) { // \0 + /tasks
@@ -300,6 +308,7 @@ countCGroupTasks(prgset_t *set) {
 		return count;
 	}
 	return -1;
+#endif
 }
 
 /*
