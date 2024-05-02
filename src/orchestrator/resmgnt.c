@@ -503,8 +503,8 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 #ifdef CGROUP2
 				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
 				t = strdup(dir->d_name);
-				if (!(strtok_r(t, "-.", &t_tok))
-						|| !(hex = strtok_r(NULL, "-.", &t_tok))) {
+				if (!(strtok_r(t, "-", &t_tok))
+						|| !(hex = strtok_r(NULL, ".", &t_tok))) {
 					free(t);
 					continue;
 				}
@@ -583,8 +583,8 @@ setContCGroups(prgset_t *set, char * numastr) {
 #ifdef CGROUP2
 				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
 				t = strdup(dir->d_name);
-				if (!(strtok_r(t, "-.", &t_tok))
-						|| !(hex = strtok_r(NULL, "-.", &t_tok))) {
+				if (!(strtok_r(t, "-", &t_tok))
+						|| !(hex = strtok_r(NULL, ".", &t_tok))) {
 					free(t);
 					continue;
 				}
