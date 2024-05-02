@@ -30,11 +30,35 @@
 #define PFX "[manage] "
 
 #define PIPE_BUFFER			4096
-#if __x86_64__ || __ppc64__
-	#define WORDSIZE		KBUFFER_LSIZE_8
+#if defined(__x86_64__) || \
+	defined(__ppc64__) || \
+	defined(__AARCH64EB__) || \
+	defined(__AARCH64EL__)
+	#define LONG_SIZE		KBUFFER_LSIZE_8
 #else
-	#define WORDSIZE		KBUFFER_LSIZE_4
+	#define LONG_SIZE		KBUFFER_LSIZE_4
 #endif
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN || \
+    defined(__BIG_ENDIAN__) || \
+    defined(__ARMEB__) || \
+    defined(__THUMBEB__) || \
+    defined(__AARCH64EB__) || \
+    defined(_MIBSEB) || defined(__MIBSEB) || defined(__MIBSEB__)
+
+	#define BUFFER_ORDER KBUFFER_ENDIAN_BIG
+
+#elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN || \
+    defined(__LITTLE_ENDIAN__) || \
+    defined(__ARMEL__) || \
+    defined(__THUMBEL__) || \
+    defined(__AARCH64EL__) || \
+    defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__)
+
+	#define BUFFER_ORDER KBUFFER_ENDIAN_LITTLE
+#else
+	#error PFX "I don't know what architecture this is!"
+#endif
+
 #define GET_VARIABLE_NAME(Variable) (#Variable)
 
 // total scan counter for update-stats
@@ -1051,7 +1075,7 @@ thread_ftrace(void *arg){
 		{
 		case 0:
 			// init buffer structure for page management
-			kbuf = kbuffer_alloc(WORDSIZE, KBUFFER_ENDIAN_LITTLE);
+			kbuf = kbuffer_alloc(LONG_SIZE, BUFFER_ORDER);
 
 			char* fn;
 			if (NULL != fthread->dbgfile)
