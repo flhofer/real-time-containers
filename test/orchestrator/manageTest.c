@@ -215,8 +215,9 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	int ret;
 
 	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
+		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
+		buf[ret] = '\0';
 		fclose(f);
 	}
 	else
@@ -331,14 +332,15 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 	int ret;
 
 	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), PIPE_BUFFER, f);
+		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
+		buf[ret] = '\0';
 		fclose(f);
 	}
 	else
 		ck_abort_msg("Could not open file: %s", strerror(errno));
 
-	parseEventFields (&elist_head->fields,buf);
+	parseEventFields (&elist_head->fields, buf);
 	free (buf);
 
 	ck_assert_ptr_nonnull(elist_head->fields );
