@@ -382,10 +382,10 @@ updatePidAttr(node_t * node){
 	}
 
 	// storage for actual attributes
-	struct sched_attr attr_act;
+	struct sched_attr attr_act = { sizeof(struct sched_attr) };
 
 	// try reading
-	if (sched_getattr (node->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0){
+	if (sched_getattr (node->pid, &attr_act, attr_act.size, 0U) != 0){
 		warn("Unable to read parameters for PID %d: %s", node->pid, strerror(errno));
 		return;
 	}
