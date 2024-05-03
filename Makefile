@@ -1,4 +1,4 @@
-VERSION = 0.90
+VERSION = 0.91
 VERSUFF = 
 GIT_VERSION := $(shell git describe --abbrev=7 --always --tags)
 CC?=$(CROSS_COMPILE)gcc
@@ -7,6 +7,8 @@ CPP?=$(CROSS_COMPILE)g++
 #uncomment the line below to create debug versions by default
 #DEBUG=1
 #COVERAGE=1
+#uncomment the line below to exclude kbuffer source from linking and use libtraceevent instead
+#USELIBTRACE=1
 
 OBJDIR = build
 
@@ -18,6 +20,9 @@ testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
+ifdef USELIBTRACE
+	LIBS += -ltraceevent
+endif
 # for tests
 TLIBS	= -lcheck -lm -lsubunit $(LIBS)
 
@@ -56,6 +61,7 @@ else
 		CFLAGS += -coverage
 	endif
 endif
+
 CPPFLAGS ?= $(CFLAGS)
 CFLAGS += -I src/include
 

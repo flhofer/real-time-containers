@@ -13,6 +13,9 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// directory entry structure and exploration
 #include <errno.h>			// error numbers and strings
+#ifdef USELIBTRACE
+	#include <>kbuffer.h>	// ring-buffer management, use libtrace-event
+#endif
 
 // Custom includes
 #include "orchestrator.h"
@@ -21,7 +24,9 @@
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"		// common definitions and functions
-#include "kbuffer.h"		// ring-buffer management from trace-event
+#ifndef USELIBTRACE
+	#include "kbuffer.h"// ring-buffer management extracted from source libtrace-event
+#endif
 #include "resmgnt.h"		// PID and resource management
 
 #include <numa.h>		// NUMA node identification
@@ -287,7 +292,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						s = strtok_r (NULL, delim, &s_tok);
 						int size = atoi(s);
 						if (size != (*ecfg)->size)
-							printDbg(PFX "ftrace event parse - Field %s size mismatch, type %d bytes, value %d bytes!\n", (*ecfg)->name, (*ecfg)->size, size);
+							printDbg(PFX "ftrace event parse - Field '%s' size mismatch, type %d bytes, value %d bytes!\n", (*ecfg)->name, (*ecfg)->size, size);
 						(*ecfg)->size=size;
 						fp++;
 					}
@@ -297,7 +302,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						s = strtok_r (NULL, delim, &s_tok);
 						int sign = atoi(s);
 						if (sign != (*ecfg)->sign)
-							printDbg(PFX "ftrace event parse - Field %s sign mismatch, type %s, value %s!\n", (*ecfg)->name, ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
+							printDbg(PFX "ftrace event parse - Field '%s' sign mismatch, type %s, value %s!\n", (*ecfg)->name, ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
 						(*ecfg)->sign=sign;
 						fp=1;	// ok, return
 					}
