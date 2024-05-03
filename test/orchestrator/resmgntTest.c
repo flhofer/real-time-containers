@@ -224,9 +224,10 @@ START_TEST(checkPeriod_RTest)
 	rHead->status = MSK_STATHRMC;
 
 	node_t * item = NULL;
+	pidc_t * param = calloc(1, sizeof(pidc_t));
+	param->rscs = calloc(1, sizeof(struct sched_rscs));
 	node_push(&item);
-	item->param = calloc(1, sizeof(pidc_t));
-	item->param->rscs = calloc(1, sizeof(struct sched_rscs));
+	item->param = param;
 	struct sched_attr par ={
 			48,
 			SCHED_DEADLINE,
@@ -246,9 +247,9 @@ START_TEST(checkPeriod_RTest)
 	item->mon.cdf_runtime = 560;
 	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead);// exact period match
 
-	free(item->param->rscs);
-	free(item->param);
 	node_pop(&item);
+	free(param->rscs);
+	free(param);
 }
 END_TEST
 
