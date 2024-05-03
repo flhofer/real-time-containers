@@ -91,7 +91,7 @@ struct tr_switch {
 	int32_t* next_prio;
 } tr_switch;
 // related variable name dictionary
-const char * tr_switch_dict[] = { "sched_switch",
+const char * tr_switch_dict[] = { "sched/sched_switch",
 								GET_VARIABLE_NAME(tr_switch.prev_comm),
 								GET_VARIABLE_NAME(tr_switch.prev_pid),
 								GET_VARIABLE_NAME(tr_switch.prev_prio),
@@ -110,7 +110,7 @@ struct tr_wakeup {
 	int32_t * target_cpu;
 } tr_wakeup;
 // related variable name dictionary
-const char * tr_wakeup_dict[] = { "sched_wakeup",
+const char * tr_wakeup_dict[] = { "sched/sched_wakeup",
 								GET_VARIABLE_NAME(tr_wakeup.comm),
 								GET_VARIABLE_NAME(tr_wakeup.pid),
 								GET_VARIABLE_NAME(tr_wakeup.prio),
