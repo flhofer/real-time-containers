@@ -11,6 +11,8 @@
 // tested
 #include "../../src/lib/kernutil.c"
 
+/// TEST CASE -> test kernel version read
+/// EXPECTED -> uname function call should match /proc read result
 START_TEST(kernutil_check_kernel)
 {	
 	char buf[256];
@@ -29,7 +31,7 @@ START_TEST(kernutil_check_kernel)
 			kv = KV_413;
 		else
 			kv = KV_40;
-	} else if (5 == maj)
+	} else if (5 <= maj)
 		kv = KV_50;
 
     ck_assert_int_eq(check_kernel(), kv);
