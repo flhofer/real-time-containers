@@ -1325,7 +1325,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 					copy_bitmask_to_bitmask(node->param->rscs->affinity_mask, curr->rscs->affinity_mask);
 				}
 				node->param->attr = malloc(sizeof(struct sched_attr));
-				(void)memcpy(node->param->attr, curr->rscs, sizeof(struct sched_attr));
+				(void)memcpy(node->param->attr, curr->attr, sizeof(struct sched_attr));
 
 				// update counter FIXME: needed?
 				configuration->nthreads++;
