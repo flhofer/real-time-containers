@@ -69,6 +69,7 @@ struct ftrace_thread * elist_thead = NULL;
 enum tr_vtypes { trv_short, trv_int, trv_long, trv_longlong, trv_char = 10, trv_pid_t = 20 };
 
 // Parser offset structures - pointers to values for common
+#define TR_EVENT_COMMON "common"
 struct tr_common {
 	uint16_t* common_type;
 	uint8_t * common_flags;
@@ -76,7 +77,7 @@ struct tr_common {
 	int32_t * common_pid;
 } tr_common;
 // related variable name dictionary
-const char * tr_common_dict[] = { "common",
+const char * tr_common_dict[] = { TR_EVENT_COMMON,
 								GET_VARIABLE_NAME(tr_common.common_type),
 								GET_VARIABLE_NAME(tr_common.common_flags),
 								GET_VARIABLE_NAME(tr_common.common_preempt_count),
@@ -84,6 +85,7 @@ const char * tr_common_dict[] = { "common",
 								NULL};
 
 // Parser offset structures - pointers to values for sched_switch
+#define TR_EVENT_SWITCH "sched/sched_switch"
 struct tr_switch {
 	char    * prev_comm;
 	pid_t   * prev_pid;
@@ -96,7 +98,7 @@ struct tr_switch {
 	int32_t* next_prio;
 } tr_switch;
 // related variable name dictionary
-const char * tr_switch_dict[] = { "sched/sched_switch",
+const char * tr_switch_dict[] = { TR_EVENT_SWITCH,
 								GET_VARIABLE_NAME(tr_switch.prev_comm),
 								GET_VARIABLE_NAME(tr_switch.prev_pid),
 								GET_VARIABLE_NAME(tr_switch.prev_prio),
@@ -107,6 +109,7 @@ const char * tr_switch_dict[] = { "sched/sched_switch",
 								NULL};
 
 // Parser offset structures - pointers to values for sched_wakeup
+#define TR_EVENT_WAKEUP "sched/sched_wakeup"
 struct tr_wakeup {
 	char  * comm;
 	pid_t * pid;
@@ -115,7 +118,7 @@ struct tr_wakeup {
 	int32_t * target_cpu;
 } tr_wakeup;
 // related variable name dictionary
-const char * tr_wakeup_dict[] = { "sched/sched_wakeup",
+const char * tr_wakeup_dict[] = { TR_EVENT_WAKEUP,
 								GET_VARIABLE_NAME(tr_wakeup.comm),
 								GET_VARIABLE_NAME(tr_wakeup.pid),
 								GET_VARIABLE_NAME(tr_wakeup.prio),
@@ -430,10 +433,10 @@ configureTracers(){
 			warn("can not obtain HEX CPU mask");
 	}
 
-	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
+	if ((appendEvent(dbgpfx, TR_EVENT_SWITCH, pickPidInfoS)))
 		return -1;
 
-	if ((appendEvent(dbgpfx, "sched/sched_wakeup", pickPidInfoW)))
+	if ((appendEvent(dbgpfx, TR_EVENT_WAKEUP, pickPidInfoW)))
 		return -1;
 
 	if ((parseEventOffsets()))
