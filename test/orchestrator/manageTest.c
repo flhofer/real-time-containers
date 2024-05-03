@@ -29,8 +29,8 @@
 
 void buildEventConf(){
 	push((void**)&elist_head, sizeof(struct ftrace_elist));
-	elist_head->eventid = 317;
-	elist_head->event = "sched_switch";
+	elist_head->eventid = 317;	// used for kernel 4 and 6, may differ
+	elist_head->event = TR_EVENT_SWITCH;
 	elist_head->eventcall = pickPidInfoS;
 }
 
