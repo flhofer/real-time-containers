@@ -48,7 +48,7 @@ void clearEventConf(){
 static void orchestrator_manage_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
-	prgset->affinity= TESTCPU;
+	prgset->affinity = strdup(TESTCPU);
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
 	prgset->procfileprefix = strdup("/proc/sys/kernel/");

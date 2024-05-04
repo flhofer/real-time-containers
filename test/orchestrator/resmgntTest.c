@@ -82,7 +82,7 @@ setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
-	prgset->affinity= "0";
+	prgset->affinity = strdup("0");
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 }
 

@@ -216,6 +216,7 @@ void
 freePrgSet(prgset_t * prgset){
 
 	numa_bitmask_free(prgset->affinity_mask);
+	free(prgset->affinity);
 	free(prgset->logdir);
 	free(prgset->logbasename);
 
