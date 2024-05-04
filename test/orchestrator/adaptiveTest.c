@@ -52,15 +52,12 @@ static void orchestrator_adaptive_teardown() {
 /// EXPECTED -> exit with no error and created resources
 START_TEST(orchestrator_adaptive_resources)
 {
-
 	prgset = calloc (1, sizeof(prgset_t));
 	prgset->affinity_mask = parse_cpumask("1-2"); // limited by tester's cpu :/
 
 	contparm = calloc (1, sizeof(containers_t));
 	contparm->rscs = malloc(sizeof(struct sched_rscs));
 	contparm->rscs->affinity = -1;
-	contparm->rscs->affinity_mask = numa_allocate_cpumask();
-	copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();
