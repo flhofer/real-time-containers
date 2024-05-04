@@ -183,6 +183,7 @@ freeContParm(containers_t * contparm){
 			pop ((void**)&contparm->img->pids);
 
 		freeParm ((cont_t*)contparm->img);
+		free(contparm->img->imgid);
 		pop ((void**)&contparm->img);
 	}
 
@@ -190,11 +191,13 @@ freeContParm(containers_t * contparm){
 		while (contparm->cont->pids)
 			pop ((void**)&contparm->cont->pids);
 		freeParm (contparm->cont);
+		free(contparm->cont->contid);
 		pop((void**)&contparm->cont);
 	}
 
 	while (contparm->pids){
 		freeParm ((cont_t*)contparm->pids);
+		free(contparm->pids->psig);
 		pop ((void**)&contparm->pids);
 	}
 
