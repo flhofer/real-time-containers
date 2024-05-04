@@ -429,9 +429,9 @@ static void tc5_setupUnchecked() {
 }
 
 static void tc5_teardownUnchecked() {
-	freeContParm(contparm);
 	while (nhead)
 		node_pop(&nhead);
+	freeContParm(contparm);
 }
 
 static void findparamsCheck (int imgtest, int conttest) {
@@ -529,9 +529,9 @@ START_TEST(findparamsFailTest)
 	// sometimes null, sometimes with id, but never fitting -> check segfaults
 	node_push(&nhead);
 	nhead->pid = _i ? 1 : 0;
-	nhead->psig = _i 		? NULL : strdup("wleep 1 as");
-	nhead->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
-	nhead->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
+	nhead->psig = 	_i 		? NULL : strdup("wleep 1 as");
+	nhead->contid = _i == 3 ? NULL : strdup("32aeede2352d57f52");
+	nhead->imgid  = _i == 2 ? NULL : strdup("32aeede2352d57f52");
 	int retv = findPidParameters(nhead , contparm);
 
 	ck_assert_int_eq(retv, -1);
@@ -570,9 +570,6 @@ START_TEST(findparams_link2Test)
 	nhead->imgid  = strdup("c3cc77fcf051c3cc7");
 
 	findparamsCheck( 0, 1 );
-
-	// fix for r/o test -> duplicate manual free
-	nhead->param->cont->pids = NULL;
 
 	node_pop(&nhead);
 }
