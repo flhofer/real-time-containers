@@ -282,7 +282,7 @@ void node_pop(node_t ** head) {
         return;
     }
 
-	// free strings id specifically created for this pid
+    // free strings id specifically created for this pid
 	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
 #ifdef DEBUG
 	{
@@ -292,7 +292,8 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->psig);
 #endif
-	if (!((*head)->param) || (((*head)->param->cont) 
+	if (!((*head)->param) || (!((*head)->param->cont))
+		|| (((*head)->param->cont)
 		&& (*head)->contid != (*head)->param->cont->contid))
 #ifdef DEBUG
 	{
@@ -302,7 +303,8 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->contid);
 #endif
-	if (!((*head)->param) || (((*head)->param->img) 
+	if (!((*head)->param) || (!((*head)->param->img))
+		|| (((*head)->param->img)
 		&& (*head)->imgid != (*head)->param->img->imgid))
 #ifdef DEBUG
 	{
