@@ -1293,7 +1293,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		node->param = configuration->pids;
 		node->param->img = img;
 		node->param->cont = cont;
-		node->psig = node->param->psig;
+//		node->param->psig = node->psig;	# do not set psig-> = specific parameters for this process
 		// update counter
 		if (node->pid)
 			configuration->nthreads++;
