@@ -48,7 +48,7 @@ struct kernvar_test {
 
 static const struct kernvar_test getkernvar_var[6] = {
 		{"/proc/", "version", "Linux", 0, 0},	// standard read - len = 0, changes by kernel version
-		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
+		{"/proc/","meminfo", "MemTotal", 49, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
 		// _POSIX_PATHMAX = 256
