@@ -617,17 +617,11 @@ pclose2(FILE * fp, pid_t pid, int killsig)
     int stat;
 
 	if (killsig)
-		kill(pid, killsig);
+		(void)kill(pid, killsig);
 
     fclose(fp);
 
-    // TODO: verify NOHANG Behavior when running normally
-    //Avoid HUP if child never run
-#ifdef BUSYBOX
-    while (waitpid(pid, &stat, WNOHANG) == -1)
-#else
     while (waitpid(pid, &stat, 0) == -1)
-#endif
     {
         if (errno != EINTR)
         {

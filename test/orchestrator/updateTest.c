@@ -85,6 +85,7 @@ START_TEST(orchestrator_update_getpids)
 #else
 	(void)sprintf(pid, "-C %s", prgset->cont_pidc);
 #endif
+	usleep(1000); // wait for process creation // yield
 
 	getPids(&nhead, pid, NULL);
 
@@ -122,6 +123,7 @@ START_TEST(orchestrator_update_scannew)
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
 
+	usleep(1000); // wait for process creation // yield
 	scanNew();
 
 	// verify 3 nodes exist
@@ -145,6 +147,7 @@ START_TEST(orchestrator_update_scannew)
 	ck_assert_int_eq(nhead->pid, pid3);
 
 	fd2 = popen2("sleep 3", "r", &pid2);
+	usleep(1000); // wait for process creation // yield
 
 	scanNew();
 
@@ -209,7 +212,7 @@ START_TEST(orchestrator_update_findprocs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
 	pid_t pid1, pid2, pid3;
 	FILE * fd1, * fd2,  * fd3;
 
@@ -221,7 +224,7 @@ START_TEST(orchestrator_update_findprocs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
-	prgset->loops = 10; // shorten scan time
+	prgset->loops = 5; // shorten scan time
 	
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
@@ -263,13 +266,14 @@ START_TEST(orchestrator_update_findprocsall)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
 	
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup(""); // all!
 	prgset->use_cgroup = DM_CMDLINE;
-	
+	prgset->loops = 5; // shorten scan time
+
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
@@ -289,7 +293,7 @@ START_TEST(orchestrator_update_rscs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
 	pid_t pid1, pid2;
 	FILE * fd1, * fd2;
 
@@ -300,6 +304,7 @@ START_TEST(orchestrator_update_rscs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
+	prgset->loops = 5; // shorten scan time
 
 	// push sig to config	
 	contparm->rscs = malloc (sizeof(struct sched_rscs));

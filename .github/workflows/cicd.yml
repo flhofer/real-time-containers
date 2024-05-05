@@ -70,11 +70,11 @@ jobs:
 
     - name: "Build fedora container and run tests"
       run: |
-        docker build -t fedorabuild -f Dockerfile-Build-fedora . \
+        docker build -t fedorabuild -f tools/Dockerfile-Build-fedora . \
         && docker run --rm -v "$PWD":/home fedorabuild
 
     - name: "Build alpine container and run tests"
       run: |
-        docker build -t alpinebuild -f Dockerfile-Build-alpine . \
+        docker build -t alpinebuild -f tools/Dockerfile-Build-alpine . \
         && docker run --rm -v "$PWD":/home alpinebuild
 
