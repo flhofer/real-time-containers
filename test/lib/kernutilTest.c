@@ -61,10 +61,9 @@ static const struct kernvar_test getkernvar_var[6] = {
 
 START_TEST(kernutil_getkernvar)
 {
-	char * value;
-	value = malloc(50);		
-	
-	int read = getkernvar(getkernvar_var[_i].path, getkernvar_var[_i].var, value, 50);
+	char * value = calloc(50,1);
+
+	int read = getkernvar(getkernvar_var[_i].path, getkernvar_var[_i].var, value, 49);
 	if ( 0 < getkernvar_var[_i].count)
 		ck_assert_int_eq(read, getkernvar_var[_i].count); // ignore if expected == 0
 	ck_assert_str_ge(value, getkernvar_var[_i].val);
