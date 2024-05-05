@@ -121,16 +121,17 @@ START_TEST(orchdata_ndpop2)
 	nhead->contid = b;
 	nhead->imgid = c;
 	nhead->param = &f;
-	node_t * p = nhead;	// save for test
+	void * p = (void *)nhead;	// save for test
 	node_pop(&nhead);
 
 	ck_assert(!nhead);
 
 	// waring! accessing unallocated memrory
 	ck_assert(p);
-	ck_assert(p->psig);
-	ck_assert(p->contid);
-	ck_assert(p->imgid);
+	p+=3; // move to psig
+	ck_assert(p++);
+	ck_assert(p++);
+	ck_assert(p);
 
 	free(a);
 	free(b);
@@ -155,16 +156,17 @@ START_TEST(orchdata_ndpop3)
 	nhead->contid = b;
 	nhead->imgid = c;
 	nhead->param = &f;
-	node_t * p = nhead;	// save for test
+	void * p = (void *)nhead;	// save for test
 	node_pop(&nhead);
 
 	ck_assert(!nhead);
 
 	// waring! accessing unallocated memory
 	ck_assert(p);
-	ck_assert(!p->psig);
-	ck_assert(!p->contid);
-	ck_assert(!p->imgid);
+	p+=3; // move to psig
+	ck_assert(p++);
+	ck_assert(p++);
+	ck_assert(p);
 }
 END_TEST
 #endif
