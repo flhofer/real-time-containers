@@ -72,6 +72,9 @@ static void checkContainer(contevent_t * cntevent) {
 	ck_assert_int_eq(cntevent->timenano, containerEvent->timenano);
 
 	// cleanup
+	free(containerEvent->name);
+	free(containerEvent->id);
+	free(containerEvent->image);
 	free(containerEvent);
 	containerEvent = NULL;
 	(void)pthread_mutex_unlock(&containerMutex);
