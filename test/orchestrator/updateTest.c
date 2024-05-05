@@ -284,6 +284,25 @@ START_TEST(orchestrator_update_rscs)
 }
 END_TEST
 
+/// TEST CASE -> fill link event structure and test passing/parameters
+/// EXPECTED ->  resources set and all freed
+START_TEST(orchestrator_update_dlinkread)
+{
+	containerEvent = malloc (sizeof (struct cont_event));
+	containerEvent->event = cnt_add;
+	containerEvent->id = strdup("1232144314");
+	containerEvent->name = strdup("testcont");
+	containerEvent->image = strdup("testimg");
+
+	updateDocker();
+
+    // TODO: expand -- use existing id
+	ck_assert_ptr_null(contparm->cont);
+
+
+}
+END_TEST
+
 void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_thread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
@@ -298,6 +317,12 @@ void orchestrator_update (Suite * s) {
 	tcase_add_test(tc2, orchestrator_update_rscs);
 
     suite_add_tcase(s, tc2);
+
+	TCase *tc3 = tcase_create("update_newread");
+	tcase_add_checked_fixture(tc3, orchestrator_update_setup, orchestrator_update_teardown);
+	tcase_add_test(tc3, orchestrator_update_dlinkread);
+
+    suite_add_tcase(s, tc3);
 
 	return;
 }
