@@ -350,7 +350,11 @@ updateDocker() {
 
 				free(lstevent);
 				lstevent = NULL;
+
+				// setPidResources calls findPidParameters with write access to configuration - but lock may not be needed
+				(void)pthread_mutex_lock(&dataMutex);
 				setPidResources(linked);
+				(void)pthread_mutex_unlock(&dataMutex);
 
 				node_pop(&linked);
 				break;
