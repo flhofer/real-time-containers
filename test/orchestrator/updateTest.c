@@ -349,7 +349,10 @@ START_TEST(orchestrator_update_rscs)
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid2);
 
-	ck_assert_ptr_eq(nhead->param, contparm->pids);
+	// ipdate-> the pid cfg is cloned for pids unrelated to container configs
+	ck_assert(contparm->pids->next);
+	ck_assert(contparm->pids->next->next);
+	ck_assert_ptr_eq(nhead->param, contparm->pids->next);
 	ck_assert_ptr_eq(nhead->next->param, contparm->pids);
 
 	{
@@ -358,14 +361,14 @@ START_TEST(orchestrator_update_rscs)
 		if (prlimit(pid1, RLIMIT_RTTIME, NULL, &rlim))
 			err_msg_n(errno, "getting RT-Limit for PID %d", pid1);
 
-		ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
-		ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
+		ck_assert_int_eq(contparm->pids->next->rscs->rt_timew, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->next->rscs->rt_time,  rlim.rlim_max);
 
 		if (prlimit(pid1, RLIMIT_DATA, NULL, &rlim))
 			err_msg_n(errno, "getting data-Limit for PID %d", pid1);
 
-		ck_assert_int_eq(contparm->pids->rscs->mem_dataw, rlim.rlim_cur);
-		ck_assert_int_eq(contparm->pids->rscs->mem_data,  rlim.rlim_max);
+		ck_assert_int_eq(contparm->pids->next->rscs->mem_dataw, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->next->rscs->mem_data,  rlim.rlim_max);
 
 
 		if (prlimit(pid2, RLIMIT_RTTIME, NULL, &rlim))
@@ -385,7 +388,7 @@ START_TEST(orchestrator_update_rscs)
 		struct sched_attr attr;
 		if (sched_getattr (pid1, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));		
-		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
+		ck_assert(!memcmp(&attr, contparm->pids->next->attr, sizeof(struct sched_attr)));
 
 		if (sched_getattr (pid2, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid2, strerror(errno));		
