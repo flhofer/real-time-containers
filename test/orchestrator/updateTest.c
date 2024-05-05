@@ -63,6 +63,127 @@ static void orchestrator_update_teardown() {
 	freeContParm(contparm);
 }
 
+/// TEST CASE -> test detected pid list using pid signture and ps
+/// EXPECTED -> 3 elements detectes (and no leaks!)
+START_TEST(orchestrator_update_getpids)
+{
+	// TODO: extend with shim and subprocess examples
+	pid_t pid1, pid2, pid3;
+	FILE * fd1, * fd2,  * fd3;
+
+	char pid[SIG_LEN];
+
+	// create pids
+	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 2", "r", &pid2);
+	fd3 = popen2("sleep 5", "r", &pid3);
+	// set detect mode to pid
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+#ifdef BUSYBOX
+	(void)sprintf(pid, "| grep -E '%s'", prgset->cont_pidc);
+#else
+	(void)sprintf(pid, "-C %s", prgset->cont_pidc);
+#endif
+
+	getPids(&nhead, pid, NULL);
+
+	// verify 2 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
+}
+END_TEST
+
+/// TEST CASE -> test insert/remove from list
+/// EXPECTED -> 3 elements detected, than 1 removes, than 1 inserted
+START_TEST(orchestrator_update_scannew)
+{
+	// TODO: extend with shim and subprocess examples
+	pid_t pid1, pid2, pid3;
+	FILE * fd1, * fd2,  * fd3;
+
+	// create pids
+	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 2", "r", &pid2);
+	fd3 = popen2("sleep 5", "r", &pid3);
+	// set detect mode to pid
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	prgset->use_cgroup = DM_CMDLINE;
+
+	scanNew();
+
+	// verify 3 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+
+	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
+
+	scanNew();
+
+	// verify PIDs
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+	fd2 = popen2("sleep 3", "r", &pid2);
+
+	scanNew();
+
+	// verify 3 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid3);
+	ck_assert_int_eq(nhead->pid, pid2);
+
+
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
+}
+END_TEST
+
+/// TEST CASE -> fill link event structure and test passing/parameters
+/// EXPECTED ->  resources set and all freed
+START_TEST(orchestrator_update_dlinkread)
+{
+	containerEvent = malloc (sizeof (struct cont_event));
+	containerEvent->event = cnt_add;
+	containerEvent->id = strdup("1232144314");
+	containerEvent->name = strdup("testcont");
+	containerEvent->image = strdup("testimg");
+
+	updateDocker();
+
+    // TODO: expand -- use existing id
+	ck_assert_ptr_null(contparm->cont);
+}
+END_TEST
+
+
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
 START_TEST(orchestrator_update_stop)
@@ -125,8 +246,8 @@ START_TEST(orchestrator_update_findprocs)
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid3);
 
-	pclose(fd1); // close pipe of sleep instance = HUP
-	pclose(fd3); // close pipe of sleep instance = HUP
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
 
 	// set stop sig
 	stat1 = -1;
@@ -272,8 +393,8 @@ START_TEST(orchestrator_update_rscs)
 		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
 
 	}
-	pclose(fd1);
-	pclose(fd2);
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
 
 	// set stop sig
 	stat1 = -1;
@@ -284,43 +405,27 @@ START_TEST(orchestrator_update_rscs)
 }
 END_TEST
 
-/// TEST CASE -> fill link event structure and test passing/parameters
-/// EXPECTED ->  resources set and all freed
-START_TEST(orchestrator_update_dlinkread)
-{
-	containerEvent = malloc (sizeof (struct cont_event));
-	containerEvent->event = cnt_add;
-	containerEvent->id = strdup("1232144314");
-	containerEvent->name = strdup("testcont");
-	containerEvent->image = strdup("testimg");
-
-	updateDocker();
-
-    // TODO: expand -- use existing id
-	ck_assert_ptr_null(contparm->cont);
-
-
-}
-END_TEST
-
 void orchestrator_update (Suite * s) {
-	TCase *tc1 = tcase_create("update_thread");
+	TCase *tc1 = tcase_create("update_newread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
-	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
-	tcase_add_test(tc1, orchestrator_update_findprocs);
-	tcase_add_test(tc1, orchestrator_update_findprocsall);
+	tcase_add_test(tc1, orchestrator_update_getpids);
+//	TODO: add examples getpPids
+	tcase_add_test(tc1, orchestrator_update_scannew);
+	tcase_add_test(tc1, orchestrator_update_dlinkread);
 
-    suite_add_tcase(s, tc1);
+	suite_add_tcase(s, tc1);
 
-	TCase *tc2 = tcase_create("update_thread_resources");
+    TCase *tc2 = tcase_create("update_thread");
 	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
-	tcase_add_test(tc2, orchestrator_update_rscs);
+	tcase_add_exit_test(tc2, orchestrator_update_stop, EXIT_SUCCESS);
+	tcase_add_test(tc2, orchestrator_update_findprocs);
+	tcase_add_test(tc2, orchestrator_update_findprocsall);
 
     suite_add_tcase(s, tc2);
 
-	TCase *tc3 = tcase_create("update_newread");
+	TCase *tc3 = tcase_create("update_thread_resources");
 	tcase_add_checked_fixture(tc3, orchestrator_update_setup, orchestrator_update_teardown);
-	tcase_add_test(tc3, orchestrator_update_dlinkread);
+	tcase_add_test(tc3, orchestrator_update_rscs);
 
     suite_add_tcase(s, tc3);
 
