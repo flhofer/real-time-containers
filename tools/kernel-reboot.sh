@@ -27,13 +27,14 @@ fi
 function print_help {
 
 	cat <<-EOF
-	Usage: $0 start [kernel-ver1] [kernel-ver2]
+	Usage: $0 test  [kernel-ver1] [kernel-ver2]
+	       $0 reset [kernel-ver1]
 	       $0 list
 
 	for a test-reboot to a specified kernel with timeout in cron
 	
 	where:
-	kernel-ver1      The kernel to test booting
+	kernel-ver1      The kernel to test booting - kernel to set for reboot (reset)
 	kernel-ver2      The kernel we want to return to in case of failure, defaults to running
 	EOF
 	
@@ -102,11 +103,17 @@ if [ "$cmd" = "list" ]; then
 		echo "* $ver"
 	done
 
-elif [ "$cmd" = "start" ]; then
-
+elif [ "$cmd" = "test" ]; then
+	# get the full name of the menu entry
+	submen=$(grep "submenu.*Advanced" /boot/grub/grub.cfg | cut -d \' -f 2)
+	if [ -n "$submen" ]; then
+		submen="${submen}>"
+	fi
+	entry=$(grep "menuentry.*${ver1}'" /boot/grub/grub.cfg | cut -d \' -f 2)
+	
 	# set new bootkernel
 	$sudo sh -c "sed -i '/#GRUB_DEFAULT=/s/#GRUB_DEFAULT=/GRUB_DEFAULT=/' /etc/default/grub"
-	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
+	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/=.*/=\"${submen}${entry}\"/' /etc/default/grub"
 
 	# minutes now
 	min=$(date +'%M')
@@ -118,8 +125,15 @@ elif [ "$cmd" = "start" ]; then
 	$sudo reboot
 
 elif [ "$cmd" = "reset" ]; then
+	# get the full name of the menu entry
+	submen=$(grep "submenu.*Advanced" /boot/grub/grub.cfg | cut -d \' -f 2)
+	if [ -n "$submen" ]; then
+		submen="${submen}>"
+	fi
+	entry=$(grep "menuentry.*${ver1}'" /boot/grub/grub.cfg | cut -d \' -f 2)
+
 	# on reset first ver is ver to use
-	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
+	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/=.*/=\"${submen}${entry}\"/' /etc/default/grub"
 
 	# remove start script
 	$sudo crontab -u root -r
