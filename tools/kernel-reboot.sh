@@ -119,7 +119,7 @@ elif [ "$cmd" = "start" ]; then
 
 elif [ "$cmd" = "reset" ]; then
 	# on reset first ver is ver to use
-	eval $sudo sh -c "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
+	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
 
 	# remove start script
 	$sudo crontab -u root -r
