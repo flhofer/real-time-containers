@@ -68,15 +68,23 @@ fi
 # find penultimate kernel config installed, use as default for reboot version
 # else, it must be one of the installed, so break
 verold=
+found=0
+resdef=0
 for ver in /boot/config-* ; do
 	ver=${ver#/boot/config-}
 	if [ "$ver" = "$2" ]; then
 		ver1=$2
-		break;
+		found=1
 	fi
-	ver1=$verold
-	verold=$ver
+	if [ $found = 0 ]; then
+		ver1=$verold
+		verold=$ver
+	fi
 done
+# version is newest
+if [ "$ver" = "$ver1" ]; then
+	resdef=1
+fi
 
 [ -n "$2" ] && [ ! "$2" = "$ver1" ] && echo "Error: Kernel version '$2' specified not found !" && exit 1;
 
@@ -134,7 +142,10 @@ elif [ "$cmd" = "reset" ]; then
 
 	# on reset first ver is ver to use
 	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/=.*/=\"${submen}${entry}\"/' /etc/default/grub"
-
+	if [ $resdef = 1 ] ; then
+		$sudo sh -c "sed -i '/^GRUB_DEFAULT=/s/GRUB_DEFAULT=/#GRUB_DEFAULT=/' /etc/default/grub"
+	fi 
+	
 	# remove start script
 	$sudo crontab -u root -r
 
