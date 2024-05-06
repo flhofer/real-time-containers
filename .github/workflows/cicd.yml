@@ -44,7 +44,7 @@ jobs:
         && mv orchestrator check_test DataGenerator WorkerApp bin/
 
     - name: Upload result for job
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4.3.3
       with:
         name: binaries
         path: bin/
@@ -60,21 +60,21 @@ jobs:
 
     - name: "Build ubuntu container and run tests"
       run: |
-        docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . && \
-        docker run --rm -v "$PWD":/home ubuntubuild
+        docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . \
+        && docker run --rm -v "$PWD":/home ubuntubuild
 
     - name: "Build debian container and run tests"
       run: |
-        docker build -t debianbuild -f tools/Dockerfile-Build-debian . && \
-        docker run --rm -v "$PWD":/home debianbuild
+        docker build -t debianbuild -f tools/Dockerfile-Build-debian . \
+        && docker run --rm -v "$PWD":/home debianbuild
 
     - name: "Build fedora container and run tests"
       run: |
-        docker build -t fedorabuild -f Dockerfile-Build-fedora . && \
-        docker run --rm -v "$PWD":/home fedorabuild
+        docker build -t fedorabuild -f tools/Dockerfile-Build-fedora . \
+        && docker run --rm -v "$PWD":/home fedorabuild
 
     - name: "Build alpine container and run tests"
       run: |
-        docker build -t alpinebuild -f Dockerfile-Build-alpine . && \
-        docker run --rm -v "$PWD":/home alpinebuild
+        docker build -t alpinebuild -f tools/Dockerfile-Build-alpine . \
+        && docker run --rm -v "$PWD":/home alpinebuild
 

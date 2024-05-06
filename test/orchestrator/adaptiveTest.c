@@ -36,7 +36,7 @@
 static void orchestrator_adaptive_setup() {
 	// load test configuration from file
 	prgset = malloc (sizeof(prgset_t));
-	contparm = calloc (sizeof(containers_t),1);
+	contparm = calloc (1, sizeof(containers_t));
 	parse_config_set_default(prgset);
 }
 
@@ -52,15 +52,12 @@ static void orchestrator_adaptive_teardown() {
 /// EXPECTED -> exit with no error and created resources
 START_TEST(orchestrator_adaptive_resources)
 {
-
-	prgset = calloc (sizeof(prgset_t),1);
+	prgset = calloc (1, sizeof(prgset_t));
 	prgset->affinity_mask = parse_cpumask("1-2"); // limited by tester's cpu :/
 
-	contparm = calloc (sizeof(containers_t),1);
+	contparm = calloc (1, sizeof(containers_t));
 	contparm->rscs = malloc(sizeof(struct sched_rscs));
 	contparm->rscs->affinity = -1;
-	contparm->rscs->affinity_mask = numa_allocate_cpumask();
-	copy_bitmask_to_bitmask(prgset->affinity_mask, contparm->rscs->affinity_mask);
 
 	// prepare and compute schedule
 	adaptPrepareSchedule();

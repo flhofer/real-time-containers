@@ -11,6 +11,8 @@
 // tested
 #include "../../src/lib/kernutil.c"
 
+/// TEST CASE -> test kernel version read
+/// EXPECTED -> uname function call should match /proc read result
 START_TEST(kernutil_check_kernel)
 {	
 	char buf[256];
@@ -29,7 +31,7 @@ START_TEST(kernutil_check_kernel)
 			kv = KV_413;
 		else
 			kv = KV_40;
-	} else if (5 == maj)
+	} else if (5 <= maj)
 		kv = KV_50;
 
     ck_assert_int_eq(check_kernel(), kv);
@@ -46,7 +48,7 @@ struct kernvar_test {
 
 static const struct kernvar_test getkernvar_var[6] = {
 		{"/proc/", "version", "Linux", 0, 0},	// standard read - len = 0, changes by kernel version
-		{"/proc/","meminfo", "MemTotal", 50, 0},			// buffer too small
+		{"/proc/","meminfo", "MemTotal", 49, 0},			// buffer too small
 		{"/proc/","noexist", "", -1, ENOENT},				// entry does not exist
 		{"/sys/devices/system/cpu/", "isolated","\0", 1, 0},// empty entry
 		// _POSIX_PATHMAX = 256
@@ -59,10 +61,9 @@ static const struct kernvar_test getkernvar_var[6] = {
 
 START_TEST(kernutil_getkernvar)
 {
-	char * value;
-	value = malloc(50);		
-	
-	int read = getkernvar(getkernvar_var[_i].path, getkernvar_var[_i].var, value, 50);
+	char * value = calloc(50,1);
+
+	int read = getkernvar(getkernvar_var[_i].path, getkernvar_var[_i].var, value, 49);
 	if ( 0 < getkernvar_var[_i].count)
 		ck_assert_int_eq(read, getkernvar_var[_i].count); // ignore if expected == 0
 	ck_assert_str_ge(value, getkernvar_var[_i].val);

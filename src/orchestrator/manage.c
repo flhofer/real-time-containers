@@ -13,6 +13,9 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// directory entry structure and exploration
 #include <errno.h>			// error numbers and strings
+#ifdef USELIBTRACE
+	#include <>kbuffer.h>	// ring-buffer management, use libtrace-event
+#endif
 
 // Custom includes
 #include "orchestrator.h"
@@ -21,7 +24,9 @@
 #include "kernutil.h"	// generic kernel utilities
 #include "error.h"		// error and stderr print functions
 #include "cmnutil.h"		// common definitions and functions
-#include "kbuffer.h"		// ring-buffer management from trace-event
+#ifndef USELIBTRACE
+	#include "kbuffer.h"// ring-buffer management extracted from source libtrace-event
+#endif
 #include "resmgnt.h"		// PID and resource management
 
 #include <numa.h>		// NUMA node identification
@@ -30,16 +35,23 @@
 #define PFX "[manage] "
 
 #define PIPE_BUFFER			4096
-#if __x86_64__ || __ppc64__
-	#define WORDSIZE		KBUFFER_LSIZE_8
-#else
-	#define WORDSIZE		KBUFFER_LSIZE_4
-#endif
+
+#define GET_VARIABLE_NAME(Variable) (#Variable)
 
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
 
 // #################################### THREAD configuration specific ############################################
+
+// linked list of event configuration fields
+struct ftrace_ecfg {
+	struct ftrace_ecfg * next;
+	char* name;
+	int type;
+	int offset;
+	int size;
+	int sign;
+};
 
 // Linked list of event configurations and handlers
 struct ftrace_elist {
@@ -47,43 +59,76 @@ struct ftrace_elist {
 	char* event;	// string identifier
 	int eventid;	// event kernel ID
 	int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t); // event elaboration function
+	struct ftrace_ecfg* fields;
 };
 struct ftrace_elist * elist_head;
 
 struct ftrace_thread * elist_thead = NULL;
 
-// TODO: implement parser for event list, in the long run
+// variable types
+enum tr_vtypes { trv_short, trv_int, trv_long, trv_longlong, trv_char = 10, trv_pid_t = 20 };
+
+// Parser offset structures - pointers to values for common
+#define TR_EVENT_COMMON "common"
 struct tr_common {
-	uint16_t common_type;
-	uint8_t common_flags;
-	uint8_t common_preempt_count;
-	int32_t common_pid;
-	uint16_t common_migrate_disable;		// UPDATED BM with newer kernel packages, not even kernel
-	uint16_t common_preempt_lazy_count;		// -- shifted all down, messing up struct alignment
-	uint16_t _common_filler1;				// filler for C5
-	uint16_t _common_filler2;				// filler for C5
-};
+	uint16_t* common_type;
+	uint8_t * common_flags;
+	uint8_t * common_preempt_count;
+	int32_t * common_pid;
+} tr_common;
+// related variable name dictionary
+const char * tr_common_dict[] = { TR_EVENT_COMMON,
+								GET_VARIABLE_NAME(tr_common.common_type),
+								GET_VARIABLE_NAME(tr_common.common_flags),
+								GET_VARIABLE_NAME(tr_common.common_preempt_count),
+								GET_VARIABLE_NAME(tr_common.common_pid),
+								NULL};
 
-struct tr_switch {		// coming from .. 12 bytes?
-	char prev_comm[16]; // 12 - 16	/ 0
-	pid_t prev_pid; // 28 - 4		/ 16
-	int32_t prev_prio; // 32 - 4	/ 20
-//	int32_t _prev_filler; // 36 - 4	/ 24 	// filler only for BM, 8byte alignment issue
-	uint32_t prev_state_l; // 40 - 4	/ 28
-	uint32_t prev_state_h; // 44 - 4	/ 32
+// Parser offset structures - pointers to values for sched_switch
+#define TR_EVENT_SWITCH "sched/sched_switch"
+struct tr_switch {
+	char    * prev_comm;
+	pid_t   * prev_pid;
+	int32_t * prev_prio;
 
-	char next_comm[16]; // 48 - 16	/ 36
-	pid_t next_pid; // 64 - 4		/ 52
-	int32_t next_prio; // 68 - 4	/ 56
-};
+	uint64_t * prev_state;
 
-struct tr_wakeup {		// coming from .. 12 bytes?
-	char comm[16]; // 12 - 16	/ 0
-	pid_t pid; // 28 - 4		/ 16
-	int32_t prio; // 32 - 4		/ 20
-	int32_t success; // 36 - 4	/ 24
-	int32_t target_cpu; // 40 - 4	/ 28
-};
+	char   * next_comm;
+	pid_t  * next_pid;
+	int32_t* next_prio;
+} tr_switch;
+// related variable name dictionary
+const char * tr_switch_dict[] = { TR_EVENT_SWITCH,
+								GET_VARIABLE_NAME(tr_switch.prev_comm),
+								GET_VARIABLE_NAME(tr_switch.prev_pid),
+								GET_VARIABLE_NAME(tr_switch.prev_prio),
+								GET_VARIABLE_NAME(tr_switch.prev_state),
+								GET_VARIABLE_NAME(tr_switch.next_comm),
+								GET_VARIABLE_NAME(tr_switch.next_pid),
+								GET_VARIABLE_NAME(tr_switch.next_prio),
+								NULL};
+
+// Parser offset structures - pointers to values for sched_wakeup
+#define TR_EVENT_WAKEUP "sched/sched_wakeup"
+struct tr_wakeup {
+	char  * comm;
+	pid_t * pid;
+	int32_t * prio;
+	int32_t * success;
+	int32_t * target_cpu;
+} tr_wakeup;
+// related variable name dictionary
+const char * tr_wakeup_dict[] = { TR_EVENT_WAKEUP,
+								GET_VARIABLE_NAME(tr_wakeup.comm),
+								GET_VARIABLE_NAME(tr_wakeup.pid),
+								GET_VARIABLE_NAME(tr_wakeup.prio),
+								GET_VARIABLE_NAME(tr_wakeup.success),
+								GET_VARIABLE_NAME(tr_wakeup.target_cpu),
+								NULL};
+
+// these are data and name dictionaries used for parsing
+const char ** tr_event_dict [] = { tr_common_dict, tr_switch_dict, tr_wakeup_dict, NULL };
+const void * tr_event_structs [] = { &tr_common, &tr_switch, &tr_wakeup, NULL };
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
@@ -108,6 +153,205 @@ static int get_sched_info(node_t * item);
 static void
 ftrace_inthand (int sig, siginfo_t *siginfo, void *context){
 	ftrace_stop = 1;
+}
+
+/*
+ *  parseEventOffsets(): store field offsets into structs (ftrace)
+ *				this function puts field offsets to known trace
+ *				structures based on read field configuration
+ *
+ *  Arguments: - ( global dictionaries/arrays are used to init structures )
+ *
+ *  Return value: 0 on success, -1 on error
+ */
+static int
+parseEventOffsets(){
+
+	int cmn = 1;	/// run once - always - for common structure, first in array
+
+	const char *** tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
+
+	// Loop through structures to init, first is 'tr_common" (cmn =1)
+	// note type cast below -> structs contain pointers we want to modify
+	for(const void *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
+
+		// Loop through loaded ftrace events to find match
+		for (struct ftrace_elist * event = elist_head; (event); event=event->next){
+
+			// Event configuration name matches structure name in dictionary (or common is set for cmn set), find field configs
+			if ((cmn) || !strcmp(**tr_dicts,event->event)){
+				// match of dict
+				void const ** tr_struct = *tr_structs;	// init working pointer to memory begin position of struct (first field)
+				// loop through dict entries for fields -> find cfgs
+				for (char const ** tr_dict = ++(*(tr_dicts)); (*tr_dict); tr_dict++, tr_struct++){
+					char * t_tok;
+					char * entry = strdup (*tr_dict);
+
+					(void)strtok_r (entry, ".", &t_tok);
+					if (t_tok)
+						// loop through field cfg to find match for field in struct
+						for (struct ftrace_ecfg * cfg = event->fields; (cfg); cfg = cfg->next)
+							if (!strcmp(t_tok, cfg->name)){
+								// set offset
+								*tr_struct = (const unsigned char*)0x0 + cfg->offset;
+								break;
+							}
+					free(entry);
+				}
+				cmn = 0;
+				break;
+			}
+		}
+	}
+
+	return -cmn;	// at least common has been parsed?
+}
+
+
+/*
+ *  parseEventFields(): parse field format for event (fTrace)
+ *
+ *  Arguments: - event entry field list head
+ *  		   - format buffer, null terminated
+ *
+ *  Return value: 0 on success, -1 on error
+ */
+static int
+parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
+
+	char * s, * s_tok;
+	char * delim = ": \n";
+	int fp = 0;	// field position counter, 0 = off, 1 beign, 2 name, 3...
+
+	// Scan though buffer and parse contents
+	s = strtok_r (buffer,delim, &s_tok);
+	while(s) {
+		if (fp)
+			// field parsing state machine
+			switch (fp) {
+				case 2:	// field:
+					{
+						char * name = s; // variable type and name - it's ok to edit buffer
+						char * t, * t_tok;
+						t = strtok_r (name, " ", &t_tok);
+						(*ecfg)->sign = 1;
+						while (t){
+
+							// preset size and sign, check later
+							if (!strcmp(t,"short")){
+								(*ecfg)->type = trv_short;
+								(*ecfg)->size = sizeof(short);
+							}
+							if (!strcmp(t,"int")){
+								(*ecfg)->type = trv_int;
+								(*ecfg)->size = sizeof(int);
+							}
+							if (!strcmp(t,"long") && trv_long == (*ecfg)->type){
+								// long keyword for second time
+								(*ecfg)->type = trv_longlong;
+								(*ecfg)->size = 2*sizeof(long);
+							}
+							if (!strcmp(t,"long")){
+								(*ecfg)->type = trv_long;
+								(*ecfg)->size = sizeof(long);
+							}
+							if (!strcmp(t,"char")){
+								(*ecfg)->type = trv_char;
+								(*ecfg)->sign = 0;
+								(*ecfg)->size = sizeof(char);
+							}
+							if (!strcmp(t,"pid_t")){
+								(*ecfg)->type = trv_pid_t;
+								(*ecfg)->size = sizeof(int);
+							}
+							if (!strcmp(t,"unsigned"))
+								(*ecfg)->sign = 0;
+
+							name = t;		// last ok value
+							t = strtok_r (NULL, " ", &t_tok);
+						}
+						// extract name and sub-parse for array size if present
+						t = strtok_r (name, "[]", &t_tok);
+
+						(*ecfg)->name=strdup(name);
+						// if an array, read size in type description
+						t = strtok_r (NULL, "[]", &t_tok);
+						if (t) {
+							(*ecfg)->size=atoi(t) * (*ecfg)->size;
+						}
+					}
+					delim = "\t;: \n";
+					fp++;
+					break;
+				case 3:	// offset:
+					if (!strcmp(s, "offset")){
+						s = strtok_r (NULL, delim, &s_tok);
+						(*ecfg)->offset=atoi(s);
+						fp++;
+					}
+					break;
+				case 4:	// size:
+					if (!strcmp(s, "size")){
+						s = strtok_r (NULL, delim, &s_tok);
+						int size = atoi(s);
+						if (size != (*ecfg)->size)
+							printDbg(PFX "ftrace event parse - Field '%s' size mismatch, type %d bytes, value %d bytes!\n", (*ecfg)->name, (*ecfg)->size, size);
+						(*ecfg)->size=size;
+						fp++;
+					}
+					break;
+				case 5:	// signed:
+					if(!strcmp(s, "signed")){
+						s = strtok_r (NULL, delim, &s_tok);
+						int sign = atoi(s);
+						if (sign != (*ecfg)->sign)
+							printDbg(PFX "ftrace event parse - Field '%s' sign mismatch, type %s, value %s!\n", (*ecfg)->name, ((*ecfg)->sign)?"signed":"unsigned", (sign)?"signed":"unsigned");
+						(*ecfg)->sign=sign;
+						fp=1;	// ok, return
+					}
+					break;
+				default:
+					if (!strcmp(s, "field")){
+						fp = 2;
+						if (*ecfg)
+							ecfg=&(*ecfg)->next;
+						push((void**)ecfg, sizeof(struct ftrace_ecfg));
+						delim = ";\n";
+					}
+					else if (!strcmp(s, "print")) {
+						fp = 0;
+						s = strtok_r (NULL, "\n", &s_tok); // read until end of line
+					}
+					else
+						printDbg(PFX "ftrace event parse - Structure mismatch; expecting 'field', got '%s'!\n", s);
+			}
+		else if (!strcmp(s, "name")){
+			// read name
+			s = strtok_r (NULL, delim, &s_tok);
+		}
+		else if (!strcmp(s, "ID")){
+			// read ID
+			s = strtok_r (NULL, delim, &s_tok);
+		}
+		else if (!strcmp(s, "format")) {
+			// switch to format parsing
+			delim = "\t;: \n";
+			fp = 1;
+		}
+		else if (!strcmp(s, "print")) {
+			// dup!
+			fp = 0;
+			s = strtok_r (NULL, "\n", &s_tok); // read until end of line
+			printDbg(PFX "ftrace event parse - Structure mismatch; unexpected 'print'");
+		}
+		else
+			printDbg(PFX "ftrace event parse - Unknown token %s\n", s);
+
+		// Next Token
+		s = strtok_r (NULL, delim, &s_tok);
+
+	}
+	return -1; // TODO: return value
 }
 
 /*
@@ -139,6 +383,17 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 		}
 		elist_head->event = strdup(event);
 		elist_head->eventcall = fun;
+
+		{
+			char buf[PIPE_BUFFER];
+			if ( 0 < getkernvar(path, "format", buf, sizeof(buf)))
+				(void)parseEventFields(&elist_head->fields, buf);
+			else{
+				warn("Unable to get event format '%s'", event);
+				return -1;
+			}
+		}
+
 		return 0;
 	}
 
@@ -178,10 +433,13 @@ configureTracers(){
 			warn("can not obtain HEX CPU mask");
 	}
 
-	if ((appendEvent(dbgpfx, "sched/sched_switch", pickPidInfoS)))
+	if ((appendEvent(dbgpfx, TR_EVENT_SWITCH, pickPidInfoS)))
 		return -1;
 
-	if ((appendEvent(dbgpfx, "sched/sched_wakeup", pickPidInfoW)))
+	if ((appendEvent(dbgpfx, TR_EVENT_WAKEUP, pickPidInfoW)))
+		return -1;
+
+	if ((parseEventOffsets()))
 		return -1;
 
 	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
@@ -215,6 +473,10 @@ resetTracers(){
 
 	while (elist_head){
 		free(elist_head->event);
+		while (elist_head->fields){
+			free(elist_head->fields->name);
+			pop((void**)&elist_head->fields);
+		}
 		pop((void**)&elist_head);
 	}
 }
@@ -532,7 +794,6 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
  */
 static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
-	struct tr_common *pFrame = (struct tr_common*)addr;
 
 	//thread information flags, probable meaning
 	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
@@ -544,13 +805,20 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
 	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 
+	// use local copy and add addr's address with its offset
+	struct tr_common frame = tr_common;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
+
 	(void)pthread_mutex_lock(&dataMutex);
 
 	// find PID = actual running PID
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->common_pid){
-			if (!(pFrame->common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+		if (item->pid == *frame.common_pid){
+			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -558,9 +826,9 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 
 	// print here to have both line together
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
-			pFrame->common_type, pFrame->common_flags, pFrame->common_preempt_count, pFrame->common_pid);
+			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
-	return sizeof(*pFrame); // round up to next full slot, done by allocation size 32bit
+	return 0;  // TODO: unused return value
 }
 
 /*
@@ -577,22 +845,25 @@ static int
 pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, fthread, ts);
-	addr+= ret1;
 
-	struct tr_switch *pFrame = (struct tr_switch*)addr;
-
+	// use local copy and add addr's address with its offset
+	struct tr_switch frame = tr_switch;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
 
 	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				pFrame->prev_comm, pFrame->prev_pid, pFrame->prev_prio, (uint64_t)pFrame->prev_state_l,
+				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, *frame.prev_state,
 
-				//				(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
-				//				? __print_flags(pFrame->prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
-				//						pFrame->prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+				//				(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
+				//				? __print_flags(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
+				//						*frame.prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
 
-//				(pFrame->prev_state & 0xFF ? __print_flags(pFrame->prev_state & 0xFF,"|",
-//						pFrame->prev_state & 0x100 ? "+" : "",
+//				(*frame.prev_state & 0xFF ? __print_flags(*frame.prev_state & 0xFF,"|",
+//						*frame.prev_state & 0x100 ? "+" : "",
 
-				pFrame->next_comm, pFrame->next_pid, pFrame->next_prio);
+				frame.next_comm, *frame.next_pid, *frame.next_prio);
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -601,8 +872,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next ){
 
 		// previous or next pid in list, update data
-		if ((item->pid == pFrame->prev_pid)
-				|| (item->pid == pFrame->next_pid)){
+		if ((item->pid == *frame.prev_pid)
+				|| (item->pid == *frame.next_pid)){
 
 			// check if CPU changed, exiting
 			if (item->mon.assigned != fthread->cpuno){
@@ -625,7 +896,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		}
 
 		// find next PID and put timeStamp last seen, compute period if last time ended
-		if (item->pid == pFrame->next_pid)
+		if (item->pid == *frame.next_pid)
 			item->mon.last_ts = ts;
 	}
 
@@ -637,7 +908,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// previous PID in list, exiting, update runtime data
-		if (item->pid == pFrame->prev_pid){
+		if (item->pid == *frame.prev_pid){
 
 			if (item->status & MSK_STATNAFF){
 				// unassigned CPU was not part of adaptive table
@@ -651,7 +922,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			if ((pFrame->prev_state_l & 0xFD) // ~'D' uninterruptible sleep -> system call
+			// TODO: check _l vs. 64 bit
+			if ((*frame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
 				pickPidConsolidateRuntime(item, ts);
@@ -688,7 +960,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + sizeof(struct tr_switch);
+	return ret1 + 0; // TODO: unused return value
 }
 
 /*
@@ -705,14 +977,19 @@ static int
 pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	int ret1 = pickPidCommon(addr, fthread, ts);
-	addr+= ret1;
 
-	struct tr_wakeup *pFrame = (struct tr_wakeup*)addr;
+	// use local copy and add addr's address with its offset
+	struct tr_wakeup frame = tr_wakeup;
+	// NOTE:  we inherit const void from addr
+	for (const void ** ptr = (void*)&frame; ptr < (const void **)(&frame + 1); ptr++)
+		// add addr
+		*ptr = addr + *(int32_t*)ptr;
+
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
-				pFrame->comm, pFrame->pid, pFrame->prio, pFrame->success, pFrame->target_cpu);
+				frame.comm, *frame.pid, *frame.prio, *frame.success, *frame.target_cpu);
 
-	return ret1 + sizeof(struct tr_wakeup);
+	return ret1 + 0; // TODO: unused return value
 }
 
 /*
@@ -777,7 +1054,7 @@ thread_ftrace(void *arg){
 		{
 		case 0:
 			// init buffer structure for page management
-			kbuf = kbuffer_alloc(WORDSIZE, KBUFFER_ENDIAN_LITTLE);
+			kbuf = kbuffer_alloc(KBUFFER_LSIZE_SAME_AS_HOST, KBUFFER_ENDIAN_SAME_AS_HOST);
 
 			char* fn;
 			if (NULL != fthread->dbgfile)
@@ -843,9 +1120,8 @@ thread_ftrace(void *arg){
 						break;
 					}
 
-				// call event
-				int count = eventcall(pEvent, fthread, timestamp);
-				if (0 > count){
+				ret = eventcall(pEvent, fthread, timestamp);
+				if (0 > ret){
 					// something went wrong, dump and exit
 					printDbg(PFX "CPU%d - Buffer probably unaligned, flushing", fthread->cpuno);
 					break;

@@ -183,6 +183,7 @@ freeContParm(containers_t * contparm){
 			pop ((void**)&contparm->img->pids);
 
 		freeParm ((cont_t*)contparm->img);
+		free(contparm->img->imgid);
 		pop ((void**)&contparm->img);
 	}
 
@@ -190,11 +191,13 @@ freeContParm(containers_t * contparm){
 		while (contparm->cont->pids)
 			pop ((void**)&contparm->cont->pids);
 		freeParm (contparm->cont);
+		free(contparm->cont->contid);
 		pop((void**)&contparm->cont);
 	}
 
 	while (contparm->pids){
 		freeParm ((cont_t*)contparm->pids);
+		free(contparm->pids->psig);
 		pop ((void**)&contparm->pids);
 	}
 
@@ -213,6 +216,7 @@ void
 freePrgSet(prgset_t * prgset){
 
 	numa_bitmask_free(prgset->affinity_mask);
+	free(prgset->affinity);
 	free(prgset->logdir);
 	free(prgset->logbasename);
 
@@ -279,7 +283,7 @@ void node_pop(node_t ** head) {
         return;
     }
 
-	// free strings id specifically created for this pid
+    // free strings id specifically created for this pid
 	if (!((*head)->param) || (*head)->psig != (*head)->param->psig)
 #ifdef DEBUG
 	{
@@ -289,7 +293,8 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->psig);
 #endif
-	if (!((*head)->param) || (((*head)->param->cont) 
+	if (!((*head)->param) || (!((*head)->param->cont))
+		|| (((*head)->param->cont)
 		&& (*head)->contid != (*head)->param->cont->contid))
 #ifdef DEBUG
 	{
@@ -299,7 +304,8 @@ void node_pop(node_t ** head) {
 #else
 		free((*head)->contid);
 #endif
-	if (!((*head)->param) || (((*head)->param->img) 
+	if (!((*head)->param) || (!((*head)->param->img))
+		|| (((*head)->param->img)
 		&& (*head)->imgid != (*head)->param->img->imgid))
 #ifdef DEBUG
 	{
