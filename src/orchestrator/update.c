@@ -108,13 +108,19 @@ getContPids (node_t **pidlst)
 							printDbg("->%d ",(*pidlst)->pid);
 
 							updatePidCmdline(*pidlst); // checks and updates..
-							char * hex = dir->d_name;
 #ifdef CGROUP2
-							(void)strtok_r(hex, "-", &hex);	// 'docker-' part unused
-							hex = strtok_r(NULL, ".", &hex);// &hex pos read, result por to '.scope' set, but overwritten with result - pos unused
+							char * name = strdup(dir->d_name);
+							char * tok, *hex;
+							(void)strtok_r(name, "-", &tok);	// 'docker-' part unused
+							hex = strtok_r(NULL, ".", &tok);// &hex pos read, result por to '.scope' set, but overwritten with result - pos unused
+#else
+							char * hex = dir->d_name;
 #endif
 							if (!(( (*pidlst)->contid = strdup(hex) )))
 								fatal("Could not allocate memory!");
+#ifdef CGROUP2
+							free(name);
+#endif
 
 							nleft -= strlen(pid)+1;
 							pid = strtok_r (NULL,"\n", &pid_ptr);
