@@ -491,7 +491,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 				// default NUMA string
 				(void)sprintf(numastr, "0");
 			}
-			set->affinity = strdup(numastr);
+			set->numa = strdup(numastr);
 			free(numastr);
 		}
 		return;
@@ -610,7 +610,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			// default NUMA string
 			(void)sprintf(numastr, "0");
 		}
-		set->affinity = get_string_value_from(global, "numa", TRUE, numastr);
+		set->numa = get_string_value_from(global, "numa", TRUE, numastr);
 		free(numastr);
 	}
 
