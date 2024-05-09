@@ -593,24 +593,6 @@ prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/* --------------------
-	 * detect NUMA configuration, sets all nodes to active (for now)
-	 * --------------------
-	 */
-	char * numastr = malloc (5);
-	if (!(numastr))
-			err_exit("could not allocate memory!");
-	if (-1 != numa_available()) {
-		int numanodes = numa_max_node();
-
-		(void)sprintf(numastr, "0-%d", numanodes);
-	}
-	else{
-		warn("NUMA not enabled, defaulting to memory node '0'");
-		// default NUMA string
-		(void)sprintf(numastr, "0");
-	}
-
-	/* --------------------
 	 * Kernel variables, disable bandwidth management and RT-throttle
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
@@ -623,8 +605,8 @@ prepareEnvironment(prgset_t *set) {
 	if (resetRTthrottle (set, -1)){ // TODO: throttle is limited if no affinity lock is set
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
-		resetContCGroups(set, constr, numastr);
-		setContCGroups(set, numastr, 1); // TODO: pinning removed?
+		resetContCGroups(set, constr, set->numa);
+		setContCGroups(set, set->numa, 1); // TODO: pinning removed?
 
 		// retry
 		resetRTthrottle (set, -1);
@@ -654,8 +636,8 @@ prepareEnvironment(prgset_t *set) {
 	 * --------------------
 	 */
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
-	resetContCGroups(set, constr, numastr);
-	setContCGroups(set, numastr, 1);
+	resetContCGroups(set, constr, set->numa);
+	setContCGroups(set, set->numa, 1);
 
 
 	// lockup detector
@@ -698,7 +680,7 @@ prepareEnvironment(prgset_t *set) {
 				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){
 					warn("Can not set CPU-affinity");
 				}
-				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
+				if (0 > setkernvar(fileprefix, "/cpuset.mems", set->numa, set->dryrun)){
 					warn("Can not set NUMA memory nodes");
 				}
 			}
@@ -737,7 +719,7 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
 			warn("Can not set CPU-affinity");
 		}
-		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
 #ifndef CGROUP2
@@ -813,7 +795,6 @@ sysend: // jumped here if not possible to create system
 		err_exit("could not allocate memory!");
 
 	numa_free_cpumask(naffinity);
-	free(numastr);
 
 	/* lock all memory (prevent swapping) -- do here */
 	if (set->lock_pages) {

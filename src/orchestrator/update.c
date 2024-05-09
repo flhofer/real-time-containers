@@ -402,6 +402,7 @@ updateDocker() {
 static void
 scanNew () {
 	// get PIDs 
+	int wasEmpty = (!nhead);
 	node_t *lnew = NULL; // pointer to new list head
 
 	switch (prgset->use_cgroup) {
@@ -532,7 +533,12 @@ scanNew () {
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
+	// FIXME: docker bypass problem of cpuset.cpu reset if no container is set
+	if ((!nhead) && (!wasEmpty))
+		resetContCGroups(prgset, prgset->affinity, prgset->numa);
 
+	if ((nhead) && (wasEmpty))
+		setContCGroups(prgset, prgset->numa, 0);
 }
 
 /*
