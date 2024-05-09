@@ -20,7 +20,7 @@
 
 	void resetContCGroups(prgset_t *set, char * constr, char * numastr);
 											// loop through present container and reset to default
-	void setContCGroups(prgset_t *set, char * numastr);
+	void setContCGroups(prgset_t *set, char * numastr, int setCont);
 											// as above, but set to affinity
 	int resetRTthrottle (prgset_t *set,
 							int percent); 	// (re)set the system RT throttle setting (run-time percentage to -1)

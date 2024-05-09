@@ -359,14 +359,16 @@ prepareEnvironment(prgset_t *set) {
 			// SMT - HT is on
 			if (set->dryrun)
 				cont("Skipping setting SMT.");
-			else
+			else {
 				if (!set->force)
 					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-			else
-				if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
-					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-			else
-				cont("SMT is now disabled, as required. Refresh configurations..");
+				else {
+					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+					else
+						cont("SMT is now disabled, as required. Refresh configurations..");
+				}
+			}
 		}
 		else
 			cont("SMT is disabled, as required");
@@ -622,7 +624,7 @@ prepareEnvironment(prgset_t *set) {
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, numastr);
-		setContCGroups(set, numastr);
+		setContCGroups(set, numastr, 1); // TODO: pinning removed?
 
 		// retry
 		resetRTthrottle (set, -1);
@@ -653,7 +655,7 @@ prepareEnvironment(prgset_t *set) {
 	 */
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
 	resetContCGroups(set, constr, numastr);
-	setContCGroups(set, numastr);
+	setContCGroups(set, numastr, 1);
 
 
 	// lockup detector
