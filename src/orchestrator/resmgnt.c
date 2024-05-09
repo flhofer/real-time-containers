@@ -620,11 +620,11 @@ setContCGroups(prgset_t *set, int setCont) {
 #endif
 			}
 			free (contp);
+			closedir(d);
 		}
-		closedir(d);
+		else
+			warn("Can not open Docker CGroup directory: %s", strerror(errno));
 	}
-	else
-		warn("Can not open Docker CGroup directory: %s", strerror(errno));
 
 	// Docker CGroup settings and affinity
 	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
@@ -641,7 +641,7 @@ setContCGroups(prgset_t *set, int setCont) {
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
 #endif
 			warn("Can not set CPU exclusive partition: %s", strerror(errno));
-	}
+		}
 }
 
 

@@ -538,7 +538,7 @@ scanNew () {
 		resetContCGroups(prgset, prgset->affinity, prgset->numa);
 
 	if ((nhead) && (wasEmpty))
-		setContCGroups(prgset, prgset->numa, 0);
+		setContCGroups(prgset, 0);
 }
 
 /*

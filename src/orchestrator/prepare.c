@@ -606,7 +606,7 @@ prepareEnvironment(prgset_t *set) {
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, set->numa);
-		setContCGroups(set, set->numa, 1); // TODO: pinning removed?
+		setContCGroups(set, 1); // TODO: pinning removed?
 
 		// retry
 		resetRTthrottle (set, -1);
@@ -637,7 +637,7 @@ prepareEnvironment(prgset_t *set) {
 	 */
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
 	resetContCGroups(set, constr, set->numa);
-	setContCGroups(set, set->numa, 1);
+	setContCGroups(set, 1);
 
 
 	// lockup detector
