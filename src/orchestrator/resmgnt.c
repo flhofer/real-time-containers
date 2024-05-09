@@ -495,50 +495,46 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 	d = opendir(set->cpusetdfileprefix);// -> pointing to global
 	if (d) {
-
 		// CLEAR exclusive flags in all existing containers
-		{
-			char *contp = NULL; // clear pointer
-			while ((dir = readdir(d)) != NULL) {
+		char *contp = NULL; // clear pointer
+		while ((dir = readdir(d)) != NULL) {
 #ifdef CGROUP2
-				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
-				t = strdup(dir->d_name);
-				if (!(strtok_r(t, "-", &t_tok))
-						|| !(hex = strtok_r(NULL, ".", &t_tok))) {
-					free(t);
-					continue;
-				}
-#else
-				char * hex = dir->d_name;
-#endif
-				// scan trough docker CGroup, find them?
-				// TODO: Restart removes pinning? -> maybe reset here only if outside affinity range -- see setContCGroups
-				if  ((DT_DIR == dir->d_type)
-					 && (64 == (strspn(hex, "abcdef1234567890")))) {
-					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-						+ strlen(dir->d_name)+1))) {
-						// copy to new prefix
-						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
-
-						// remove exclusive!
-#ifdef CGROUP2
-						if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
-#else
-						if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
-#endif
-							warn("Can not remove CPU exclusive partition: %s", strerror(errno));
-						}
-					}
-					else // realloc error
-						err_exit("could not allocate memory!");
-				}
-#ifdef CGROUP2
+			char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+			t = strdup(dir->d_name);
+			if (!(strtok_r(t, "-", &t_tok))
+					|| !(hex = strtok_r(NULL, ".", &t_tok))) {
 				free(t);
-#endif
+				continue;
 			}
-			free (contp);
-		}
+#else
+			char * hex = dir->d_name;
+#endif
+			// scan trough docker CGroup, find them?
+			// TODO: Restart removes pinning? -> maybe reset here only if outside affinity range -- see setContCGroups
+			if  ((DT_DIR == dir->d_type)
+				 && (64 == (strspn(hex, "abcdef1234567890")))) {
+				if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+					+ strlen(dir->d_name)+1))) {
+					// copy to new prefix
+					contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
+					// remove exclusive!
+#ifdef CGROUP2
+					if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
+#else
+					if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+#endif
+						warn("Can not remove CPU exclusive partition: %s", strerror(errno));
+					}
+				}
+				else // realloc error
+					err_exit("could not allocate memory!");
+			}
+#ifdef CGROUP2
+			free(t);
+#endif
+		}
+		free (contp);
 		closedir(d);
 	}
 	else
