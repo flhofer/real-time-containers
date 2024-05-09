@@ -477,7 +477,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			free(defafin);
 		}
 
-		if (!set->numa){
+		{
 			char * numastr = malloc (5);
 			if (!(numastr))
 					err_exit("could not allocate memory!");
