@@ -539,26 +539,29 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			free (contp);
 		}
 
-		// clear Docker CGroup settings and affinity first..
-#ifdef CGROUP2
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
-#else
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
-#endif
-			warn("Can not remove CPU exclusive partition: %s", strerror(errno));
-		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
-			// global reset failed, try affinity only
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-				warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
-			}
-		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes : %s", strerror(errno));
-		}
-
 		closedir(d);
 	}
+	else
+		warn("Can not open Docker CGroup directory: %s", strerror(errno));
+
+	// clear Docker CGroup settings and affinity first..
+#ifdef CGROUP2
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
+#else
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+#endif
+		warn("Can not remove CPU exclusive partition: %s", strerror(errno));
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+		// global reset failed, try affinity only
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+			warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
+		}
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+		warn("Can not set NUMA memory nodes : %s", strerror(errno));
+	}
+
 }
 
 /*
@@ -570,7 +573,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
  * Return value: -
  */
 void
-setContCGroups(prgset_t *set, char * numastr, int setCont) {
+setContCGroups(prgset_t *set, int setCont) {
 
 	int count = 0;		// FIXME: temp counter, see below to avoid docker reset and block of container start
 	if (setCont){
@@ -578,69 +581,69 @@ setContCGroups(prgset_t *set, char * numastr, int setCont) {
 		struct dirent *dir;
 		d = opendir(set->cpusetdfileprefix);// -> pointing to global
 		if (d) {
-			{
-				char *contp = NULL; // clear pointer
-				/// Reassigning pre-existing containers?
-				while ((dir = readdir(d)) != NULL) {
-	#ifdef CGROUP2
-					char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
-					t = strdup(dir->d_name);
-					if (!(strtok_r(t, "-", &t_tok))
-							|| !(hex = strtok_r(NULL, ".", &t_tok))) {
-						free(t);
-						continue;
-					}
-	#else
-					char * hex = dir->d_name;
-	#endif
-					// scan trough docker CGroup, find them?
-					// TODO: Restart removes pinning?
-					if  ((DT_DIR == dir->d_type)
-						 && (64 == (strspn(hex, "abcdef1234567890")))) {
-						if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-							+ strlen(dir->d_name)+1))) {
-							// copy to new prefix
-							contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
-
-							if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
-								warn("Can not set CPU-affinity : %s", strerror(errno));
-							}
-							if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
-								warn("Can not set NUMA memory nodes : %s", strerror(errno));
-							}
-							count++;
-						}
-						else // realloc error
-							err_exit("could not allocate memory!");
-					}
-	#ifdef CGROUP2
-					free(t);
-	#endif
-				}
-				free (contp);
-			}
-		}
-
-		// Docker CGroup settings and affinity
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-			warn("Can not set CPU-affinity : %s", strerror(errno));
-		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes : %s", strerror(errno));
-		}
-		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
+			char *contp = NULL; // clear pointer
+			/// Reassigning pre-existing containers?
+			while ((dir = readdir(d)) != NULL) {
 #ifdef CGROUP2
-			// FIXME: count = 0, do not set to root as docker will overwrite cpuset on first container start and block task creation
-			if ((count) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+				t = strdup(dir->d_name);
+				if (!(strtok_r(t, "-", &t_tok))
+						|| !(hex = strtok_r(NULL, ".", &t_tok))) {
+					free(t);
+					continue;
+				}
 #else
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+				char * hex = dir->d_name;
 #endif
-				warn("Can not set CPU exclusive partition: %s", strerror(errno));
-			}
+				// scan trough docker CGroup, find them?
+				// TODO: Restart removes pinning?
+				if  ((DT_DIR == dir->d_type)
+					 && (64 == (strspn(hex, "abcdef1234567890")))) {
+					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+						+ strlen(dir->d_name)+1))) {
+						// copy to new prefix
+						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
+						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
+							warn("Can not set CPU-affinity : %s", strerror(errno));
+						}
+						if (0 > setkernvar(contp, "/cpuset.mems", set->numa, set->dryrun)){
+							warn("Can not set NUMA memory nodes : %s", strerror(errno));
+						}
+						count++;
+					}
+					else // realloc error
+						err_exit("could not allocate memory!");
+				}
+#ifdef CGROUP2
+				free(t);
+#endif
+			}
+			free (contp);
+		}
 		closedir(d);
 	}
+	else
+		warn("Can not open Docker CGroup directory: %s", strerror(errno));
+
+	// Docker CGroup settings and affinity
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+		warn("Can not set CPU-affinity : %s", strerror(errno));
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", set->numa, set->dryrun)){
+		warn("Can not set NUMA memory nodes : %s", strerror(errno));
+	}
+	if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
+#ifdef CGROUP2
+		// FIXME: count = 0, do not set to root as docker will overwrite cpuset on first container start and block task creation
+		if ((count) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+#else
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+#endif
+			warn("Can not set CPU exclusive partition: %s", strerror(errno));
+	}
 }
+
 
 /*
  * resetRTthrottle : reset RT throttle system-wide
