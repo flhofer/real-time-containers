@@ -261,6 +261,7 @@
 		enum aff_mode setaffinity;	// affinity mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
+		char * numa;				// value for numa selection;
 
 		// runtime settings
 		int ftrace; 				// enable Kernel ftrace for run-time statistics
