@@ -699,13 +699,13 @@ prepareEnvironment(prgset_t *set) {
 	cont("creating CGroup for system on %s", cpus);
 #endif
 	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_SYS)+1))) {
-		char * nfileprefix = NULL;
 
 		// copy to new prefix
 		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET	CGRP_SYS);
 
 #ifndef CGROUP2
 // try to create directory
+
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
 			// IF: error - excluding not already existing
@@ -722,7 +722,20 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
-#ifndef CGROUP2
+#ifdef CGROUP2	// redo for user slice
+		if ((fileprefix=realloc(fileprefix, strlen(set->cgroupfileprefix)+strlen(CGRP_USER)+1))) {
+			// copy to new prefix
+			fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix),CGRP_USER);
+
+
+			if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
+				warn("Can not set CPU-affinity");
+			}
+			if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
+				warn("Can not set NUMA memory nodes");
+			}
+		}
+#else
 		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
 		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
@@ -731,6 +744,8 @@ prepareEnvironment(prgset_t *set) {
 			}
 
 		cont( "moving tasks..");
+
+		char * nfileprefix = NULL;
 
 		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_PIDS)+1))) {
 			// copy to new prefix
@@ -784,11 +799,11 @@ prepareEnvironment(prgset_t *set) {
 		}
 
 sysend: // jumped here if not possible to create system
+		// free string buffers
+		free (nfileprefix);
 #endif
-
 		// free string buffers
 		free (fileprefix);
-		free (nfileprefix);
 
 	}
 	else //re-alloc issues

@@ -47,6 +47,7 @@
 	#define CONT_PID  "bash" 	// default program signature (test)
 #ifdef CGROUP2
 	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
+	#define CGRP_USER "user.slice/"   // default CGroup slice for user
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
 	#define CGRP_CSET "" 			  // CGroup v1 value, unused
 	#define CGRP_PIDS "cgroup.procs"  // CGv2 file for running pids //TODO: check if use cgropup.threads
