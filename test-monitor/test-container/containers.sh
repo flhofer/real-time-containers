@@ -56,7 +56,6 @@ if [ ! "$1" = "build" ] && [ ! "$1" = "update" ] && [ ! "$1" = "help" ] && [ $# 
 fi
 
 cmd=${1:-'help'}
-grp=${2:-'*'}
 
 ##################### EVALUATE COMMAND OUTPUT ##########################
 
@@ -79,7 +78,7 @@ elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 	while [ "$2" != "" ]; do
 		# all matching files
 
-		for filename in rt-app-tst-${grp}*.json; do
+		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			#create directory for log output and then symlink
 			eval "mkdir log-${filen} && chown -R 1000:1000 log-${filen}"
@@ -99,7 +98,7 @@ elif [ "$cmd" = "start" ] || [ "$cmd" = "stop" ] || [ "$cmd" = "rm" ]; then
 	while [ "$2" != "" ]; do
 		# all matching files
 
-		for filename in rt-app-tst-${grp}*.json; do
+		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			eval "docker container ${cmd} ${filen}"
 		done
