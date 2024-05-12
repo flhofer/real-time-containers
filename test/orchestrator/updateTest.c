@@ -34,7 +34,7 @@ static void orchestrator_update_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
-	prgset->affinity= "0";
+	prgset->affinity = strdup("0");
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
 	prgset->ftrace = 1;
@@ -63,13 +63,141 @@ static void orchestrator_update_teardown() {
 	freeContParm(contparm);
 }
 
+/// TEST CASE -> test detected pid list using pid signture and ps
+/// EXPECTED -> 3 elements detectes (and no leaks!)
+START_TEST(orchestrator_update_getpids)
+{
+	// TODO: extend with shim and subprocess examples
+	pid_t pid1, pid2, pid3;
+	FILE * fd1, * fd2,  * fd3;
+
+	char pid[SIG_LEN];
+
+	// create pids
+	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 2", "r", &pid2);
+	fd3 = popen2("sleep 5", "r", &pid3);
+	// set detect mode to pid
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+#ifdef BUSYBOX
+	(void)sprintf(pid, "| grep -E '%s'", prgset->cont_pidc);
+#else
+	(void)sprintf(pid, "-C %s", prgset->cont_pidc);
+#endif
+	usleep(1000); // wait for process creation // yield
+
+	getPids(&nhead, pid, NULL);
+
+	// verify 2 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
+}
+END_TEST
+
+/// TEST CASE -> test insert/remove from list
+/// EXPECTED -> 3 elements detected, than 1 removes, than 1 inserted
+START_TEST(orchestrator_update_scannew)
+{
+	// TODO: extend with shim and subprocess examples
+	pid_t pid1, pid2, pid3;
+	FILE * fd1, * fd2,  * fd3;
+
+	// create pids
+	fd1 = popen2("sleep 4", "r", &pid1);
+	fd2 = popen2("sleep 2", "r", &pid2);
+	fd3 = popen2("sleep 5", "r", &pid3);
+	// set detect mode to pid
+	free (prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	prgset->use_cgroup = DM_CMDLINE;
+
+	usleep(1000); // wait for process creation // yield
+	scanNew();
+
+	// verify 3 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid2);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+
+	pclose2(fd2, pid2, SIGINT); // send SIGINT = CTRL+C to sleep instances
+
+	scanNew();
+
+	// verify PIDs
+	ck_assert_int_eq(nhead->next->pid, pid1);
+	ck_assert_int_eq(nhead->pid, pid3);
+
+	fd2 = popen2("sleep 3", "r", &pid2);
+	usleep(1000); // wait for process creation // yield
+
+	scanNew();
+
+	// verify 3 nodes exist
+	ck_assert(nhead);
+	ck_assert(nhead->next);
+	ck_assert(nhead->next->next);
+	ck_assert(!nhead->next->next->next);
+
+	// verify pids
+	ck_assert_int_eq(nhead->next->next->pid, pid1);
+	ck_assert_int_eq(nhead->next->pid, pid3);
+	ck_assert_int_eq(nhead->pid, pid2);
+
+
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
+}
+END_TEST
+
+/// TEST CASE -> fill link event structure and test passing/parameters
+/// EXPECTED ->  resources set and all freed
+START_TEST(orchestrator_update_dlinkread)
+{
+	containerEvent = malloc (sizeof (struct cont_event));
+	containerEvent->event = cnt_add;
+	containerEvent->id = strdup("1232144314");
+	containerEvent->name = strdup("testcont");
+	containerEvent->image = strdup("testimg");
+
+	updateDocker();
+
+    // TODO: expand -- use existing id
+	ck_assert_ptr_null(contparm->cont);
+}
+END_TEST
+
+
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
 START_TEST(orchestrator_update_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
+#ifdef BUSYBOX
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
+#else
 	int stat1 = 0;
+#endif
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
@@ -88,7 +216,11 @@ START_TEST(orchestrator_update_findprocs)
 {	
 	pthread_t thread1;
 	int  iret1;
+#ifdef BUSYBOX
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
+#else
 	int stat1 = 0;
+#endif
 	pid_t pid1, pid2, pid3;
 	FILE * fd1, * fd2,  * fd3;
 
@@ -100,7 +232,7 @@ START_TEST(orchestrator_update_findprocs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
-	prgset->loops = 10; // shorten scan time
+	prgset->loops = 5; // shorten scan time
 	
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
@@ -125,8 +257,8 @@ START_TEST(orchestrator_update_findprocs)
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid3);
 
-	pclose(fd1); // close pipe of sleep instance = HUP
-	pclose(fd3); // close pipe of sleep instance = HUP
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd3, pid3, SIGINT); // close pipe
 
 	// set stop sig
 	stat1 = -1;
@@ -142,13 +274,17 @@ START_TEST(orchestrator_update_findprocsall)
 {	
 	pthread_t thread1;
 	int  iret1;
+#ifdef BUSYBOX
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
+#else
 	int stat1 = 0;
-	
+#endif
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup(""); // all!
 	prgset->use_cgroup = DM_CMDLINE;
-	
+	prgset->loops = 5; // shorten scan time
+
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
@@ -168,7 +304,7 @@ START_TEST(orchestrator_update_rscs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
 	pid_t pid1, pid2;
 	FILE * fd1, * fd2;
 
@@ -179,6 +315,7 @@ START_TEST(orchestrator_update_rscs)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
+	prgset->loops = 5; // shorten scan time
 
 	// push sig to config	
 	contparm->rscs = malloc (sizeof(struct sched_rscs));
@@ -228,7 +365,10 @@ START_TEST(orchestrator_update_rscs)
 	ck_assert_int_eq(nhead->next->pid, pid1);
 	ck_assert_int_eq(nhead->pid, pid2);
 
-	ck_assert_ptr_eq(nhead->param, contparm->pids);
+	// ipdate-> the pid cfg is cloned for pids unrelated to container configs
+	ck_assert(contparm->pids->next);
+	ck_assert(contparm->pids->next->next);
+	ck_assert_ptr_eq(nhead->param, contparm->pids->next);
 	ck_assert_ptr_eq(nhead->next->param, contparm->pids);
 
 	{
@@ -237,14 +377,14 @@ START_TEST(orchestrator_update_rscs)
 		if (prlimit(pid1, RLIMIT_RTTIME, NULL, &rlim))
 			err_msg_n(errno, "getting RT-Limit for PID %d", pid1);
 
-		ck_assert_int_eq(contparm->pids->rscs->rt_timew, rlim.rlim_cur);
-		ck_assert_int_eq(contparm->pids->rscs->rt_time,  rlim.rlim_max);
+		ck_assert_int_eq(contparm->pids->next->rscs->rt_timew, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->next->rscs->rt_time,  rlim.rlim_max);
 
 		if (prlimit(pid1, RLIMIT_DATA, NULL, &rlim))
 			err_msg_n(errno, "getting data-Limit for PID %d", pid1);
 
-		ck_assert_int_eq(contparm->pids->rscs->mem_dataw, rlim.rlim_cur);
-		ck_assert_int_eq(contparm->pids->rscs->mem_data,  rlim.rlim_max);
+		ck_assert_int_eq(contparm->pids->next->rscs->mem_dataw, rlim.rlim_cur);
+		ck_assert_int_eq(contparm->pids->next->rscs->mem_data,  rlim.rlim_max);
 
 
 		if (prlimit(pid2, RLIMIT_RTTIME, NULL, &rlim))
@@ -264,7 +404,7 @@ START_TEST(orchestrator_update_rscs)
 		struct sched_attr attr;
 		if (sched_getattr (pid1, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));		
-		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
+		ck_assert(!memcmp(&attr, contparm->pids->next->attr, sizeof(struct sched_attr)));
 
 		if (sched_getattr (pid2, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid2, strerror(errno));		
@@ -272,8 +412,8 @@ START_TEST(orchestrator_update_rscs)
 		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
 
 	}
-	pclose(fd1);
-	pclose(fd2);
+	pclose2(fd1, pid1, SIGINT); // close pipe
+	pclose2(fd2, pid2, SIGINT); // close pipe
 
 	// set stop sig
 	stat1 = -1;
@@ -285,19 +425,28 @@ START_TEST(orchestrator_update_rscs)
 END_TEST
 
 void orchestrator_update (Suite * s) {
-	TCase *tc1 = tcase_create("update_thread");
+	TCase *tc1 = tcase_create("update_newread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
-	tcase_add_exit_test(tc1, orchestrator_update_stop, EXIT_SUCCESS);
-	tcase_add_test(tc1, orchestrator_update_findprocs);
-	tcase_add_test(tc1, orchestrator_update_findprocsall);
+	tcase_add_test(tc1, orchestrator_update_getpids);
+//	TODO: add examples getpPids
+	tcase_add_test(tc1, orchestrator_update_scannew);
+	tcase_add_test(tc1, orchestrator_update_dlinkread);
 
-    suite_add_tcase(s, tc1);
+	suite_add_tcase(s, tc1);
 
-	TCase *tc2 = tcase_create("update_thread_resources");
+    TCase *tc2 = tcase_create("update_thread");
 	tcase_add_checked_fixture(tc2, orchestrator_update_setup, orchestrator_update_teardown);
-	tcase_add_test(tc2, orchestrator_update_rscs);
+	tcase_add_exit_test(tc2, orchestrator_update_stop, EXIT_SUCCESS);
+	tcase_add_test(tc2, orchestrator_update_findprocs);
+	tcase_add_test(tc2, orchestrator_update_findprocsall);
 
     suite_add_tcase(s, tc2);
+
+	TCase *tc3 = tcase_create("update_thread_resources");
+	tcase_add_checked_fixture(tc3, orchestrator_update_setup, orchestrator_update_teardown);
+	tcase_add_test(tc3, orchestrator_update_rscs);
+
+    suite_add_tcase(s, tc3);
 
 	return;
 }

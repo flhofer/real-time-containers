@@ -1,22 +1,9 @@
+// NOTE:!! this file belongs to libtraceevent v1.8.2+ commit ec8e0cc624e7ee29f53d1a2459eb5b3ad0d2fcd8
+
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  * Copyright (C) 2012 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
  *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #ifndef _KBUFFER_H
 #define _KBUFFER_H
@@ -28,11 +15,13 @@
 enum kbuffer_endian {
 	KBUFFER_ENDIAN_BIG,
 	KBUFFER_ENDIAN_LITTLE,
+	KBUFFER_ENDIAN_SAME_AS_HOST,
 };
 
 enum kbuffer_long_size {
 	KBUFFER_LSIZE_4,
 	KBUFFER_LSIZE_8,
+	KBUFFER_LSIZE_SAME_AS_HOST,
 };
 
 enum {
@@ -44,15 +33,20 @@ enum {
 struct kbuffer;
 
 struct kbuffer *kbuffer_alloc(enum kbuffer_long_size size, enum kbuffer_endian endian);
+struct kbuffer *kbuffer_dup(struct kbuffer *kbuf);
 void kbuffer_free(struct kbuffer *kbuf);
 int kbuffer_load_subbuffer(struct kbuffer *kbuf, void *subbuffer);
+int kbuffer_refresh(struct kbuffer *kbuf);
 void *kbuffer_read_event(struct kbuffer *kbuf, unsigned long long *ts);
 void *kbuffer_next_event(struct kbuffer *kbuf, unsigned long long *ts);
 unsigned long long kbuffer_timestamp(struct kbuffer *kbuf);
+unsigned long long kbuffer_subbuf_timestamp(struct kbuffer *kbuf, void *subbuf);
+unsigned int kbuffer_ptr_delta(struct kbuffer *kbuf, void *ptr);
 
 void *kbuffer_translate_data(int swap, void *data, unsigned int *size);
 
 void *kbuffer_read_at_offset(struct kbuffer *kbuf, int offset, unsigned long long *ts);
+int kbuffer_read_buffer(struct kbuffer *kbuf, void *buffer, int len);
 
 int kbuffer_curr_index(struct kbuffer *kbuf);
 
@@ -61,6 +55,7 @@ int kbuffer_curr_size(struct kbuffer *kbuf);
 int kbuffer_event_size(struct kbuffer *kbuf);
 int kbuffer_missed_events(struct kbuffer *kbuf);
 int kbuffer_subbuffer_size(struct kbuffer *kbuf);
+void *kbuffer_subbuffer(struct kbuffer *kbuf);
 
 void kbuffer_set_old_format(struct kbuffer *kbuf);
 int kbuffer_start_of_data(struct kbuffer *kbuf);

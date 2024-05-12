@@ -56,7 +56,6 @@ if [ ! "$1" = "build" ] && [ ! "$1" = "update" ] && [ ! "$1" = "help" ] && [ $# 
 fi
 
 cmd=${1:-'help'}
-grp=${2:-'*'}
 
 ##################### EVALUATE COMMAND OUTPUT ##########################
 
@@ -79,10 +78,10 @@ elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 	while [ "$2" != "" ]; do
 		# all matching files
 
-		for filename in rt-app-tst-${grp}*.json; do
+		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			#create directory for log output and then symlink
-			eval "mkdir log-${filen} && chown -R 1000:1000 log-${filen}"
+			eval "mkdir -p log-${filen} && chown -R 1000:1000 log-${filen}"
 			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
 			# start new container
 			eval "docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
@@ -99,7 +98,7 @@ elif [ "$cmd" = "start" ] || [ "$cmd" = "stop" ] || [ "$cmd" = "rm" ]; then
 	while [ "$2" != "" ]; do
 		# all matching files
 
-		for filename in rt-app-tst-${grp}*.json; do
+		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			eval "docker container ${cmd} ${filen}"
 		done
@@ -115,7 +114,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt &
+	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt 2>&1 &
 	sleep 10
 	SPID=$(ps h -o pid -C orchestrator)
 
@@ -135,7 +134,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	sleep 900
 
 	# end orchestrator
-	kill -SIGINT $SPID
+	kill -s INT $SPID
 	sleep 1
 
 	# move stuff 
@@ -186,7 +185,7 @@ elif [ "$cmd" = "testsw" ]; then
 	eval $0 test $@
 	
 	# end test software
-	kill -SIGINT $SWPID
+	kill -s INT $SWPID
 	sleep 1
 elif [ "$cmd" = "testcontainer" ]; then
 # RUN TEST CONTAINER AND THEN START test		

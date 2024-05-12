@@ -82,7 +82,7 @@ setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
 
-	prgset->affinity= "0";
+	prgset->affinity = strdup("0");
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 }
 
@@ -224,9 +224,10 @@ START_TEST(checkPeriod_RTest)
 	rHead->status = MSK_STATHRMC;
 
 	node_t * item = NULL;
+	pidc_t * param = calloc(1, sizeof(pidc_t));
+	param->rscs = calloc(1, sizeof(struct sched_rscs));
 	node_push(&item);
-	item->param = calloc(1, sizeof(pidc_t));
-	item->param->rscs = calloc(1, sizeof(struct sched_rscs));
+	item->param = param;
 	struct sched_attr par ={
 			48,
 			SCHED_DEADLINE,
@@ -246,9 +247,9 @@ START_TEST(checkPeriod_RTest)
 	item->mon.cdf_runtime = 560;
 	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead);// exact period match
 
-	free(item->param->rscs);
-	free(item->param);
 	node_pop(&item);
+	free(param->rscs);
+	free(param);
 }
 END_TEST
 
@@ -428,9 +429,9 @@ static void tc5_setupUnchecked() {
 }
 
 static void tc5_teardownUnchecked() {
-	freeContParm(contparm);
 	while (nhead)
 		node_pop(&nhead);
+	freeContParm(contparm);
 }
 
 static void findparamsCheck (int imgtest, int conttest) {
@@ -528,9 +529,9 @@ START_TEST(findparamsFailTest)
 	// sometimes null, sometimes with id, but never fitting -> check segfaults
 	node_push(&nhead);
 	nhead->pid = _i ? 1 : 0;
-	nhead->psig = _i 		? NULL : strdup("wleep 1 as");
-	nhead->contid = _i == 3 	? NULL : strdup("32aeede2352d57f52");
-	nhead->imgid  = _i == 2 	? NULL : strdup("32aeede2352d57f52");
+	nhead->psig = 	_i 		? NULL : strdup("wleep 1 as");
+	nhead->contid = _i == 3 ? NULL : strdup("32aeede2352d57f52");
+	nhead->imgid  = _i == 2 ? NULL : strdup("32aeede2352d57f52");
 	int retv = findPidParameters(nhead , contparm);
 
 	ck_assert_int_eq(retv, -1);
@@ -569,9 +570,6 @@ START_TEST(findparams_link2Test)
 	nhead->imgid  = strdup("c3cc77fcf051c3cc7");
 
 	findparamsCheck( 0, 1 );
-
-	// fix for r/o test -> duplicate manual free
-	nhead->param->cont->pids = NULL;
 
 	node_pop(&nhead);
 }

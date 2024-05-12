@@ -169,9 +169,8 @@ static contevent_t * check_event() {
 			cntevent->id = strdup(evnt.id);
 			cntevent->image = strdup(evnt.from);
 			cntevent->timenano = evnt.timenano;
-			return cntevent;
 		}
-		if (!strcmp(evnt.status, "start"))
+		else if (!strcmp(evnt.status, "start"))
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
@@ -186,6 +185,7 @@ static contevent_t * check_event() {
 	// free elements
 	free(evnt.type);
 	free(evnt.status);
+	free(evnt.name);
 	free(evnt.id);
 	free(evnt.from);
 	free(evnt.scope);

@@ -34,8 +34,8 @@ function print_help {
 	
 	Defaults are:
 	number = *                      maximum number of cpu to use, default all cpus used
-	kernel-ver1 = 4.19.50-rt24      The specified version is base version
-	kernel-ver2 = 4.19.50-rt24loji  The specified version is compare version
+	kernel-ver1 = 6.6.21-rt26       The specified version is base version
+	kernel-ver2 = same version      The specified version is compare version
 	EOF
 	
 }
@@ -53,8 +53,8 @@ if [ "$cmd" = "help" ]; then
 fi
 
 maxcpu=${2:-$(( $(nproc --all) - 1 ))}
-ver1=${3:-'4.19.50-rt22'}
-ver2=${4:-'4.19.50-rt22loji'}
+ver1=${3:-'6.6.21-rt26'}
+ver2=${4:-${ver1}}
 
 if [[ ! "$cmd" == "start" ]]; then
 
@@ -73,88 +73,90 @@ fi
 runno=0 # changed_in_run
 
 function update_kernel () {
+	local runver=$1 # runno for this version, 1-10 ver 1, 11-20 ver 2
+	if [ $runver -gt 10 ] ; then 
+		runver=$(( runver - 10 ))
+		ver=$ver2
+	else
+		ver=$ver1
+	fi
 
-	if [ "$runno" -eq 1 ]; then
-		# Dyntick
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu\"/' /etc/default/grub"
+	if [ "$runver" -eq 1 ]; then
+		# nosmt
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt\"/' /etc/default/grub"
 
-	elif [ "$runno" -eq 2 ]; then
-		# Dyntick + backoff
+	elif [ "$runver" -eq 2 ]; then
+        # nosmt+rcu_nocbs
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3\"/' /etc/default/grub"
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+	elif [ "$runver" -eq 3 ]; then
+		# nosmt+rcu_nocbs+rcu_nocb_poll
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3 rcu_nocb_poll\"/' /etc/default/grub"
 
-	elif [ "$runno" -eq 3 ]; then
-		# Dyntick + isolation
+	elif [ "$runver" -eq 4 ]; then
+		# nosmt+irqaffinity
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu\"/' /etc/default/grub"
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpus=1-$maxcpu\"/' /etc/default/grub"
+	elif [ "$runver" -eq 5 ]  then
+        # nosmt+irqaffinity+rcu_nocbs
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocbs=1-3\"/' /etc/default/grub"
 
-	elif [ "$runno" -eq 4 ]; then
-		# Dyntick + isolation + backoff
+	elif [ "$runver" -eq 6 ]; then
+        # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3\"/' /etc/default/grub"
+	
+	elif [ "$runver" -eq 7 ]; then
+        # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+skew_tick
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1\"/' /etc/default/grub"
+	
+	elif [ "$runver" -eq 8 ]; then
+        # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+nosoftlockup+tsc=nowatchdog
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub"
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver2}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz_full=1-$maxcpu isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
+	elif [ "$runver" -eq 9 ]; then
+        # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+skew_tick+nosoftlockup+tsc=nowatchdog
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub"
 
-	elif [ "$runno" -eq 5 ]; then
-		# backoff
+	# last test! if 2 versions are specified, test 11 = test 1 with ver 2
+	elif [ "$runver" -eq 10 ]; then
+        # default
+		if [ ! "$ver1" = "$ver2" ]; then
+			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+		fi
+        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
 
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 6 ]; then
-		# isolation
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpus=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 7 ]; then
-		# isolation + backoff
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 8 ]; then
-		# reset
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
-
-
-	elif [ "$runno" -eq 9 ]; then
-		# fixtick 
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 10 ]; then
-		# fixtick + backoff
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 11 ]; then
-		# fixtick + isolation
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 12 ]; then
-		# fixtick + isolation + backoff
-
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nohz=off isolcpus=1-$maxcpu rcu_nocbs=1-$maxcpu\"/' /etc/default/grub"
-
-	elif [ "$runno" -eq 13 ]; then
-
-		# TEMP
-		eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver1}\"/' /etc/default/grub"
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
-
-		# remove start script
-		crontab -u root -r
-		rm $0
+		if [ "$ver1" = "$ver2" ] || [ $runno -eq 20 ] ; then
+			# versions are the same, end it here, or end of run for ver2
+			crontab -u root -r
+			rm $0
+		fi		
 	fi
 
 	# update grub menu
@@ -197,7 +199,7 @@ fi
 
 update_runno
 
-update_kernel
+update_kernel $runno
 
 #reboot system
 eval reboot

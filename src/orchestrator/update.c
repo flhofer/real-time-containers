@@ -66,7 +66,7 @@ getContPids (node_t **pidlst)
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
-			if ((strlen(dir->d_name)>60)) {// container strings are very long!
+			if ((strlen(dir->d_name)>60)) {// container strings are very long! - KISS as it has to be efficient
 				if ((fname=realloc(fname,strlen(prgset->cpusetdfileprefix)+strlen(dir->d_name)+strlen("/" CGRP_PIDS)+1))) {
 					// copy to new prefix
 					fname = strcat(strcpy(fname,prgset->cpusetdfileprefix),dir->d_name);
@@ -108,8 +108,19 @@ getContPids (node_t **pidlst)
 							printDbg("->%d ",(*pidlst)->pid);
 
 							updatePidCmdline(*pidlst); // checks and updates..
-							if (!(( (*pidlst)->contid = strdup(dir->d_name) )))
+#ifdef CGROUP2
+							char * name = strdup(dir->d_name);
+							char * tok, *hex;
+							(void)strtok_r(name, "-", &tok);	// 'docker-' part unused
+							hex = strtok_r(NULL, ".", &tok);// &hex pos read, result por to '.scope' set, but overwritten with result - pos unused
+#else
+							char * hex = dir->d_name;
+#endif
+							if (!(( (*pidlst)->contid = strdup(hex) )))
 								fatal("Could not allocate memory!");
+#ifdef CGROUP2
+							free(name);
+#endif
 
 							nleft -= strlen(pid)+1;
 							pid = strtok_r (NULL,"\n", &pid_ptr);
@@ -345,7 +356,11 @@ updateDocker() {
 
 				free(lstevent);
 				lstevent = NULL;
+
+				// setPidResources calls findPidParameters with write access to configuration - but lock may not be needed
+				(void)pthread_mutex_lock(&dataMutex);
 				setPidResources(linked);
+				(void)pthread_mutex_unlock(&dataMutex);
 
 				node_pop(&linked);
 				break;
@@ -393,6 +408,7 @@ updateDocker() {
 static void
 scanNew () {
 	// get PIDs 
+	int wasEmpty = (!nhead);
 	node_t *lnew = NULL; // pointer to new list head
 
 	switch (prgset->use_cgroup) {
@@ -523,7 +539,12 @@ scanNew () {
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
+	// FIXME: docker bypass problem of cpuset.cpu reset if no container is set
+	if ((!nhead) && (!wasEmpty))
+		resetContCGroups(prgset, prgset->affinity, prgset->numa);
 
+	if ((nhead) && (wasEmpty))
+		setContCGroups(prgset, 0);
 }
 
 /*

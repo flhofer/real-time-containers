@@ -476,6 +476,24 @@ static void parse_global(struct json_object *global, prgset_t *set)
 			set->affinity = strdup(defafin);
 			free(defafin);
 		}
+
+		{
+			char * numastr = malloc (5);
+			if (!(numastr))
+					err_exit("could not allocate memory!");
+			if (-1 != numa_available()) {
+				int numanodes = numa_max_node();
+
+				(void)sprintf(numastr, "0-%d", numanodes);
+			}
+			else{
+				warn("NUMA not enabled, defaulting to memory node '0'");
+				// default NUMA string
+				(void)sprintf(numastr, "0");
+			}
+			set->numa = strdup(numastr);
+			free(numastr);
+		}
 		return;
 	}
 
@@ -578,6 +596,24 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		free(defafin);
 	} // END default affinity block 
 
+	{
+		char * numastr = malloc (5);
+		if (!(numastr))
+				err_exit("could not allocate memory!");
+		if (-1 != numa_available()) {
+			int numanodes = numa_max_node();
+
+			(void)sprintf(numastr, "0-%d", numanodes);
+		}
+		else{
+			warn("NUMA not enabled, defaulting to memory node '0'");
+			// default NUMA string
+			(void)sprintf(numastr, "0");
+		}
+		set->numa = get_string_value_from(global, "numa", TRUE, numastr);
+		free(numastr);
+	}
+
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
 	set->ptresh = get_double_value_from(global, "ptresh", TRUE, set->ptresh);
 
@@ -632,7 +668,7 @@ void parse_config_set_default(prgset_t *set) {
 	set->setaffinity = AFFINITY_UNSPECIFIED;
 	set->affinity = NULL;
 	set->affinity_mask = NULL;
-
+	set->numa = NULL;
 
 	set->ftrace = 0;
 

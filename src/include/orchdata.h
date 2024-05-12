@@ -47,9 +47,12 @@
 	#define CONT_PID  "bash" 	// default program signature (test)
 #ifdef CGROUP2
 	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
+	#define CGRP_USER "user.slice/"   // default CGroup slice for user
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
 	#define CGRP_CSET "" 			  // CGroup v1 value, unused
-	#define CGRP_PIDS "pids.current"  // CGv2 file for running pids //TODO: check if use threads.current
+	#define CGRP_PIDS "cgroup.procs"  // CGv2 file for running pids //TODO: check if use cgropup.threads
+	#define CGRP_DCKP "docker-"		  // CGv2 docker container prefix
+	#define CGRP_DCKS ".scope"		  // CGv2 docker container suffix
 #else
 	#define CGRP_SYS  "system/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
@@ -259,6 +262,7 @@
 		enum aff_mode setaffinity;	// affinity mode enumeration
 		char * affinity; 			// default split, 0-0 SYS, Syscpus to end rest
 		struct bitmask *affinity_mask; // default bitmask allocation of threads!!
+		char * numa;				// value for numa selection;
 
 		// runtime settings
 		int ftrace; 				// enable Kernel ftrace for run-time statistics

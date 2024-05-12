@@ -250,6 +250,14 @@ pushCPUirqs (prgset_t *set, int mask_sz){
 static int
 countCGroupTasks(prgset_t *set) {
 
+#ifdef CGROUP2
+	char count[16];
+	if (0 > getkernvar(set->cpusetdfileprefix, "pids.current", count, 16)){
+		warn("Can not read docker number of tasks");
+		return -1;
+	}
+	return atoi(count);
+#else
 	DIR *d;
 	struct dirent *dir;
 	d = opendir(set->cpusetdfileprefix);// -> pointing to global
@@ -261,7 +269,7 @@ countCGroupTasks(prgset_t *set) {
 			char *contp = NULL; // clear pointer
 			while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroup, find container IDs
-				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
+				if  ((DT_DIR == dir->d_type)
 					&& (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1+strlen("/" CGRP_PIDS)))) { // \0 + /tasks
@@ -300,6 +308,7 @@ countCGroupTasks(prgset_t *set) {
 		return count;
 	}
 	return -1;
+#endif
 }
 
 /*
@@ -350,14 +359,16 @@ prepareEnvironment(prgset_t *set) {
 			// SMT - HT is on
 			if (set->dryrun)
 				cont("Skipping setting SMT.");
-			else
+			else {
 				if (!set->force)
 					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-			else
-				if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
-					err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-			else
-				cont("SMT is now disabled, as required. Refresh configurations..");
+				else {
+					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+					else
+						cont("SMT is now disabled, as required. Refresh configurations..");
+				}
+			}
 		}
 		else
 			cont("SMT is disabled, as required");
@@ -537,7 +548,7 @@ prepareEnvironment(prgset_t *set) {
 	int err = stat(set->cpusetdfileprefix, &s);
 	if(-1 == err) {
 		// Docker CGroup not found, set->force enabled = try creating
-		if(ENOENT == errno && set->force) { // TODO: check docker setting of CGroup.slice for v2
+		if(ENOENT == errno && set->force) {
 			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
 			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
 				err_exit_n(errno, "Can not create container group");
@@ -582,29 +593,11 @@ prepareEnvironment(prgset_t *set) {
 	} // end environment detection CGroup
 
 	/* --------------------
-	 * detect NUMA configuration, sets all nodes to active (for now)
-	 * --------------------
-	 */
-	char * numastr = malloc (5);
-	if (!(numastr))
-			err_exit("could not allocate memory!");
-	if (-1 != numa_available()) {
-		int numanodes = numa_max_node();
-
-		(void)sprintf(numastr, "0-%d", numanodes);
-	}
-	else{
-		warn("NUMA not enabled, defaulting to memory node '0'");
-		// default NUMA string
-		(void)sprintf(numastr, "0");
-	}
-
-	/* --------------------
 	 * Kernel variables, disable bandwidth management and RT-throttle
 	 * Kernel RT-bandwidth management must be disabled to allow deadline+affinity
 	 * --------------------
 	 */
-	set->kernelversion = check_kernel(); // TODO: update
+	set->kernelversion = check_kernel();
 
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
@@ -612,7 +605,8 @@ prepareEnvironment(prgset_t *set) {
 	if (resetRTthrottle (set, -1)){ // TODO: throttle is limited if no affinity lock is set
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
-		resetContCGroups(set, constr, numastr);
+		resetContCGroups(set, constr, set->numa);
+		setContCGroups(set, 1); // TODO: pinning removed?
 
 		// retry
 		resetRTthrottle (set, -1);
@@ -642,7 +636,8 @@ prepareEnvironment(prgset_t *set) {
 	 * --------------------
 	 */
 	cont( "reassigning Docker's CGroups CPU's to %s", set->affinity);
-	resetContCGroups(set, constr, numastr);
+	resetContCGroups(set, constr, set->numa);
+	setContCGroups(set, 1);
 
 
 	// lockup detector
@@ -660,14 +655,22 @@ prepareEnvironment(prgset_t *set) {
 		for (cont_t * cont = contparm->cont; ((cont)); cont=cont->next) {
 
 			// check if a valid and full sha256 id
-			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))  //TODO: update string for CGroups v2
+			if (!(cont->contid) || !(64==(strspn(cont->contid, "abcdef1234567890"))))
 				continue;
-			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)+1))) {
-
+			if ((fileprefix=realloc(fileprefix, strlen(set->cpusetdfileprefix)+strlen(cont->contid)
+#ifndef CGROUP2
+					+1))) {
 				// copy to new prefix
 				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), cont->contid);
+#else
+					+strlen(CGRP_DCKP CGRP_DCKS)+1))) { // 'docker-' + '.scope' = '\n'
 
-				// try to create directory // TODO update string for v2
+				// copy to new prefix
+				fileprefix = strcat(strcpy(fileprefix,set->cpusetdfileprefix), CGRP_DCKP);
+				fileprefix = strcat(strcat(fileprefix,cont->contid), CGRP_DCKS);
+#endif
+
+				// try to create directory
 				if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 				{
 					warn("Can not set CGroup: %s", strerror(errno));
@@ -677,7 +680,7 @@ prepareEnvironment(prgset_t *set) {
 				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){
 					warn("Can not set CPU-affinity");
 				}
-				if (0 > setkernvar(fileprefix, "/cpuset.mems", numastr, set->dryrun)){
+				if (0 > setkernvar(fileprefix, "/cpuset.mems", set->numa, set->dryrun)){
 					warn("Can not set NUMA memory nodes");
 				}
 			}
@@ -686,7 +689,6 @@ prepareEnvironment(prgset_t *set) {
 		}
 	}
 
-	// TODO: add function to detect if GGv2 docker slice has been created
 	/* ------- CREATE NEW CGROUP AND MOVE ALL ROOT TASKS TO IT ------------
 	 * system CGroup, possible tasks are moved -> do for all
 	 * --------------------
@@ -697,13 +699,13 @@ prepareEnvironment(prgset_t *set) {
 	cont("creating CGroup for system on %s", cpus);
 #endif
 	if ((fileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_SYS)+1))) {
-		char * nfileprefix = NULL;
 
 		// copy to new prefix
 		fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix), CGRP_CSET	CGRP_SYS);
 
 #ifndef CGROUP2
 // try to create directory
+
 		if(0 != mkdir(fileprefix, ACCESSPERMS) && EEXIST != errno)
 		{
 			// IF: error - excluding not already existing
@@ -717,10 +719,23 @@ prepareEnvironment(prgset_t *set) {
 		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
 			warn("Can not set CPU-affinity");
 		}
-		if (0 > setkernvar(fileprefix, "cpuset.mems", numastr, set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
 			warn("Can not set NUMA memory nodes");
 		}
-#ifndef CGROUP2
+#ifdef CGROUP2	// redo for user slice
+		if ((fileprefix=realloc(fileprefix, strlen(set->cgroupfileprefix)+strlen(CGRP_USER)+1))) {
+			// copy to new prefix
+			fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix),CGRP_USER);
+
+
+			if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
+				warn("Can not set CPU-affinity");
+			}
+			if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
+				warn("Can not set NUMA memory nodes");
+			}
+		}
+#else
 		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
 		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
@@ -729,6 +744,8 @@ prepareEnvironment(prgset_t *set) {
 			}
 
 		cont( "moving tasks..");
+
+		char * nfileprefix = NULL;
 
 		if ((nfileprefix=malloc(strlen(set->cgroupfileprefix)+strlen(CGRP_CSET CGRP_PIDS)+1))) {
 			// copy to new prefix
@@ -782,18 +799,17 @@ prepareEnvironment(prgset_t *set) {
 		}
 
 sysend: // jumped here if not possible to create system
+		// free string buffers
+		free (nfileprefix);
 #endif
-
 		// free string buffers
 		free (fileprefix);
-		free (nfileprefix);
 
 	}
 	else //re-alloc issues
 		err_exit("could not allocate memory!");
 
 	numa_free_cpumask(naffinity);
-	free(numastr);
 
 	/* lock all memory (prevent swapping) -- do here */
 	if (set->lock_pages) {
@@ -836,7 +852,7 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
-	// TODO: restore CGroup 2 to member
+	// TODO: restore CGroup 2 to member - to discuss (containers still running ?)
 	freeTracer(&rHead); // free
 	adaptFree();
 

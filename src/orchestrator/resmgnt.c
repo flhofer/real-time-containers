@@ -133,10 +133,10 @@ setPidAffinityNode (node_t * node){
 
 	{	// add PID to docker CGroup
 		//TODO: warn ! this removes it if it's already present in a subgroup!
+		// -> can not see subgroup contents! -> visible in /proc/150985/cgroup , v2 format 0::/path/from/cgroup/root
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
-		// TODO: this is invalid for CGroup v2
 		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun)){
 			printDbg( "Warn! Can not move task %s\n", pid);
 			ret = -1;
@@ -209,9 +209,18 @@ setContainerAffinity(node_t * node){
 			return -1;
 	}
 
-	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)+1))) {
+	if ((contp=malloc(strlen(prgset->cpusetdfileprefix)	+ strlen(node->contid)
+#ifndef CGROUP2
+			+1))) {
 		// copy to new prefix
 		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), node->contid);
+#else
+			+strlen(CGRP_DCKP CGRP_DCKS)+1))) { // 'docker-' + '.scope' = '\n'
+
+		// copy to new prefix
+		contp = strcat(strcpy(contp,prgset->cpusetdfileprefix), CGRP_DCKP);
+		contp = strcat(strcat(contp,node->contid), CGRP_DCKS);
+#endif
 
 		// read old, then compare -> update if different
 		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN)) // TODO: all cpuset.cpus have to be checked -> read from effective
@@ -373,10 +382,10 @@ updatePidAttr(node_t * node){
 	}
 
 	// storage for actual attributes
-	struct sched_attr attr_act;
+	struct sched_attr attr_act = { sizeof(struct sched_attr) };
 
 	// try reading
-	if (sched_getattr (node->pid, &attr_act, sizeof(struct sched_attr), 0U) != 0){
+	if (sched_getattr (node->pid, &attr_act, attr_act.size, 0U) != 0){
 		warn("Unable to read parameters for PID %d: %s", node->pid, strerror(errno));
 		return;
 	}
@@ -483,65 +492,109 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 	DIR *d;
 	struct dirent *dir;
+
 	d = opendir(set->cpusetdfileprefix);// -> pointing to global
 	if (d) {
-
 		// CLEAR exclusive flags in all existing containers
-		{
-			char *contp = NULL; // clear pointer
-			while ((dir = readdir(d)) != NULL) {
-			// scan trough docker CGroup, find container IDs
-				if (64 == (strspn(dir->d_name, "abcdef1234567890"))) {  //TODO: update string for CGroups v2
-					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
-						+ strlen(dir->d_name)+1))) {
-						// copy to new prefix
-						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
-
-						// remove exclusive!
+		char *contp = NULL; // clear pointer
+		while ((dir = readdir(d)) != NULL) {
 #ifdef CGROUP2
-						if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
+			char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+			t = strdup(dir->d_name);
+			if (!(strtok_r(t, "-", &t_tok))
+					|| !(hex = strtok_r(NULL, ".", &t_tok))) {
+				free(t);
+				continue;
+			}
 #else
-						if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+			char * hex = dir->d_name;
 #endif
-							warn("Can not remove CPU exclusive partition: %s", strerror(errno));
-						}
+			// scan trough docker CGroup, find them?
+			// TODO: Restart removes pinning? -> maybe reset here only if outside affinity range -- see setContCGroups
+			if  ((DT_DIR == dir->d_type)
+				 && (64 == (strspn(hex, "abcdef1234567890")))) {
+				if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
+					+ strlen(dir->d_name)+1))) {
+					// copy to new prefix
+					contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
+
+					// remove exclusive!
+#ifdef CGROUP2
+					if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
+#else
+					if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+#endif
+						warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 					}
-					else // realloc error
-						err_exit("could not allocate memory!");
 				}
+				else // realloc error
+					err_exit("could not allocate memory!");
 			}
-			free (contp);
-		}
-
-		// clear Docker CGroup settings and affinity first..
 #ifdef CGROUP2
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
-#else
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+			free(t);
 #endif
-			warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
-			// global reset failed, try affinity only
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-				warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
-			}
+		free (contp);
+		closedir(d);
+	}
+	else
+		warn("Can not open Docker CGroup directory: %s", strerror(errno));
+
+	// clear Docker CGroup settings and affinity first..
+#ifdef CGROUP2
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
+#else
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+#endif
+		warn("Can not remove CPU exclusive partition: %s", strerror(errno));
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+		// global reset failed, try affinity only
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+			warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
 		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes : %s", strerror(errno));
-		}
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+		warn("Can not set NUMA memory nodes : %s", strerror(errno));
+	}
 
-		// rewind, start configuring
-		rewinddir(d);
+}
 
+/*
+ * setContCGroups : set docker group and  existing containers CGroups settings
+ *
+ * Arguments: - configuration parameter structure
+ * 			  - numa nodes string
+ *
+ * Return value: -
+ */
+void
+setContCGroups(prgset_t *set, int setCont) {
 
-		{
+	int count = 0;		// FIXME: temp counter, see below to avoid docker reset and block of container start
+	if (setCont){
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(set->cpusetdfileprefix);// -> pointing to global
+		if (d) {
 			char *contp = NULL; // clear pointer
 			/// Reassigning pre-existing containers?
 			while ((dir = readdir(d)) != NULL) {
-			// scan trough docker CGroup, find them?
-				if  ((DT_DIR == dir->d_type) //TODO: update string for CGroups v2
-					 && (64 == (strspn(dir->d_name, "abcdef1234567890")))) {
+#ifdef CGROUP2
+				char * hex, * t, * t_tok;	// used to extract hex identifier from slice/scope in v2 fmt:'docker-<hex>.scope''
+				t = strdup(dir->d_name);
+				if (!(strtok_r(t, "-", &t_tok))
+						|| !(hex = strtok_r(NULL, ".", &t_tok))) {
+					free(t);
+					continue;
+				}
+#else
+				char * hex = dir->d_name;
+#endif
+				// scan trough docker CGroup, find them?
+				// TODO: Restart removes pinning?
+				if  ((DT_DIR == dir->d_type)
+					 && (64 == (strspn(hex, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
 						+ strlen(dir->d_name)+1))) {
 						// copy to new prefix
@@ -550,36 +603,43 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
 							warn("Can not set CPU-affinity : %s", strerror(errno));
 						}
-						if (0 > setkernvar(contp, "/cpuset.mems", numastr, set->dryrun)){
+						if (0 > setkernvar(contp, "/cpuset.mems", set->numa, set->dryrun)){
 							warn("Can not set NUMA memory nodes : %s", strerror(errno));
 						}
+						count++;
 					}
 					else // realloc error
 						err_exit("could not allocate memory!");
 				}
+#ifdef CGROUP2
+				free(t);
+#endif
 			}
 			free (contp);
+			closedir(d);
 		}
-
-		// Docker CGroup settings and affinity
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
-			warn("Can not set CPU-affinity : %s", strerror(errno));
-		}
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
-			warn("Can not set NUMA memory nodes : %s", strerror(errno));
-		}
-		if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
-#ifdef CGROUP2
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
-#else
-			if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
-#endif
-				warn("Can not set CPU exclusive partition: %s", strerror(errno));
-			}
-
-		closedir(d);
+		else
+			warn("Can not open Docker CGroup directory: %s", strerror(errno));
 	}
+
+	// Docker CGroup settings and affinity
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+		warn("Can not set CPU-affinity : %s", strerror(errno));
+	}
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", set->numa, set->dryrun)){
+		warn("Can not set NUMA memory nodes : %s", strerror(errno));
+	}
+	if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
+#ifdef CGROUP2
+		// FIXME: count = 0, do not set to root as docker will overwrite cpuset on first container start and block task creation
+		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+#else
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+#endif
+			warn("Can not set CPU exclusive partition: %s", strerror(errno));
+		}
 }
+
 
 /*
  * resetRTthrottle : reset RT throttle system-wide
@@ -1238,7 +1298,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		node->param = configuration->pids;
 		node->param->img = img;
 		node->param->cont = cont;
-		node->psig = node->param->psig;
+//		node->param->psig = node->psig;	# do not set psig-> = specific parameters for this process
 		// update counter
 		if (node->pid)
 			configuration->nthreads++;
@@ -1270,7 +1330,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 					copy_bitmask_to_bitmask(node->param->rscs->affinity_mask, curr->rscs->affinity_mask);
 				}
 				node->param->attr = malloc(sizeof(struct sched_attr));
-				(void)memcpy(node->param->attr, curr->rscs, sizeof(struct sched_attr));
+				(void)memcpy(node->param->attr, curr->attr, sizeof(struct sched_attr));
 
 				// update counter FIXME: needed?
 				configuration->nthreads++;

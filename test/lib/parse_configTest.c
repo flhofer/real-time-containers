@@ -36,16 +36,14 @@ static char * files [10] = {
 	};
 
 static void parse_config_tc1_startup() {
-	set = calloc(1, sizeof(prgset_t));
-	conts = calloc(1, sizeof(containers_t));
+	set = calloc(sizeof(prgset_t), 1);
+	conts = calloc(sizeof(containers_t), 1);
 }
 
 static void parse_config_tc1_teardown() {
 	pclose(pp);
-	free(set);
-	free(conts->rscs);
-	free(conts->attr);
-	free(conts);
+	freePrgSet(set);
+	freeContParm(conts);
 }
 
 START_TEST(parse_config_err_conf)
@@ -93,8 +91,6 @@ START_TEST(parse_config_def_config2)
 
 	checkConfigDefault(conts);
 	ck_assert(conts->cont);
-
-	free(conts->cont);
 }
 END_TEST
 
@@ -104,7 +100,6 @@ START_TEST(parse_config_tst1)
 	parse_config_pipe(pp, set, conts);
 
 	ck_assert(conts->img);
-	free(conts->img);
 }
 END_TEST
 
@@ -118,7 +113,6 @@ START_TEST(parse_config_tst2)
 	ck_assert(conts->img);
 	ck_assert(!conts->img->next);
 	ck_assert_str_eq(conts->img->imgid, "123121312");
-	free(conts->img);
 }
 END_TEST
 
@@ -132,7 +126,6 @@ START_TEST(parse_config_tst3)
 	ck_assert(!conts->img);
 	ck_assert(!conts->pids->next);
 	ck_assert_str_eq(conts->pids->psig, "psp");
-	free(conts->pids);
 }
 END_TEST
 
