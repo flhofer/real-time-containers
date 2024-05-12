@@ -118,7 +118,7 @@ function update_kernel () {
 		fi
 		sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu\"/' /etc/default/grub
 
-	elif [ "$runver" -eq 5 ]  then
+	elif [ "$runver" -eq 5 ]; then
         # nosmt+irqaffinity+rcu_nocbs
 		if [ ! "$ver1" = "$ver2" ]; then
 			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
