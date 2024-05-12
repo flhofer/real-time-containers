@@ -194,7 +194,7 @@ if [[ "$cmd" == "start" ]]; then
 	rm -r log/test*/
 
 	# add to startup 
-	echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -
+	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -"
 else 
 	echo "...waiting"
 	sleep 60
