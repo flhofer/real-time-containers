@@ -81,7 +81,7 @@ elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			#create directory for log output and then symlink
-			eval "mkdir log-${filen} && chown -R 1000:1000 log-${filen}"
+			eval "mkdir -p log-${filen} && chown -R 1000:1000 log-${filen}"
 			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
 			# start new container
 			eval "docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
@@ -114,7 +114,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	eval "rm log/orchestrator.txt"
 
 	# start orchestrator and wait for termination
-	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt &
+	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt 2>&1 &
 	sleep 10
 	SPID=$(ps h -o pid -C orchestrator)
 
