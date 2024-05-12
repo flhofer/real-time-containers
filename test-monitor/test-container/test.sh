@@ -36,6 +36,15 @@ else
 	shift
 fi
 
+############### Check privileges ######################
+
+if [ "$(id -u)" -ne 0 ]; then
+	cat >&2 <<-EOF
+	Error: this script needs the ability to run commands as root.
+	EOF
+	exit 1
+fi
+
 if [ "$1" = "help" ]; then
 	print_help
 fi

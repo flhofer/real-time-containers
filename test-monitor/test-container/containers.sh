@@ -22,6 +22,17 @@ else
 	shift
 fi
 
+############### Check privileges ######################
+
+if [ "$(id -u)" -ne 0 ]; then
+	cat >&2 <<-EOF
+	Error: this script needs the ability to run commands as root.
+	EOF
+	exit 1
+fi
+
+##################### HELP SCREEN IF NEEDED ##########################
+
 print_help () {
 	cat <<-EOF
 	Usage: $0 command testgrp [testgrp] .. [testgrp] 
