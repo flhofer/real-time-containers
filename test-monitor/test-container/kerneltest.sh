@@ -84,73 +84,73 @@ function update_kernel () {
 	if [ "$runver" -eq 1 ]; then
 		# nosmt
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt\"/' /etc/default/grub"
+		sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 2 ]; then
         # nosmt+rcu_nocbs
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 3 ]; then
 		# nosmt+rcu_nocbs+rcu_nocb_poll
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3 rcu_nocb_poll\"/' /etc/default/grub"
+		sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt rcu_nocbs=1-3 rcu_nocb_poll\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 4 ]; then
 		# nosmt+irqaffinity
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-		eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu\"/' /etc/default/grub"
+		sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 5 ]  then
         # nosmt+irqaffinity+rcu_nocbs
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocbs=1-3\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocbs=1-3\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 6 ]; then
         # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3\"/' /etc/default/grub
 	
 	elif [ "$runver" -eq 7 ]; then
         # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+skew_tick
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1\"/' /etc/default/grub
 	
 	elif [ "$runver" -eq 8 ]; then
         # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+nosoftlockup+tsc=nowatchdog
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub
 
 	elif [ "$runver" -eq 9 ]; then
         # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+skew_tick+nosoftlockup+tsc=nowatchdog
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub
 
 	# last test! if 2 versions are specified, test 11 = test 1 with ver 2
 	elif [ "$runver" -eq 10 ]; then
         # default
 		if [ ! "$ver1" = "$ver2" ]; then
-			eval "sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub"
+			sed -i '/GRUB_DEFAULT/s/Linux.*\"/Linux ${ver}\"/' /etc/default/grub
 		fi
-        eval "sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub"
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub
 
 		if [ "$ver1" = "$ver2" ] || [ $runno -eq 20 ] ; then
 			# versions are the same, end it here, or end of run for ver2
@@ -160,7 +160,7 @@ function update_kernel () {
 	fi
 
 	# update grub menu
-	eval update-grub
+	update-grub
 	if [ $? -ne 0 ]; then
 
 		echo "error update grub" >> result.txt
@@ -170,8 +170,8 @@ function update_kernel () {
 }
 
 function update_runno () {
-	eval "sed -i '0,/maxcpu=/{s/maxcpu=.*/maxcpu='${maxcpu}'/}' ./kernelrun.sh"
-	eval "sed -i '0,/changed_in_run/{s/runno='${runno}'/runno='$(($runno+1))'/}' ./kernelrun.sh"
+	sed -i '0,/maxcpu=/{s/maxcpu=.*/maxcpu='${maxcpu}'/}' ./kernelrun.sh
+	sed -i '0,/changed_in_run/{s/runno='${runno}'/runno='$(($runno+1))'/}' ./kernelrun.sh
 	runno=$((runno+1))
 }
 
@@ -182,10 +182,10 @@ if [[ "$cmd" == "start" ]]; then
 	runno=0 # reset 
 	cp $0 ./kernelrun.sh
 
-	eval "rm -r log/test*/"
+	rm -r log/test*/
 
 	# add to startup 
-	eval "echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -"
+	echo '@reboot cd "$PWD" && ./kernelrun.sh cont ${maxcpu} ${ver1} ${ver2} ' | sudo crontab -u root -
 else 
 	echo "...waiting"
 	sleep 60
@@ -202,5 +202,5 @@ update_runno
 update_kernel $runno
 
 #reboot system
-eval reboot
+reboot
 

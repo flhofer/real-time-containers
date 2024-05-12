@@ -36,7 +36,8 @@ print_help () {
 	Commands:
 	help                    this screen
 	build                   build the container image with rt-app (see Dockerfile)
-	run                     run container specified from built image
+	create                  create a new container from built image, uses 'rt-app-tst-*' pattern
+	run                     create and run a new container from built image, ""
 	start                   start container after it has been stopped
 	stop                    stop container after it has been stopped
 	rm                      remove container
@@ -66,14 +67,14 @@ elif [ "$cmd" = "build" ]; then
 # BUILD CONTAINER
 	echo "Build containers"
 
-	eval "docker build . -t testcnt"
+	docker build . -t testcnt
 
 elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 # CREATE CONTAINERS OF GRP
 	echo "Run containers"
 
-	eval "mkdir -p log"
-	eval "chown 1000:1000 log"
+	mkdir -p log
+	chown 1000:1000 log
 
 	while [ "$2" != "" ]; do
 		# all matching files
@@ -81,10 +82,10 @@ elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			#create directory for log output and then symlink
-			eval "mkdir -p log-${filen} && chown -R 1000:1000 log-${filen}"
-			eval "ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log"
+			mkdir -p log-${filen} && chown -R 1000:1000 log-${filen}
+			ln -fs ../log-${filen}/log-thread1-0.log log/${filen}.log
 			# start new container
-			eval "docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}"
+			docker ${cmd} -v ${PWD}/log-${filen}:/home/rtuser/log --cap-add=SYS_NICE --cap-add=IPC_LOCK -d --name ${filen} testcnt ${filename}
 		done
 
 	    # Shift all the parameters down by one
@@ -100,7 +101,7 @@ elif [ "$cmd" = "start" ] || [ "$cmd" = "stop" ] || [ "$cmd" = "rm" ]; then
 
 		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
-			eval "docker container ${cmd} ${filen}"
+			docker container ${cmd} ${filen}
 		done
 
 	    # Shift all the parameters down by one
@@ -111,10 +112,10 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 
 	echo "Starting 15 min tests"
 	# remove old log file first 
-	eval "rm log/orchestrator.txt"
+	rm log/orchestrator.txt
 
 	# start orchestrator and wait for termination
-	eval ./orchestrator -df --policy=fifo > log/orchestrator.txt 2>&1 &
+	./orchestrator -df --policy=fifo > log/orchestrator.txt 2>&1 &
 	sleep 10
 	SPID=$(ps h -o pid -C orchestrator)
 
@@ -124,8 +125,8 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 		for filename in rt-app-tst-${2:-'*'}*.json; do
 			filen="${filename%%.*}"
 			# remove old log file first 
-			eval "rm log-${filen}/log-thread1-0.log"
-			eval "docker container start ${filen}"
+			rm log-${filen}/log-thread1-0.log
+			docker container start ${filen}
 		done
 
 	    # Shift all the parameters down by one
@@ -138,7 +139,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	sleep 1
 
 	# move stuff 
-	eval "chown -R 1000:1000 log/*"
+	chown -R 1000:1000 log/*
 
 	# give notice about end
 	echo "Test finished. Stop containers manually now if needed." 
@@ -146,20 +147,20 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 elif [ "$cmd" = "update" ]; then
 # UPDATE ALL CONTAINERS CONFIG
 	if [ "$2" != "" ]; then
-		eval "sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json"
+		sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json
 	fi
 	for filename in rt-app-tst-*.json; do 
 		filen="${filename%%.*}";
 
 		#update links 
 		for i in rt-app-tst-*.json; do 
-			eval "docker cp $i $filen:/home/rtuser" 
+			docker cp $i $filen:/home/rtuser
 			echo $i; 
 		done
 
 		#update origs
 		for i in rt-app-[0-9]*-*.json; do 
-			eval "docker cp $i $filen:/home/rtuser"
+			docker cp $i $filen:/home/rtuser
 			echo $i; 
 		done 
 	done 
@@ -177,12 +178,12 @@ elif [ "$cmd" = "testsw" ]; then
  	set -- $mainargs
 
 	# start software and store pid
-	eval $sw &
+	$sw &
 	sleep 2
 	SWPID=$(ps h -o pid -C $binary )
 	
 	# run recursive as test
-	eval $0 test $@
+	$0 test $@
 	
 	# end test software
 	kill -s INT $SWPID
@@ -194,15 +195,15 @@ elif [ "$cmd" = "testcontainer" ]; then
 	cont=$2
 	shift 2
 	
-	eval "docker container start ${cont}"
+	docker container start ${cont}
 	sleep 2
 	
 	# run recursive as test
-	eval $0 test $@
+	$0 test $@
 
 	sleep 2
 
-	eval "docker container stop ${cont}"
+	docker container stop ${cont}
 
 	sleep 1
 else
