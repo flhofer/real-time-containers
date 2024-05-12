@@ -619,7 +619,9 @@ prepareEnvironment(prgset_t *set) {
 	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
 	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+#ifndef CGROUP2 // controlled by root slice in CGroup v2 - affinity does not work
 	setPidMask("\\B\\[kworker[/][[:digit:]]*", naffinity, cpus);
+#endif
 	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
 	setPidMask("\\B\\[rcuog[/][[:digit:]]*", naffinity, cpus);
