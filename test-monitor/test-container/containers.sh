@@ -134,7 +134,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	sleep 900
 
 	# end orchestrator
-	kill -SIGINT $SPID
+	kill -s INT $SPID
 	sleep 1
 
 	# move stuff 
@@ -185,7 +185,7 @@ elif [ "$cmd" = "testsw" ]; then
 	eval $0 test $@
 	
 	# end test software
-	kill -SIGINT $SWPID
+	kill -s INT $SWPID
 	sleep 1
 elif [ "$cmd" = "testcontainer" ]; then
 # RUN TEST CONTAINER AND THEN START test		
