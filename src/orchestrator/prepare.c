@@ -543,53 +543,54 @@ prepareEnvironment(prgset_t *set) {
 	 */
 
 	{ // start environment detection CGroup
-	struct stat s;
+		struct stat s;
 
-	int err = stat(set->cpusetdfileprefix, &s);
-	if(-1 == err) {
-		// Docker CGroup not found, set->force enabled = try creating
-		if(ENOENT == errno && set->force) {
-			warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
-			if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
-				err_exit_n(errno, "Can not create container group");
-			// if it worked, stay in Container mode
-		} else {
-		// Docker CGroup not found, set->force not enabled = try switching to pid
-			if(ENOENT == errno)
-				err_msg("No set->force. Can not create container group: %s", strerror(errno));
-			else
-				err_exit_n(errno, "stat encountered an error");
-		}
-	} else {
-		// CGroup found, but is it a dir?
-		if(!(S_ISDIR(s.st_mode)))
-			// exists but is no dir -> goto PID detection
-			err_exit("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
-	}
-
-	// Display message according to detection mode set
-	switch (set->use_cgroup) {
-		default:
-			// all fine?
-			if (!err) {
-				cont( "container id will be used to set PID execution..");
-				break;
+		int err = stat(set->cpusetdfileprefix, &s);
+		if(-1 == err) {
+			// Docker CGroup not found, set->force enabled = try creating
+			if(ENOENT == errno && set->force) {
+				warn("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
+				if (0 != mkdir(set->cpusetdfileprefix, ACCESSPERMS))
+					err_exit_n(errno, "Can not create container group");
+				// if it worked, stay in Container mode
+				err=0;
+			} else {
+			// Docker CGroup not found, set->force not enabled = try switching to pid
+				if(ENOENT == errno)
+					err_msg("No set->force. Can not create container group: %s", strerror(errno));
+				else
+					err_exit_n(errno, "stat encountered an error");
 			}
-			// error occurred, check for sCHED_DEADLINE first-> stop!
-			if (SCHED_DEADLINE == set->policy)
-				err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!");
+		} else {
+			// CGroup found, but is it a dir?
+			if(!(S_ISDIR(s.st_mode)))
+				// exists but is no dir -> goto PID detection
+				err_exit("CGroup '%s' does not exist. Is the daemon running?", set->cont_cgrp);
+		}
 
-			// otherwise switch to container PID detection
-			set->use_cgroup = DM_CNTPID;
-			//no break
+		// Display message according to detection mode set
+		switch (set->use_cgroup) {
+			default:
+				// all fine?
+				if (!err) {
+					cont( "container id will be used to set PID execution..");
+					break;
+				}
+				// error occurred, check for sCHED_DEADLINE first-> stop!
+				if (SCHED_DEADLINE == set->policy)
+					err_exit("SCHED_DEADLINE does not allow forking. Can not switch to PID modes!");
 
-		case DM_CNTPID:
-			cont( "will use PIDs of '%s' to detect processes..", set->cont_ppidc);
-			break;
-		case DM_CMDLINE:
-			cont( "will use PIDs of command signtaure '%s' to detect processes..", set->cont_pidc);
-			break;
-	}
+				// otherwise switch to container PID detection
+				set->use_cgroup = DM_CNTPID;
+				//no break
+
+			case DM_CNTPID:
+				cont( "will use PIDs of '%s' to detect processes..", set->cont_ppidc);
+				break;
+			case DM_CMDLINE:
+				cont( "will use PIDs of command signtaure '%s' to detect processes..", set->cont_pidc);
+				break;
+		}
 	} // end environment detection CGroup
 
 	/* --------------------
