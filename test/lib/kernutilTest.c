@@ -188,6 +188,31 @@ START_TEST(kernutil_parse_bitmask_hex)
 }
 END_TEST
 
+/// TEST CASE -> generate affinity mask from CPU string
+/// EXPECTED -> returns mask CPUs - only if list valid though
+START_TEST(kernutil_parse_cpumask)
+{
+	struct bitmask * test = NULL;
+
+	// Dummy test for now
+	char * str = strdup("0,1");
+	test = parse_cpumask(str);
+	ck_assert_ptr_ne(NULL, test);
+
+	ck_assert_int_eq(2, numa_bitmask_weight(test));
+
+	free(str);
+	numa_bitmask_free(test);
+
+	str = strdup("119-134");
+	test = parse_cpumask(str);
+	ck_assert_ptr_eq(NULL, test);
+
+	free(str);
+	numa_bitmask_free(test);
+}
+END_TEST
+
 void library_kernutil (Suite * s) {
 
 	TCase *tc1 = tcase_create("kernutil");
@@ -197,6 +222,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_test(tc1, kernutil_check_kernel);
 	tcase_add_test(tc1, kernutil_parse_bitmask);
 	tcase_add_test(tc1, kernutil_parse_bitmask_hex);
+	tcase_add_test(tc1, kernutil_parse_cpumask);
 
     suite_add_tcase(s, tc1);
 
