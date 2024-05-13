@@ -48,6 +48,42 @@ static void orchestrator_adaptive_teardown() {
 	freeContParm(contparm);
 }
 
+/// TEST CASE -> test affinity mask creation based on dependencies
+/// EXPECTED -> if specific, empty but 1, AND- mapped otherwise
+START_TEST(orchestrator_adaptive_createAffinity)
+{
+	prgset->affinity_mask = parse_cpumask("0-3");
+
+	// first default to a value
+	struct sched_rscs rscs = { 2 };
+	struct bitmask * bDep = numa_allocate_cpumask();
+
+	numa_bitmask_setbit(bDep, 1);
+	numa_bitmask_setbit(bDep, 3);
+	numa_bitmask_setbit(bDep, 5);
+	numa_bitmask_setbit(bDep, 7);
+
+	createAffinityMask(&rscs, bDep);
+
+	ck_assert_int_eq(1, numa_bitmask_weight(rscs.affinity_mask));
+	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 2));
+
+	numa_free_cpumask(rscs.affinity_mask);
+
+	// no mask set
+	rscs.affinity = -1;
+
+	createAffinityMask(&rscs, bDep);
+
+	ck_assert_int_eq(2, numa_bitmask_weight(rscs.affinity_mask));
+	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 1));
+	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 3));
+
+	numa_free_cpumask(rscs.affinity_mask);
+	numa_free_cpumask(bDep);
+}
+END_TEST
+
 /// TEST CASE -> create resources for the adaptive schedule
 /// EXPECTED -> exit with no error and created resources
 START_TEST(orchestrator_adaptive_resources)
@@ -221,18 +257,24 @@ void orchestrator_adaptive (Suite * s) {
 		return;
 	}
 
-	TCase *tc1 = tcase_create("adaptive_resources");
-	tcase_add_test(tc1, orchestrator_adaptive_resources);
+	TCase *tc1 = tcase_create("adaptive_helper");
+	tcase_add_checked_fixture(tc1, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
+	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 
 	suite_add_tcase(s, tc1);
 
-	TCase *tc2 = tcase_create("adaptive_schedule");
-	tcase_add_checked_fixture(tc2, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
-    tcase_add_exit_test(tc2, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
-    tcase_add_test(tc2, orchestrator_adaptive_schedule);
-    tcase_add_test(tc2, orchestrator_adaptive_schedule2);
+	TCase *tc2 = tcase_create("adaptive_resources");
+	tcase_add_test(tc2, orchestrator_adaptive_resources);
 
-    suite_add_tcase(s, tc2);
+	suite_add_tcase(s, tc2);
+
+	TCase *tc3 = tcase_create("adaptive_schedule");
+	tcase_add_checked_fixture(tc3, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
+    tcase_add_exit_test(tc3, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
+    tcase_add_test(tc3, orchestrator_adaptive_schedule);
+    tcase_add_test(tc3, orchestrator_adaptive_schedule2);
+
+    suite_add_tcase(s, tc3);
 
 	return;
 }
