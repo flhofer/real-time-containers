@@ -13,7 +13,9 @@
 	#define __numa_XXX_cpustring(a,b,c)	for (int i=0;i<a->size;i++)  \
 										  if ((numa_bitmask_isbitset(a, i)) \
 											c (numa_bitmask_isbitset(b, i))) \
-											  numa_bitmask_setbit(b, i);
+											  numa_bitmask_setbit(b, i); \
+										  else \
+											  numa_bitmask_clearbit(b, i);
 
 	#define numa_or_cpumask(from,to)	__numa_XXX_cpustring(from,to, || )
 	#define numa_and_cpumask(from,to)	__numa_XXX_cpustring(from,to, && )
