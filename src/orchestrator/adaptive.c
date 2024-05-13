@@ -192,7 +192,7 @@ addTracerFix(resAlloc_t * res) {
  * 					matching and combining */
 static void
 createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
-	// Create CPU mask only if not shared
+	// Create CPU mask only if not shared (e.g. -1 = no fixed CPU affinity)
 	if (rscs->affinity >= 0) {
 		char  affstr[11];
 		(void)sprintf(affstr, "%d", rscs->affinity);
@@ -201,8 +201,9 @@ createAffinityMask(rscs_t * rscs, struct bitmask* bDep){
 	else{
 		rscs->affinity_mask = numa_allocate_cpumask();
 		copy_bitmask_to_bitmask(prgset->affinity_mask, rscs->affinity_mask);
-		if (bDep)
+		if (bDep){
 			numa_and_cpumask(bDep, rscs->affinity_mask);
+		}
 	}
 }
 

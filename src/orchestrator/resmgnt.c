@@ -1085,8 +1085,9 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 			cont->rscs = malloc(sizeof(struct sched_rscs));
 			(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
 			cont->rscs->affinity_mask = numa_allocate_cpumask();
-			if (dlCont->rscs->affinity_mask)
+			if (dlCont->rscs->affinity_mask){
 				numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+			}
 		}
 		else
 			cont->rscs = dlCont->rscs;
@@ -1139,8 +1140,9 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 				configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
 				(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
 				configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
-				if (pids->pid->rscs->affinity_mask)
+				if (pids->pid->rscs->affinity_mask){
 					numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+				}
 			}
 			else
 				configuration->pids->rscs = pids->pid->rscs;
