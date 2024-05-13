@@ -371,7 +371,7 @@ getkernvar(const char *prefix, const char *name, char *value, int size)
  *  parse_cpumask(): parses and checks if the CPU bit-mask is OK
  * 		w/ similar to numa_parse_cpustring_all()
  *
- *  Arguments: - pointer to bitmask
+ *  Arguments: - pointer to string containing CPU list
  *
  *  Return value: the parsed bitmask, returns null if empty cpuset
  */
@@ -382,13 +382,13 @@ parse_cpumask(const char *option)
 
 	if (mask) {
 		// no CPU is set.. :/ Free
-		if (0 == numa_bitmask_weight(mask)) {
+		int weight;
+		if (0 == (weight = numa_bitmask_weight(mask))) {
 			numa_bitmask_free(mask);
 			mask = NULL;
 		}
 		else
-			printDbg("%s: Using %u cpus.\n", __func__,
-					numa_bitmask_weight(mask));
+			printDbg("%s: Using %u cpus.\n", __func__, weight);
 	}
 
 	return mask;
