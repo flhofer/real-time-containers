@@ -312,6 +312,102 @@ countCGroupTasks(prgset_t *set) {
 }
 
 /*
+ *  disableSMTandTest(): disable SMT through kernel file system and
+ *  test the affinity mask for correctness (offline CPUs in mask?)
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+int
+disableSMTandTest(prgset_t *set) {
+
+	char str[100]; // generic string...
+	int resetMask = 0; // if true, affinity mask is masked AND with online CPU's
+
+	// TODO: selective SMT
+
+	// verify if SMT is disabled -> now force = disable
+	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
+		// value read OK
+		if (!strcmp(str, "on")) {
+			// SMT - HT is on
+			if (set->dryrun)
+				cont("Skipping setting SMT.");
+			else {
+				if (!set->force)
+					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
+				else {
+					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+					else{
+						// We just disabled some CPUs -> re-check affinity
+						cont("SMT is now disabled, as required. Refresh configurations..");
+						resetMask = 1;
+					}
+				}
+			}
+		}
+		else
+			cont("SMT is disabled, as required");
+	}
+	else // SMT failed or DryRun
+		warn("Skipping read of SMT status. This can influence latency performance!");
+
+	// prepare bit-mask, no need to do it before
+	set->affinity_mask = parse_cpumask(set->affinity);
+	if (!set->affinity_mask){
+		err_msg("The resulting CPUset is empty");
+		return -1; // return to display help
+	}
+
+	// Did the number of available CPUs change?
+	if (resetMask){
+		// SMT has been disabled - update affinity mask
+
+		struct bitmask * conmask;
+		struct bitmask * oldmask = numa_allocate_cpumask();
+		copy_bitmask_to_bitmask(set->affinity_mask, oldmask); 		// keep a copy for comparison
+
+		// get online cpu's
+		if (0 < getkernvar(set->cpusystemfileprefix, "online", str, sizeof(str))) {
+			conmask = numa_parse_cpustring_all(str);
+			if (!conmask)
+				err_exit("Can not parse online CPUs");
+		}
+
+		numa_and_cpumask(conmask,set->affinity_mask);				// AND with online CPUs
+		numa_free_cpumask(conmask);
+
+		if (!numa_bitmask_equal(set->affinity_mask, oldmask)){		// Did the mask change?
+			if (0 == numa_bitmask_weight(set->affinity_mask)) {
+				err_msg("After disabling SMT, the resulting CPUset is empty!");
+				numa_free_cpumask(oldmask);
+				return -1; // return to display help
+			}
+			warn("Disabling SMT has reduced the number of available CPUs for real-time tasks from %d to %d!",
+					numa_bitmask_weight(oldmask), numa_bitmask_weight(set->affinity_mask));
+
+			// replace affinity string with new string!
+			if (parse_bitmask(set->affinity_mask, str, sizeof(str))){
+				free(set->affinity);
+				set->affinity = strdup(str);
+			}
+			else{
+				err_msg("Could not reconstruct CPU-list from new CPU-mask");
+				numa_free_cpumask(oldmask);
+				return -1;
+			}
+		}
+
+		numa_free_cpumask(oldmask);
+	}
+
+	return 0;
+}
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
@@ -352,34 +448,8 @@ prepareEnvironment(prgset_t *set) {
 	/// --------------------
 	/// verify CPU topology and distribution
 
-	// verify if SMT is disabled -> now force = disable
-	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
-		// value read OK
-		if (!strcmp(str, "on")) {
-			// SMT - HT is on
-			if (set->dryrun)
-				cont("Skipping setting SMT.");
-			else {
-				if (!set->force)
-					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-				else {
-					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
-						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-					else
-						cont("SMT is now disabled, as required. Refresh configurations..");
-				}
-			}
-		}
-		else
-			cont("SMT is disabled, as required");
-	}
-	else // SMT failed or DryRun
-		warn("Skipping read of SMT status. This can influence latency performance!");
-
-	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity);
-	if (!set->affinity_mask)
-		return -1; // return to display help
+	if (disableSMTandTest(set))	// SMT off
+		return -1;
 
 	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
