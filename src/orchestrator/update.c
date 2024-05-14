@@ -62,7 +62,7 @@ getContPids (node_t **pidlst)
 		char buf[BUFRD];	// read buffer
 		char *pid, *pid_ptr;	// strtok_r variables
 
-		printDbg( "\n" PFX "Container detection!\n");
+		printDbg(PFX "Container detection!\n");
 
 		while ((dir = readdir(d)) != NULL) {
 			// scan trough docker CGroups, find them?
@@ -92,12 +92,12 @@ getContPids (node_t **pidlst)
 						// read success, update bytes to parse
 						nleft += ret;
 
-						printDbg(PFX "%s: PID string return %s\n", __func__, buf);
+						printDbg(PIN "PID string return %s\n", buf);
 
 						buf[nleft] = '\0'; // end of read check, nleft = max BUFRD-1;
 						pid = strtok_r (buf,"\n", &pid_ptr);	
 
-						printDbg(PFX "%s: processing ", __func__);
+						printDbg(PIN "processing"); // Begin line
 						while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
 							// DO STUFF
 
@@ -105,7 +105,7 @@ getContPids (node_t **pidlst)
 							// PID found
 							(*pidlst)->pid = atoi(pid);
 							(*pidlst)->status |= MSK_STATSIBL;
-							printDbg("->%d ",(*pidlst)->pid);
+							printDbg("->%d ",(*pidlst)->pid);	// mid line
 
 							updatePidCmdline(*pidlst); // checks and updates..
 #ifdef CGROUP2
@@ -129,7 +129,7 @@ getContPids (node_t **pidlst)
 						if (1 == count) // only 1 found, reset sibling flag
 							(*pidlst)->status &= ~MSK_STATSIBL;
 
-						printDbg("\n");
+						printDbg("\n"); // end of line
 						if (pid) // copy leftover chars to beginning of string buffer
 							memcpy(buf, buf+BUFRD-nleft-1, nleft); 
 					}
@@ -190,7 +190,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 	int count = 0;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg(PFX "%s: Pid string return %s\n", __func__, pidline);
+		printDbg(PIN "Pid string return %s\n", pidline);
 		pid = strtok_r (pidline," ", &pid_ptr);
 
 		node_push(pidlst);
@@ -199,7 +199,6 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 			(*pidlst)->status |= MSK_STATSIBL;
 			(*pidlst)->contid=strdup(ppid);		// string containing the list of parent PIDs
 		}
-        printDbg(PFX "processing->%d",(*pidlst)->pid);
 
 #ifdef BUSYBOX
 		// if busybox, second is ppid
@@ -207,7 +206,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 #endif
 		// find command string and copy to new allocation
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
-        printDbg(" cmd: %s\n",pid);
+        printDbg(PIN "processing->%d cmd: %s\n",(*pidlst)->pid, pid);
 
 		// add command string to pidlist
 		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
@@ -449,13 +448,13 @@ scanNew () {
 	qsortll((void **)&lnew, cmpPidItem);
 
 #ifdef DEBUG
-	printDbg("\n" PFX "Result update pid: ");
+	printDbg(PFX "Result update pid: ");
 	for (node_t * curr = lnew; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
 
-	printDbg("\n" PFX "Entering node update");
+	printDbg(PFX "Entering node update\n");
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
 
@@ -466,7 +465,7 @@ scanNew () {
 
 		// insert a missing item		
 		if (lnew->pid > abs(tail->next->pid)) {
-			printDbg("\n" PFX "... Insert new PID %d", lnew->pid);
+			printDbg(PIN "... Insert new PID %d\n", lnew->pid);
 
 			node_t * tmp = tail->next;
 			tail->next = lnew;
@@ -488,7 +487,7 @@ scanNew () {
 				continue; 
 			}
 
-			printDbg("\n" PFX "... Delete %d", tail->next->pid);
+			printDbg(PIN "... Delete %d\n", tail->next->pid);
 			if (prgset->trackpids){ // deactivate only
 				tail->next->pid*=-1;
 				tail = tail->next;
@@ -498,7 +497,7 @@ scanNew () {
 		} 
 		// ok, they're equal, skip to next
 		else {
-			printDbg("\n" PFX "No change");
+			printDbg(PIN "... No change\n");
 			// free allocated items, no longer needed
 			node_pop(&lnew);
 			tail = tail->next;
@@ -507,7 +506,7 @@ scanNew () {
 
 	while (NULL != tail->next) { // reached the end of the pid queue -- drop list end
 		// drop missing items
-		printDbg("\n" PFX "... Delete at end %d", tail->next->pid);// tail->next->pid);
+		printDbg(PIN "... Delete at end %d\n", tail->next->pid);// tail->next->pid);
 		// get next item, then drop old
 		if (prgset->trackpids){// deactivate only
 			tail->next->pid = abs(tail->next->pid)*-1;
@@ -518,7 +517,7 @@ scanNew () {
 	}
 
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
-		printDbg("\n" PFX "... Insert at end, starting from PID %d - on\n", lnew->pid);
+		printDbg(PIN "... Insert at end, starting from PID %d - on\n", lnew->pid);
 		tail->next = lnew;
 		while (tail->next){
 			setPidResources(tail->next); // find match and set resources
@@ -531,10 +530,10 @@ scanNew () {
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	printDbg("\n" PFX "Exiting node update\n");
+	printDbg(PFX "Exiting node update\n");
 
 #ifdef DEBUG
-	printDbg("\n" PFX "Result list: ");
+	printDbg(PFX "Result list: ");
 	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
