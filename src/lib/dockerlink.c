@@ -130,7 +130,7 @@ static int read_pipe(struct eventData * evnt){
 		evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
 		evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
 		if (!json_object_put(root)){ // free object
-			printDbg(PFX "Could not free objects!");
+			printDbg(PFX "Could not free objects!\n");
 			th_return = EXIT_FAILURE;
 			pthread_exit(&th_return);
 		}

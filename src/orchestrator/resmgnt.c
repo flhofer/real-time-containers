@@ -138,7 +138,7 @@ setPidAffinityNode (node_t * node){
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
 		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun)){
-			printDbg( "Warn! Can not move task %s\n", pid);
+			printDbg(PFX "Warn! Can not move task %s\n", pid);
 			ret = -1;
 		}
 
@@ -1189,7 +1189,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
 			// TODO: refactor below with cont!
 			conts_t * imgcont = img->conts;
-			printDbg("Image match %s\n", img->imgid);
+			printDbg(PFX "Image match %s\n", img->imgid);
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
@@ -1270,7 +1270,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		}
 
 		// found? if not, create PID parameter entry
-		printDbg("... parameters not found, creating from PID and assigning container settings\n");
+		printDbg(PFX "... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&configuration->pids, sizeof(pidc_t));
 		if (useimg) {
 			// add new container unmatched container signature
@@ -1309,7 +1309,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 	else
 	 if (node->pid) { // !=0 means not container or image
 		// no match found. and now?
-		printDbg("... container not found, trying PID scan\n");
+		printDbg(PFX "... container not found, trying PID scan\n");
 
 		// start from scratch in the PID config list only. Maybe Container ID is new
 		struct pidc_parm * curr = configuration->pids;
@@ -1345,7 +1345,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 			// no container id and psig, can't do anything for reconstruction
 			if (curr)
 				return 0;
-			printDbg("... PID not found. Ignoring\n");
+			printDbg(PFX "... PID not found. Ignoring\n");
 			return -1;
 		}
 
@@ -1361,7 +1361,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		if (!curr){
 			// config not found, create PID parameter entry
-			printDbg("... parameters not found, creating from PID settings and container\n");
+			printDbg(PFX "... parameters not found, creating from PID settings and container\n");
 			// create new pidconfig
 			push((void**)&configuration->pids, sizeof(pidc_t));
 			curr = configuration->pids;

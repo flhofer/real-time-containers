@@ -1315,7 +1315,7 @@ get_sched_info(node_t * item)
 							item->mon.dl_overrun++;
 
 							// usually: we have jitter but execution stays constant -> more than a slot?
-							printDbg("\nPID %d %s Deadline overrun by %ldns, sum %ld\n",
+							printDbg(PIN "PID %d %s Deadline overrun by %ldns, sum %ld\n",
 								item->pid, (item->psig) ? item->psig : "", diff, item->mon.dl_diff);
 						}
 

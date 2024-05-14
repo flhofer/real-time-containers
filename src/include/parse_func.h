@@ -18,6 +18,9 @@
 #ifndef _PARSE_FUNC_H_
 	#define _PARSE_FUNC_H_
 
+	#undef PFX
+	#define PFX "[json] "
+
 	#ifndef TRUE
 		#define TRUE true
 		#define FALSE false

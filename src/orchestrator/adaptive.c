@@ -402,7 +402,7 @@ adaptPlanSchedule(){
 		}
 	} // END dedicated resources
 
-	printDbg("After pre-compute, un-match count %d\n", unmatched);
+	printDbg(PFX "After pre-compute, un-match count %d\n", unmatched);
 	{ // compute flexible resources with undefined detail
 		resTracer_t * FFtrc = NULL;
 		resTracer_t * RRtrc = NULL;

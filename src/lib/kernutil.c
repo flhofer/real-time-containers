@@ -388,7 +388,7 @@ parse_cpumask(const char *option)
 			mask = NULL;
 		}
 		else
-			printDbg("%s: Using %u cpus.\n", __func__, weight);
+			printDbg(PFX "Using %u cpus.\n", weight);
 	}
 
 	return mask;
@@ -463,7 +463,7 @@ parse_bitmask(struct bitmask *mask, char * str, size_t len){
 		}
 	}
 
-	printDbg("Parsed bit-mask: %s\n", str);
+	printDbg(PFX "Parsed bit-mask: %s\n", str);
 	return 0;
 }
 
@@ -506,7 +506,7 @@ parse_bitmask_hex(struct bitmask *mask, char * str, size_t len){
 		}
 	}
 
-	printDbg("Parsed bit-mask: %s\n", str);
+	printDbg(PFX "Parsed bit-mask: %s\n", str);
 	return 0;
 }
 

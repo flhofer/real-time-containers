@@ -28,6 +28,8 @@
 #include "error.h"		// error print definitions
 #include "cmnutil.h"	// general definitions
 
+#undef PFX
+#define PFX "[runstats] "
 
 #define FIT_NUMITR	20		// trust region number of iterations originally set to 200
 #define FIT_XTOL	1e-5 	// fitting tolerance step, originally set to -8
@@ -231,7 +233,7 @@ callback(const size_t iter, void *params,
 	if ((ret = gsl_multifit_nlinear_rcond(&rcond, w)))
 		err_msg("failure in Jacobian computation: %s", gsl_strerror(ret));
 
-	printDbg("iter %2zu: a = %.4f, b = %.4f, c = %.4f, |a|/|v| = %.4f cond(J) = %8.4f, |f(x)| = %.4f\n",
+	printDbg(PFX "iter %2zu: a = %.4f, b = %.4f, c = %.4f, |a|/|v| = %.4f cond(J) = %8.4f, |f(x)| = %.4f\n",
 		  iter,
 		  gsl_vector_get(x, 0),
 		  gsl_vector_get(x, 1),
@@ -335,15 +337,15 @@ solve_system(gsl_vector *x, gsl_multifit_nlinear_fdf *fdf,
 
 #ifdef DEBUG
 		/* print summary */
-		printDbg("NITER         = %zu\n", gsl_multifit_nlinear_niter(work));
-		printDbg("NFEV          = %zu\n", fdf->nevalf);
-		printDbg("NJEV          = %zu\n", fdf->nevaldf);
-		printDbg("NAEV          = %zu\n", fdf->nevalfvv);
-		printDbg("initial cost  = %.12e\n", chisq0);
-		printDbg("final cost    = %.12e\n", chisq);
-		printDbg("final x       = (%.12e, %.12e, %12e)\n",
+		printDbg(PFX "NITER         = %zu\n", gsl_multifit_nlinear_niter(work));
+		printDbg(PFX "NFEV          = %zu\n", fdf->nevalf);
+		printDbg(PFX "NJEV          = %zu\n", fdf->nevaldf);
+		printDbg(PFX "NAEV          = %zu\n", fdf->nevalfvv);
+		printDbg(PFX "initial cost  = %.12e\n", chisq0);
+		printDbg(PFX "final cost    = %.12e\n", chisq);
+		printDbg(PFX "final x       = (%.12e, %.12e, %12e)\n",
 			  gsl_vector_get(x, 0), gsl_vector_get(x, 1), gsl_vector_get(x, 2));
-		printDbg("final cond(J) = %.12e\n", 1.0 / rcond);
+		printDbg(PFX "final cond(J) = %.12e\n", 1.0 / rcond);
 		fflush(dbg_out);
 #endif
 	}
@@ -765,9 +767,9 @@ runstats_mdlpdf(stat_param * x, double a, double b, double * p, double * error){
 						w, p, error)))
 		err_msg ("curve integration failed : %s", gsl_strerror(ret));
 
-	printDbg("integr. result  = %.18f\n", *p);
-	printDbg("estimated error = %.18f\n", *error);
-	printDbg("intervals       = %zu\n", w->size);
+	printDbg(PFX "integr. result  = %.18f\n", *p);
+	printDbg(PFX "estimated error = %.18f\n", *error);
+	printDbg(PFX "intervals       = %zu\n", w->size);
 
 	gsl_integration_workspace_free (w);
 	gsl_vector_free(x);
@@ -851,10 +853,10 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 		gsl_root_fsolver_set (s, &F, bmin, bmax);
 	}
 
-	printDbg ("using %s method\n",
+	printDbg(PFX "using %s method\n",
 		  gsl_root_fsolver_name (s));
 
-	printDbg ("%5s [%9s, %9s] %9s %9s\n",
+	printDbg(PFX "%5s [%9s, %9s] %9s %9s\n",
 		  "iter", "lower", "upper", "root",
 		  "err(est)");
 
@@ -870,9 +872,9 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 			  	  	  	  ROOT_EPSABS, ROOT_EPSREL); // absolute + relative error
 
 	  if (status == GSL_SUCCESS)
-		  printDbg ("Converged:\n");
+		  printDbg(PFX "Converged:\n");
 
-	  printDbg ("%5d [%.7f, %.7f] %.7f %.7f\n",
+	  printDbg(PFX "%5d [%.7f, %.7f] %.7f %.7f\n",
 			  iter, bmin, bmax,
 			  *b,
 			  bmax - bmin);

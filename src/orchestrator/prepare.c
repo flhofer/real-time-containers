@@ -846,7 +846,7 @@ prepareEnvironment(prgset_t *set) {
 
 				nleft += ret;
 
-				printDbg("%s: Pid string return %s\n", __func__, buf);
+				printDbg(PFX "Pid string return %s\n", buf);
 				buf[nleft] = '\0'; // end of read check, nleft = max 1023;
 				pid = strtok_r (buf,"\n", &pid_ptr);
 				while (NULL != pid && nleft && (6 < (&buf[BUFRD-1]-pid))) { // <6 = 5 pid no + \n
@@ -854,7 +854,7 @@ prepareEnvironment(prgset_t *set) {
 
 					// file prefix still pointing to CGRP_SYS
 					if (0 > setkernvar(fileprefix, CGRP_PIDS, pid, set->dryrun)){
-						//printDbg( "Warn! Can not move task %s\n", pid);
+						//printDbg(PFX "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}
 					nleft-=strlen(pid)+1;

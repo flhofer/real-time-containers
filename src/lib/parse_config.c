@@ -15,8 +15,8 @@
 
 // static library includes
 #include "kernutil.h"		// kernel util data types and functions
-#include "parse_func.h"
-#include "cmnutil.h"	// common definitions and functions
+#include "parse_func.h"		// macros for json parsing
+#include "cmnutil.h"		// common definitions and functions
 
 #undef PFX
 #define PFX "[json] "
