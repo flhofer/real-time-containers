@@ -320,7 +320,7 @@ countCGroupTasks(prgset_t *set) {
  *  Return value: Error code
  *  				Only valid if the function returns
  */
-int
+static int
 disableSMTandTest(prgset_t *set) {
 
 	char str[100]; // generic string...
@@ -375,10 +375,11 @@ disableSMTandTest(prgset_t *set) {
 			conmask = numa_parse_cpustring_all(str);
 			if (!conmask)
 				err_exit("Can not parse online CPUs");
+			numa_and_cpumask(conmask,set->affinity_mask);				// AND with online CPUs
+			numa_free_cpumask(conmask);
 		}
-
-		numa_and_cpumask(conmask,set->affinity_mask);				// AND with online CPUs
-		numa_free_cpumask(conmask);
+		else
+			err_exit("Can not read online CPUs");
 
 		if (!numa_bitmask_equal(set->affinity_mask, oldmask)){		// Did the mask change?
 			if (0 == numa_bitmask_weight(set->affinity_mask)) {
