@@ -190,7 +190,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 	int count = 0;
 	// Scan through string and put in array
 	while(fgets(pidline,BUFRD,fp)) {
-		printDbg(PIN "Pid string return %s\n", pidline);
+		printDbg(PIN "Pid string return %s", pidline); // needs no \n -> fgets
 		pid = strtok_r (pidline," ", &pid_ptr);
 
 		node_push(pidlst);
@@ -366,6 +366,7 @@ updateDocker() {
 
 			case cnt_remove: ;
 				(void)pthread_mutex_lock(&dataMutex);
+				printDbg(PFX "Container removal posted for %.12s", lstevent->id);
 				node_t dummy = {nhead};
 				node_t * curr = &dummy;
 
@@ -406,6 +407,8 @@ updateDocker() {
  */
 static void
 scanNew () {
+	printDbg(PFX "Scanning for new PIDs:\n");
+
 	// get PIDs 
 	int wasEmpty = (!nhead);
 	node_t *lnew = NULL; // pointer to new list head
@@ -533,7 +536,7 @@ scanNew () {
 	printDbg(PFX "Exiting node update\n");
 
 #ifdef DEBUG
-	printDbg(PFX "Result list: ");
+	printDbg(PFX "Active node list: ");
 	for (node_t * curr = nhead; ((curr)); curr=curr->next)
 		printDbg("%d ", curr->pid);
 	printDbg("\n");

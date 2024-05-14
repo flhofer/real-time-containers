@@ -88,7 +88,7 @@ static void parse_pid_data(struct json_object *obj, int index,
 		pidc_t *data, cont_t *cont, img_t * img, containers_t *conts)
 {
 
-	printDbg(PIN "Parsing PID [%d]\n", index);
+	printDbg(PFX "Parsing PID [%d]\n", index);
 
 	if (!cont) 
 		cont = (cont_t *) img; // overwrite default reference if no cont set
