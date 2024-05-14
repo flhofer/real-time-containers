@@ -172,7 +172,7 @@ START_TEST(orchestrator_manage_readftrace)
 	struct ftrace_thread fthread;
 	fthread.dbgfile = malloc(MAX_PATH); // it's freed inside the thread
 	fthread.cpuno = 1; // dummy value
-	(void)sprintf(fthread.dbgfile, "test/manage_ftread.dat"); // dump of a kernel thread scan
+	(void)sprintf(fthread.dbgfile, "test/resources/manage_ftread.dat"); // dump of a kernel thread scan
 
 	prgset->ftrace = 1;
 
@@ -214,7 +214,7 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	FILE *f;
 	int ret;
 
-	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
+	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.5.txt","r"))) {
 		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
 		buf[ret] = '\0';
@@ -341,7 +341,7 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 	FILE *f;
 	int ret;
 
-	if ((f = fopen ("test/manage_sched_switch_fmt6.5.txt","r"))) {
+	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.5.txt","r"))) {
 		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
 		buf[ret] = '\0';

@@ -127,7 +127,7 @@ END_TEST
 START_TEST(orchestrator_adaptive_schedule)
 {
 	// read config from file
-	parse_config_file("test/adaptive-test.json", prgset, contparm);
+	parse_config_file("test/resources/adaptive-test.json", prgset, contparm);
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->rrtime = 100; // set to 100 ms default for sample
 
@@ -176,7 +176,7 @@ END_TEST
 START_TEST(orchestrator_adaptive_schedule2)
 {
 	// read config from file
-	parse_config_file("test/adaptive-test2.json", prgset, contparm);
+	parse_config_file("test/resources/adaptive-test2.json", prgset, contparm);
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->rrtime = 100; // set to 100ms default for sample
 
@@ -240,7 +240,7 @@ END_TEST
 START_TEST(orchestrator_adaptive_error_schedule)
 {
 	// read config from file
-	parse_config_file("test/adaptive-terr.json", prgset, contparm);
+	parse_config_file("test/resources/adaptive-terr.json", prgset, contparm);
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 
 	// prepare and compute schedule
