@@ -77,12 +77,12 @@ struct tr_common {
 	int32_t * common_pid;
 } tr_common;
 // related variable name dictionary
-const char * tr_common_dict[] = { TR_EVENT_COMMON,
-								GET_VARIABLE_NAME(tr_common.common_type),
-								GET_VARIABLE_NAME(tr_common.common_flags),
-								GET_VARIABLE_NAME(tr_common.common_preempt_count),
-								GET_VARIABLE_NAME(tr_common.common_pid),
-								NULL};
+const char * const tr_common_dict[] = { TR_EVENT_COMMON,
+										GET_VARIABLE_NAME(tr_common.common_type),
+										GET_VARIABLE_NAME(tr_common.common_flags),
+										GET_VARIABLE_NAME(tr_common.common_preempt_count),
+										GET_VARIABLE_NAME(tr_common.common_pid),
+										NULL};
 
 // Parser offset structures - pointers to values for sched_switch
 #define TR_EVENT_SWITCH "sched/sched_switch"
@@ -98,15 +98,15 @@ struct tr_switch {
 	int32_t* next_prio;
 } tr_switch;
 // related variable name dictionary
-const char * tr_switch_dict[] = { TR_EVENT_SWITCH,
-								GET_VARIABLE_NAME(tr_switch.prev_comm),
-								GET_VARIABLE_NAME(tr_switch.prev_pid),
-								GET_VARIABLE_NAME(tr_switch.prev_prio),
-								GET_VARIABLE_NAME(tr_switch.prev_state),
-								GET_VARIABLE_NAME(tr_switch.next_comm),
-								GET_VARIABLE_NAME(tr_switch.next_pid),
-								GET_VARIABLE_NAME(tr_switch.next_prio),
-								NULL};
+const char * const tr_switch_dict[] = { TR_EVENT_SWITCH,
+										GET_VARIABLE_NAME(tr_switch.prev_comm),
+										GET_VARIABLE_NAME(tr_switch.prev_pid),
+										GET_VARIABLE_NAME(tr_switch.prev_prio),
+										GET_VARIABLE_NAME(tr_switch.prev_state),
+										GET_VARIABLE_NAME(tr_switch.next_comm),
+										GET_VARIABLE_NAME(tr_switch.next_pid),
+										GET_VARIABLE_NAME(tr_switch.next_prio),
+										NULL};
 
 // Parser offset structures - pointers to values for sched_wakeup
 #define TR_EVENT_WAKEUP "sched/sched_wakeup"
@@ -118,17 +118,17 @@ struct tr_wakeup {
 	int32_t * target_cpu;
 } tr_wakeup;
 // related variable name dictionary
-const char * tr_wakeup_dict[] = { TR_EVENT_WAKEUP,
-								GET_VARIABLE_NAME(tr_wakeup.comm),
-								GET_VARIABLE_NAME(tr_wakeup.pid),
-								GET_VARIABLE_NAME(tr_wakeup.prio),
-								GET_VARIABLE_NAME(tr_wakeup.success),
-								GET_VARIABLE_NAME(tr_wakeup.target_cpu),
-								NULL};
+const char * const tr_wakeup_dict[] = { TR_EVENT_WAKEUP,
+										GET_VARIABLE_NAME(tr_wakeup.comm),
+										GET_VARIABLE_NAME(tr_wakeup.pid),
+										GET_VARIABLE_NAME(tr_wakeup.prio),
+										GET_VARIABLE_NAME(tr_wakeup.success),
+										GET_VARIABLE_NAME(tr_wakeup.target_cpu),
+										NULL};
 
 // these are data and name dictionaries used for parsing
-const char ** tr_event_dict [] = { tr_common_dict, tr_switch_dict, tr_wakeup_dict, NULL };
-const void * tr_event_structs [] = { &tr_common, &tr_switch, &tr_wakeup, NULL };
+const char * const * const tr_event_dict [] = { tr_common_dict, tr_switch_dict, tr_wakeup_dict, NULL };
+const void * const tr_event_structs [] = { &tr_common, &tr_switch, &tr_wakeup, NULL };
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t ftrace_stop;
@@ -169,11 +169,12 @@ parseEventOffsets(){
 
 	int cmn = 1;	/// run once - always - for common structure, first in array
 
-	const char *** tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
+	const char * const * const * tr_dicts = tr_event_dict;	// working pointer to structure dictionaries, init to first
 
 	// Loop through structures to init, first is 'tr_common" (cmn =1)
 	// note type cast below -> structs contain pointers we want to modify
-	for(const void *** tr_structs = (void const***)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
+	// (void *) points to pointer to value, (* const) = points to struct, (*) points to array of struct
+	for(void ** const * tr_structs = (void ** const *)tr_event_structs;(*tr_structs) && (*tr_dicts); tr_structs++, tr_dicts++ ){
 
 		// Loop through loaded ftrace events to find match
 		for (struct ftrace_elist * event = elist_head; (event); event=event->next){
@@ -181,9 +182,9 @@ parseEventOffsets(){
 			// Event configuration name matches structure name in dictionary (or common is set for cmn set), find field configs
 			if ((cmn) || !strcmp(**tr_dicts,event->event)){
 				// match of dict
-				void const ** tr_struct = *tr_structs;	// init working pointer to memory begin position of struct (first field)
+				void ** tr_struct = *tr_structs;	// init working pointer to memory begin position of struct (first field)
 				// loop through dict entries for fields -> find cfgs
-				for (char const ** tr_dict = ++(*(tr_dicts)); (*tr_dict); tr_dict++, tr_struct++){
+				for (const char * const * tr_dict = ((*tr_dicts)+1); (*tr_dict); tr_dict++, tr_struct++){
 					char * t_tok;
 					char * entry = strdup (*tr_dict);
 
@@ -193,7 +194,7 @@ parseEventOffsets(){
 						for (struct ftrace_ecfg * cfg = event->fields; (cfg); cfg = cfg->next)
 							if (!strcmp(t_tok, cfg->name)){
 								// set offset
-								*tr_struct = (const unsigned char*)0x0 + cfg->offset;
+								*tr_struct = (unsigned char*)0x0 + cfg->offset;
 								break;
 							}
 					free(entry);
