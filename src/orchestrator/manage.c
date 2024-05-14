@@ -1364,7 +1364,7 @@ get_sched_info(node_t * item)
 	end.tv_nsec -= start.tv_nsec;
 	tsnorm(&end);
 
-	printDbg(PFX "%s parse time: %ld.%09ld\n", __func__, end.tv_sec, end.tv_nsec);
+	printDbg(PFX "/proc/x/sched parse time: %ld.%09ld\n", end.tv_sec, end.tv_nsec);
 #endif
 
   return 0;
