@@ -224,7 +224,6 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 		ck_abort_msg("Could not open file: %s", strerror(errno));
 
 	parseEventFields (&elist_head->fields,buf);
-	free (buf);
 
 	ck_assert_ptr_nonnull(elist_head->fields );
 
@@ -332,8 +331,6 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	pop((void**)&elist_head->fields);
 
 	// Example format kernel 6.1
-	buf = malloc(PIPE_BUFFER);
-
 	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.1.txt","r"))) {
 		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
@@ -481,7 +478,6 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 		ck_abort_msg("Could not open file: %s", strerror(errno));
 
 	parseEventFields (&elist_head->fields, buf);
-	free (buf);
 
 	ck_assert_ptr_nonnull(elist_head->fields );
 
@@ -503,6 +499,43 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 	ck_assert_ptr_eq((char*)	0x28, tr_switch.next_comm);
 	ck_assert_ptr_eq((pid_t*)	0x38, tr_switch.next_pid);
 	ck_assert_ptr_eq((int32_t*)	0x3C, tr_switch.next_prio);
+
+	clearEventConf();
+
+	// format example 6.1
+	buildEventConf();
+	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.1.txt","r"))) {
+		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
+		ck_assert_int_ne(ret, 0);
+		buf[ret] = '\0';
+		fclose(f);
+	}
+	else
+		ck_abort_msg("Could not open file: %s", strerror(errno));
+
+	parseEventFields (&elist_head->fields, buf);
+	free (buf);
+
+	ck_assert_ptr_nonnull(elist_head->fields );
+
+	parseEventOffsets();
+
+	// Values for Kernel 6.1 debug tracer format, sched_switch
+
+	// Offset for event common
+	ck_assert_ptr_eq((uint16_t*)0x00, tr_common.common_type);
+	ck_assert_ptr_eq((uint8_t*) 0x02, tr_common.common_flags);
+	ck_assert_ptr_eq((uint8_t*) 0x03, tr_common.common_preempt_count);
+	ck_assert_ptr_eq((int32_t*) 0x04, tr_common.common_pid);
+
+	// Offsets for sched_switch
+	ck_assert_ptr_eq((char*)	0x0C, tr_switch.prev_comm);
+	ck_assert_ptr_eq((pid_t*)	0x1C, tr_switch.prev_pid);
+	ck_assert_ptr_eq((int32_t*)	0x20, tr_switch.prev_prio);
+	ck_assert_ptr_eq((int64_t*)	0x28, tr_switch.prev_state);
+	ck_assert_ptr_eq((char*)	0x30, tr_switch.next_comm);
+	ck_assert_ptr_eq((pid_t*)	0x40, tr_switch.next_pid);
+	ck_assert_ptr_eq((int32_t*)	0x44, tr_switch.next_prio);
 
 	clearEventConf();
 }
