@@ -328,6 +328,123 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	ck_assert_int_eq( 4, elist_head->fields->size );
 	ck_assert_int_eq( 1, elist_head->fields->sign );
 
+	// Example format kernel 6.1
+	buf = malloc(PIPE_BUFFER);
+
+	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.1.txt","r"))) {
+		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
+		ck_assert_int_ne(ret, 0);
+		buf[ret] = '\0';
+		fclose(f);
+	}
+	else
+		ck_abort_msg("Could not open file: %s", strerror(errno));
+
+	parseEventFields (&elist_head->fields,buf);
+	free (buf);
+
+	ck_assert_ptr_nonnull(elist_head->fields );
+
+	// Common to all events
+
+	ck_assert_str_eq( "common_type", elist_head->fields->name );
+	ck_assert_int_eq( trv_short, elist_head->fields->type );
+	ck_assert_int_eq( 0, elist_head->fields->offset );
+	ck_assert_int_eq( 2, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_flags", elist_head->fields->name );
+	ck_assert_int_eq( trv_char, elist_head->fields->type );
+	ck_assert_int_eq( 2, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
+	ck_assert_int_eq( trv_char, elist_head->fields->type );
+	ck_assert_int_eq( 3, elist_head->fields->offset );
+	ck_assert_int_eq( 1, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "common_pid", elist_head->fields->name );
+	ck_assert_int_eq( trv_int, elist_head->fields->type );
+	ck_assert_int_eq( 4, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	// specific to sched_switch
+
+	ck_assert_str_eq( "prev_comm", elist_head->fields->name );
+	ck_assert_int_eq( trv_char, elist_head->fields->type );
+	ck_assert_int_eq( 8, elist_head->fields->offset );
+	ck_assert_int_eq( 16, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
+	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
+	ck_assert_int_eq( 24, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
+	ck_assert_int_eq( trv_int, elist_head->fields->type );
+	ck_assert_int_eq( 28, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "prev_state", elist_head->fields->name );
+	ck_assert_int_eq( trv_long, elist_head->fields->type );
+	ck_assert_int_eq( 32, elist_head->fields->offset );
+	ck_assert_int_eq( 8, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_comm", elist_head->fields->name );
+	ck_assert_int_eq( trv_char, elist_head->fields->type );
+	ck_assert_int_eq( 40, elist_head->fields->offset );
+	ck_assert_int_eq( 16, elist_head->fields->size );
+	ck_assert_int_eq( 0, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_pid", elist_head->fields->name );
+	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
+	ck_assert_int_eq( 56, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
+	free(elist_head->fields->name);
+	pop((void**)&elist_head->fields);
+
+	ck_assert_str_eq( "next_prio", elist_head->fields->name );
+	ck_assert_int_eq( trv_int, elist_head->fields->type );
+	ck_assert_int_eq( 60, elist_head->fields->offset );
+	ck_assert_int_eq( 4, elist_head->fields->size );
+	ck_assert_int_eq( 1, elist_head->fields->sign );
+
 	clearEventConf();
 }
 END_TEST
