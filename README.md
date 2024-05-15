@@ -18,11 +18,10 @@ real-time containers research repository, general tree structure. Folders marked
 	|   ├── reportShortVisit# report of the 2018 short stay, experiments and results (archived)
 	|   └── slides 		# progress documenting slides; for weekly meetings and calls -> incremental (archived)
 	├── src		 	# source files of the different project components
-	|   ├── check_dockerRT	# source code for the Icinga2 plugin (archived)
+	|   ├── check_dockerRT	# source code for the Icinga2 plugin (TBD)
 	|   ├── include 	# internal library header files
 	|   ├── lib 		# internal library source files
-	|   ├── orchestrator	# orchestrator source code
-	|   └── testPosix 	# test program to test OS's POSIX features, see docs (archived)
+	|   └── orchestrator	# orchestrator source code
 	├── tools		# development tools such as containers for build or run
 	├── test 		# `check` based test scripts for project sources, reflects src structure
 	├── test-monitor 	# latency and orchestration test results and scripts
