@@ -529,6 +529,10 @@ START_TEST(orchestrator_manage_ppckbuf)
 
 	ret = pickPidCheckBuffer(nhead->next, 60000, 1000);
 	ck_assert_int_eq(0, ret);
+	ret = pickPidCheckBuffer(nhead->next->next, 75000, 1000); // should ignore pid 6
+	ck_assert_int_eq(0, ret);
+	ret = pickPidCheckBuffer(nhead->next->next, 76000, 1000); // s
+	ck_assert_int_eq(1, ret);
 
 }
 END_TEST
