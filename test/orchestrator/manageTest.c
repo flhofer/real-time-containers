@@ -490,10 +490,10 @@ START_TEST(orchestrator_manage_ppconsrt)
 	ck_assert_int_eq(0, nhead->mon.dl_overrun);
 
 	nhead->mon.last_ts = 132000;
-	nhead->mon.cdf_runtime = 0;	// to simulate overflow
-	pickPidConsolidateRuntime(nhead, 151000);
-	ck_assert_int_eq(19000, nhead->mon.dl_rt);
-	ck_assert_int_eq(0, nhead->mon.dl_overrun);
+	nhead->mon.dl_rt = 44000; // simulate overflow
+	pickPidConsolidateRuntime(nhead, 136500);
+	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+	ck_assert_int_eq(1, nhead->mon.dl_overrun);
 
 	// test other
 	nhead->attr.sched_policy = SCHED_FIFO;
