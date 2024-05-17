@@ -489,6 +489,13 @@ START_TEST(orchestrator_manage_ppconsrt)
 	ck_assert_int_eq(4, nhead->mon.dl_scanfail);
 	ck_assert_int_eq(1, nhead->mon.dl_overrun);
 
+	// test other
+	nhead->attr.sched_policy = SCHED_FIFO;
+	nhead->mon.last_ts = 132000;
+	nhead->mon.dl_rt = 0; // other work in reverse, reset at call, not next period;
+	pickPidConsolidateRuntime(nhead, 136700);
+	ck_assert_int_eq(-201, nhead->mon.dl_diff);	// this period exceeded cdf res by 201mu
+	ck_assert_int_eq(0, nhead->mon.dl_rt);
 }
 END_TEST
 
