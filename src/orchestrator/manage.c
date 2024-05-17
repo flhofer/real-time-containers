@@ -252,7 +252,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 								(*ecfg)->type = trv_longlong;
 								(*ecfg)->size = 2*sizeof(long);
 							}
-							if (!strcmp(t,"long")){
+							else if (!strcmp(t,"long")){
 								(*ecfg)->type = trv_long;
 								(*ecfg)->size = sizeof(long);
 							}
