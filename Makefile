@@ -58,7 +58,7 @@ ifndef DEBUG
 else
 	CFLAGS	+= -O0 -g -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
 	ifdef COVERAGE
-		CFLAGS += -coverage
+		CFLAGS += -coverage -fprofile-exclude-files=".*Test\.[ch];.*_suite\.[ch];kbuffer\.[ch];numa\.h;cpuid\.h"
 		DIRDEPTH=$(shell var=${PWD//[!\/]}; echo ${#var} )
 	endif
 endif
