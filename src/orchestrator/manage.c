@@ -654,13 +654,13 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
 				stdl += citem->attr.sched_period;
-				usedtime += citem->attr.sched_runtime;
+				usedtime += citem->attr.sched_runtime; // TODO diff to deadline < runtime?
 			}
 		}
 	}
 
 	// if remaining time is enough, return 0
-	return 0 <= (item->mon.deadline - ts - usedtime - extra_rt);
+	return (item->mon.deadline < ts + usedtime + extra_rt);
 }
 
 /*
@@ -769,7 +769,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		if ((SM_DYNSIMPLE <= prgset->sched_mode)
 				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
 			// check reschedule?
-			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
+			if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
 				// reschedule
 				item->mon.dl_overrun++;	// exceeded buffer
 				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))

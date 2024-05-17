@@ -487,15 +487,49 @@ START_TEST(orchestrator_manage_ppconsrt)
 	ck_assert_int_eq(0, nhead->mon.dl_diff);	// last period was perfect, just missed this start
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
 	ck_assert_int_eq(4, nhead->mon.dl_scanfail);
-	ck_assert_int_eq(1, nhead->mon.dl_overrun);
+	ck_assert_int_eq(0, nhead->mon.dl_overrun);
+
+	nhead->mon.last_ts = 132000;
+	nhead->mon.cdf_runtime = 0;	// to simulate overflow
+	pickPidConsolidateRuntime(nhead, 151000);
+	ck_assert_int_eq(19000, nhead->mon.dl_rt);
+	ck_assert_int_eq(0, nhead->mon.dl_overrun);
 
 	// test other
 	nhead->attr.sched_policy = SCHED_FIFO;
-	nhead->mon.last_ts = 132000;
+	nhead->mon.last_ts = 154000;
 	nhead->mon.dl_rt = 0; // other work in reverse, reset at call, not next period;
-	pickPidConsolidateRuntime(nhead, 136700);
+	nhead->mon.cdf_runtime = 4499;
+	pickPidConsolidateRuntime(nhead, 158700);
 	ck_assert_int_eq(-201, nhead->mon.dl_diff);	// this period exceeded cdf res by 201mu
 	ck_assert_int_eq(0, nhead->mon.dl_rt);
+}
+END_TEST
+
+/// TEST CASE -> test if resource is full -> only for deadline
+/// EXPECTED -> should return 1 if extra time does not fit
+START_TEST(orchestrator_manage_ppckbuf)
+{
+	// Generate Nodes
+	const int pid[] = { 1, 2, 3, 4, 5, 6};
+	int ret;
+
+	for (int i=0; i<sizeof(pid)/sizeof(int); ++i) {
+		node_push(&nhead);
+		nhead->pid = pid[i];
+		char * name = malloc(16);
+		(void)sprintf(name, "PID %d", (i+1));
+		nhead->psig = name;
+		nhead->mon.assigned = i % 2;
+		nhead->attr.sched_policy = (0 == i)? SCHED_OTHER : SCHED_DEADLINE;
+		nhead->mon.deadline = 50000 + i * 10000;
+		nhead->attr.sched_period = 5000 + 5000 * (i % 3);
+		nhead->attr.sched_runtime = nhead->attr.sched_period / 5;
+	}
+
+	ret = pickPidCheckBuffer(nhead->next, 60000, 1000);
+	ck_assert_int_eq(0, ret);
+
 }
 END_TEST
 
@@ -532,6 +566,7 @@ void orchestrator_manage (Suite * s) {
 	TCase *tc5 = tcase_create("manage_ftrace_pickpid_acc");
 	tcase_add_checked_fixture(tc5, orchestrator_manage_setup, orchestrator_manage_teardown);
 	tcase_add_test(tc5, orchestrator_manage_ppconsrt);
+	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
 	suite_add_tcase(s, tc5);
 
 	return;
