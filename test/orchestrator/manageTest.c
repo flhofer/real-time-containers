@@ -437,11 +437,17 @@ START_TEST(orchestrator_manage_ppconsrt)
 	nhead->psig = strdup("PidTest");
 
 	nhead->attr.sched_policy = SCHED_DEADLINE;
-	nhead->mon.deadline = 20000;
 	nhead->mon.last_ts = 2000;
 	nhead->mon.dl_rt = 2000;
 
+	pickPidConsolidateRuntime(nhead, 3000);
+	ck_assert_int_eq(SCHED_OTHER, nhead->attr.sched_policy);
+	ck_assert_int_eq(1000, nhead->mon.dl_rt);
+
 	// empty information, test read + update runtime mid-task switch
+	nhead->attr.sched_policy = SCHED_DEADLINE;
+	nhead->mon.last_ts = 1000;
+	nhead->mon.deadline = 20000;
 	pickPidConsolidateRuntime(nhead, 5000);
 	ck_assert_int_eq(SCHED_OTHER, nhead->attr.sched_policy);
 	ck_assert_int_eq(5000, nhead->mon.dl_rt);
@@ -453,26 +459,25 @@ START_TEST(orchestrator_manage_ppconsrt)
 	nhead->attr.sched_period = 22000;
 	nhead->mon.last_ts = 22000;
 	pickPidConsolidateRuntime(nhead, 25000);
-	ck_assert_int_eq(-500, nhead->mon.dl_diffmin);	// last period over-ran by 500mu
+	ck_assert_int_eq(-500, nhead->mon.dl_diff);	// last period over-ran by 500mu
 	ck_assert_int_eq(3000, nhead->mon.dl_rt);	// runtime so far
 
 	// check missed end task switch
 	nhead->mon.last_ts = 44000;
 	pickPidConsolidateRuntime(nhead, 48500);
-	ck_assert_int_eq(1500, nhead->mon.dl_diffmax);	// last period under-use an by 3000mu (div 2 periods)
+	ck_assert_int_eq(1500, nhead->mon.dl_diff);	// last period under-use an by 3000mu (div 2 periods)
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
 
 	// check missed end task switch
 	nhead->mon.last_ts = 88000; // missed end of 66000 period, dl_rt = 0 as we did not register
 	pickPidConsolidateRuntime(nhead, 92500);
-	ck_assert_int_eq(2250, nhead->mon.dl_diffmax);	// last period under-use an by 3000mu (div 2 periods)
+	ck_assert_int_eq(2250, nhead->mon.dl_diff);	// last period under-use an by 3000mu (div 2 periods)
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
 
 	// check missed start task switch
-	nhead->mon.dl_diffmax = 0;
 	//	nhead->mon.last_ts = 110000;  ->should be
 	pickPidConsolidateRuntime(nhead, 114500);
-	ck_assert_int_eq(0, nhead->mon.dl_diffmax);	// last period was perfect, just missed this start
+	ck_assert_int_eq(0, nhead->mon.dl_diff);	// last period was perfect, just missed this start
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
 }
 END_TEST
