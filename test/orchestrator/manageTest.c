@@ -443,6 +443,7 @@ START_TEST(orchestrator_manage_ppconsrt)
 	pickPidConsolidateRuntime(nhead, 3000);
 	ck_assert_int_eq(SCHED_OTHER, nhead->attr.sched_policy);
 	ck_assert_int_eq(1000, nhead->mon.dl_rt);
+	ck_assert_int_eq(2, nhead->mon.dl_scanfail);	// last period under-use an by 3000mu (div 2 periods)
 
 	// empty information, test read + update runtime mid-task switch
 	nhead->attr.sched_policy = SCHED_DEADLINE;
@@ -462,7 +463,7 @@ START_TEST(orchestrator_manage_ppconsrt)
 	ck_assert_int_eq(-500, nhead->mon.dl_diff);	// last period over-ran by 500mu
 	ck_assert_int_eq(3000, nhead->mon.dl_rt);	// runtime so far
 
-	// check missed end task switch
+	// check missed end task switch, partial run
 	nhead->mon.last_ts = 44000;
 	pickPidConsolidateRuntime(nhead, 48500);
 	ck_assert_int_eq(1500, nhead->mon.dl_diff);	// last period under-use an by 3000mu (div 2 periods)
@@ -473,12 +474,14 @@ START_TEST(orchestrator_manage_ppconsrt)
 	pickPidConsolidateRuntime(nhead, 92500);
 	ck_assert_int_eq(2250, nhead->mon.dl_diff);	// last period under-use an by 3000mu (div 2 periods)
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+	ck_assert_int_eq(3, nhead->mon.dl_scanfail);
 
 	// check missed start task switch
 	//	nhead->mon.last_ts = 110000;  ->should be
 	pickPidConsolidateRuntime(nhead, 114500);
 	ck_assert_int_eq(0, nhead->mon.dl_diff);	// last period was perfect, just missed this start
 	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+	ck_assert_int_eq(4, nhead->mon.dl_scanfail);
 }
 END_TEST
 

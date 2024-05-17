@@ -767,7 +767,8 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			if (0 < pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime)){
 				// reschedule
 				item->mon.dl_overrun++;	// exceeded buffer
-				pickPidReallocCPU(item->mon.assigned, item->mon.deadline);
+				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
+					warn("Task overrun - Could not find CPU to reschedule");
 			}
 		}
 
