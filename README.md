@@ -1,4 +1,5 @@
 ![C/C++ CI](https://github.com/flhofer/real-time-containers/workflows/C/C++%20CI/badge.svg)
+![Coverage](test/coverage.svg)
 
 # real-time-containers #
 
