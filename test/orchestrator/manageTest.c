@@ -205,7 +205,37 @@ START_TEST(orchestrator_manage_readftrace)
 END_TEST
 #endif
 
-/// TEST CASE -> read kernel debug tracing info and prepare structures
+char * eventFiles[] = {
+		"test/resources/manage_sched_switch_fmt6.5.txt",
+		"test/resources/manage_sched_switch_fmt6.1.txt",
+		"test/resources/manage_sched_switch_fmt6.5w.txt"
+};
+
+struct {
+	char* name;
+	int type;
+	int offset;
+	int size;
+	int sign;
+} evenFields [][13] = {
+		{
+			{ "common_type",trv_short,0,2,0 }, { "common_flags",trv_char,2,1,0}, { "common_preempt_count",trv_char,3,1,0}, { "common_pid",trv_int,4,4,1},
+			{ "prev_comm",trv_char,8,16,0},	{ "prev_pid",trv_pid_t,24,4,1}, { "prev_prio",trv_int,28,4,1}, { "prev_state",trv_long,32,8,1}, { "next_comm",trv_char,40,16,0},
+			{ "next_pid",trv_pid_t,56,4,1},	{ "next_prio",trv_int,60,4,1}, {NULL}
+		},
+		{
+			{ "common_type",trv_short,0,2,0}, { "common_flags",trv_char,2,1,0},	{ "common_preempt_count",trv_char,3,1,0},{ "common_pid",trv_int,4,4,1},	{ "common_preempt_lazy_count",trv_char,8,1,0},
+			{ "prev_comm",trv_char,12,16,1}, { "prev_pid",trv_pid_t,28,4,1}, { "prev_prio",trv_int,32,4,1},	{ "prev_state",trv_long,40,8,1},
+			{ "next_comm",trv_char,48,16,1}, { "next_pid",trv_pid_t,64,4,1}, { "next_prio",trv_int,68,4,1}, {NULL}
+		},
+		{
+			{ "common_type",trv_short,0,2,0 }, { "common_flags",trv_char,2,1,0}, { "common_preempt_count",trv_char,3,1,0}, { "common_pid",trv_int,4,4,1},
+			{ "prev_comm",trv_char,8,16,0},	{ "prev_pid",trv_pid_t,24,4,1}, { "prev_prio",trv_int,28,4,1}, { "prev_state",trv_longlong,32,16,1}, { "next_comm",trv_char,48,8,0},
+			{ "next_pid",trv_pid_t,56,4,1}, {NULL}
+		}
+		};
+
+/// TEST CASE -> read kernel debugcommon_type tracing info and prepare structures
 /// EXPECTED -> parsing of field specifications, push to ecfg fields
 START_TEST(orchestrator_manage_ftrc_cfgread)
 {
@@ -213,249 +243,9 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	char * buf = malloc(PIPE_BUFFER);
 	FILE *f;
 	int ret;
+	int no = 0;
 
-	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.5.txt","r"))) {
-		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
-		ck_assert_int_ne(ret, 0);
-		buf[ret] = '\0';
-		fclose(f);
-	}
-	else
-		ck_abort_msg("Could not open file: %s", strerror(errno));
-
-	parseEventFields (&elist_head->fields,buf);
-
-	ck_assert_ptr_nonnull(elist_head->fields );
-
-	// Common to all events
-
-	ck_assert_str_eq( "common_type", elist_head->fields->name );
-	ck_assert_int_eq( trv_short, elist_head->fields->type );
-	ck_assert_int_eq( 0, elist_head->fields->offset );
-	ck_assert_int_eq( 2, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_flags", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 2, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 3, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 4, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	// specific to sched_switch
-
-	ck_assert_str_eq( "prev_comm", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 8, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
-	ck_assert_int_eq( 24, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 28, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_state", elist_head->fields->name );
-	ck_assert_int_eq( trv_long, elist_head->fields->type );
-	ck_assert_int_eq( 32, elist_head->fields->offset );
-	ck_assert_int_eq( 8, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_comm", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 40, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
-	ck_assert_int_eq( 56, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_prio", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 60, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	// Example format kernel 6.1
-	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.1.txt","r"))) {
-		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
-		ck_assert_int_ne(ret, 0);
-		buf[ret] = '\0';
-		fclose(f);
-	}
-	else
-		ck_abort_msg("Could not open file: %s", strerror(errno));
-
-	parseEventFields (&elist_head->fields,buf);
-
-	ck_assert_ptr_nonnull(elist_head->fields );
-
-	// Common to all events
-
-	ck_assert_str_eq( "common_type", elist_head->fields->name );
-	ck_assert_int_eq( trv_short, elist_head->fields->type );
-	ck_assert_int_eq( 0, elist_head->fields->offset );
-	ck_assert_int_eq( 2, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_flags", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 2, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_preempt_count", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 3, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "common_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 4, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	// Don't know why this is here -- PREEMPT_RT kernel
-	ck_assert_str_eq( "common_preempt_lazy_count", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 8, elist_head->fields->offset );
-	ck_assert_int_eq( 1, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	// specific to sched_switch
-
-	ck_assert_str_eq( "prev_comm", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 12, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );	// Note: this kernel uses signed char!
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
-	ck_assert_int_eq( 28, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_prio", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 32, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_state", elist_head->fields->name );
-	ck_assert_int_eq( trv_long, elist_head->fields->type );
-	ck_assert_int_eq( 40, elist_head->fields->offset );
-	ck_assert_int_eq( 8, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_comm", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 48, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );	// Note: this kernel uses signed char!
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_pid", elist_head->fields->name );
-	ck_assert_int_eq( trv_pid_t, elist_head->fields->type );
-	ck_assert_int_eq( 64, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_prio", elist_head->fields->name );
-	ck_assert_int_eq( trv_int, elist_head->fields->type );
-	ck_assert_int_eq( 68, elist_head->fields->offset );
-	ck_assert_int_eq( 4, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	// Example format kernel 6.1
-	if ((f = fopen ("test/resources/manage_sched_switch_fmt6.5w.txt","r"))) {
+	if ((f = fopen (eventFiles[_i],"r"))) {
 		ret = fread(buf, sizeof(char), PIPE_BUFFER-1, f);
 		ck_assert_int_ne(ret, 0);
 		buf[ret] = '\0';
@@ -467,48 +257,17 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	parseEventFields (&elist_head->fields,buf);
 	free (buf);
 
-	ck_assert_ptr_nonnull(elist_head->fields );
-
-	// Common to all events
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "prev_state", elist_head->fields->name );
-	ck_assert_int_eq( trv_longlong, elist_head->fields->type );
-	ck_assert_int_eq( 32, elist_head->fields->offset );
-	ck_assert_int_eq( 16, elist_head->fields->size );
-	ck_assert_int_eq( 1, elist_head->fields->sign );
-
-	free(elist_head->fields->name);
-	pop((void**)&elist_head->fields);
-
-	ck_assert_str_eq( "next_comm", elist_head->fields->name );
-	ck_assert_int_eq( trv_char, elist_head->fields->type );
-	ck_assert_int_eq( 48, elist_head->fields->offset );
-	ck_assert_int_eq( 8, elist_head->fields->size );
-	ck_assert_int_eq( 0, elist_head->fields->sign );	// Note: this kernel uses signed char!
+	while ((evenFields[_i][no].name)){
+		ck_assert_ptr_nonnull(elist_head->fields );
+		ck_assert_str_eq( evenFields[_i][no].name, elist_head->fields->name );
+		ck_assert_int_eq( evenFields[_i][no].type, elist_head->fields->type );
+		ck_assert_int_eq( evenFields[_i][no].offset, elist_head->fields->offset );
+		ck_assert_int_eq( evenFields[_i][no].size, elist_head->fields->size );
+		ck_assert_int_eq( evenFields[_i][no].sign, elist_head->fields->sign );
+		free(elist_head->fields->name);
+		pop((void**)&elist_head->fields);
+		no++;
+	}
 
 	clearEventConf();
 }
@@ -688,7 +447,7 @@ void orchestrator_manage (Suite * s) {
 #endif
 
 	TCase *tc3 = tcase_create("manage_ftrace_cfg");
-	tcase_add_test(tc3, orchestrator_manage_ftrc_cfgread);
+	tcase_add_loop_test(tc3, orchestrator_manage_ftrc_cfgread, 0, 3);
 	tcase_add_test(tc3, orchestrator_manage_ftrc_offsetparse);
 	suite_add_tcase(s, tc3);
 

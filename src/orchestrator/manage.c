@@ -343,7 +343,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 			// dup!
 			fp = 0;
 			s = strtok_r (NULL, "\n", &s_tok); // read until end of line
-			printDbg(PFX "ftrace event parse - Structure mismatch; unexpected 'print'");
+			printDbg(PFX "ftrace event parse - Structure mismatch; unexpected 'print'\n");
 		}
 		else
 			printDbg(PFX "ftrace event parse - Unknown token %s\n", s);
