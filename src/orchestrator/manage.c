@@ -715,6 +715,9 @@ pickPidAddRuntimeHist(node_t *item){
 /*
  *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
  *
+ *  This function is called at end of NON-DL tasks (e.g. timer-wait) period
+ *  or every time a DL tasks is preempted or yields (-> check if new period )
+ *
  *  Arguments: - item to update
  * 			   - last time stamp
  *
@@ -737,16 +740,18 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				warn("Unable to read schedule debug buffer!");
 
 		if (item->mon.deadline > ts){
-			item->mon.dl_rt += (ts - item->mon.last_ts);
+			if (item->mon.last_ts)
+				item->mon.dl_rt += (ts - item->mon.last_ts);
 			return;
 		}
 
 		// ----------  period ended ----------
 
-		while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
-			item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
-			item->mon.dl_scanfail++;
-		}
+		if (item->mon.last_ts)
+			while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
+				item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
+				item->mon.dl_scanfail++;
+			}
 
 		// just add a period, we rely on periodicity
 		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
@@ -779,13 +784,15 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			pickPidAddRuntimeHist(item);
 		}
 		// reset runtime to new value
-		if (item->mon.last_ts > 0) // compute runtime
+		if (item->mon.last_ts) // compute runtime
 			item->mon.dl_rt = (ts - item->mon.last_ts);
 	}
 	else{
 		// if not DL use estimated value
-		item->mon.dl_rt += (ts - item->mon.last_ts);
-		item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
+		if (item->mon.last_ts)
+			item->mon.dl_rt += (ts - item->mon.last_ts);
+		if (item->mon.cdf_runtime)
+			item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
 		pickPidAddRuntimeHist(item);
 	}
 }
@@ -959,7 +966,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 			else
-				if (item->mon.last_ts > 0) // compute runtime
+				if (item->mon.last_ts) // compute runtime
 					item->mon.dl_rt += (ts - item->mon.last_ts);
 
 			break;
