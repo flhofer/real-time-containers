@@ -4,8 +4,8 @@ perc=$(gcov -no build */*/*.[hc] 2>&1 | tail -n 1 | grep -o '[0-9]*' | head -n1)
 echo Coverage is $perc
 
 # replace text and text shadow
-sed -i '/<text x="698" y="148"/s/>.*</>'${perc}%'</' test/coverage.svg
-sed -i '/<text x="688" y="138"/s/>.*</>'${perc}%'</' test/coverage.svg
+sed -i '/<text x="658" y="148"/s/>.*</>'${perc}%'</' test/coverage.svg
+sed -i '/<text x="648" y="138"/s/>.*</>'${perc}%'</' test/coverage.svg
 
 # update fill color
 if [ $perc -ge 90 ]; then

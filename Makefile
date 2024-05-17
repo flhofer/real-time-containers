@@ -59,6 +59,7 @@ else
 	CFLAGS	+= -O0 -g -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
 	ifdef COVERAGE
 		CFLAGS += -coverage
+		DIRDEPTH=$(shell var=${PWD//[!\/]}; echo ${#var} )
 	endif
 endif
 
@@ -136,7 +137,7 @@ test: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(test
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o check_$@ $< $(TLIBS) $(NUMA_LIBS)
 	
 check:
-	GCOV_PREFIX_STRIP=5 ./check_test
+	./check_test
 	@if [ -n "$(COVERAGE)" ]; then \
 		./test/coverage.sh ; \
 	fi 
