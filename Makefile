@@ -137,7 +137,7 @@ test: test/test.c $(wildcard src/orchestrator/*.c) $(addprefix $(OBJDIR)/,$(test
 	$(CC) $(CFLAGS) $(LDFLAGS) $(addprefix $(OBJDIR)/,$(testbins)) -o check_$@ $< $(TLIBS) $(NUMA_LIBS)
 	
 check:
-	./check_test
+	GCOV_PREFIX_STRIP=$(DIRDEPTH) ./check_test
 	@if [ -n "$(COVERAGE)" ]; then \
 		./test/coverage.sh ; \
 	fi 
