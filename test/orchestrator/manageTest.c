@@ -427,6 +427,56 @@ START_TEST(orchestrator_manage_ftrc_ppswitch)
 }
 END_TEST
 
+/// TEST CASE -> pass a node information and check rt data update
+/// EXPECTED -> data reflects runtime values, even if we miss a scan
+START_TEST(orchestrator_manage_ppconsrt)
+{
+	// Generate Node
+	node_push(&nhead);
+	nhead->pid = getpid();
+	nhead->psig = strdup("PidTest");
+
+	nhead->attr.sched_policy = SCHED_DEADLINE;
+	nhead->mon.deadline = 20000;
+	nhead->mon.last_ts = 2000;
+	nhead->mon.dl_rt = 2000;
+
+	// empty information, test read + update runtime mid-task switch
+	pickPidConsolidateRuntime(nhead, 5000);
+	ck_assert_int_eq(SCHED_OTHER, nhead->attr.sched_policy);
+	ck_assert_int_eq(5000, nhead->mon.dl_rt);
+
+	// deadline passed, new dat
+	nhead->attr.sched_policy = SCHED_DEADLINE;
+	nhead->attr.sched_runtime = 4500;
+	nhead->attr.sched_deadline = 20000;
+	nhead->attr.sched_period = 22000;
+	nhead->mon.last_ts = 22000;
+	pickPidConsolidateRuntime(nhead, 25000);
+	ck_assert_int_eq(-500, nhead->mon.dl_diffmin);	// last period over-ran by 500mu
+	ck_assert_int_eq(3000, nhead->mon.dl_rt);	// runtime so far
+
+	// check missed end task switch
+	nhead->mon.last_ts = 44000;
+	pickPidConsolidateRuntime(nhead, 48500);
+	ck_assert_int_eq(1500, nhead->mon.dl_diffmax);	// last period under-use an by 3000mu (div 2 periods)
+	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+
+	// check missed end task switch
+	nhead->mon.last_ts = 88000; // missed end of 66000 period, dl_rt = 0 as we did not register
+	pickPidConsolidateRuntime(nhead, 92500);
+	ck_assert_int_eq(2250, nhead->mon.dl_diffmax);	// last period under-use an by 3000mu (div 2 periods)
+	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+
+	// check missed start task switch
+	nhead->mon.dl_diffmax = 0;
+	//	nhead->mon.last_ts = 110000;  ->should be
+	pickPidConsolidateRuntime(nhead, 114500);
+	ck_assert_int_eq(0, nhead->mon.dl_diffmax);	// last period was perfect, just missed this start
+	ck_assert_int_eq(4500, nhead->mon.dl_rt);
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -456,6 +506,11 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch);
 	suite_add_tcase(s, tc4);
+
+	TCase *tc5 = tcase_create("manage_ftrace_pickpid_acc");
+	tcase_add_checked_fixture(tc5, orchestrator_manage_setup, orchestrator_manage_teardown);
+	tcase_add_test(tc5, orchestrator_manage_ppconsrt);
+	suite_add_tcase(s, tc5);
 
 	return;
 }

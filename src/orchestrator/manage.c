@@ -743,6 +743,11 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		// ----------  period ended ----------
 
+		while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
+			item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.dl_scanfail++;
+		}
+
 		// just add a period, we rely on periodicity
 		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 
@@ -766,7 +771,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			}
 		}
 
-		item->mon.dl_rt /= count; // if we had multiple periods we missed, divive
+		item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
 		if (item->mon.dl_rt){
 			// statistics about variability
 			item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
