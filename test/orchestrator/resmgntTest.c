@@ -252,6 +252,11 @@ START_TEST(checkPeriod_RTest)
 	item->mon.cdf_runtime = 560;
 	ck_assert_ptr_eq(checkPeriod_R(item, 1), rHead);// exact period match
 
+	ck_assert_ptr_eq(checkPeriod_R(item, 0), rHead);// test include/exclude test
+
+	item->mon.assigned = -1;
+	ck_assert_ptr_eq(checkPeriod_R(item, 0), NULL);// test include/exclude test
+
 	node_pop(&item);
 	free(param->rscs);
 	free(param);

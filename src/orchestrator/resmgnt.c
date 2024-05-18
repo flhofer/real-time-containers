@@ -902,6 +902,7 @@ checkPeriod_R(node_t * item, int include) {
 	int affinity = INT_MIN;
 	resTracer_t * ftrc = NULL;
 
+	// temp update without item
 	if (!(include))
 		if (0 > recomputeCPUTimes_u(item->mon.assigned, item))
 			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
@@ -919,7 +920,8 @@ checkPeriod_R(node_t * item, int include) {
 		ftrc = checkPeriod(&attr, affinity);
 	}
 
-	if (!(include) && 0 <= item->mon.assigned)
+	// reset to with item
+	if (!(include))
 		if (0 > recomputeCPUTimes_u(item->mon.assigned, NULL))
 			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
 
