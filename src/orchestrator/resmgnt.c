@@ -903,7 +903,8 @@ checkPeriod_R(node_t * item, int include) {
 	resTracer_t * ftrc = NULL;
 
 	if (!(include))
-		recomputeCPUTimes_u(item->mon.assigned, item);
+		if (0 > recomputeCPUTimes_u(item->mon.assigned, item))
+			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
 
 	if ((item->param) && (item->param->rscs))
 		affinity = item->param->rscs->affinity;
@@ -918,8 +919,9 @@ checkPeriod_R(node_t * item, int include) {
 		ftrc = checkPeriod(&attr, affinity);
 	}
 
-	if (!(include) && 0 < item->mon.assigned)
-		recomputeCPUTimes_u(item->mon.assigned, NULL);
+	if (!(include) && 0 <= item->mon.assigned)
+		if (0 > recomputeCPUTimes_u(item->mon.assigned, NULL))
+			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
 
 	return ftrc;
 }
@@ -960,8 +962,8 @@ grepTracer() {
 	// loop through all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if ((trc->U < Umax)
-			|| ((ftrc) && (trc->U < ftrc->U * 1.2)
-				&& (ftrc->status & MSK_STATHRMC) && !(trc->status & MSK_STATHRMC))) {
+			|| ((ftrc) && (trc->U < ftrc->U * 1.2) // 20% more slack if we are harmonic
+				&& !(ftrc->status & MSK_STATHRMC) && (trc->status & MSK_STATHRMC))) {
 			Umax = trc->U;
 			ftrc = trc;
 		}

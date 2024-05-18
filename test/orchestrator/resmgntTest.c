@@ -135,6 +135,11 @@ START_TEST(grepTracerTest)
 
 	ck_assert_ptr_eq(grepTracer(), rHead->next);
 
+	rHead->U = 0.8; // test harmonic preference
+	rHead->next->U=0.9;
+	rHead->next->status |= MSK_STATHRMC;
+	ck_assert_ptr_eq(grepTracer(), rHead->next);
+
 	// invert values
 	pop((void**)&rHead);
 	rHead->U = 0.5;
