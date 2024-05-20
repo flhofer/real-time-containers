@@ -1051,9 +1051,11 @@ recomputeCPUTimes(int32_t CPUno) {
  *  duplicateOrRefreshContainer(): duplicate or update container configuration with data based on names
  *  						data from DockerLink
  *
- *  Arguments: - Node with data from docker_link
+ *  We use dlNode to create a new container configuration as dlCont is name-based and has no ID info
+ *
+ *  Arguments: - Node with data from docker_link ( psig = contName, contid = id )
  *  		   - Configuration structure
- *  		   - Pointer to container/image configuration found by search
+ *  		   - Pointer to container/image configuration found by search (using NAME = contid )
  *
  *	Return: - pointer to duplicate or refreshed container
  */
@@ -1065,8 +1067,8 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	// check if the container has already been added with ID, update PIDs
 	for (cont = configuration->cont; (cont); cont=cont->next){
 		if (cont != dlCont && (cont->status & MSK_STATCCRT)
-				&& !strncmp(cont->contid, cont->contid,
-						MIN(strlen(cont->contid), strlen(dlCont->contid)))) // BUG!
+				&& !strncmp(cont->contid, dlNode->contid,
+						MIN(strlen(cont->contid), strlen(dlNode->contid))))
 			break;
 	}
 	if (!cont){
@@ -1078,7 +1080,6 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	}
 
 	{
-		// TODO: refactor - combine with others in findPidParameters
 		// duplicate resources if needed
 		cont->status = dlCont->status;
 		if (!(cont->status & MSK_STATSHAT)){
@@ -1107,11 +1108,9 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		cont->img->conts->cont = cont; // add back reference from Img to Cont
 	}
 
-	// update connected PIDs (if present), they share configuration with the container (= update)
-	// FIXME: Does this overwrite existing CFG if a new duplicate shows up?
+	// update connected PIDs (if present - from RT detect), they share configuration with the container (= update)
 	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
-		//update container link and shared resources
-		// TODO: needs shared rcs flag  YES?!?!?!
+		//update container link and shared resources (flag set at creation)
 		pids->pid->attr = cont->attr;
 		pids->pid->rscs = cont->rscs;
 		pids->pid->img = cont->img;
@@ -1124,7 +1123,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		}
 	}
 
-	// duplicate Original container PIDs (if present)
+	// duplicate Original container PID configurations (if present)
 	for (pids_t * pids = dlCont->pids; (pids) ; pids=pids->next){
 
 		// add link to pid and pid
@@ -1135,7 +1134,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		configuration->pids->status = pids->pid->status;
 
 		{
-			// TODO: Refactor with above and findPidParameters
+
 			if (!(configuration->pids->status & MSK_STATSHAT)){
 				configuration->pids->attr = malloc(sizeof(struct sched_attr));
 				(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
@@ -1195,7 +1194,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		if(img->imgid && node->imgid && !strncmp(img->imgid, node->imgid
 				, MIN(strlen(img->imgid), strlen(node->imgid)))) {
-			// TODO: refactor below with cont!
+
 			conts_t * imgcont = img->conts;
 			printDbg(PIN2 "Image match %s\n", img->imgid);
 			// check for container match
@@ -1327,7 +1326,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 				&& !(curr->cont) && !(curr->img) ) { // only un-asociated items
 				warn("assigning configuration to unrelated PID");
 
-				// TODO: make function - refactor
 				// duplicate pidc and copy all info (can not detect if config is shared!)
 				push((void**)&configuration->pids, sizeof(pidc_t));
 				node->param = configuration->pids;
@@ -1342,7 +1340,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 				node->param->attr = malloc(sizeof(struct sched_attr));
 				(void)memcpy(node->param->attr, curr->attr, sizeof(struct sched_attr));
 
-				// update counter FIXME: needed?
 				configuration->nthreads++;
 				break;
 			}

@@ -495,11 +495,12 @@ START_TEST(findparams_dup_Test)
 	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
 	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
 
-	duplicateOrRefreshContainer(nhead, contparm, contparm->cont);
+	// Test with existing container from ID, - Created through PID
+	contparm->cont->status |= MSK_STATCCRT;
+	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
 
 	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
 	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
-
 }
 END_TEST
 
