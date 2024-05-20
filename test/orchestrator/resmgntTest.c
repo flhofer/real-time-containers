@@ -493,14 +493,18 @@ START_TEST(findparams_dup_Test)
 	duplicateOrRefreshContainer(nhead, contparm, contparm->cont);
 
 	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
+	ck_assert_str_eq(contparm->cont->next->contid, nhead->psig);
 	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
+	ck_assert_ptr_null(contparm->cont->pids->next);
 
 	// Test with existing container from ID, - Created through PID
 	contparm->cont->status |= MSK_STATCCRT;
 	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
 
-	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
-	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
+	ck_assert_str_eq(contparm->cont->contid, nhead->contid); // should not change
+	ck_assert_str_eq(contparm->cont->next->contid, nhead->psig);
+	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid); // no new config
+	ck_assert_ptr_nonnull(contparm->cont->pids->next);
 }
 END_TEST
 
