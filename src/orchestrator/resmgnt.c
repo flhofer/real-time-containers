@@ -1048,7 +1048,7 @@ recomputeCPUTimes(int32_t CPUno) {
 /* ------------------- Node configuration management from here ---------------------------- */
 
 /*
- *  duplicateOrRefreshContainer(): duplicate or container configuration with data based on names
+ *  duplicateOrRefreshContainer(): duplicate or update container configuration with data based on names
  *  						data from DockerLink
  *
  *  Arguments: - Node with data from docker_link
@@ -1066,15 +1066,15 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	for (cont = configuration->cont; (cont); cont=cont->next){
 		if (cont != dlCont && (cont->status & MSK_STATCCRT)
 				&& !strncmp(cont->contid, cont->contid,
-						MIN(strlen(cont->contid), strlen(dlCont->contid))))
+						MIN(strlen(cont->contid), strlen(dlCont->contid)))) // BUG!
 			break;
 	}
 	if (!cont){
-		// not found?
+		// not found? add new configuration
 		push((void**)&configuration->cont, sizeof(cont_t));
 		cont = configuration->cont;
 
-		cont->contid = dlNode->contid; // tranfer to avoid 12 vs 64 len issue
+		cont->contid = strdup(dlNode->contid); // transfer to avoid 12 vs 64 len issue
 	}
 
 	{
@@ -1104,13 +1104,14 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	cont->img = dlCont->img;
 	if (cont->img){
 		push((void**)&cont->img->conts, sizeof(conts_t));
-		cont->img->conts->cont = cont;
+		cont->img->conts->cont = cont; // add back reference from Img to Cont
 	}
 
 	// update connected PIDs (if present), they share configuration with the container (= update)
+	// FIXME: Does this overwrite existing CFG if a new duplicate shows up?
 	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
 		//update container link and shared resources
-		// TODO: needs shared rcs flag?
+		// TODO: needs shared rcs flag  YES?!?!?!
 		pids->pid->attr = cont->attr;
 		pids->pid->rscs = cont->rscs;
 		pids->pid->img = cont->img;
@@ -1119,7 +1120,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		pids->pid->img = cont->img;
 		if (cont->img){
 			push((void**)&cont->img->pids, sizeof(pids_t));
-			cont->img->pids->pid = pids->pid;
+			cont->img->pids->pid = pids->pid;// add back reference from Img to PID
 		}
 	}
 
@@ -1163,16 +1164,16 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		}
 	}
 
-	// update all running nodes
+	// update all running nodes // TODO: necessary?
 	for (node_t * item = nhead; (item); item=item->next)
 		if (item->param && item->param->cont
 				&& item->param->cont == cont)
 			//set update flag
 			item->status &= ~MSK_STATUPD;
 
-	free(dlNode->psig); // clear entry to avoid confusion
-	dlNode->psig = NULL;
-
+//	free(dlNode->psig); // clear entry to avoid confusion -- TODO :  remove
+//	dlNode->psig = NULL;
+//
 	return cont;
 }
 
@@ -1200,14 +1201,14 @@ findPidParameters(node_t* node, containers_t * configuration){
 			// check for container match
 			while (NULL != imgcont) {
 				if (imgcont->cont->contid && node->contid) {
-
+					// Match by ID
 					if  (!strncmp(imgcont->cont->contid, node->contid,
 							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))
 							&& ((node->pid) || !(imgcont->cont->status & MSK_STATCCRT))) {
 						cont = imgcont->cont;
 						break;
 					}
-					// if node pid = 0, psig is the name of the container coming from dockerlink
+					// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
 					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
 						cont = imgcont->cont;
 						cont = duplicateOrRefreshContainer(node, configuration, cont);
@@ -1228,14 +1229,14 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		// check for container match
 		while (NULL != cont) {
-
 			if(cont->contid && node->contid) {
+				// Match by ID
 				if (!strncmp(cont->contid, node->contid,
 						MIN(strlen(cont->contid), strlen(node->contid)))
 						&& ((node->pid) || !(cont->status & MSK_STATCCRT)))
 					break;
 
-				// if node pid = 0, psig is the name of the container coming from dockerlink
+				// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
 				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
 					cont = duplicateOrRefreshContainer(node, configuration, cont);
 					break;
