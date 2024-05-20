@@ -448,35 +448,60 @@ static void findparamsCheck (int imgtest, int conttest) {
 
 	int retv = findPidParameters(nhead , contparm);
 	ck_assert_int_eq(retv, 0);
-	ck_assert(nhead->param);
-	ck_assert(nhead->param->rscs);
-	ck_assert(nhead->param->attr);
+	ck_assert_ptr_nonnull(nhead->param);
+	ck_assert_ptr_nonnull(nhead->param->rscs);
+	ck_assert_ptr_nonnull(nhead->param->attr);
 
 	ck_assert((NULL != nhead->param->img) ^ !(imgtest));
 	if (imgtest){
 		ck_assert(nhead->param->img->imgid);
 		ck_assert_str_eq(nhead->param->img->imgid, nhead->imgid);
-		ck_assert(nhead->param->img->rscs);
-		ck_assert(nhead->param->img->attr);
+		ck_assert_ptr_nonnull(nhead->param->img->rscs);
+		ck_assert_ptr_nonnull(nhead->param->img->attr);
 	}
 
 	if (!(conttest) && !(imgtest)){
-		ck_assert(!nhead->param->cont);
+		ck_assert_ptr_null(nhead->param->cont);
 		// both neg-> nothing to do here. Exit
 		return;
 	}
 
 	// if only container off, container is created. Test for presence
-	ck_assert(nhead->param->cont);
+	ck_assert_ptr_nonnull(nhead->param->cont);
 	// if test, tesst for id only. Rest test anyway as created for img
 	if (conttest) {
 		ck_assert_str_eq(nhead->param->cont->contid, nhead->contid);
-		ck_assert(nhead->param->cont->contid);
+		ck_assert_ptr_nonnull(nhead->param->cont->contid);
 	}
 
-	ck_assert(nhead->param->cont->rscs);
-	ck_assert(nhead->param->cont->attr);
+	ck_assert_ptr_nonnull(nhead->param->cont->rscs);
+	ck_assert_ptr_nonnull(nhead->param->cont->attr);
 }
+
+
+
+/// TEST CASE -> test configuration duplication/update for find
+/// EXPECTED -> duplicates or updates existing image or container p-arameters
+START_TEST(findparams_dup_Test)
+{
+
+	node_push(&nhead);
+	nhead->pid = 0;
+	nhead->psig = strdup("mytestcontainer");
+	nhead->contid = strdup("234432423432343225124126");
+
+	duplicateOrRefreshContainer(nhead, contparm, contparm->cont);
+
+	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
+	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
+
+	duplicateOrRefreshContainer(nhead, contparm, contparm->cont);
+
+	ck_assert_str_eq(contparm->cont->contid, nhead->contid);
+	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
+
+}
+END_TEST
 
 /// TEST CASE -> test configuration find
 /// EXPECTED -> verifies that all parameters are found as expected
@@ -499,7 +524,7 @@ END_TEST
 /// EXPECTED -> verifies that all parameters are found as expected
 START_TEST(findparamsContTest)
 {
-	// some match, 2,3
+	// TODO!!!
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&nhead);
@@ -615,6 +640,7 @@ void orchestrator_resmgnt (Suite * s) {
 
 	TCase *tc5 = tcase_create("resmgnt_findparams");
 	tcase_add_unchecked_fixture(tc5, tc5_setupUnchecked, tc5_teardownUnchecked);
+	tcase_add_test(tc5, findparams_dup_Test);
 	tcase_add_loop_test(tc5, findparamsTest, 0, 4);
 	tcase_add_loop_test(tc5, findparamsContTest, 0, 4);
 	tcase_add_loop_test(tc5, findparamsImageTest, 0, 4);
