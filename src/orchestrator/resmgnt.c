@@ -1068,25 +1068,8 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	for (cont = configuration->cont; (cont); cont=cont->next){
 		if (cont != dlCont && (cont->status & MSK_STATCCRT)
 				&& !strncmp(cont->contid, dlNode->contid,
-						MIN(strlen(cont->contid), strlen(dlNode->contid)))){
-
-			// update connected PIDs (if present - from RT detect), they share configuration with the container (= update)
-			for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
-				//update container link and shared resources (flag set at creation)
-				pids->pid->attr = cont->attr;
-				pids->pid->rscs = cont->rscs;
-				pids->pid->img = cont->img;
-
-				// fill image field
-				pids->pid->img = cont->img;
-				if (cont->img){
-					push((void**)&cont->img->pids, sizeof(pids_t));
-					cont->img->pids->pid = pids->pid;// add back reference from Img to PID
-				}
-			}
-
+						MIN(strlen(cont->contid), strlen(dlNode->contid))))
 			break;
-		}
 	}
 	if (!cont){
 		// not found? add new configuration
@@ -1123,6 +1106,19 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	if (cont->img){
 		push((void**)&cont->img->conts, sizeof(conts_t));
 		cont->img->conts->cont = cont; // add back reference from Img to Cont
+	}
+
+	// update connected PIDs (if present - from RT detect), they share configuration with the container (= update)
+	for (pids_t * pids = cont->pids; (pids) ; pids=pids->next){
+		//update container link and shared resources (flag set at creation)
+		pids->pid->attr = cont->attr;
+		pids->pid->rscs = cont->rscs;
+		pids->pid->img = cont->img;
+
+		if (cont->img){
+			push((void**)&cont->img->pids, sizeof(pids_t));
+			cont->img->pids->pid = pids->pid;// add back reference from Img to PID
+		}
 	}
 
 	// duplicate Original container PID configurations (if present)
