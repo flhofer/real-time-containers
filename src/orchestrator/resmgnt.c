@@ -1129,6 +1129,8 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		push((void**)&configuration->pids, sizeof(pidc_t));
 		cont->pids->pid=configuration->pids;
 
+		configuration->pids->psig = strdup(pids->pid->psig);
+
 		{
 			configuration->pids->status = pids->pid->status;
 
@@ -1163,7 +1165,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 	for (node_t * item = nhead; (item); item=item->next)
 		if (item->param && item->param->cont
 				&& item->param->cont == cont)
-			//set update flag
+			// reset update flag (-> do update)
 			item->status &= ~MSK_STATUPD;
 
 	return cont;
