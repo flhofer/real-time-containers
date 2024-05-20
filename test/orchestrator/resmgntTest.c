@@ -522,6 +522,7 @@ START_TEST(findparams_dup_Test)
 	numa_free_cpumask(contparm->cont->rscs->affinity_mask);
 	free(contparm->cont->rscs);
 
+	// same test for pid resources
 	contparm->cont->next->pids->pid->status = 0;
 	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
 
@@ -532,6 +533,19 @@ START_TEST(findparams_dup_Test)
 	// reset
 	contparm->cont->next->status = MSK_STATSHRC | MSK_STATSHAT;
 	contparm->cont->next->pids->pid->status = MSK_STATSHRC | MSK_STATSHAT;
+	contparm->pids->status = MSK_STATSHRC | MSK_STATSHAT;
+	free (contparm->pids->attr);
+	numa_free_cpumask(contparm->pids->rscs->affinity_mask);
+	free(contparm->pids->rscs);
+
+	// check impage association pid
+	contparm->cont->status |= MSK_STATCCRT;
+	contparm->cont->next->pids->pid->img = contparm->img;
+	nhead->param = contparm->pids; // for update simulation
+	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
+	ck_assert_ptr_eq(contparm->img->pids->pid, contparm->pids);
+	ck_assert_ptr_eq(contparm->img, contparm->pids->img);
+	ck_assert(nhead->status & MSK_STATUPD);
 }
 END_TEST
 
