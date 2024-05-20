@@ -1130,6 +1130,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		cont->pids->pid=configuration->pids;
 
 		configuration->pids->psig = strdup(pids->pid->psig);
+		configuration->pids->cont = cont;
 
 		{
 			configuration->pids->status = pids->pid->status;
