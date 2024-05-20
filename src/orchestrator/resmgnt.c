@@ -1094,7 +1094,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 			(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
 			cont->rscs->affinity_mask = numa_allocate_cpumask();
 			if (dlCont->rscs->affinity_mask){
-				numa_or_cpumask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
+				copy_bitmask_to_bitmask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
 			}
 		}
 		else
@@ -1129,9 +1129,8 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		push((void**)&configuration->pids, sizeof(pidc_t));
 		cont->pids->pid=configuration->pids;
 
-		configuration->pids->status = pids->pid->status;
-
 		{
+			configuration->pids->status = pids->pid->status;
 
 			if (!(configuration->pids->status & MSK_STATSHAT)){
 				configuration->pids->attr = malloc(sizeof(struct sched_attr));
@@ -1140,13 +1139,12 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 			else
 				configuration->pids->attr = pids->pid->attr;
 
-
 			if (!(cont->status & MSK_STATSHRC)){
 				configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
 				(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
 				configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
 				if (pids->pid->rscs->affinity_mask){
-					numa_or_cpumask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
+					copy_bitmask_to_bitmask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
 				}
 			}
 			else
