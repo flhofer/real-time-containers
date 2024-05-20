@@ -542,11 +542,12 @@ START_TEST(findparams_dup_Test)
 	// check impage association pid
 	contparm->cont->status |= MSK_STATCCRT;
 	contparm->cont->next->pids->pid->img = contparm->img;
+	nhead->status |= MSK_STATUPD;
 	nhead->param = contparm->pids; // for update simulation
 	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
 	ck_assert_ptr_eq(contparm->img->pids->pid, contparm->pids);
 	ck_assert_ptr_eq(contparm->img, contparm->pids->img);
-	ck_assert(nhead->status & MSK_STATUPD);
+	ck_assert_int_eq(0, nhead->status & MSK_STATUPD);
 }
 END_TEST
 
