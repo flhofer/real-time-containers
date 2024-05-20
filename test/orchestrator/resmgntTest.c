@@ -496,6 +496,7 @@ START_TEST(findparams_dup_Test)
 	ck_assert_str_eq(contparm->cont->next->contid, nhead->psig);
 	ck_assert_str_ne(contparm->cont->contid, contparm->cont->next->contid);
 	ck_assert_ptr_null(contparm->cont->pids->next);
+	ck_assert_ptr_nonnull(contparm->cont->pids->pid->psig);
 
 	// Test with existing container from ID, - Created through PID
 	contparm->cont->status |= MSK_STATCCRT;
