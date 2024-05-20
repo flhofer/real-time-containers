@@ -499,7 +499,10 @@ START_TEST(findparams_dup_Test)
 
 	// Test with existing container from ID, - Created through PID
 	contparm->cont->status |= MSK_STATCCRT;
+	// also, associate an image
 	contparm->cont->next->img = contparm->img;
+	// and reset shared resources
+	contparm->cont->next->status = 0;
 	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
 
 	ck_assert_str_eq(contparm->cont->contid, nhead->contid); // should not change
@@ -508,6 +511,27 @@ START_TEST(findparams_dup_Test)
 	ck_assert_ptr_nonnull(contparm->cont->pids->next);
 	ck_assert_ptr_eq(contparm->img->pids->pid, contparm->pids->next);
 	ck_assert_ptr_eq(contparm->img, contparm->pids->next->img);
+
+	// check for resource duplication
+	ck_assert_ptr_ne(contparm->cont->attr, contparm->cont->next->attr);
+	ck_assert_ptr_ne(contparm->cont->rscs, contparm->cont->next->rscs);
+	ck_assert_ptr_ne(contparm->cont->rscs->affinity_mask, contparm->cont->next->rscs->affinity_mask);
+	// free again
+	contparm->cont->status |= MSK_STATCCRT;
+	free (contparm->cont->attr);
+	numa_free_cpumask(contparm->cont->rscs->affinity_mask);
+	free(contparm->cont->rscs);
+
+	contparm->cont->next->pids->pid->status = 0;
+	duplicateOrRefreshContainer(nhead, contparm, contparm->cont->next);
+
+	ck_assert_ptr_ne(contparm->cont->pids->pid->attr, contparm->cont->next->pids->pid->attr);
+	ck_assert_ptr_ne(contparm->cont->pids->pid->rscs, contparm->cont->next->pids->pid->rscs);
+	ck_assert_ptr_ne(contparm->cont->pids->pid->rscs->affinity_mask, contparm->cont->next->pids->pid->rscs->affinity_mask);
+
+	// reset
+	contparm->cont->next->status = MSK_STATSHRC | MSK_STATSHAT;
+	contparm->cont->next->pids->pid->status = MSK_STATSHRC | MSK_STATSHAT;
 }
 END_TEST
 
