@@ -1079,27 +1079,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		cont->contid = strdup(dlNode->contid); // transfer to avoid 12 vs 64 len issue
 	}
 
-	{
-		// duplicate resources if needed
-		cont->status = dlCont->status;
-		if (!(cont->status & MSK_STATSHAT)){
-			cont->attr = malloc(sizeof(struct sched_attr));
-			(void)memcpy(cont->attr, dlCont->attr, sizeof(struct sched_attr));
-		}
-		else
-			cont->attr = dlCont->attr;
-
-		if (!(cont->status & MSK_STATSHRC)){
-			cont->rscs = malloc(sizeof(struct sched_rscs));
-			(void)memcpy(cont->rscs, dlCont->rscs, sizeof(struct sched_rscs));
-			cont->rscs->affinity_mask = numa_allocate_cpumask();
-			if (dlCont->rscs->affinity_mask){
-				copy_bitmask_to_bitmask(dlCont->rscs->affinity_mask, cont->rscs->affinity_mask);
-			}
-		}
-		else
-			cont->rscs = dlCont->rscs;
-	}
+	copyResourceConfigC(dlCont, cont);
 
 	// fill image field
 	cont->img = dlCont->img;
@@ -1132,27 +1112,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		configuration->pids->psig = strdup(pids->pid->psig);
 		configuration->pids->cont = cont;
 
-		{
-			configuration->pids->status = pids->pid->status;
-
-			if (!(configuration->pids->status & MSK_STATSHAT)){
-				configuration->pids->attr = malloc(sizeof(struct sched_attr));
-				(void)memcpy(configuration->pids->attr, pids->pid->attr, sizeof(struct sched_attr));
-			}
-			else
-				configuration->pids->attr = pids->pid->attr;
-
-			if (!(cont->status & MSK_STATSHRC)){
-				configuration->pids->rscs = malloc(sizeof(struct sched_rscs));
-				(void)memcpy(configuration->pids->rscs, pids->pid->rscs, sizeof(struct sched_rscs));
-				configuration->pids->rscs->affinity_mask = numa_allocate_cpumask();
-				if (pids->pid->rscs->affinity_mask){
-					copy_bitmask_to_bitmask(pids->pid->rscs->affinity_mask, configuration->pids->rscs->affinity_mask);
-				}
-			}
-			else
-				configuration->pids->rscs = pids->pid->rscs;
-		}
+		copyResourceConfigP(pids->pid ,configuration->pids);
 
 		// fill image field
 		configuration->pids->img = pids->pid->img;

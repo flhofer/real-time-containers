@@ -284,6 +284,8 @@
 	void freePrgSet(prgset_t * prgset);
 	void freeTracer(resTracer_t ** rHead);
 	void freeParm(cont_t * item);
+	void copyResourceConfigC(cont_t * from, cont_t * to);
+	void copyResourceConfigP(pidc_t * from, pidc_t * to);
 
 	// Management of PID nodes - runtime - MUTEX must be acquired
 	// separate, as they set init values and free subs

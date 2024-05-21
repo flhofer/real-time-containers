@@ -150,6 +150,35 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 
 /* -------------------- special for Param structures --------------------- */
 
+// FIXME: tested in duplicateOrRefreshContainer
+void
+copyResourceConfigC(cont_t * from, cont_t * to){
+	// duplicate resources if needed
+	to->status = from->status;
+	if (!(to->status & MSK_STATSHAT)){
+		to->attr = malloc(sizeof(struct sched_attr));
+		(void)memcpy(to->attr, from->attr, sizeof(struct sched_attr));
+	}
+	else
+		to->attr = from->attr;
+
+	if (!(to->status & MSK_STATSHRC)){
+		to->rscs = malloc(sizeof(struct sched_rscs));
+		(void)memcpy(to->rscs, from->rscs, sizeof(struct sched_rscs));
+		to->rscs->affinity_mask = numa_allocate_cpumask();
+		if (from->rscs->affinity_mask){
+			copy_bitmask_to_bitmask(from->rscs->affinity_mask, to->rscs->affinity_mask);
+		}
+	}
+	else
+		to->rscs = from->rscs;
+}
+
+void
+copyResourceConfigP(pidc_t * from, pidc_t * to){
+	copyResourceConfigC((cont_t*)from, (cont_t*) to);
+}
+
 void
 freeParm(cont_t * item){
 
