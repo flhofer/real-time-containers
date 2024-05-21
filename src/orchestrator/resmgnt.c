@@ -1109,7 +1109,8 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		push((void**)&configuration->pids, sizeof(pidc_t));
 		cont->pids->pid=configuration->pids;
 
-		configuration->pids->psig = strdup(pids->pid->psig);
+		if (pids->pid->psig)
+			configuration->pids->psig = strdup(pids->pid->psig);
 		configuration->pids->cont = cont;
 
 		copyResourceConfigP(pids->pid ,configuration->pids);
@@ -1130,6 +1131,34 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 			item->status &= ~MSK_STATUPD;
 
 	return cont;
+}
+
+
+/*
+ *  checkContainerMatch(): checks if a container matches node, by id or name
+ *  				and creates (dulicate...) config if needed
+ *
+ *  Arguments: - pointer to next container configuration
+ *  		   - node to check for matching parameters
+ *
+ *  Return value: 1 if found - updates cont!
+ */
+static int
+checkContainerMatch(cont_t ** cont, node_t * node, containers_t * configuration){
+	if((*cont)->contid && node->contid) {
+		// Match by ID
+		if (!strncmp((*cont)->contid, node->contid,
+				MIN(strlen((*cont)->contid), strlen(node->contid)))
+				&& ((node->pid) || !((*cont)->status & MSK_STATCCRT)))
+			return 1;
+
+		// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
+		else if (!(node->pid) && node->psig && !strcmp((*cont)->contid, node->psig)) {
+			(*cont) = duplicateOrRefreshContainer(node, configuration, (*cont));
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /*
@@ -1155,23 +1184,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 			printDbg(PIN2 "Image match %s\n", img->imgid);
 			// check for container match
 			while (NULL != imgcont) {
-				if (imgcont->cont->contid && node->contid) {
-					// Match by ID
-					if  (!strncmp(imgcont->cont->contid, node->contid,
-							MIN(strlen(imgcont->cont->contid), strlen(node->contid)))
-							&& ((node->pid) || !(imgcont->cont->status & MSK_STATCCRT))) {
-						cont = imgcont->cont;
-						break;
-					}
-					// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
-					else if (!(node->pid) && node->psig && !strcmp(imgcont->cont->contid, node->psig)) {
-						cont = imgcont->cont;
-						cont = duplicateOrRefreshContainer(node, configuration, cont);
-						break;
-					}
-				}
+				cont = imgcont->cont;
+
+				if ((checkContainerMatch(&cont, node, configuration)))
+					break;
 				imgcont = imgcont->next;
 			}
+			cont = NULL;
 			break; // if imgid is found, keep trace in img -> default if nothing else found
 		}
 		img = img->next;
@@ -1184,19 +1203,8 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		// check for container match
 		while (NULL != cont) {
-			if(cont->contid && node->contid) {
-				// Match by ID
-				if (!strncmp(cont->contid, node->contid,
-						MIN(strlen(cont->contid), strlen(node->contid)))
-						&& ((node->pid) || !(cont->status & MSK_STATCCRT)))
-					break;
-
-				// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
-				else if (!(node->pid) && node->psig && !strcmp(cont->contid, node->psig)) {
-					cont = duplicateOrRefreshContainer(node, configuration, cont);
-					break;
-				}
-			}
+			if ((checkContainerMatch(&cont, node, configuration)))
+				break;
 			cont = cont->next;
 		}
 	}
