@@ -1213,6 +1213,9 @@ findPidParameters(node_t* node, containers_t * configuration){
 	if (img || cont) {
 		// read all associated PIDs. Is it there?
 
+		if (!node->pid) // = 0 means psig is a container name from dlink -> can not use it
+			return 0;
+
 		// assign pids from cont or img, depending what is found
 		int useimg = (img && !cont);
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
@@ -1273,8 +1276,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		node->param->cont = cont;
 //		node->param->psig = node->psig;	# do not set psig-> = specific parameters for this process
 		// update counter
-		if (node->pid)
-			configuration->nthreads++;
+		configuration->nthreads++;
 		return 0;
 	}
 	else

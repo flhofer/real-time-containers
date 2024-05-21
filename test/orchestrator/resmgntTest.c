@@ -448,6 +448,10 @@ static void findparamsCheck (int imgtest, int conttest) {
 
 	int retv = findPidParameters(nhead , contparm);
 	ck_assert_int_eq(retv, 0);
+	if (!nhead->pid) {
+		ck_assert_ptr_null(nhead->param);
+		return; // no pid number -> dockerlink. No pid config
+	}
 	ck_assert_ptr_nonnull(nhead->param);
 	ck_assert_ptr_nonnull(nhead->param->rscs);
 	ck_assert_ptr_nonnull(nhead->param->attr);
@@ -591,7 +595,7 @@ END_TEST
 START_TEST(findparamsImageTest)
 {
 	// some match, 2,3
-	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4", "rt-testapp", "p 4"};
 
 	node_push(&nhead);
 	nhead->pid = 1;
