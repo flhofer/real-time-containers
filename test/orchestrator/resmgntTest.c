@@ -304,7 +304,7 @@ START_TEST(recomputeTimesTest)
 	}
 	// check normal
 	ck_assert_int_eq(0, recomputeCPUTimes(0));
-	ck_assert(ftrc->U >= 0.799 && ftrc->U < 0.801);
+	ck_assert_double_eq_tol(ftrc->U, 0.8, 0.001);
 
 	attr.sched_deadline = 250000;
 	attr.sched_period = 250000; // = 20% load
@@ -314,10 +314,16 @@ START_TEST(recomputeTimesTest)
 
 	// check full
 	ck_assert_int_eq(-1, recomputeCPUTimes_u(0, NULL));
-	ck_assert(ftrc->U >= 1);
+	ck_assert_double_ge(ftrc->U, 1);
 
 	ck_assert_int_eq(0, recomputeTimes_u(ftrc, nhead));
+	ck_assert_double_eq_tol(ftrc->U, 0.8, 0.001);
 
+	nhead->next->attr.sched_policy = SCHED_OTHER;
+	nhead->next->mon.cdf_runtime = 998342;
+	nhead->next->mon.cdf_period = 10302100;
+	ck_assert_int_eq(0, recomputeTimes_u(ftrc, nhead));
+	ck_assert_double_eq_tol(ftrc->U, 0.8, 0.001);
 }
 END_TEST
 
@@ -722,12 +728,12 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_test(tc3, checkPeriodTest);
 	tcase_add_test(tc3, checkPeriod_RTest);
 	tcase_add_loop_test(tc3, findPeriodTest, 0, 6);
+	tcase_add_test(tc3, recomputeTimesTest);
 
     suite_add_tcase(s, tc3);
 
-    TCase *tc4 = tcase_create("resmgnt_recomputeTimes");
+    TCase *tc4 = tcase_create("resmgnt_pidupdate");
 	tcase_add_checked_fixture(tc4, setup, teardown);
-	tcase_add_test(tc4, recomputeTimesTest);
 
     suite_add_tcase(s, tc4);
 
