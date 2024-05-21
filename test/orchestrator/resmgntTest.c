@@ -333,6 +333,7 @@ static void tc5_setupUnchecked() {
 	contparm->attr = malloc(sizeof(struct sched_attr)); // allocate
 	contparm->rscs->affinity_mask = NULL;
 
+	// -------------- Container digest ------------------------
 	cont_t * cont;
 	{
 	// container
@@ -360,12 +361,13 @@ static void tc5_setupUnchecked() {
 			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
+			contparm->pids->cont = cont;
 			pidsig++;
 		}
 
 	}
 
-	// image by digest
+	// -------------- Image digest  ------------------------
 	push((void**)&contparm->img, sizeof(img_t));
 	img_t * img = contparm->img;
 	img->imgid= strdup("51c3cc77fcf051c3cc77fcf0");
@@ -373,7 +375,7 @@ static void tc5_setupUnchecked() {
 	img->rscs = contparm->rscs;
 	img->attr = contparm->attr;
 
-	// image by tag
+	// --------------  Tag image ------------------------
 	push((void**)&contparm->img, sizeof(img_t));
 	img = contparm->img;
 	img->imgid= strdup("testimg");
@@ -382,7 +384,7 @@ static void tc5_setupUnchecked() {
 	img->attr = contparm->attr;
 
 	{
-		// add one more container
+		// Image with container by digest
 		push((void**)&contparm->cont, sizeof(cont_t));
 		cont = contparm->cont;
 		cont->contid=strdup("d7408531a3b4d7408531a3b4");
@@ -390,6 +392,7 @@ static void tc5_setupUnchecked() {
 		cont->rscs = img->rscs;
 		cont->attr = img->attr;
 
+		// PID conf in container
 		const char *pids[] = {	"p 4",
 								NULL };
 		const char ** pidsig = pids;
@@ -402,10 +405,32 @@ static void tc5_setupUnchecked() {
 			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
+			contparm->pids->cont = cont;
+			pidsig++;
+		}
+
+		// PID conf only in image
+
+		const char *pids2[] = {	"lea 4",
+										NULL };
+		pidsig = pids2;
+		while (*pidsig) {
+			// new pid
+			push((void**)&contparm->pids, sizeof(pidc_t));
+			push((void**)&img->pids, sizeof(pids_t));
+			img->pids->pid = contparm->pids; // add new empty item -> pid list, container pids list
+			contparm->pids->psig = strdup(*pidsig);
+			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
+			contparm->pids->rscs = cont->rscs;
+			contparm->pids->attr = cont->attr;
+			contparm->pids->img = img;
 			pidsig++;
 		}
 	}
+	push((void**)&img->conts, sizeof(conts_t));
+	img->conts->cont = cont;
 
+	// -------------- Tag container - Tag image ------------------------
 
 	{
 		// add one more container
@@ -428,14 +453,29 @@ static void tc5_setupUnchecked() {
 			contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
 			contparm->pids->rscs = cont->rscs;
 			contparm->pids->attr = cont->attr;
+ 			contparm->pids->cont = cont;
 			pidsig++;
 		}
 	}
-
-	// relate to last container - image by tag
 	push((void**)&img->conts, sizeof(conts_t));
 	img->conts->cont = cont;
 
+
+	// -------------- Unasociated pid ------------------------
+	const char *pids[] = {	"more",
+							"hard 5",
+							"p 4",
+							NULL };
+
+	const char ** pidsig = pids;
+	while (*pidsig) {
+		push((void**)&contparm->pids, sizeof(pidc_t));
+		contparm->pids->psig = strdup(*pidsig);
+		contparm->pids->status = MSK_STATSHAT | MSK_STATSHRC;
+		contparm->pids->rscs = contparm->rscs;
+		contparm->pids->attr = contparm->attr;
+		pidsig++;
+	}
 }
 
 static void tc5_teardownUnchecked() {
@@ -474,8 +514,8 @@ static void findparamsCheck (int imgtest, int conttest) {
 	ck_assert_ptr_nonnull(nhead->param->cont);
 	// if test, tesst for id only. Rest test anyway as created for img
 	if (conttest) {
-		ck_assert_str_eq(nhead->param->cont->contid, nhead->contid);
 		ck_assert_ptr_nonnull(nhead->param->cont->contid);
+		ck_assert_str_eq(nhead->param->cont->contid, nhead->contid);
 	}
 
 	ck_assert_ptr_nonnull(nhead->param->cont->rscs);
@@ -565,8 +605,9 @@ START_TEST(findparamsTest)
 	node_push(&nhead);
 	nhead->pid = 1;
 	nhead->psig = strdup(sigs[_i]);
+	nhead->contid = 2 <= _i ? strdup("32451246542361346") : NULL;
 
-	findparamsCheck( 0, 0 );
+	findparamsCheck( 0, 2 <= _i );
 
 	node_pop(&nhead);
 }
@@ -595,7 +636,7 @@ END_TEST
 START_TEST(findparamsImageTest)
 {
 	// some match, 2,3
-	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4", "rt-testapp", "p 4"};
+	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&nhead);
 	nhead->pid = 1;
@@ -691,7 +732,7 @@ void orchestrator_resmgnt (Suite * s) {
     suite_add_tcase(s, tc4);
 
 	TCase *tc5 = tcase_create("resmgnt_findparams");
-	tcase_add_unchecked_fixture(tc5, tc5_setupUnchecked, tc5_teardownUnchecked);
+	tcase_add_checked_fixture(tc5, tc5_setupUnchecked, tc5_teardownUnchecked);
 	tcase_add_test(tc5, findparams_dup_Test);
 	tcase_add_loop_test(tc5, findparamsTest, 0, 4);
 	tcase_add_loop_test(tc5, findparamsContTest, 0, 4);
