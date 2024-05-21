@@ -1287,14 +1287,10 @@ findPidParameters(node_t* node, containers_t * configuration){
 				node->param = configuration->pids;
 				node->param->psig = strdup(curr->psig);
 
-				node->param->rscs = malloc(sizeof(rscs_t));
-				(void)memcpy(node->param->rscs, curr->rscs, sizeof(rscs_t));
-				if (curr->rscs->affinity_mask){
-					node->param->rscs->affinity_mask = numa_allocate_cpumask();
-					copy_bitmask_to_bitmask(node->param->rscs->affinity_mask, curr->rscs->affinity_mask);
-				}
-				node->param->attr = malloc(sizeof(struct sched_attr));
-				(void)memcpy(node->param->attr, curr->attr, sizeof(struct sched_attr));
+				int oldst = curr->status;
+				curr->status = 0; // TODO: needed?
+				copyResourceConfigP(curr, node->param);
+				curr->status=oldst;
 
 				configuration->nthreads++;
 				break;
