@@ -617,7 +617,7 @@ END_TEST
 /// EXPECTED -> verifies that all parameters are found as expected
 START_TEST(findparamsContTest)
 {
-	// TODO!!!
+
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&nhead);

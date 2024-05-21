@@ -1123,7 +1123,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 		}
 	}
 
-	// update all running nodes // TODO: necessary?
+	// update all running nodes
 	for (node_t * item = nhead; (item); item=item->next)
 		if (item->param && item->param->cont
 				&& item->param->cont == cont)
@@ -1338,10 +1338,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 			curr->rscs = cont->rscs;
 			curr->attr = cont->attr;
 
-			// add new PID configuration to container PIDs
-			push((void**)&cont->pids, sizeof(pids_t));
-			cont->pids->pid = curr;
-
 			node->param = curr;
 			// update counter
 			configuration->nthreads++;
@@ -1351,8 +1347,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 			free(node->psig);
 			node->psig = node->param->psig;
 		}
+		// add new PID configuration to container PIDs
+		push((void**)&cont->pids, sizeof(pids_t));
+		cont->pids->pid = curr;
+
 		// pidconfig curr gets container config cont
-		curr->cont = cont;
+		node->param->cont = cont;
+
 		return 0;
 	}
 
