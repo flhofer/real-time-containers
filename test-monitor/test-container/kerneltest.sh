@@ -82,9 +82,9 @@ fi
 runno=0 # changed_in_run
 
 function update_kernel () {
-	local runver=$1 # runno for this version, 1-10 ver 1, 11-20 ver 2
-	if [ $runver -gt 10 ] ; then 
-		runver=$(( runver - 10 ))
+	local runver=$1 # runno for this version, 1-11 ver 1, 12-22 ver 2
+	if [ $runver -gt 11 ] && [ ! "$ver1" = "$ver2" ] ; then 
+		runver=$(( runver - 11 ))
 		ver=$ver2
 	else
 		ver=$ver1
@@ -129,12 +129,20 @@ function update_kernel () {
         # nosmt+irqaffinity+rcu_nocb_poll+rcu_nocbs+skew_tick+nosoftlockup+tsc=nowatchdog
         sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocb_poll rcu_nocbs=1-3 skew_tick=1 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub
 
-	# last test! if 2 versions are specified, test 11 = test 1 with ver 2
 	elif [ "$runver" -eq 10 ]; then
+        # nosmt+irqaffinity+rcu_nocbs+skew_tick+nosoftlockup+tsc=nowatchdog
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocbs=1-3 skew_tick=1 nosoftlockup tsc=nowatchdog\"/' /etc/default/grub
+
+	elif [ "$runver" -eq 11 ]; then
+        # nosmt+irqaffinity+rcu_nocbs+skew_tick
+        sed -i '/LINUX_DEFAULT/s/splash.*\"/splash nosmt irqaffinity=0,4-$maxcpu rcu_nocbs=1-3 skew_tick=1\"/' /etc/default/grub
+
+	# last test! if 2 versions are specified, test 12 = test 1 with ver 2
+	elif [ "$runver" -eq 12 ]; then
         # default
         sed -i '/LINUX_DEFAULT/s/splash.*\"/splash\"/' /etc/default/grub
 
-		if [ "$ver1" = "$ver2" ] || [ $runno -eq 20 ] ; then
+		if [ "$ver1" = "$ver2" ] || [ $runno -eq 23 ] ; then
 			# versions are the same, end it here, or end of run for ver2
 			crontab -u root -r
 			rm $0
