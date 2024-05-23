@@ -105,7 +105,7 @@ elif [ "$cmd" = "run" ] || [ "$cmd" = "create" ]; then
 
 elif [ "$cmd" = "start" ] || [ "$cmd" = "stop" ] || [ "$cmd" = "rm" ]; then
 # APPLY CMD TO ALL CONTAINERS OF GRP
-	echo "Start containers"
+	echo "${cmd} containers"
 
 	while [ "$2" != "" ]; do
 		# all matching files
