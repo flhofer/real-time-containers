@@ -158,7 +158,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 elif [ "$cmd" = "update" ]; then
 # UPDATE ALL CONTAINERS CONFIG
 	if [ "$2" != "" ]; then
-		sed -i \"/calibration/{s/:.*,/:\ ${2},/}\" rt-app-[0-9]*-*.json
+		sed -i "/calibration/{s/:.*,/:\ ${2},/}" rt-app-[0-9]*-*.json
 	fi
 	for filename in rt-app-tst-*.json; do 
 		filen="${filename%%.*}";
