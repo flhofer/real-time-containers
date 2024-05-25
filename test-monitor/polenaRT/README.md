@@ -173,7 +173,7 @@ In Linux, threads served by the same CPU core are enumerated as separate CPUs. T
 We can disable SMT at runtime by the following.
 
 ```
-echo 0 > /sys/devices/system/cpu/smt/control
+echo off > /sys/devices/system/cpu/smt/control
 ```
 
 The required kernel boot parameter to make this change permanent is `nosmt`. For notes on selective disabling, see System runtime settings, Disable SMT.
@@ -219,7 +219,7 @@ In the remainder of this section, we describe features and steps that may be per
 We can disable SMT at runtime by the following (See kernel boot parameters, "Disable SMT")
 
 ```
-echo 0 > /sys/devices/system/cpu/smt/control
+echo off > /sys/devices/system/cpu/smt/control
 ```
 
 This said we must also note another point. If we aim for a jitter-free real-time partition and thus want to disable the SMT feature on the cores, it does not mean that we have to disable it too on the cores we keep for best-effort and system tasks. 
