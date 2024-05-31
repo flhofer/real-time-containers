@@ -8,3 +8,6 @@ Logger.1.MaxFiles=10
 Logger.1.Type=0x344 ;Set the timestamp to us Tick - 314 with RTC is default
 Logger.1.Backend.0.ClassId=0x00000104 ;writes logger messages in a file
 
+[SysCpuHandling]
+Linux.DisableCpuDmaLatency=1
+
