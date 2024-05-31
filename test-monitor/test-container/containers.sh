@@ -53,8 +53,9 @@ print_help () {
 	stop                    stop container after it has been stopped
 	rm                      remove container
 	test                    test run for container (with parallel execution of 'orchestrator')
-	testsw 	                like test, with additional software to be tested, parameter 1 in quotes ""
-	testcontainer           like test, with additional container to be tested, parameter 1
+	test-sw	                like test, with additional software to be tested, parameter 1 in quotes ""
+	test-container          like test, with additional container to be tested, parameter 1
+	test-script             like test, with additional script to run 'start' before, 'stop' after
 	update                  update container calibration value with the value specified as argument (if given) and copy to containers
 	EOF
 	exit 1
@@ -175,7 +176,7 @@ elif [ "$cmd" = "update" ]; then
 			echo $i; 
 		done 
 	done 
-elif [ "$cmd" = "testsw" ]; then
+elif [ "$cmd" = "test-sw" ]; then
 # RUN TEST COMMAND AND THEN START test		
 
 	# $1 testsw, $2 program to run, save and remove from args
@@ -190,16 +191,16 @@ elif [ "$cmd" = "testsw" ]; then
 
 	# start software and store pid
 	$sw &
-	sleep 2
+	sleep 10
 	SWPID=$(ps h -o pid -C $binary )
 	
 	# run recursive as test
-	$0 test $@
+	$0 quiet test $@
 	
 	# end test software
 	kill -s INT $SWPID
 	sleep 1
-elif [ "$cmd" = "testcontainer" ]; then
+elif [ "$cmd" = "test-container" ]; then
 # RUN TEST CONTAINER AND THEN START test		
 
 	# $1 container, $2 container to run, save and remove from args
@@ -207,18 +208,34 @@ elif [ "$cmd" = "testcontainer" ]; then
 	shift 2
 	
 	docker container start ${cont}
-	sleep 2
+	sleep 10
 	
 	# run recursive as test
-	$0 test $@
+	$0 quiet test $@
 
 	sleep 2
 
 	docker container stop ${cont}
 
 	sleep 1
+elif [ "$cmd" = "test-script" ]; then
+# RUN TEST SCRIPT AND THEN START test
+
+        # $1 container, $2 container to run, save and remove from args
+        script=$2
+        shift 2
+        
+        ./${script} start
+        sleep 10
+        
+        # run recursive as test
+        $0 quiet test $@
+
+        sleep 2
+
+        ./${script} stop 
+
+        sleep 1
 else
 	echo "Unknown command"
 fi
-
-
