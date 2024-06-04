@@ -124,6 +124,11 @@ patchVersion () {
 		*** release ${linux_ver}
 	EOF
 
+	if [ "$pkgbuild" = "deb-pkg" ] && [ $linux_root -eq 6 ] && [ "${linux_base#?.}" -ge 3 ] ; then
+		# from 6.3 on, debuian based systems use new target "bindeb-pkg"
+		pkgbuild="bin${pkgbuild}"
+	fi
+
 	patchSource $linux_ver $linux_root $linux_base $linux_patch
 }
 
