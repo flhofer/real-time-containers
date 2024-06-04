@@ -56,6 +56,12 @@ The following two use cases focus on industrial automation and motion control. T
 
 In this first scenario, we consider the run-time software for CoDeSys' IEC61131-3 compliant Soft-PLCs in bare-metal or virtualized settings. The _Control SL for Linux_ software already runs as a soft real-time solution on bare metal systems. This test will also compare it to the newly introduced virtualization-optimized vPLC _Virtual Control SL_. 
 
+Other thant that, the properties of scheduling change, too. The software in use here is FIFO scheduled and the execution time and release instant are less stringent. The main requirement, instead, is the steady and predictable 'period', generated through timers, and thus not directly bound to the scheduler.
+
+Different than the previous two use cases, here we start using communication hardware and thus will also see the effect of NIC interrupts on the latency and performance. For comparison, we will try the following three scenarios:
+
+<img src="resources/uc3-nic.png" width="700">
+
 *** WIP ***
 
 ### Use case 4 - Simatic vPLC
