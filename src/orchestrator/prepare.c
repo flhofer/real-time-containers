@@ -391,7 +391,7 @@ disableSMTandTest(prgset_t *set) {
 					numa_bitmask_weight(oldmask), numa_bitmask_weight(set->affinity_mask));
 
 			// replace affinity string with new string!
-			if (parse_bitmask(set->affinity_mask, str, sizeof(str))){
+			if (!parse_bitmask(set->affinity_mask, str, sizeof(str))){
 				free(set->affinity);
 				set->affinity = strdup(str);
 			}
