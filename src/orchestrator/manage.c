@@ -223,6 +223,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 	char * s, * s_tok;
 	char * delim = ": \n";
 	int fp = 0;	// field position counter, 0 = off, 1 beign, 2 name, 3...
+	int ret = 0;
 
 	// Scan though buffer and parse contents
 	s = strtok_r (buffer,delim, &s_tok);
@@ -323,8 +324,10 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 						fp = 0;
 						s = strtok_r (NULL, "\n", &s_tok); // read until end of line
 					}
-					else
+					else{
 						printDbg(PFX "ftrace event parse - Structure mismatch; expecting 'field', got '%s'!\n", s);
+						ret = -1;
+					}
 			}
 		else if (!strcmp(s, "name")){
 			// read name
@@ -344,6 +347,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 			fp = 0;
 			s = strtok_r (NULL, "\n", &s_tok); // read until end of line
 			printDbg(PFX "ftrace event parse - Structure mismatch; unexpected 'print'\n");
+			ret = -1;
 		}
 		else
 			printDbg(PFX "ftrace event parse - Unknown token %s\n", s);
@@ -352,7 +356,7 @@ parseEventFields(struct ftrace_ecfg ** ecfg, char * buffer){
 		s = strtok_r (NULL, delim, &s_tok);
 
 	}
-	return -1; // TODO: return value
+	return ret;
 }
 
 /*
@@ -387,10 +391,12 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 
 		{
 			char buf[PIPE_BUFFER];
-			if ( 0 < getkernvar(path, "format", buf, sizeof(buf)))
-				(void)parseEventFields(&elist_head->fields, buf);
+			if ( 0 < getkernvar(path, "format", buf, sizeof(buf))){
+				if (parseEventFields(&elist_head->fields, buf))
+					warn("Unable to parse event format for '%s'", event);
+			}
 			else{
-				warn("Unable to get event format '%s'", event);
+				warn("Unable to get event format for '%s'", event);
 				return -1;
 			}
 		}
