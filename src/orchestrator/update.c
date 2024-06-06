@@ -615,7 +615,7 @@ thread_update (void *arg)
 					if (KV_413 <= prgset->kernelversion) 
 						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 
-					if (sched_setattr(0, &scheda, 0L)) {
+					if (sched_setattr(gettid(), &scheda, 0L)) {
 						warn("Could not set thread policy!");
 						// reset value -- not written in main anymore
 						prgset->policy = SCHED_OTHER;
@@ -628,7 +628,7 @@ thread_update (void *arg)
 				else {
 					struct sched_param schedp  = { prgset->priority };
 
-					if (sched_setscheduler(0, prgset->policy, &schedp)) {
+					if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
 						warn("Could not set thread policy!");
 						// reset value -- not written in main anymore
 						prgset->policy = SCHED_OTHER;
@@ -642,7 +642,7 @@ thread_update (void *arg)
 				// SCHED_OTHER only, BATCH or IDLE are static to 0
 				struct sched_param schedp  = { prgset->priority };
 
-				if (sched_setscheduler(0, prgset->policy, &schedp)) {
+				if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
 					warn("Could not set thread policy!");
 				}
 				else 
