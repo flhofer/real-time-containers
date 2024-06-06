@@ -1213,8 +1213,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 	if (img || cont) {
 		// read all associated PIDs. Is it there?
 
-		if (!node->pid) // = 0 means psig is a container name from dlink -> can not use it
+		if (!node->pid){ // = 0 means psig is a container name from dlink -> can not use it
+			if (cont)
+				node->param = (pidc_t*)cont; // cast!! same size and structure, for access to rscs
+			else
+				node->param = (pidc_t*)img; // cast!! same size and structure, for access to rscs
 			return 0;
+		}
 
 		// assign pids from cont or img, depending what is found
 		int useimg = (img && !cont);

@@ -495,8 +495,8 @@ static void findparamsCheck (int imgtest, int conttest) {
 	int retv = findPidParameters(nhead , contparm);
 	ck_assert_int_eq(retv, 0);
 	if (!nhead->pid) {
-		ck_assert_ptr_null(nhead->param);
-		return; // no pid number -> dockerlink. No pid config
+		ck_assert_ptr_nonnull(nhead->param);
+		return; // no pid number -> dockerlink. No pid config, use container/image in cast
 	}
 	ck_assert_ptr_nonnull(nhead->param);
 	ck_assert_ptr_nonnull(nhead->param->rscs);
