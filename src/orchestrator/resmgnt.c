@@ -226,7 +226,12 @@ setContainerAffinity(node_t * node){
 #endif
 
 		// read old, then compare -> update if different
-		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN)) // TODO: all cpuset.cpus have to be checked -> read from effective
+#ifdef CGROUP2
+		// CGroup V2 uses separate file to check used value, e.g. inherited from parent
+		if (0 > getkernvar(contp, "/cpuset.cpus.effective", affinity_old, CPUSTRLEN))
+#else
+		if (0 > getkernvar(contp, "/cpuset.cpus", affinity_old, CPUSTRLEN))
+#endif
 			warn("Can not read %.12s's CGroups CPU's", node->contid);
 
 		if (strcmp(affinity, affinity_old)){
@@ -238,7 +243,7 @@ setContainerAffinity(node_t * node){
 		}
 	}
 	else{
-		warn("malloc failed!");
+		err_msg("Failed to allocate memory!");
 		ret = -1;
 	}
 
