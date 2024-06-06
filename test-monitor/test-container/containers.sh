@@ -127,7 +127,7 @@ elif [ "$cmd" = "test" ]; then # run a test procedure
 	rm log/orchestrator.txt
 
 	# start orchestrator and wait for termination
-	./orchestrator -df --policy=fifo > log/orchestrator.txt 2>&1 &
+	./orchestrator -df --policy=SCHED_FIFO > log/orchestrator.txt 2>&1 &
 	sleep 10
 	SPID=$(ps h -o pid -C orchestrator)
 
