@@ -428,7 +428,7 @@ scanNew () {
 		case DM_CMDLINE:
 		default: ;// detect by pid signature
 			// cmdline of own thread
-			char pid[SIG_LEN];
+			char pid[SIG_LEN]; // FIXME: THIS IS NOT CORRECT!
 #ifdef BUSYBOX
 			if (prgset->psigscan && strlen (prgset->cont_pidc))
 				(void)sprintf(pid, "-T | grep -E '%s'", prgset->cont_pidc);

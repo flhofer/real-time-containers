@@ -71,7 +71,7 @@ START_TEST(orchestrator_update_getpids)
 	pid_t pid1, pid2, pid3;
 	FILE * fd1, * fd2,  * fd3;
 
-	char pid[SIG_LEN];
+	char pid[SIG_LEN];	// FIXME: this is not correct
 
 	// create pids
 	fd1 = popen2("sleep 4", "r", &pid1);

@@ -1308,7 +1308,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 				node->param->psig = strdup(curr->psig);
 
 				int oldst = curr->status;
-				curr->status = 0; // TODO: needed?
+				curr->status &= ~MSK_STATSHAT & ~MSK_STATSHRC; // Unmask
 				copyResourceConfigP(curr, node->param);
 				curr->status=oldst;
 
