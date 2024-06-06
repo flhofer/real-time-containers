@@ -50,7 +50,7 @@
 	#define CGRP_USER "user.slice/"   // default CGroup slice for user
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
 	#define CGRP_CSET "" 			  // CGroup v1 value, unused
-	#define CGRP_PIDS "cgroup.threads"  // CGv2 file for running pids //TODO: check if use cgropup.threads
+	#define CGRP_PIDS "cgroup.threads"  // CGv2 file for running PIDs
 	#define CGRP_DCKP "docker-"		  // CGv2 docker container prefix
 	#define CGRP_DCKS ".scope"		  // CGv2 docker container suffix
 #else
