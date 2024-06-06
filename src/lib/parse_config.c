@@ -533,18 +533,19 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	set->priority = get_int_value_from(global, "priority", TRUE, set->priority);
 	set->clocksel = get_int_value_from(global, "clock", TRUE, set->clocksel);
 
-	{  // char policy block
+	if (!set->policy)	// already been changed by parameter?
+		{  // char policy block
 
-		char *policy;
-		policy = get_string_value_from(global, "default_policy",
-						   TRUE, "SCHED_OTHER");
-		if (string_to_policy(policy, &set->policy)) {
-			err_msg(PFX "Invalid policy %s", policy);
-			exit(EXIT_INV_CONFIG);
-		}
-		free(policy);
+			char *policy;
+			policy = get_string_value_from(global, "default_policy",
+							   TRUE, "SCHED_OTHER");
+			if (string_to_policy(policy, &set->policy)) {
+				err_msg(PFX "Invalid policy %s", policy);
+				exit(EXIT_INV_CONFIG);
+			}
+			free(policy);
 
-	} // END policy block
+		} // END policy block
 
 	set->quiet = get_bool_value_from(global, "quiet", TRUE, set->quiet);
 	set->affother = get_bool_value_from(global, "affother", TRUE, set->affother);
