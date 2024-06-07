@@ -453,10 +453,10 @@ updatePidCmdline(node_t * node){
 	char * cmdline;
 	char kparam[15]; // pid{x}/cmdline read string
 
-	if ((cmdline = malloc(MAXCMDLINE))) { // alloc memory for strings
+	if ((cmdline = malloc(MAXCMD_LEN))) { // alloc memory for strings
 
 		(void)sprintf(kparam, "%d/cmdline", node->pid);
-		if (0 > getkernvar("/proc/", kparam, cmdline, MAXCMDLINE))
+		if (0 > getkernvar("/proc/", kparam, cmdline, MAXCMD_LEN))
 			// try to read cmdline of pid
 			warn("can not read pid %d's command line: %s", node->pid, strerror(errno));
 

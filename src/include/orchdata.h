@@ -9,8 +9,8 @@
 	#include "rt-sched.h"	// temporary as libc does not include new sched yet
 	#include "error.h"		// error and stderr print functions
 
-	#define SIG_LEN 65			// increased to 64 + null -> standard lenght of container IDs for docker // FIXME: not really used
-	#define MAXCMDLINE 1024		// maximum command line signature buffer
+	#define CMD_LEN 255			// Size for PID command signatures and compositions, stack variables
+	#define MAXCMD_LEN 1024		// maximum command line signature buffer
 	// limited to 32k processors ;)
 	#define SCHED_NODATA 0xFFFF	// constant for no scheduling data
 
