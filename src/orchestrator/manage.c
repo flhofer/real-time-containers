@@ -832,6 +832,9 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
+	if (*frame.common_type & 0xF000)	// Malformed! type ~hundreds
+		return -1;
+
 	(void)pthread_mutex_lock(&dataMutex);
 
 	// find PID = actual running PID
@@ -848,7 +851,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
-	return 0;  // TODO: unused return value
+	return 0;
 }
 
 /*
@@ -864,7 +867,8 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 static int
 pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
-	int ret1 = pickPidCommon(addr, fthread, ts);
+	if(pickPidCommon(addr, fthread, ts)) // malformed common?
+		return -1;
 
 	// use local copy and add addr's address with its offset
 	struct tr_switch frame = tr_switch;
@@ -884,6 +888,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 //						*frame.prev_state & 0x100 ? "+" : "",
 
 				frame.next_comm, *frame.next_pid, *frame.next_prio);
+
+	if ((*frame.prev_comm & 0x80) || (*frame.next_comm & 0x80)) // malformed buffer? valid char?
+		return -1;
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
@@ -980,7 +987,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
-	return ret1 + 0; // TODO: unused return value
+	return 0;
 }
 
 /*
@@ -996,7 +1003,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 static int
 pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
-	int ret1 = pickPidCommon(addr, fthread, ts);
+	if(pickPidCommon(addr, fthread, ts)) // malformed common?
+		return -1;
 
 	// use local copy and add addr's address with its offset
 	struct tr_wakeup frame = tr_wakeup;
@@ -1005,11 +1013,13 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
+	if (*frame.comm & 0x80) // malformed buffer? valid char?
+		return -1;
 
 	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
 				frame.comm, *frame.pid, *frame.prio, *frame.success, *frame.target_cpu);
 
-	return ret1 + 0; // TODO: unused return value
+	return 0;
 }
 
 /*
