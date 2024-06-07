@@ -660,7 +660,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
 				stdl += citem->attr.sched_period;
-				usedtime += citem->attr.sched_runtime; // TODO diff to deadline < runtime?
+				usedtime += citem->attr.sched_runtime;
 			}
 		}
 	}
@@ -1226,18 +1226,6 @@ updateSiblings(node_t * node){
 static int
 get_sched_info(node_t * item)
 {
-#ifdef DEBUG
-	int ret;
-	struct timespec start, end;
-
-	// get clock, use it as a future reference for update time TIMER_ABS*
-	ret = clock_gettime(clocksources[prgset->clocksel], &start);
-	if (0 != ret) {
-		if (EINTR != ret)
-			warn("clock_gettime() failed: %s", strerror(errno));
-	}
-#endif
-
 	char szFileName [_POSIX_PATH_MAX];
 	char szStatBuff [PIPE_BUFFER];
 	char ltag [80]; // just tag of beginning, max length expected ~30
@@ -1369,22 +1357,6 @@ get_sched_info(node_t * item)
 		// Advance with token
 		s = strtok_r (NULL, "\n", &s_ptr);	
 	}
-
-#ifdef DEBUG
-	// get clock, use it as a future reference for update time TIMER_ABS*
-	ret = clock_gettime(clocksources[prgset->clocksel], &end);
-	if (0 != ret) {
-		if (EINTR != ret)
-			warn("clock_gettime() failed: %s", strerror(errno));
-	}
-
-	// compute difference -> time needed
-	end.tv_sec -= start.tv_sec;
-	end.tv_nsec -= start.tv_nsec;
-	tsnorm(&end);
-
-	printDbg(PFX "/proc/x/sched parse time: %ld.%09ld\n", end.tv_sec, end.tv_nsec);
-#endif
 
   return 0;
 }
