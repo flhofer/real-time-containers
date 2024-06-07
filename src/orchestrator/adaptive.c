@@ -258,8 +258,9 @@ ddConts(conts_t * conts, resAlloc_t * parAlloc, struct bitmask * bm){
 		ddPids(conts->cont->pids,rCont, bmPids);
 
 		// update affinity values of container, keep only necessary
-		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
-
+		if (numa_bitmask_weight(bmPids)){
+			numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
+		}
 		// merge mask to image shared, free unused
 		numa_or_cpumask(rCont->item->rscs->affinity_mask, bm);
 		numa_free_cpumask(bmPids);
@@ -299,7 +300,9 @@ adaptPrepareSchedule(){
 		ddPids(img->pids,rImg, bmConts);
 
 		// update affinity values of image, keep only necessary
-		numa_and_cpumask(bmConts,rImg->item->rscs->affinity_mask);
+		if (numa_bitmask_weight(bmConts)){
+					numa_and_cpumask(bmConts,rImg->item->rscs->affinity_mask);
+		}
 		// free unused
 		numa_free_cpumask(bmConts);
 
@@ -322,8 +325,9 @@ adaptPrepareSchedule(){
 		ddPids(cont->pids, rCont, bmPids);
 
 		// update affinity values, keep only necessary
-		numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
-
+		if (numa_bitmask_weight(bmPids)){
+					numa_and_cpumask(bmPids,rCont->item->rscs->affinity_mask);
+		}
 		//push container mask, and merge to image shared
 		numa_free_cpumask(bmPids);
 
