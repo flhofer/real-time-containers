@@ -146,7 +146,7 @@ static void display_help(int error)
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
-		   "         --dry-run=MASK    -\"-\"-  : set mask for dry-run mode (int)\n"
+		   "         --dry-run=MASK    -\"-\"-  : set hex mask for dry-run mode\n"
 	       "-f                         force execution with critical parameters\n"
 	       "-F       --ftrace          start run-time analysis using kernel fTrace\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
@@ -315,7 +315,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'D':
 			set->dryrun = 0xFFFF; break;
 		case OPT_DRYMASK:
-			set->dryrun = atoi(optarg); break;
+			set->dryrun = strtol(optarg, NULL, 16);
+			if ((0 == set->dryrun) && errno)
+				err_exit("Invalid dry-run mask %s", optarg); // TODO: print mask specifications
+			break;
 		case 'f':
 			set->force = 1; break;
 		case 'F':
@@ -503,7 +506,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	if (set->dryrun)
 		display_dryrun(set->dryrun);
 
-	exit(0);
 	// error present? print help message and exit
 	if (error) {
 		display_help(1);
@@ -521,6 +523,7 @@ int main(int argc, char **argv)
 
 	(void)printf("%s V %s\n", PRGNAME, VERSION);
 	(void)printf("This software comes with no warranty. Please be careful\n");
+	fflush(stdout);
 
 	{ // pre-processing and configuration readout
 		prgset_t *tmpset;
