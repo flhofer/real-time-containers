@@ -375,7 +375,7 @@ appendEvent(char * dbgpfx, char * event, void* fun ){
 	(void)sprintf(path, "%sevents/%s/", dbgpfx, event);
 
 	// maybe put it in a function??
-	if (0 < setkernvar(path, "enable", "1", prgset->dryrun)) {
+	if (0 < setkernvar(path, "enable", "1", prgset->dryrun & MSK_DRYNOTRCNG)) {
 		push((void**)&elist_head, sizeof(struct ftrace_elist));
 		{
 			char val[5];
@@ -424,16 +424,19 @@ configureTracers(){
 	if (!dbgpfx)
 		return -1;
 
-	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
+	if (prgset->dryrun & MSK_DRYNOTRCNG)
+		warn("Changing of tracer settings disabled. Expect malfunction!");
+
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun & MSK_DRYNOTRCNG))
 		warn("Can not disable kernel function tracing");
 
-	if ( 0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun))
+	if ( 0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun & MSK_DRYNOTRCNG))
 		warn("Unable to clear kernel fTrace event list");
 
 	{ // get CPU-set in hex for tracing
 		char trcpuset[129]; // enough for 512 CPUs
 		if (!parse_bitmask_hex(prgset->affinity_mask, trcpuset, sizeof(trcpuset))){
-			if (0 > setkernvar(dbgpfx, "tracing_cpumask", trcpuset, prgset->dryrun) )
+			if (0 > setkernvar(dbgpfx, "tracing_cpumask", trcpuset, prgset->dryrun & MSK_DRYNOTRCNG) )
 				warn("Unable to set tracing CPU-set");
 		}
 		else
@@ -449,7 +452,7 @@ configureTracers(){
 	if ((parseEventOffsets()))
 		return -1;
 
-	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun)){
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "1", prgset->dryrun & MSK_DRYNOTRCNG)){
 		warn("Can not enable kernel function tracing");
 		return -1;
 	}
@@ -468,14 +471,14 @@ static void
 resetTracers(){
 	char * dbgpfx = get_debugfileprefix();
 
-	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun))
+	if ( 0 > setkernvar(dbgpfx, "tracing_on", "0", prgset->dryrun & MSK_DRYNOTRCNG))
 		warn("Can not disable kernel function tracing");
 
-	if (0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun))
+	if (0 > setkernvar(dbgpfx, "events/enable", "0", prgset->dryrun & MSK_DRYNOTRCNG))
 		warn("Unable to clear kernel fTrace event list");
 
 	// sched_stat_runtime tracer seems to need sched_stats
-	if (0 > setkernvar(prgset->procfileprefix, "sched_schedstats", "0", prgset->dryrun) )
+	if (0 > setkernvar(prgset->procfileprefix, "sched_schedstats", "0", prgset->dryrun & MSK_DRYNOTRCNG))
 		warn("Unable to deactivate schedstat probe");
 
 	while (elist_head){

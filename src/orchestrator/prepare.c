@@ -179,7 +179,7 @@ getRRslice(prgset_t * set){
 	if (SCHED_RR == set->policy && 0 < set->rrtime) {
 		cont( "Set round robin interval to %dms..", set->rrtime);
 		(void)sprintf(str, "%d", set->rrtime);
-		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun)){
+		if (0 > setkernvar(set->procfileprefix, "sched_rr_timeslice_ms", str, set->dryrun & MSK_DRYNORTSLCE)){
 			warn("RR time slice not changed!");
 		}
 	}
@@ -206,7 +206,7 @@ getRRslice(prgset_t * set){
 static void
 pushCPUirqs (prgset_t *set, int mask_sz){
 	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun && !set->dryrun)
+	if (!set->blindrun && !(set->dryrun & MSK_DRYNOCPUPSH))
 	{
 		char fstring[50]; // cpu string
 		// bring all affinity except 0 off-line
@@ -216,7 +216,7 @@ pushCPUirqs (prgset_t *set, int mask_sz){
 
 				// verify if cpu-freq is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", set->dryrun))
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", 0))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
 				else
 					cont("CPU%d off-line", i);
@@ -229,7 +229,7 @@ pushCPUirqs (prgset_t *set, int mask_sz){
 
 				// verify if CPU-frequency is on performance -> set it
 				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", set->dryrun))
+				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", 0))
 					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
 				else
 					cont("CPU%d online", i);
@@ -333,13 +333,13 @@ disableSMTandTest(prgset_t *set) {
 		// value read OK
 		if (!strcmp(str, "on")) {
 			// SMT - HT is on
-			if (set->dryrun)
+			if (set->dryrun & MSK_DRYNOSMTOFF)
 				cont("Skipping setting SMT.");
 			else {
 				if (!set->force)
 					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
 				else {
-					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", set->dryrun))
+					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", 0))
 						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
 					else{
 						// We just disabled some CPUs -> re-check affinity
@@ -494,13 +494,13 @@ prepareEnvironment(prgset_t *set) {
 								// Governor is set to a different value
 								cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
 
-								if (set->dryrun || set->blindrun)
+								if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun)
 									cont("Skipping setting of governor on CPU%d.", i);
 								else
 									if (!set->force)
 										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
 									else
-										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, set->dryrun))
+										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
 											err_exit_n(errno, "CPU-freq change unsuccessful!");
 										else
 											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
@@ -524,13 +524,13 @@ prepareEnvironment(prgset_t *set) {
 						//
 						cont("Setting for power-QoS now \"%s\" on CPU%d.", str, i);
 
-						if (set->dryrun || set->blindrun)
+						if ((set->dryrun & MSK_DRYNOCPUQOS) || set->blindrun)
 							cont("Skipping setting of power QoS policy on CPU%d.", i);
 						else
 							if (!set->force)
 								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
 							else
-								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", set->dryrun))
+								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", 0))
 									err_exit_n(errno, "CPU-QoS change unsuccessful!");
 								else
 									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
@@ -685,19 +685,22 @@ prepareEnvironment(prgset_t *set) {
 	}
 	getRRslice(set);
 
-	// here.. off-line messes up CSET
-	cont("moving kernel thread affinity");
-	// kernel interrupt threads affinity
-	setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
-	setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
-#ifndef CGROUP2 // controlled by root slice in CGroup v2 - affinity does not work
-	setPidMask("\\B\\[kworker[/][[:digit:]]*", naffinity, cpus);
-#endif
-	setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
-	setPidMask("\\B\\[rcuog[/][[:digit:]]*", naffinity, cpus);
-
+	if (!(set->dryrun & MSK_DRYNOKTRDAF)){
+		// here.. off-line messes up CSET
+		cont("moving kernel thread affinity");
+		// kernel interrupt threads affinity
+		setPidMask("\\B\\[ehca_comp[/][[:digit:]]*", naffinity, cpus);
+		setPidMask("\\B\\[irq[/][[:digit:]]*-[[:alnum:]]*", naffinity, cpus);
+		setPidMask("\\B\\[kcmtpd_ctr[_][[:digit:]]*", naffinity, cpus);
+	#ifndef CGROUP2 // controlled by root slice in CGroup v2 - affinity does not work
+		setPidMask("\\B\\[kworker[/][[:digit:]]*", naffinity, cpus);
+	#endif
+		setPidMask("\\B\\[rcuop[/][[:digit:]]*", naffinity, cpus);
+		setPidMask("\\B\\[rcuos[/][[:digit:]]*", naffinity, cpus);
+		setPidMask("\\B\\[rcuog[/][[:digit:]]*", naffinity, cpus);
+	}
+	else
+		cont("skipping affionity-set for kernel threads");
 
 	if (0 == countCGroupTasks(set))
 		// ksoftirqd -> offline, online again
@@ -751,10 +754,10 @@ prepareEnvironment(prgset_t *set) {
 					continue;
 				}
 
-				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun)){
+				if (0 > setkernvar(fileprefix, "/cpuset.cpus", set->affinity, set->dryrun & MSK_DRYNOAFTY)){
 					warn("Can not set CPU-affinity");
 				}
-				if (0 > setkernvar(fileprefix, "/cpuset.mems", set->numa, set->dryrun)){
+				if (0 > setkernvar(fileprefix, "/cpuset.mems", set->numa, set->dryrun & MSK_DRYNOAFTY)){
 					warn("Can not set NUMA memory nodes");
 				}
 			}
@@ -790,30 +793,30 @@ prepareEnvironment(prgset_t *set) {
 		// ELSE: created, or directory already exists
 #endif
 
-		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun & MSK_DRYNOAFTY)){
 			warn("Can not set CPU-affinity");
 		}
-		if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
+		if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun & MSK_DRYNOAFTY)){
 			warn("Can not set NUMA memory nodes");
 		}
 #ifdef CGROUP2	// redo for user slice
+		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
+		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if ((fileprefix=realloc(fileprefix, strlen(set->cgroupfileprefix)+strlen(CGRP_USER)+1))) {
 			// copy to new prefix
 			fileprefix = strcat(strcpy(fileprefix,set->cgroupfileprefix),CGRP_USER);
 
 
-			if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun)){
+			if (0 > setkernvar(fileprefix, "cpuset.cpus", cpus, set->dryrun & MSK_DRYNOAFTY)){
 				warn("Can not set CPU-affinity");
 			}
-			if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun)){
+			if (0 > setkernvar(fileprefix, "cpuset.mems", set->numa, set->dryrun & MSK_DRYNOAFTY)){
 				warn("Can not set NUMA memory nodes");
 			}
 		}
 #else
-		// CGroup2 -> user slice is also present and would loose all control if Sys/docker use all CPUs
-		// if docker.slice has a root partition, the resources are removed from the root partition, avoiding overlaps - unlike v1
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
-			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun & MSK_DRYNOCGRPRT)){
 				warn("Can not set CPU exclusive partition: %s", strerror(errno));
 			}
 
@@ -854,7 +857,7 @@ prepareEnvironment(prgset_t *set) {
 					// DO STUFF
 
 					// file prefix still pointing to CGRP_SYS
-					if (0 > setkernvar(fileprefix, CGRP_PIDS, pid, set->dryrun)){
+					if (0 > setkernvar(fileprefix, CGRP_PIDS, pid, set->dryrun & MSK_DRYNOTSKPSH)){
 						//printDbg(PFX "Warn! Can not move task %s\n", pid);
 						mtask++;
 					}

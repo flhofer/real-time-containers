@@ -140,7 +140,7 @@ setPidAffinityNode (node_t * node){
 
 		char pid[6]; // PID is 5 digits + \0
 		(void)sprintf(pid, "%d", node->pid);
-		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun)){
+		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun & MSK_DRYNOAFTY)){
 			printDbg(PIN2 "Warn! Can not move task %s\n", pid);
 			ret = -1;
 		}
@@ -236,7 +236,7 @@ setContainerAffinity(node_t * node){
 
 		if (strcmp(affinity, affinity_old)){
 			cont( "reassigning %.12s's CGroups CPU's to %s", node->contid, affinity);
-			if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun)){
+			if (0 > setkernvar(contp, "/cpuset.cpus", affinity, prgset->dryrun & MSK_DRYNOAFTY)){
 				warn("Can not set CPU-affinity : %s", strerror(errno));
 				ret = -1;
 			}
@@ -528,9 +528,9 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 					// remove exclusive!
 #ifdef CGROUP2
-					if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun)){
+					if (0 > setkernvar(contp, "/cpuset.cpus.partition", "member", set->dryrun & MSK_DRYNOCGRPRT)){
 #else
-					if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun)){
+					if (0 > setkernvar(contp, "/cpuset.cpu_exclusive", "0", set->dryrun & MSK_DRYNOCGRPRT)){
 #endif
 						warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 					}
@@ -550,19 +550,19 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 
 	// clear Docker CGroup settings and affinity first..
 #ifdef CGROUP2
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "member", set->dryrun & MSK_DRYNOCGRPRT)){
 #else
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "0", set->dryrun & MSK_DRYNOCGRPRT)){
 #endif
 		warn("Can not remove CPU exclusive partition: %s", strerror(errno));
 	}
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", constr, set->dryrun & MSK_DRYNOAFTY)){
 		// global reset failed, try affinity only
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun & MSK_DRYNOAFTY)){
 			warn("Can not reset CPU-affinity. Expect malfunction!"); // set online cpus as default
 		}
 	}
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", numastr, set->dryrun & MSK_DRYNOAFTY)){
 		warn("Can not set NUMA memory nodes : %s", strerror(errno));
 	}
 
@@ -608,10 +608,10 @@ setContCGroups(prgset_t *set, int setCont) {
 						// copy to new prefix
 						contp = strcat(strcpy(contp,set->cpusetdfileprefix),dir->d_name);
 
-						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun)){
+						if (0 > setkernvar(contp, "/cpuset.cpus", set->affinity, set->dryrun & MSK_DRYNOAFTY)){
 							warn("Can not set CPU-affinity : %s", strerror(errno));
 						}
-						if (0 > setkernvar(contp, "/cpuset.mems", set->numa, set->dryrun)){
+						if (0 > setkernvar(contp, "/cpuset.mems", set->numa, set->dryrun & MSK_DRYNOAFTY)){
 							warn("Can not set NUMA memory nodes : %s", strerror(errno));
 						}
 						count++;
@@ -631,18 +631,18 @@ setContCGroups(prgset_t *set, int setCont) {
 	}
 
 	// Docker CGroup settings and affinity
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus", set->affinity, set->dryrun & MSK_DRYNOAFTY)){
 		warn("Can not set CPU-affinity : %s", strerror(errno));
 	}
-	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", set->numa, set->dryrun)){
+	if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.mems", set->numa, set->dryrun & MSK_DRYNOAFTY)){
 		warn("Can not set NUMA memory nodes : %s", strerror(errno));
 	}
 	if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 #ifdef CGROUP2
 		// FIXME: count = 0, do not set to root as docker will overwrite cpuset on first container start and block task creation
-		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun)){
+		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun & MSK_DRYNOCGRPRT)){
 #else
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun)){
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun & MSK_DRYNOCGRPRT)){
 #endif
 			warn("Can not set CPU exclusive partition: %s", strerror(errno));
 		}
@@ -693,7 +693,7 @@ resetRTthrottle (prgset_t *set, int percent){
 	}
 
 	// set bandwidth and throttle control to value/unconstrained
-	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun)){
+	if (0 > setkernvar(set->procfileprefix, "sched_rt_runtime_us", value, set->dryrun & MSK_DRYNORTTHRT)){
 		warn("Could not write RT-throttle value. Limitations apply.");
 	}
 	else{

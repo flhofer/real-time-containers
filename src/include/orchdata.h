@@ -37,6 +37,21 @@
 	// masks fot the status of a resource (resTracer_t)
 	#define MSK_STATHRMC		0x1	// resource allocation periods are harmonic
 
+	// masks for dry-run selective environment preparation
+	#define MSK_DRYNOSMTOFF		0x1 // Do not disable SMT
+	#define MSK_DRYNOCPUGOV		0x2 // Do not change CPU governor
+	#define MSK_DRYNOCPUQOS		0x2	// DO not change CPU QoS setting -> same as above
+	#define MSK_DRYNORTTHRT		0x4	// Do not change RT throttle
+	#define MSK_DRYNORTSLCE		0x4	// Do not change RT RR slice
+	#define MSK_DRYNOKTRDAF		0x8	// Do not change kernel thread affinity
+
+	#define MSK_DRYNOCGRPRT		0x10	// Do not set Exclusive Control Groups ('root' for CGv2)
+	#define MSK_DRYNOAFTY		0x20	// Do not set affinity of container/task, CPU and memory
+	#define MSK_DRYNOCPUPSH		0x40	// Do not hotplug CPUs for IRQ push
+	#define MSK_DRYNOTSKPSH		0x80	// Do not push tasks into new system group
+
+	#define MSK_DRYNOTRCNG		0x100	// Do not set tracing kernel debug -! expect malfunction
+
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
