@@ -65,6 +65,55 @@ static void inthand (int sig, siginfo_t *siginfo, void *context){
 	main_stop = 1;
 }
 
+/// display_dryrun(): Print dry-run mask settings for debug
+///
+/// Arguments: mask to print
+///
+/// Return value: -
+static void display_dryrun(int msk){
+	printf("INFO: Dry-run active with the following mask: ");
+	if (MSK_DRYALL == msk)
+		printf("SKIPALL");
+	else
+		for (int i = 1; i != 0; i<<=1){
+			switch (msk & i){
+			case MSK_DRYNOSMTOFF:
+				printf("NOSMTOFF"); break;
+			case MSK_DRYNOCPUGOV:
+				printf("NOCPUGOV, ");// break;
+	//		case MSK_DRYNOCPUQOS:
+				printf("NOCPUQOS"); break;
+			case MSK_DRYNORTTHRT:
+				printf("NORTTHRT, "); //break;
+	//		case MSK_DRYNORTSLCE:
+				printf("NORTSLCE"); break;
+			case MSK_DRYNOKTRDAF:
+				printf("NOKTRDAF"); break;
+
+			case MSK_DRYNOCGRPRT:
+				printf("NOCGRPRT"); break;
+			case MSK_DRYNOAFTY:
+				printf("NOAFTY"); break;
+			case MSK_DRYNOCPUPSH:
+				printf("NOCPUPSH"); break;
+			case MSK_DRYNOTSKPSH:
+				printf("NOTSKPSH"); break;
+
+			case MSK_DRYNOTRCNG:
+				printf("NOTRCNG"); break;
+
+			default:
+				msk &= ~i;
+
+			}
+			if (msk & i){
+				msk &= ~i;
+				if (msk)
+					printf(", ");
+			}
+		}
+	printf("\n");
+}
 
 /// display_help(): Print usage information 
 ///
@@ -97,7 +146,7 @@ static void display_help(int error)
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
-		   "         --dry-run=MASK    -\"-\"-  : set hex mask for dry-run mode\n"
+		   "         --dry-run=MASK    -\"-\"-  : set mask for dry-run mode (int)\n"
 	       "-f                         force execution with critical parameters\n"
 	       "-F       --ftrace          start run-time analysis using kernel fTrace\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
@@ -265,7 +314,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->setdflag = 1; break;
 		case 'D':
 			set->dryrun = 0xFFFF; break;
-		case OPT_DFLAG:
+		case OPT_DRYMASK:
 			set->dryrun = atoi(optarg); break;
 		case 'f':
 			set->force = 1; break;
@@ -450,6 +499,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		set->priority = 10;
 	}
 
+	// if dryrun is set, display mask
+	if (set->dryrun)
+		display_dryrun(set->dryrun);
+
+	exit(0);
 	// error present? print help message and exit
 	if (error) {
 		display_help(1);

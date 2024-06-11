@@ -52,6 +52,8 @@
 
 	#define MSK_DRYNOTRCNG		0x100	// Do not set tracing kernel debug -! expect malfunction
 
+	#define MSK_DRYALL			0xFFFF	// Disable ALL
+
 	// default values, changeable via cli
 	#define TSCAN 5000	// scan time of updates
 	#define TWCET 100	// default WCET for deadline scheduling, min-value
