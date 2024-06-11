@@ -85,7 +85,7 @@ static void display_help(int error)
 		   "                           1 = Probabilistic adaptive schedule (default)\n"
 	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 #ifdef DEBUG
-	       "-B       --blind           blind run (do not change environment settings)\n"
+	       "-B       --blind           blind run (ignore environment preparation fails)\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
 	       "                           0 = CLOCK_MONOTONIC (default)\n"
 	       "                           1 = CLOCK_REALTIME\n"
@@ -97,6 +97,7 @@ static void display_help(int error)
            "                           default=%s\n"
 	       "-d       --dflag           set deadline overrun flag for dl PIDs\n"
 		   "-D                         dry run: suppress system changes/test only\n"
+		   "         --dry-run=MASK    -\"-\"-  : set hex mask for dry-run mode\n"
 	       "-f                         force execution with critical parameters\n"
 	       "-F       --ftrace          start run-time analysis using kernel fTrace\n"
 	       "-i INTV  --interval=INTV   base interval of update thread in us default=%d\n"
@@ -141,8 +142,8 @@ static void display_help(int error)
 
 enum option_values {
 	OPT_AFFINITY=1, OPT_ADAPTIVE, OPT_BIND, OPT_BLIND, OPT_CLOCK,
-	 OPT_DFLAG, OPT_FTRACE, OPT_INTERVAL, OPT_LOOPS, OPT_MLOCKALL,
-	OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET, 
+	OPT_DFLAG, OPT_DRYMASK, OPT_FTRACE, OPT_INTERVAL, OPT_LOOPS,
+	OPT_MLOCKALL, OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET,
 	OPT_RRTIME, OPT_RTIME, OPT_SYSTEM, OPT_SMI, OPT_VERBOSE,
 	OPT_WCET, OPT_POLICY, OPT_HELP, OPT_VERSION
 };
@@ -179,6 +180,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"dflag",            no_argument,		NULL, OPT_DFLAG },
+			{"dry-run",          required_argument,	NULL, OPT_DRYMASK },
 			{"ftrace",           no_argument,		NULL, OPT_FTRACE },
 			{"interval",         required_argument, NULL, OPT_INTERVAL },
 			{"loops",            required_argument, NULL, OPT_LOOPS },
@@ -262,7 +264,9 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_DFLAG:
 			set->setdflag = 1; break;
 		case 'D':
-			set->dryrun = 1; break;
+			set->dryrun = 0xFFFF; break;
+		case OPT_DFLAG:
+			set->dryrun = atoi(optarg); break;
 		case 'f':
 			set->force = 1; break;
 		case 'F':
