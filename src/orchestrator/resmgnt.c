@@ -394,7 +394,7 @@ updatePidAttr(node_t * node){
 
 	// try reading
 	if (sched_getattr (node->pid, &attr_act, attr_act.size, 0U) != 0){
-		warn("Unable to read parameters for PID %d: %s", node->pid, strerror(errno));
+		printDbg(PIN "Unable to read parameters for PID %d: %s", node->pid, strerror(errno));
 		return;
 	}
 
