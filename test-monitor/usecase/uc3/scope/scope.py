@@ -70,7 +70,7 @@ class Scope(object):
         rateBase, rateSuff = prs.match(rateStr).groups()
         rate = float(rateBase)
         if 'G' == rateSuff[0]:
-            rate *= 1000000
+            rate *= 1000000000
         if 'M' == rateSuff[0]:
             rate *= 1000000
         if 'K' == rateSuff[0]:
@@ -80,7 +80,7 @@ class Scope(object):
         freqBase, freqSuff = prs.match(freqStr).groups()
         freq = float(freqBase)
         if 'G' == freqSuff[0]:
-            freq *= 1000000
+            freq *= 1000000000
         if 'M' == freqSuff[0]:
             freq *= 1000000
         if 'K' == freqSuff[0]:
@@ -94,15 +94,25 @@ class Scope(object):
         Set cursors and/or measurements to perform on the input signal
         '''
         
-        self._instr.ask("MEAD FRR,C1-C2")   # set delay measurement 
-
+        self._instr.ask("MEAD FRR,C1-C2")   # set delay measurement first rising edge to first rising edge
+        self._instr.ask("MEAD LFF,C1-C2")   # set delay measurement last falling edge to last falling edge
         
     def measureJitter(self):
         ''' 
         Ask the instrument to measure the delay between channels
-        -> use FRR = difference time first rising edge to first rising edge
+        -> use FRR = difference time
         '''
-        del= self._instr.ask("MEAD FRR,C1-C2")
-        
-        return 0
+        #TODO: pass to func
+        delayStr= self._instr.ask("C1-C2 MEAD? FRR").split(",", 1)[1]   # read value
+        prs = re.compile('([0-9.]+)\s*(\w+)')
+        delayBase, delaySuff = prs.match(delayStr).groups()
+        delay = float(delayBase)
+        if 'n' == delaySuff[0]:
+            delay /= 1000000000
+        if 'u' == delaySuff[0]:
+            delay /= 1000000
+        if 'm' == delaySuff[0]:
+            delay /= 1000
+            
+        return delay
     
