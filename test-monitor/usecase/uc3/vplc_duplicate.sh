@@ -4,6 +4,8 @@ VPLCDIR="/var/opt/codesysvcontrol/instances/"
 
 rm -r /tmp/codesyscontrol*
 
+rm ${VPLCDIR}runtime/data/codesyscontrol/*.log
+
 for i in {1..10}; do
 	rm -r ${VPLCDIR}runtime${i}
 	if [ -z "$1" ]; then
