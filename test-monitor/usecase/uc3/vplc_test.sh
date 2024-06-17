@@ -34,32 +34,33 @@ testc () {
 	while [ $i -le $1 ]; do 
 
 		j=1
-		while [ $i -le $i ]; do 
-			./vplc_cont start runtime${j} eth0 $2
+		while [ $j -le $i ]; do 
+			./vplc_cont.sh start runtime${j} eth0 $2
 			: $(( j+=1 ))			# loop increase
 		done
 
 		sleep 900
 
 		j=1
-		while [ $i -le $i ]; do 
-			./vplc_cont stop runtime${j}
+		while [ $j -le $i ]; do 
+			./vplc_cont.sh stop runtime${j}
 			: $(( j+=1 ))			# loop increase
 		done
 
 		mkdir -p log/${1}-${i}
 
 		j=1
-		while [ $i -le $i ]; do 
+		while [ $j -le $i ]; do 
 		
-			for f in /tmp/codesyscontrol${j}/*.logl; do
-				mkdir log/${1}-${i}/Con${j}
+			mkdir log/${1}-${i}/Con${j}
+			for f in /tmp/codesyscontrol${j}/*.log ; do
 				mv ${1} log/${1}-${i}/Con${j}
 			done
 
 			: $(( j+=1 ))			# loop increase
 		done
-		mv log/orchestrator.txt log/${1}-${i})
+		
+		mv log/orchestrator.txt log/${1}-${i}
 
 		: $(( i+=1 ))			# loop increase
 	done
