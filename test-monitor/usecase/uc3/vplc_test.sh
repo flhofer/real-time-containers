@@ -33,6 +33,10 @@ testc () {
 	local j=1
 	while [ $i -le $1 ]; do 
 
+		./orchestrator -df --policy=SCHED_FIFO > log/orchestrator.txt 2>&1 &
+		sleep 10
+		SPID=$(ps h -o pid -C orchestrator)
+
 		j=1
 		while [ $j -le $i ]; do 
 				./vplc_cont.sh start runtime${j} eth0 $2
@@ -63,6 +67,13 @@ testc () {
 
 				: $(( j+=1 ))                   # loop increase
 		done
+
+		# end orchestrator
+		kill -s INT $SPID
+		sleep 1
+
+		# move stuff 
+		chown -R 1000:1000 log/*
 
 		mv log/orchestrator.txt log/${i}
 
