@@ -1222,7 +1222,25 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 	// did we find a container or image match?
 	if (img || cont) {
-		// read all associated PIDs. Is it there?
+		// Image and/or container configuration found
+
+		int useimg = (img && !cont);
+
+		if (useimg) {
+			// if container does note exist yet, add new container from image configuration
+			push((void**)&configuration->cont, sizeof(cont_t));
+			push((void**)&img->conts, sizeof(conts_t));
+			img->conts->cont = configuration->cont;
+			cont = configuration->cont;
+			cont->img = img;
+
+			// assign values
+			// CAN be null, should not happen, i.e. img & !cont
+			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
+			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
+			cont->rscs = img->rscs;
+			cont->attr = img->attr;
+		}
 
 		if (!node->pid){ // = 0 means psig is a container name from dlink -> can not use it
 			if (cont)
@@ -1232,8 +1250,10 @@ findPidParameters(node_t* node, containers_t * configuration){
 			return 0;
 		}
 
+		// PID detection result =>
+		// read all associated PIDs. Is it there?
+
 		// assign pids from cont or img, depending what is found
-		int useimg = (img && !cont);
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
 		// check the first result
@@ -1262,21 +1282,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 		// found? if not, create PID parameter entry
 		printDbg(PIN2 "... parameters not found, creating from PID and assigning container settings\n");
 		push((void**)&configuration->pids, sizeof(pidc_t));
-		if (useimg) {
-			// add new container unmatched container signature
-			push((void**)&configuration->cont, sizeof(cont_t));
-			push((void**)&img->conts, sizeof(conts_t));
-			img->conts->cont = configuration->cont;
-			cont = configuration->cont;
-			cont->img = img;
-
-			// assign values
-			// CAN be null, should not happen, i.e. img & !cont
-			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
-			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
-			cont->rscs = img->rscs;
-			cont->attr = img->attr;
-		}
 
 		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
@@ -1373,5 +1378,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 		return 0;
 	}
 
+	// we end here if DL detects container/image and we have no configuration
 	return -1;
 }
