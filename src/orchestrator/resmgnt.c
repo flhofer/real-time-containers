@@ -1242,11 +1242,31 @@ findPidParameters(node_t* node, containers_t * configuration){
 			cont->attr = img->attr;
 		}
 
+		// Do we have a Docker-Link update or PID information
 		if (!node->pid){ // = 0 means psig is a container name from dlink -> can not use it
-			if (cont)
-				node->param = (pidc_t*)cont; // cast!! same size and structure, for access to rscs
-			else
-				node->param = (pidc_t*)img; // cast!! same size and structure, for access to rscs
+			// container created at runtime and we have Image info from docker -> update with image info
+			if ((img) && (cont->status & MSK_STATCCRT)) {
+
+				int oldstat = cont->status;
+				// free old resources if set
+				if (!(oldstat & MSK_STATSHAT))
+					free(cont->attr);
+				if (!(oldstat & MSK_STATSHRC)){
+					numa_free_cpumask(cont->rscs->affinity_mask);
+					free(cont->rscs);
+				}
+				oldstat &= ~(MSK_STATSHAT | MSK_STATSHRC | MSK_STATCCRT); // Remove shared and created at runtime
+
+				// copy and update
+				copyResourceConfigC((cont_t*)img, cont);
+				cont->status |= oldstat;			// restore status
+				cont->status &= ~MSK_STATCCRT;		// Update, no longer created at runtime
+			}
+
+			// create fake node parameters, used to assign img/cont only
+			node->param = calloc(1, sizeof(pidc_t));
+			node->param->cont = cont;
+			node->param->img = img;
 			return 0;
 		}
 
