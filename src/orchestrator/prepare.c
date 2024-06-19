@@ -408,10 +408,61 @@ disableSMTandTest(prgset_t *set) {
 	return 0;
 }
 
+
 /*
- *  adjustCPUfreq(): set cpufreq minimum frequency to base/max to avoid scaling
+ *  setCPUgovernor(): set CPU governor to performance
  *
  *  Arguments: - structure with parameter set
+ *  		   - CPU number to set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+static int
+setCPUgovernor(prgset_t *set, int cpuno) {
+	char fstring[50]; 	// CPU VFS file string
+	char str[50]; 		// generic string...
+	char poss[50]; 		// possible settings string for governors
+
+	// verify if CPU-freq is on performance -> set it
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", cpuno);
+	if (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
+		// value possible read ok
+		(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
+		if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+			// value act read ok
+			if (strcmp(str, CPUGOVR)) {
+				// Governor is set to a different value
+				cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, cpuno);
+
+				if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun)
+					cont("Skipping setting of governor on CPU%d.", cpuno);
+				else
+					if (!set->force)
+						err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, cpuno);
+					else
+						if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
+							err_exit_n(errno, "CPU-freq change unsuccessful!");
+						else
+							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", cpuno);
+			}
+			else
+				cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", cpuno);
+		}
+		else
+			warn("CPU%d Scaling governor settings not found. Skipping.", cpuno);
+	}
+	else
+		warn("CPU%d available CPU scaling governors not found. Skipping.", cpuno);
+
+	return 0;
+}
+
+/*
+ *  adjustCPUfreq(): set CPUfreq minimum frequency to base/max to avoid scaling
+ *
+ *  Arguments: - structure with parameter set
+ *  		   - CPU number to set
  *
  *  Return value: Error code
  *  				Only valid if the function returns
@@ -453,7 +504,7 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 		warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", cpuno);
 
 	return 0;
-} // end block
+}
 
 /*
  *  prepareEnvironment(): prepares the runtime environment for real-time
@@ -528,43 +579,9 @@ prepareEnvironment(prgset_t *set) {
 
 				char fstring[50]; 	// cpu string
 
-				{ // start block governor
-					char poss[50]; 		// possible settings string for governors
+				(void)setCPUgovernor(set, i);
 
-					// verify if CPU-freq is on performance -> set it
-					(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", i);
-					if (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
-						// value possible read ok
-						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", i);
-						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-							// value act read ok
-							if (strcmp(str, CPUGOVR)) {
-								// Governor is set to a different value
-								cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, i);
-
-								if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun)
-									cont("Skipping setting of governor on CPU%d.", i);
-								else
-									if (!set->force)
-										err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, i);
-									else
-										if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
-											err_exit_n(errno, "CPU-freq change unsuccessful!");
-										else
-											cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", i);
-							}
-							else
-								cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", i);
-						}
-						else
-							warn("CPU%d Scaling governor settings not found. Skipping.", i);
-					}
-					else
-						warn("CPU%d available CPU scaling governors not found. Skipping.", i);
-
-				} // end block
-
-				adjustCPUfreq(set, i);
+				(void)adjustCPUfreq(set, i);
 
 				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
 				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i); // TODO: value dependent on governor>
