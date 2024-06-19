@@ -335,9 +335,10 @@ static void tc5_setupUnchecked() {
 	contparm->nthreads = 0;
 	contparm->num_cont = 0;
 
-	contparm->rscs = malloc(sizeof(struct sched_rscs)); // allocate dummy structures
-	contparm->attr = malloc(sizeof(struct sched_attr)); // allocate
-	contparm->rscs->affinity_mask = NULL;
+	contparm->rscs = calloc(1, sizeof(struct sched_rscs)); // allocate dummy structures
+	contparm->attr = calloc(1, sizeof(struct sched_attr)); // allocate
+	contparm->rscs->affinity = -1;
+	contparm->rscs->affinity_mask = numa_parse_cpustring_all("0");
 
 	// -------------- Container digest ------------------------
 	cont_t * cont;
