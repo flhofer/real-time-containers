@@ -197,7 +197,11 @@ setPidAffinityAssinged (node_t * node){
 static int
 setContainerAffinity(node_t * node){
 
-	if (!(node->param) || !(node->param->rscs->affinity_mask)){
+	if (!(node->param) || !(node->param->cont)){
+		err_msg("Trying to set Container affinity without container configuration!");
+		return -1;
+	}
+	if (!node->param->cont->rscs->affinity_mask) {
 		err_msg("No valid parameters or bit-mask allocation!");
 		return -1;
 	}
@@ -206,11 +210,6 @@ setContainerAffinity(node_t * node){
 	char affinity[CPUSTRLEN];
 	char affinity_old[CPUSTRLEN];
 	int ret = 0;
-
-	if (!node->param->cont){
-		err_msg("Trying to set Container affinity without container configuration!");
-		return -1;
-	}
 
 	if (parse_bitmask (node->param->cont->rscs->affinity_mask, affinity, CPUSTRLEN)){
 			err_msg("Can not determine inverse affinity mask!");
