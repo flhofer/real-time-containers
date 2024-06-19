@@ -426,34 +426,41 @@ setCPUgovernor(prgset_t *set, int cpuno) {
 
 	// verify if CPU-freq is on performance -> set it
 	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", cpuno);
-	if (0 < getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
-		// value possible read ok
-		(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
-		if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-			// value act read ok
-			if (strcmp(str, CPUGOVR)) {
-				// Governor is set to a different value
-				cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, cpuno);
-
-				if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun)
-					cont("Skipping setting of governor on CPU%d.", cpuno);
-				else
-					if (!set->force)
-						err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, cpuno);
-					else
-						if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
-							err_exit_n(errno, "CPU-freq change unsuccessful!");
-						else
-							cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", cpuno);
-			}
-			else
-				cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", cpuno);
-		}
-		else
-			warn("CPU%d Scaling governor settings not found. Skipping.", cpuno);
-	}
-	else
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
 		warn("CPU%d available CPU scaling governors not found. Skipping.", cpuno);
+		return -1;
+	}
+
+	// value possible read ok
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+		warn("CPU%d Scaling governor settings not found. Skipping.", cpuno);
+		return -1;
+	}
+
+	// value act read ok
+	if (!strcmp(str, CPUGOVR)) {
+		cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", cpuno);
+		return 0;
+	}
+
+	// TODO: test if CPUGOVR is in possible list
+
+	// Governor is set to a different value
+	cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, cpuno);
+
+	if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun){
+		cont("Skipping setting of governor on CPU%d.", cpuno);
+		return 0;
+	}
+
+	if (!set->force)
+		err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, cpuno);
+
+	if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
+		err_exit_n(errno, "CPU-freq change unsuccessful!");
+
+	cont("CPU-freq on CPU%d is now set to \"" CPUGOVR "\" as required", cpuno);
 
 	return 0;
 }
