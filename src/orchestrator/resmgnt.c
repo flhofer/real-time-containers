@@ -1273,6 +1273,12 @@ findPidParameters(node_t* node, containers_t * configuration){
 		// PID detection result =>
 		// read all associated PIDs. Is it there?
 
+		if (!img && cont && cont->img){
+			// detected container knows parent -> assign
+			img=cont->img;
+			node->imgid = img->imgid; // TODO imgid is widely unused. why?
+		}
+
 		// assign pids from cont or img, depending what is found
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
