@@ -1232,8 +1232,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 			cont->img = img;
 
 			// assign values
-			// CAN be null, should not happen, i.e. img & !cont
-			cont->contid = node->contid; // keep string, unused will be freed (node_pop)
+			cont->contid = strdup(node->contid);
 			cont->status |= MSK_STATSHAT | MSK_STATSHRC;
 			cont->rscs = img->rscs;
 			cont->attr = img->attr;
