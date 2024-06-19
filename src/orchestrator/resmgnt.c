@@ -212,7 +212,7 @@ setContainerAffinity(node_t * node){
 	int ret = 0;
 
 	if (parse_bitmask (node->param->cont->rscs->affinity_mask, affinity, CPUSTRLEN)){
-			err_msg("Can not determine inverse affinity mask!");
+			err_msg("Can not determine container affinity list!");
 			return -1;
 	}
 
@@ -1245,6 +1245,10 @@ findPidParameters(node_t* node, containers_t * configuration){
 		if (!node->pid){ // = 0 means psig is a container name from dlink -> can not use it
 			// container created at runtime and we have Image info from docker -> update with image info
 			if ((img) && (cont->status & MSK_STATCCRT)) {
+
+				push((void**)&img->conts, sizeof(conts_t));
+				img->conts->cont = cont;
+				cont->img = img;
 
 				int oldstat = cont->status;
 				// free old resources if set
