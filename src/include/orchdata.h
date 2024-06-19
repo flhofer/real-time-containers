@@ -60,9 +60,10 @@
 	#define TDETM 100	// x*TSCAN, time check new containers
 	#define TSCHS 1024  // scheduler minimum granularity
 	#define BUFRD 1024  // buffer read size
-	#define CONT_PPID "containerd-shim"
 	#define CONT_PID  "bash" 	// default program signature (test)
 #ifdef CGROUP2
+	#define CONT_PPID "containerd-shim-runc-v2"
+									  // Default shim for CGroupV2
 	#define CGRP_SYS  "system.slice/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_USER "user.slice/"   // default CGroup slice for user
 	#define CGRP_DCKR "docker.slice/" // default CGroup slice for docker containers as configured in daemon.json (suggested)
@@ -71,6 +72,8 @@
 	#define CGRP_DCKP "docker-"		  // CGv2 docker container prefix
 	#define CGRP_DCKS ".scope"		  // CGv2 docker container suffix
 #else
+	#define CONT_PPID "containerd-shim"
+								// Default shim for CGroupV1
 	#define CGRP_SYS  "system/" // default CGroup slice for system (default for docker daemon)
 	#define CGRP_DCKR "docker/" // default CGroup sub-directory for containers
 	#define CGRP_CSET "cpuset/" // Cgroupv1 tree for cpuset controller
