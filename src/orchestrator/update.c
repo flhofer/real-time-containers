@@ -361,7 +361,8 @@ updateDocker() {
 				setPidResources(linked);
 				(void)pthread_mutex_unlock(&dataMutex);
 
-				linked->param = NULL; // it's a cast. Reset to avoid problems
+				free(linked->param);
+				linked->param = NULL;
 
 				node_pop(&linked);
 				break;
