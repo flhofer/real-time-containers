@@ -1157,9 +1157,7 @@ checkContainerMatch(cont_t ** cont, node_t * node, containers_t * configuration)
 	if((*cont)->contid && node->contid) {
 		// Match by ID
 		if (!strncmp((*cont)->contid, node->contid,
-				MIN(strlen((*cont)->contid), strlen(node->contid)))
-				// id match valid if PID detection or Container has been added at runtime (DL update of CCRT)
-				&& ((node->pid) || ((*cont)->status & MSK_STATCCRT)))
+				MIN(strlen((*cont)->contid), strlen(node->contid))))
 			return 1;
 
 		// Match by name: if node pid = 0, psig is the name of the container coming from docker-link
