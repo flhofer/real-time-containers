@@ -507,6 +507,48 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 }
 
 /*
+ *  setCPUpowerQos(): set the CPU's power management QoS behavior
+ *
+ *  Arguments: - structure with parameter set
+ *  		   - CPU number to set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+static int
+setCPUpowerQos(prgset_t *set, int cpuno) {
+	char fstring[50]; 	// CPU VFS file string
+	char str[50]; 		// generic string...
+
+	// CPU-IDLE settings, added with Kernel 4_15? 4_13?
+	(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", cpuno); // TODO: value dependent on governor>
+	if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+		// value act read ok
+		if (strcmp(str, "n/a")) {
+			//
+			cont("Setting for power-QoS now \"%s\" on CPU%d.", str, cpuno);
+
+			if ((set->dryrun & MSK_DRYNOCPUQOS) || set->blindrun)
+				cont("Skipping setting of power QoS policy on CPU%d.", cpuno);
+			else
+				if (!set->force)
+					err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, cpuno);
+				else
+					if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", 0))
+						err_exit_n(errno, "CPU-QoS change unsuccessful!");
+					else
+						cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", cpuno);
+		}
+		else
+			cont("CPU power-QoS on CPU%d is set to \"" "n/a" "\" as required", cpuno);
+	}
+	else
+		warn("CPU%d power saving configuration not found. Skipping.", cpuno);
+
+	return 0;
+}
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
@@ -540,7 +582,6 @@ prepareEnvironment(prgset_t *set) {
 
 	char cpus[CPUSTRLEN]; // cpu allocation string
 	char constr[CPUSTRLEN]; // cpu online string
-	char str[100]; // generic string...
 
 	info("Starting environment setup");
 
@@ -577,36 +618,11 @@ prepareEnvironment(prgset_t *set) {
 
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
-				char fstring[50]; 	// cpu string
-
 				(void)setCPUgovernor(set, i);
 
 				(void)adjustCPUfreq(set, i);
 
-				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
-				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i); // TODO: value dependent on governor>
-				if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-					// value act read ok
-					if (strcmp(str, "n/a")) {
-						//
-						cont("Setting for power-QoS now \"%s\" on CPU%d.", str, i);
-
-						if ((set->dryrun & MSK_DRYNOCPUQOS) || set->blindrun)
-							cont("Skipping setting of power QoS policy on CPU%d.", i);
-						else
-							if (!set->force)
-								err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, i);
-							else
-								if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", 0))
-									err_exit_n(errno, "CPU-QoS change unsuccessful!");
-								else
-									cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", i);
-					}
-					else
-						cont("CPU power-QoS on CPU%d is set to \"" "n/a" "\" as required", i);
-				}
-				else
-					warn("CPU%d power saving configuration not found. Skipping.", i);
+				(void)setCPUpowerQos(set, i);
 
 				// if smi is set, read SMI counter
 				if(set->smi) {
