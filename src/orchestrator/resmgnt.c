@@ -207,7 +207,12 @@ setContainerAffinity(node_t * node){
 	char affinity_old[CPUSTRLEN];
 	int ret = 0;
 
-	if (parse_bitmask (node->param->rscs->affinity_mask, affinity, CPUSTRLEN)){
+	if (!node->param->cont){
+		err_msg("Trying to set Container affinity without container configuration!");
+		return -1;
+	}
+
+	if (parse_bitmask (node->param->cont->rscs->affinity_mask, affinity, CPUSTRLEN)){
 			err_msg("Can not determine inverse affinity mask!");
 			return -1;
 	}
