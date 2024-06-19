@@ -475,33 +475,38 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 
 	// verify if CPU-freq is on performance -> set it
 	(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", cpuno);
-	if (0 < getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
-		// value possible read ok
-		(void)sprintf(fstring, "cpu%d/cpufreq/scaling_min_freq", cpuno);
-		if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-			// value act read ok
-			if (strcmp(str, basef)) {
-				// Minimum frequency is set to a different value
-				cont("Base frequency set to \"%s\" on CPU%d.", basef, cpuno);
-
-				if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force)
-					cont("Skipping setting of minimum frequency on CPU%d.", cpuno);
-				else
-					if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
-						err_msg_n(errno, "CPU-freq change unsuccessful!");
-					else
-						cont("CPU-freq minimum frequency on CPU%d is now set to %s", cpuno, basef);
-			}
-			else
-				cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", cpuno, str);
-		}
-		else
-			warn("CPU%d frequency minimum settings not found. Skipping.", cpuno);
-	}
-	else
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
 		// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
 		// TODO: use intel_pstate/no_turbo to avoid this
 		warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", cpuno);
+		return -1;
+	}
+
+	// value possible read ok
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_min_freq", cpuno);
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+		warn("CPU%d frequency minimum settings not found. Skipping.", cpuno);
+		return -1;
+	}
+
+	// value act read ok
+	if (!strcmp(str, basef)) {
+		cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", cpuno, str);
+		return 0;
+	}
+
+	// Minimum frequency is set to a different value
+	cont("Base frequency set to \"%s\" on CPU%d.", basef, cpuno);
+
+	if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force){
+		cont("Skipping setting of minimum frequency on CPU%d.", cpuno);
+		return 0;
+	}
+
+	if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
+		err_msg_n(errno, "CPU-freq change unsuccessful!");
+
+	cont("CPU-freq minimum frequency on CPU%d is now set to %s", cpuno, basef);
 
 	return 0;
 }
