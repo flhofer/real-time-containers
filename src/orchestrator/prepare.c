@@ -460,6 +460,12 @@ prepareEnvironment(prgset_t *set) {
 	// and avoid to fall into the CPU numbering trap
 	int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
 
+	/*
+	 * ---------------------------------------------------------*
+	 * Configure online CPUs - Power and performance settings *
+	 * ---------------------------------------------------------*
+	 */
+
 	// get online cpu's
 	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
 		struct bitmask * con = numa_parse_cpustring_all(constr);
@@ -471,11 +477,6 @@ prepareEnvironment(prgset_t *set) {
 
 		for (int i=0;i<mask_sz;i++) {
 
-			/*
-			 * ---------------------------------------------------------*
-			 * Configure online CPUs - HT, SMT and performance settings *
-			 * ---------------------------------------------------------*
-			 */
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
 				char fstring[50]; 	// cpu string
@@ -513,6 +514,41 @@ prepareEnvironment(prgset_t *set) {
 					}
 					else
 						warn("CPU%d available CPU scaling governors not found. Skipping.", i);
+
+				} // end block
+
+				{ // start block cpufreq
+					char basef[50]; 		// possible settings string for governors
+
+					// verify if CPU-freq is on performance -> set it
+					(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", i);
+					if (0 < getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
+						// value possible read ok
+						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_min_freq", i);
+						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+							// value act read ok
+							if (strcmp(str, basef)) {
+								// Minimum frequency is set to a different value
+								cont("Base frequency set to \"%s\" on CPU%d.", basef, i);
+
+								if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force)
+									cont("Skipping setting of minimum frequency on CPU%d.", i);
+								else
+									if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
+										err_msg_n(errno, "CPU-freq change unsuccessful!");
+									else
+										cont("CPU-freq minimum frequency on CPU%d is now set to %s", i, basef);
+							}
+							else
+								cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", i, str);
+						}
+						else
+							warn("CPU%d frequency minimum settings not found. Skipping.", i);
+					}
+					else
+						// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
+						// TODO: use intel_pstate/no_turbo to avoid this
+						warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", i);
 
 				} // end block
 
