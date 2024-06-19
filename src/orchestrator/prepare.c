@@ -409,6 +409,53 @@ disableSMTandTest(prgset_t *set) {
 }
 
 /*
+ *  adjustCPUfreq(): set cpufreq minimum frequency to base/max to avoid scaling
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+static int
+adjustCPUfreq(prgset_t *set, int cpuno) {
+	char fstring[50]; 	// CPU VFS file string
+	char str[50]; 		// generic string...
+	char basef[50]; 	// possible settings string for governors
+
+	// verify if CPU-freq is on performance -> set it
+	(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", cpuno);
+	if (0 < getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
+		// value possible read ok
+		(void)sprintf(fstring, "cpu%d/cpufreq/scaling_min_freq", cpuno);
+		if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+			// value act read ok
+			if (strcmp(str, basef)) {
+				// Minimum frequency is set to a different value
+				cont("Base frequency set to \"%s\" on CPU%d.", basef, cpuno);
+
+				if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force)
+					cont("Skipping setting of minimum frequency on CPU%d.", cpuno);
+				else
+					if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
+						err_msg_n(errno, "CPU-freq change unsuccessful!");
+					else
+						cont("CPU-freq minimum frequency on CPU%d is now set to %s", cpuno, basef);
+			}
+			else
+				cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", cpuno, str);
+		}
+		else
+			warn("CPU%d frequency minimum settings not found. Skipping.", cpuno);
+	}
+	else
+		// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
+		// TODO: use intel_pstate/no_turbo to avoid this
+		warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", cpuno);
+
+	return 0;
+} // end block
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
@@ -517,40 +564,7 @@ prepareEnvironment(prgset_t *set) {
 
 				} // end block
 
-				{ // start block cpufreq
-					char basef[50]; 		// possible settings string for governors
-
-					// verify if CPU-freq is on performance -> set it
-					(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", i);
-					if (0 < getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
-						// value possible read ok
-						(void)sprintf(fstring, "cpu%d/cpufreq/scaling_min_freq", i);
-						if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-							// value act read ok
-							if (strcmp(str, basef)) {
-								// Minimum frequency is set to a different value
-								cont("Base frequency set to \"%s\" on CPU%d.", basef, i);
-
-								if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force)
-									cont("Skipping setting of minimum frequency on CPU%d.", i);
-								else
-									if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
-										err_msg_n(errno, "CPU-freq change unsuccessful!");
-									else
-										cont("CPU-freq minimum frequency on CPU%d is now set to %s", i, basef);
-							}
-							else
-								cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", i, str);
-						}
-						else
-							warn("CPU%d frequency minimum settings not found. Skipping.", i);
-					}
-					else
-						// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
-						// TODO: use intel_pstate/no_turbo to avoid this
-						warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", i);
-
-				} // end block
+				adjustCPUfreq(set, i);
 
 				// CPU-IDLE settings, added with Kernel 4_15? 4_13?
 				(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", i); // TODO: value dependent on governor>
