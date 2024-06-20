@@ -470,7 +470,15 @@ scanNew () {
 	while ((NULL != tail->next) && (NULL != lnew)) { // go as long as both have elements
 
 		// insert a missing item		
-		if (lnew->pid > abs(tail->next->pid)) {
+		if ((lnew->pid > abs(tail->next->pid))
+				|| ((prgset->trackpids) && (tail->next->pid * -1 == lnew->pid))){
+
+			if ((prgset->trackpids) && (abs(tail->next->pid) == lnew->pid)) {
+				printDbg(PIN "... Dropping deactivated PID %d\n", lnew->pid);
+
+				node_pop(&tail->next);
+			}
+
 			printDbg(PIN "... Insert new PID %d\n", lnew->pid);
 
 			node_t * tmp = tail->next;
@@ -482,7 +490,7 @@ scanNew () {
 			lnew = lnew->next;
 			tail = tail->next;
 
-			tail->next=tmp; // trunc of rest of list, point to new item
+			tail->next=tmp; // append rest of list after new item
 		} 
 		else		
 		// delete a dopped item
