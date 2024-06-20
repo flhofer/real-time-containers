@@ -1620,16 +1620,21 @@ dumpStats (){
 			;
 		}
 
-	(void)printf( "\nStatistics on resource usage:\n"
-				    "CPU : AVG (MIN/MAX)\n"
-			        "----------------------------------------------------------------------------------\n");
+	if (SM_PADAPTIVE <= prgset->sched_mode) {
+		(void)printf( "\nStatistics on resource usage:\n"
+						"CPU : AVG (MIN/MAX)\n"
+						"----------------------------------------------------------------------------------\n");
 
-	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		(void)recomputeCPUTimes(trc->affinity);
-		(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
-				trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
+		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+			(void)recomputeCPUTimes(trc->affinity);
+			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
+					trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
+		}
 	}
 
+#ifdef DEBUG
+	(void)checkContParam(contparm);
+#endif
 	fflush(stdout);
 }
 
