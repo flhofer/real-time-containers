@@ -241,6 +241,109 @@ freeContParm(containers_t * contparm){
 	free(contparm);
 }
 
+int
+checkContParam(containers_t * contparm){
+
+	int fix = 0;	// number of links fixed
+	int fil = 0;	// number of inconsistent data (present both sides but differs)
+
+	// check image consistency
+	for (struct img_parm * img = contparm->img; (img); img = img->next){
+
+		for (struct conts_parm * conts = img->conts; (conts); conts = conts->next){
+			if (!conts->cont->img){
+				printDbg(PFX "Unconnected image %.12s w/ container %.12s\n", img->imgid, conts->cont->contid);
+				conts->cont->img = img;
+
+				fix++;
+			}
+			if (conts->cont->img != img){
+				printDbg(PFX "Inconsistent image %.12s x container %.12s\n", img->imgid, conts->cont->contid);
+				fil++;
+			}
+		}
+
+		for (struct pids_parm * pids = img->pids; (pids); pids = pids->next){
+			if (!pids->pid->img){
+				printDbg(PFX "Unconnected image %.12s w/ PID %s\n", img->imgid, pids->pid->psig);
+				pids->pid->img = img;
+				fix++;
+			}
+			if (pids->pid->img != img){
+				printDbg(PFX "Inconsistent image %.12s x PID %s\n", img->imgid, pids->pid->psig);
+				fil++;
+			}
+		}
+	}
+
+	// check container consistency
+	for (struct cont_parm * cont = contparm->cont; (cont); cont = cont->next){
+
+		if (cont->img){
+			struct conts_parm * conts = cont->img->conts;
+			for (; (conts); conts = conts->next)
+				if (cont == conts->cont)
+					break;
+
+			if (!conts){
+				printDbg(PFX "Unconnected container %.12s w/ image %.12s\n", cont->contid, cont->img->imgid);
+				push((void**)&cont->img->conts, sizeof(conts_t));
+				cont->img->conts->cont = cont;
+				fix++;
+			}
+		}
+
+		for (struct pids_parm * pids = cont->pids; (pids); pids = pids->next){
+			if (!pids->pid->cont){
+				printDbg(PFX "Unconnected container %.12s w/ PID %s\n", cont->contid, pids->pid->psig);
+				pids->pid->cont = cont;
+				fix++;
+			}
+			if (pids->pid->cont != cont){
+				printDbg(PFX "Inconsistent container %.12s x PID %s\n", cont->contid, pids->pid->psig);
+				fil++;
+			}
+		}
+	}
+
+	// check PID consistency
+	for (struct pidc_parm * pid = contparm->pids; (pid); pid = pid->next){
+
+		if (pid->img){
+			struct pids_parm * pids = pid->img->pids;
+			for (; (pids); pids = pids->next)
+				if (pid == pids->pid)
+					break;
+
+			if (!pids){
+				printDbg(PFX "Unconnected PID %s w/ image %.12s\n", pid->psig, pid->img->imgid);
+				push((void**)&pid->img->pids, sizeof(pids_t));
+				pid->img->pids->pid = pid;
+				fix++;
+			}
+		}
+
+		if (pid->cont){
+			struct pids_parm * pids = pid->cont->pids;
+			for (; (pids); pids = pids->next)
+				if (pid == pids->pid)
+					break;
+
+			if (!pids){
+				printDbg(PFX "Unconnected PID %s w/ container %.12s\n", pid->psig, pid->cont->contid);
+				push((void**)&pid->cont->pids, sizeof(pids_t));
+				pid->cont->pids->pid = pid;
+				fix++;
+			}
+		}
+	}
+
+	if ((fix) || (fil))
+		printDbg(PFX "WARNING: Fixed %d links and found %d corrupted links!\n", fix, fil);
+
+	return (fil) ? -1 : fix;
+}
+
 void
 freePrgSet(prgset_t * prgset){
 
@@ -281,7 +384,7 @@ freeTracer(resTracer_t ** rHead){
 /* -------------------- default PID values structure ----------------------*/
 
 static const node_t _node_default = { NULL,				// *next, 
-						0, 0, NULL, NULL, NULL,			// PID, status, *psig, *contid, *imgid
+						0, 0, NULL, NULL, NULL,			// PID, status, *psig, *contid, *contid
 						{ 48, SCHED_NODATA }, 			// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							INT64_MAX, 0, INT64_MIN,	//		rt min/avg/max

@@ -301,6 +301,7 @@
 
 	// special - free structure
 	void freeContParm(containers_t * contparm);
+	int	checkContParam(containers_t * contparm);
 	void freePrgSet(prgset_t * prgset);
 	void freeTracer(resTracer_t ** rHead);
 	void freeParm(cont_t * item);
