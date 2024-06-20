@@ -479,15 +479,34 @@ static int
 adjustCPUfreq(prgset_t *set, int cpuno) {
 	char fstring[50]; 	// CPU VFS file string
 	char str[50]; 		// generic string...
-	char basef[50]; 	// possible settings string for governors
+	char setfrq[50]; 	// frequency setting for scaling, either base or max frequency
+	int noturbo = 1;	// is turbo disabled?
+
+	// Disable Turbo if present
+	if (0 < getkernvar(set->cpusystemfileprefix, "intel_pstate/no_turbo", str, sizeof(str))){
+		if ((strcmp(str, "1"))
+			&& (0 > setkernvar(set->cpusystemfileprefix, "intel_pstate/no_turbo", "1", 0))) {
+				err_msg_n(errno, "Disabling Intel Turbo was unsuccessful!");
+				noturbo = 0;
+			}
+	}
+	else
+		printDbg(PIN "Can not read Turbo-state. Is your CPU Turbo-capable? Skipping.");
 
 	// verify if CPU-freq is on performance -> set it
 	(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", cpuno);
-	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, basef, sizeof(basef))){
-		// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
-		// TODO: use intel_pstate/no_turbo to avoid this
-		warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", cpuno);
-		return -1;
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, setfrq, sizeof(setfrq))){
+		if (!noturbo){
+			// NOTE: skip min=max setting if base frequency not set to avoid setting min=max=Turbo => overheating
+			warn("CPU%d frequency scaling base-frequency not found. Is your CPU Turbo-Capable? Skipping.", cpuno);
+			return -1;
+		}
+		(void)sprintf(fstring, "cpu%d/cpufreq/cpuinfo_max_freq", cpuno);
+		if (0 >= getkernvar(set->cpusystemfileprefix, fstring, setfrq, sizeof(setfrq))){
+			warn("CPU%d frequency max-frequency info not found. Skipping.", cpuno);
+			return -1;
+		}
+		noturbo = 2; // no turbo ok but we are using max_freq instead of base-freq
 	}
 
 	// value possible read ok
@@ -498,23 +517,26 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 	}
 
 	// value act read ok
-	if (!strcmp(str, basef)) {
+	if (!strcmp(str, setfrq)) {
 		cont("CPU-freq minimum on CPU%d is set to \"%s\" as required", cpuno, str);
 		return 0;
 	}
 
 	// Minimum frequency is set to a different value
-	cont("Base frequency set to \"%s\" on CPU%d.", basef, cpuno);
+	if (1 == noturbo)
+		cont("Base frequency set to \"%s\" on CPU%d.", setfrq, cpuno);
+	else
+		cont("Max frequency set to \"%s\" on CPU%d.", setfrq, cpuno);
 
 	if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun || !set->force){
 		cont("Skipping setting of minimum frequency on CPU%d.", cpuno);
 		return 0;
 	}
 
-	if (0 > setkernvar(set->cpusystemfileprefix, fstring, basef, 0))
+	if (0 > setkernvar(set->cpusystemfileprefix, fstring, setfrq, 0))
 		err_msg_n(errno, "CPU-freq change unsuccessful!");
 
-	cont("CPU-freq minimum frequency on CPU%d is now set to %s", cpuno, basef);
+	cont("CPU-freq minimum frequency on CPU%d is now set to %s", cpuno, setfrq);
 
 	return 0;
 }
