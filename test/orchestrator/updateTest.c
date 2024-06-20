@@ -193,11 +193,8 @@ START_TEST(orchestrator_update_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
-#ifdef BUSYBOX
-	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
-#else
 	int stat1 = 0;
-#endif
+
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
 
@@ -216,11 +213,8 @@ START_TEST(orchestrator_update_findprocs)
 {	
 	pthread_t thread1;
 	int  iret1;
-#ifdef BUSYBOX
-	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
-#else
 	int stat1 = 0;
-#endif
+
 	pid_t pid1, pid2, pid3;
 	FILE * fd1, * fd2,  * fd3;
 
@@ -274,11 +268,8 @@ START_TEST(orchestrator_update_findprocsall)
 {	
 	pthread_t thread1;
 	int  iret1;
-#ifdef BUSYBOX
-	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
-#else
 	int stat1 = 0;
-#endif
+
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup(""); // all!
@@ -304,7 +295,7 @@ START_TEST(orchestrator_update_rscs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 1; // FIXME: MUSL/BUSYBOX start halfway, when dockerlink child process is dead, hangs indefinitely
+	int stat1 = 0;
 	pid_t pid1, pid2;
 	FILE * fd1, * fd2;
 

@@ -582,7 +582,7 @@ popen2(const char * command, const char * type, pid_t * pid)
 		else
 			close(fd[WRITE]);
 
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE); // use _exit for child process to avoid parent hang!
     }
 
     *pid = child_pid;
