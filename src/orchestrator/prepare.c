@@ -55,6 +55,7 @@
 
 static unsigned long * smi_counter = NULL; // points to the list of SMI-counters
 static int * smi_msr_fd = NULL; // points to file descriptors for MSR readout
+static int cpuretry = 1;		// allow one retry to reset CPUs online
 
 // static capability mask
 #define CAPMASK_ALL		0x7
@@ -564,6 +565,42 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
 }
 
 /*
+ *  resetCPUonline(): return all CPUs online and retry
+ *
+ *  Arguments: - structure with parameter set
+ *  		   - bit-size of CPU-masks
+ *
+ *  Return value: -
+ */
+static void
+resetCPUonline (prgset_t *set, int mask_sz){
+
+	// Limit to present CPUs
+	mask_sz = MIN(get_nprocs_conf(), mask_sz);
+
+	cont("Trying reset CPU's online status");
+	if (!set->blindrun)
+	{
+		if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "on", 0))
+			err_exit_n(errno, "Can not change SMT state!");
+
+		char fstring[50]; // cpu string
+		// bring all back online
+		for (int i=1;i<mask_sz;i++) {
+
+			// verify if CPU-frequency is on performance -> set it
+			(void)sprintf(fstring, "cpu%d/online", i);
+			if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", 0))
+				err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+			else
+				cont("CPU%d online", i);
+		}
+	}
+	else
+		cont("skipped.");
+}
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
@@ -663,7 +700,14 @@ prepareEnvironment(prgset_t *set) {
 			else if (numa_bitmask_isbitset(set->affinity_mask, i)){
 				// disabled processor set to affinity
 				info("Processor %d is set for affinity mask, but is disabled.", i);
-				err_exit("Unavailable CPU set for affinity.");
+
+				if ((set->force) & (cpuretry)){
+					cpuretry--;
+					resetCPUonline(set, mask_sz);
+					return prepareEnvironment(set); // retry
+				}
+				else
+					err_exit("Unavailable CPUset for affinity.");
 			}
 		}
 		numa_free_cpumask(con);
