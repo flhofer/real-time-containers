@@ -1311,7 +1311,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		// add new PID to container PIDs
 		push((void**)&cont->pids, sizeof(pids_t));
-		cont->pids->pid = configuration->pids; // add new empty item -> pid list, container pids list
+		cont->pids->pid = configuration->pids;
 
 		configuration->pids->status |= MSK_STATSHAT | MSK_STATSHRC;
 		configuration->pids->rscs = cont->rscs;
@@ -1319,9 +1319,9 @@ findPidParameters(node_t* node, containers_t * configuration){
 
 		// Assign configuration to node
 		node->param = configuration->pids;
-		node->param->img = img;
+		node->param->img = NULL;		// even if we know it, keep dedicated to this container
 		node->param->cont = cont;
-//		node->param->psig = node->psig;	# do not set psig-> = specific parameters for this process
+		node->param->psig = NULL;		// do not set psig-> = specific parameters for this process
 		// update counter
 		configuration->nthreads++;
 		return 0;
