@@ -646,12 +646,12 @@ START_TEST(findparamsImageTest)
 	static const char *sigs[] = { "test123", "command", "weep 1", "keep 4"};
 
 	node_push(&nhead);
-	nhead->pid = 1;
-	nhead->psig = strdup(sigs[_i]);
-	nhead->contid = (_i >= 2) ? NULL : strdup("d7408531a3b4d7408531a3b4");
+	nhead->pid	  = 1;
+	nhead->psig	  = strdup(sigs[_i]);
+	nhead->contid = strdup("d7408531a3b4d7408531a3b4"); // NULL with image does not exist!
 	nhead->imgid  = (_i % 2) == 1 ? strdup("testimg") : strdup("51c3cc77fcf051c3cc77fcf0");
 
-	findparamsCheck( 1, (_i<2) );
+	findparamsCheck( 0, 1 );
 
 	node_pop(&nhead);
 }
