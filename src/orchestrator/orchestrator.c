@@ -403,9 +403,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			break;
 #endif
 		case OPT_VERSION:
-			(void)printf("Source compilation date: %s\n", __DATE__);
+			(void)printf("\nSource compilation date: %s\n", __DATE__);
 			(void)printf("Copyright (C) 2019-24 Florian Hofer for\n"
-						 "Siemens Corporate Technologies, Inc. & BI-REX Italy\n"
+						 " * Siemens Corporate Technologies, Inc., Berkeley, CA, USA\n"
+						 " * Università degli Studi di Bologna, Italy - Project PRIN 2022 - \"JOULE\"\n"
+						 " * BI-REX - BIg data Research EXcellence competence center, Italy\n\n"
 						 "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>\n"
 						 "This is free software: you are free to change and redistribute it.\n"
 						 "There is NO WARRANTY, to the extent permitted by law.\n");
