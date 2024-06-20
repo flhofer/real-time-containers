@@ -422,7 +422,7 @@ void parse_dockerfileprefix(prgset_t *set)
 {
 	set->cpusetdfileprefix = malloc(strlen(set->cgroupfileprefix) + strlen(CGRP_CSET) + strlen(set->cont_cgrp)+1);
 	if (!set->cpusetdfileprefix)
-		err_exit_n(errno, "Could not allocate memory");
+		err_exit("Could not allocate memory");
 
 	set->cpusetdfileprefix = strcat(strcat (strcpy(set->cpusetdfileprefix, set->cgroupfileprefix), CGRP_CSET), set->cont_cgrp);
 }

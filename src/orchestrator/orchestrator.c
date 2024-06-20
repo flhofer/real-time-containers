@@ -265,10 +265,8 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			// flag -a with no range = all
 			} else {
 				set->affinity = malloc(14);
-				if (!set->affinity){
-					err_msg("could not allocate memory!");
-					exit(EXIT_FAILURE);
-				}
+				if (!set->affinity)
+					err_exit("could not allocate memory!");
 				(void)sprintf(set->affinity, "0-%d", max_cpus-1);
 				set->setaffinity = AFFINITY_USEALL;
 			}

@@ -117,7 +117,7 @@ getContPids (node_t **pidlst)
 							char * hex = dir->d_name;
 #endif
 							if (!(( (*pidlst)->contid = strdup(hex) )))
-								fatal("Could not allocate memory!");
+								err_exit("Could not allocate memory!");
 #ifdef CGROUP2
 							free(name);
 #endif
@@ -137,7 +137,7 @@ getContPids (node_t **pidlst)
 
 				}
 				else // FATAL, exit and execute atExit
-					fatal("Could not allocate memory!");
+					err_exit("Could not allocate memory!");
 			}
 		}
 		closedir(d);
@@ -211,7 +211,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 		// add command string to pidlist
 		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
 			// FATAL, exit and execute atExit
-			fatal("Could not allocate memory!");
+			err_exit("Could not allocate memory!");
 		(*pidlst)->contid = NULL;
 		count++;
     }

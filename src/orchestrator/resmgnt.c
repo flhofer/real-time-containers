@@ -480,7 +480,7 @@ updatePidCmdline(node_t * node){
 			free(cmdline);
 	}
 	else // FATAL, exit and execute atExit
-		err_msg("Could not allocate memory!");
+		err_exit("Could not allocate memory!");
 }
 
 /*
@@ -721,8 +721,8 @@ resetRTthrottle (prgset_t *set, int percent){
  */
 void
 createResTracer(){
-	if (rHead || !(prgset->affinity_mask))	// does it exist? is the mast set?
-		fatal("Memory management inconsistency: resTracer already present!");
+	if (rHead || !(prgset->affinity_mask))	// does it exist? is the mask set?
+		err_exit("Memory management inconsistency: resTracer already present!");
 
 	// backwards, cpu0 on top, we assume affinity_mask ok
 	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
