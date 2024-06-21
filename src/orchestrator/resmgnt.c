@@ -307,8 +307,8 @@ setPidResources_u(node_t * node) {
 			node->status |= !(setPidAffinityNode(node)) & MSK_STATUPD;
 	}
 
-	if (0 == node->pid){ // PID 0 = detected containers
-		// TODO: cleanup
+	if (0 == node->pid){
+		// PID 0 = detected containers, docker-link call
 		return;
 	}
 
@@ -583,7 +583,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 void
 setContCGroups(prgset_t *set, int setCont) {
 
-	int count = 0;		// FIXME: temp counter, see below to avoid docker reset and block of container start
+	int count = 0;		// counter, see below, to avoid docker reset and block of container start
 	if (setCont){
 		DIR *d;
 		struct dirent *dir;
@@ -643,7 +643,7 @@ setContCGroups(prgset_t *set, int setCont) {
 	}
 	if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 #ifdef CGROUP2
-		// FIXME: count = 0, do not set to root as docker will overwrite cpuset on first container start and block task creation
+		// count = 0, do not set to root as docker will overwrite CPUset on first container start and block task creation
 		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun & MSK_DRYNOCGRPRT)){
 #else
 		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun & MSK_DRYNOCGRPRT)){

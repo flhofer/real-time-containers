@@ -552,7 +552,8 @@ scanNew () {
 		printDbg("%d ", curr->pid);
 	printDbg("\n");
 #endif
-	// FIXME: docker bypass problem of cpuset.cpu reset if no container is set
+
+	// docker bypass problem of cpuset.cpu reset if no container is set
 	if ((!nhead) && (!wasEmpty))
 		resetContCGroups(prgset, prgset->affinity, prgset->numa);
 
