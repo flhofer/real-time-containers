@@ -40,15 +40,15 @@
 	// masks for dry-run selective environment preparation
 	#define MSK_DRYNOSMTOFF		0x1 // Do not disable SMT
 	#define MSK_DRYNOCPUGOV		0x2 // Do not change CPU governor
-	#define MSK_DRYNOCPUQOS		0x2	// DO not change CPU QoS setting -> same as above
+	#define MSK_DRYNOCPUQOS		0x2	// Do not change CPU QoS setting -> same as above
 	#define MSK_DRYNORTTHRT		0x4	// Do not change RT throttle
 	#define MSK_DRYNORTSLCE		0x4	// Do not change RT RR slice
 	#define MSK_DRYNOKTRDAF		0x8	// Do not change kernel thread affinity
 
-	#define MSK_DRYNOCGRPRT		0x10	// Do not set Exclusive Control Groups ('root' for CGv2)
+	#define MSK_DRYNOCGRPRT		0x10	// Do not set Exclusive Control Groups ('root' for CGroup v2)
 	#define MSK_DRYNOAFTY		0x20	// Do not set affinity of container/task, CPU and memory
-	#define MSK_DRYNOCPUPSH		0x40	// Do not hotplug CPUs for IRQ push
-	#define MSK_DRYNOTSKPSH		0x80	// Do not push tasks into new system group
+	#define MSK_DRYNOCPUPSH		0x40	// Do not Hot-plug CPUs for IRQ push
+	#define MSK_DRYNOTSKPSH		0x80	// Do not push tasks into new system group (only CGroup v1)
 
 	#define MSK_DRYNOTRCNG		0x100	// Do not set tracing kernel debug -! expect malfunction
 

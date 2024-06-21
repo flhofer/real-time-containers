@@ -115,6 +115,40 @@ static void display_dryrun(int msk){
 	printf("\n");
 }
 
+/// display_dryrun_help(): Print usage information
+///
+/// Arguments: exit with error?
+///
+/// Return value: -
+static void display_dryrun_help(int error)
+{
+	(void)
+	printf( "\nHere the values for '--dry-run=' mask.\n"
+		    "The mask is a hex number where every bit disables a functionality interacting with the system.\n"
+		    "Perform binary ands to compose the resulting hex mask.\n"
+
+			"0x%.4X		Do not disable SMT\n"
+			"0x%.4X		Do not change CPU governor\n"
+			"0x%.4X		Do not change CPU QoS setting -> same as above\n"
+			"0x%.4X		Do not change RT throttle\n"
+			"0x%.4X		Do not change RT RR slice\n"
+			"0x%.4X		Do not change kernel thread affinity\n"
+			"\n"
+			"0x%.4X		Do not set Exclusive Control Groups ('root' for CGroup v2)\n"
+			"0x%.4X		Do not set affinity of container/task, CPU and memory\n"
+			"0x%.4X		Do not Hot-plug CPUs for IRQ push\n"
+			"0x%.4X		Do not push tasks into a new system group (only CGroup v1)\n"
+			"\n"
+			"0x%.4X		Do not set tracing kernel debug -! expect malfunction\n"
+			"\n"
+			"0x%.4X		Disable ALL\n",
+			MSK_DRYNOSMTOFF, MSK_DRYNOCPUGOV, MSK_DRYNOCPUQOS, MSK_DRYNORTTHRT, MSK_DRYNORTSLCE, MSK_DRYNOKTRDAF,
+			MSK_DRYNOCGRPRT, MSK_DRYNOAFTY, MSK_DRYNOCPUPSH, MSK_DRYNOTSKPSH, MSK_DRYNOTRCNG, MSK_DRYALL );
+
+	if (error)
+		exit(EXIT_FAILURE);
+}
+
 /// display_help(): Print usage information 
 ///
 /// Arguments: exit with error?
@@ -314,8 +348,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->dryrun = 0xFFFF; break;
 		case OPT_DRYMASK:
 			set->dryrun = strtol(optarg, NULL, 16);
-			if ((0 == set->dryrun) && errno)
-				err_exit("Invalid dry-run mask %s", optarg); // TODO: print mask specifications
+			if ((0 == set->dryrun) && errno){
+				err_msg("Invalid dry-run mask '%s'!", optarg);
+				display_dryrun_help(1);
+			}
 			break;
 		case 'f':
 			set->force = 1; break;
