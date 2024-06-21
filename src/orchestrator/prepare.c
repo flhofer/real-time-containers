@@ -680,11 +680,16 @@ resetCPUonline (prgset_t *set){
 		if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "on", 0))
 			err_exit_n(errno, "Can not change SMT state!");
 
-		char fstring[50]; // CPU VFS string
+		char fstring[CMD_LEN]; 	// CPU VFS string
+		struct stat s;			// Stats to check if CPU exists (to permit holes)
 		// bring all back online
 		for (int i=1;i<mask_sz;i++) {
 
-			// verify if CPU-frequency is on performance -> set it
+			(void)sprintf(fstring, "%scpu%d/online", set->cpusystemfileprefix, i);
+
+			if(!stat(set->cpusetdfileprefix, &s))
+				continue;
+
 			(void)sprintf(fstring, "cpu%d/online", i);
 			if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", 0))
 				err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
