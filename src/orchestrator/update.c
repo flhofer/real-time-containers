@@ -624,7 +624,7 @@ thread_update (void *arg)
 					if (KV_413 <= prgset->kernelversion) 
 						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
 
-					if (sched_setattr(gettid(), &scheda, 0L)) {
+					if (sched_setattr(gettid(), &scheda, 0L)) {	// Custom function!
 						warn("Could not set thread policy!");
 						// reset value -- not written in main anymore
 						prgset->policy = SCHED_OTHER;

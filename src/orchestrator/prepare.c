@@ -568,12 +568,12 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
 		return 0;
 	}
 
-	cont("Setting for power-QoS now \"%s\" on CPU%d.", str, cpuno);
-
 	if ((set->dryrun & MSK_DRYNOCPUQOS) || set->blindrun){
 		cont("Skipping setting of power QoS policy on CPU%d.", cpuno);
 		return 0;
 	}
+
+	cont("CPU%d's power-QoS is \"%s\".", cpuno, str);
 
 	if (!set->force)
 		err_exit("Set -f (force) flag to authorize change to \"" "n/a" "\"", str, cpuno);
@@ -581,7 +581,7 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
 	if (0 > setkernvar(set->cpusystemfileprefix, fstring, "n/a", 0))
 		err_exit_n(errno, "CPU-QoS change unsuccessful!");
 
-	cont("CPU power QoS on CPU%d is now set to \"" "n/a" "\" as required", cpuno);
+	cont("CPU power-QoS on CPU%d is now set to \"" "n/a" "\" as required", cpuno);
 
 	return 0;
 }
@@ -762,7 +762,7 @@ prepareEnvironment(prgset_t *set) {
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;
 
 		cont( "promoting process and setting attributes..");
-		if (sched_setattr (mpid, &attr, 0U))
+		if (sched_setattr (mpid, &attr, 0U))	// Custom function!
 			warn("could not set orchestrator scheduling attributes, %s", strerror(errno));
 	}
 

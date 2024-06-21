@@ -326,7 +326,7 @@ setPidResources_u(node_t * node) {
 			node->param->attr->sched_flags |= SCHED_FLAG_DL_OVERRUN | SCHED_FLAG_RECLAIM;
 		}
 
-		if (sched_setattr (node->pid, node->param->attr, 0U))
+		if (sched_setattr (node->pid, node->param->attr, 0U))	// Custom function!
 			err_msg_n(errno, "setting attributes for PID %d",
 				node->pid);
 	}
@@ -419,7 +419,7 @@ updatePidAttr(node_t * node){
 		cont("Set dl_overrun flag for PID %d", node->pid);
 		node->attr.sched_flags |= SCHED_FLAG_RECLAIM;
 
-		if (sched_setattr (node->pid, &(node->attr), 0U))
+		if (sched_setattr (node->pid, &(node->attr), 0U))	// Custom function!
 			err_msg_n(errno, "Can not set overrun flag");
 	}
 
@@ -439,7 +439,7 @@ updatePidWCET(node_t * node, uint64_t wcet){
 
 	node->attr.sched_runtime = wcet;
 
-	if (sched_setattr (node->pid, &(node->attr), 0U))
+	if (sched_setattr (node->pid, &(node->attr), 0U))	// Custom function!
 		err_msg_n(errno, "Can not set new WCET");
 	else
 		node->status |= MSK_STATWCUD;
