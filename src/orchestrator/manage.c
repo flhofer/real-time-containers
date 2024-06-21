@@ -114,7 +114,6 @@ struct tr_wakeup {
 	char  * comm;
 	pid_t * pid;
 	int32_t * prio;
-	int32_t * success;
 	int32_t * target_cpu;
 } tr_wakeup;
 // related variable name dictionary
@@ -122,7 +121,6 @@ const char * const tr_wakeup_dict[] = { TR_EVENT_WAKEUP,
 										GET_VARIABLE_NAME(tr_wakeup.comm),
 										GET_VARIABLE_NAME(tr_wakeup.pid),
 										GET_VARIABLE_NAME(tr_wakeup.prio),
-										GET_VARIABLE_NAME(tr_wakeup.success),
 										GET_VARIABLE_NAME(tr_wakeup.target_cpu),
 										NULL};
 
@@ -1018,8 +1016,8 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	if (*frame.comm & 0x80) // malformed buffer? valid char?
 		return -1;
 
-	printDbg("    comm=%s pid=%d prio=%d success=%03d target_cpu=%03d\n",
-				frame.comm, *frame.pid, *frame.prio, *frame.success, *frame.target_cpu);
+	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
+				frame.comm, *frame.pid, *frame.prio, *frame.target_cpu);
 
 	return 0;
 }
