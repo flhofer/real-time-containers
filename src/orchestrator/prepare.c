@@ -64,6 +64,8 @@ static int cpuretry = 1;		// allow one retry to reset CPUs online
 #define CAPMASK_IPC		0x4
 static int capMask = CAPMASK_ALL;
 
+static void resetCPUonline (prgset_t *set);
+
 /*
  *  setPidMask(): utility function to set all PIDs of a certain CMD mask's affinity
  *  Arguments: - tag to search for
@@ -205,40 +207,38 @@ getRRslice(prgset_t * set){
  *  Return value: -
  */
 static void
-pushCPUirqs (prgset_t *set, int mask_sz){
+pushCPUirqs (prgset_t *set){
+
+
 	cont("Trying to push CPU's interrupts");
-	if (!set->blindrun && !(set->dryrun & MSK_DRYNOCPUPSH))
-	{
-		char fstring[50]; // cpu string
-		// bring all affinity except 0 off-line
-		for (int i=mask_sz-1;i>0;i--) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
-
-				// verify if cpu-freq is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", 0))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d off-line", i);
-			}
-		}
-		// bring all back online
-		for (int i=1;i<mask_sz;i++) {
-
-			if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
-
-				// verify if CPU-frequency is on performance -> set it
-				(void)sprintf(fstring, "cpu%d/online", i);
-				if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", 0))
-					err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-				else
-					cont("CPU%d online", i);
-			}
-		}
-	}
-	else
+	if (set->blindrun || (set->dryrun & MSK_DRYNOCPUPSH))
 		cont("skipped.");
+
+	char fstring[50]; // CPU VFS string
+
+	int mask_sz = numa_bitmask_nbytes(set->affinity_mask) * 8;
+
+	// bring all affinity except 0 off-line
+	for (int i=mask_sz-1;i>0;i--)
+		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+			(void)sprintf(fstring, "cpu%d/online", i);
+			if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", 0))
+				err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+
+			cont("CPU%d off-line", i);
+		}
+
+	// bring all back online
+	for (int i=1;i<mask_sz;i++)
+		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
+
+			(void)sprintf(fstring, "cpu%d/online", i);
+			if (0 > setkernvar(set->cpusystemfileprefix, fstring, "1", 0))
+				err_exit_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+
+			cont("CPU%d online", i);
+		}
 }
 
 /*
@@ -341,17 +341,17 @@ testSMT(prgset_t *set) {
  *  switchCPUsibling(): disable/enable SMT sibling through kernel file system
  *
  *  Arguments: - structure with parameter set
- * 			   - bit-mask to use, disabled will be reset
- *
+ * 			   - bit-mask to use, resets bits of disabled CPUs
  *
  *  Return value: Error if -1, 0 ok, 1 = reset mask
- *  				Only valid if the function returns
  */
 static int
-switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int onoff) {
+disableCPUsibling(prgset_t *set) {
 
 	char fstring[50]; 	// CPU VFS file string
 	char str[50]; 		// generic string...
+
+	int mask_sz = numa_bitmask_nbytes(set->affinity_mask) * 8;
 
 	if (64 < mask_sz){
 		warn("Can not deal with more than 64 CPUs for selective SMT.");
@@ -361,9 +361,8 @@ switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int o
 	if (set->dryrun && MSK_DRYNOSMTOFF)
 		cont("Skipping Hot-plug but testing mask..");
 
-	// TODO: check online we disable
 	for (int i=0;i<mask_sz;i++)
-		if (numa_bitmask_isbitset(switch_mask, i)){ // filter by set bits
+		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by set bits
 
 			(void)sprintf(fstring, "cpu%d/topology/thread_siblings", i);
 			if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
@@ -380,28 +379,26 @@ switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int o
 			for (int j=0;j<MIN(mask_sz, sizeof(sibling)*8);j++)
 				if ((uint64_t)1<<j & sibling){
 					if (j<i){
-						warn("Using sibling thread CPU%d in RT affinity and can not disable main CPU%d thread not in RT-range!", i, j);
+						warn("Using sibling thread CPU%d in RT affinity and can not switch hot-plug of main CPU%d thread not in RT-range!", i, j);
 						continue;
 					}
 
-					if (!onoff){
-						if (numa_bitmask_isbitset(switch_mask, j))
-							numa_bitmask_clearbit(switch_mask, j);
-						else {
-							warn("Using main thread CPU%d in RT affinity and can not disable sibling CPU%d thread not in RT-range!", i, j);
-							continue;
-						}
+					if (!numa_bitmask_isbitset(set->affinity_mask, j)){
+						warn("Using main thread CPU%d in RT affinity and can not switch hot-plug of sibling CPU%d thread not in RT-range!", i, j);
+						continue;
 					}
+					numa_bitmask_clearbit(set->affinity_mask, j);
 
 					if (set->dryrun && MSK_DRYNOSMTOFF)	// Do nothing, just test mask
 						continue;
 
-					// verify if CPU-frequency is on performance -> set it
 					(void)sprintf(fstring, "cpu%d/online", j);
-					if (0 > setkernvar(set->cpusystemfileprefix, fstring, onoff ? "1" :"0", 0))
+					if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", 0)){
 						err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+						continue;
+					}
 
-					cont("CPU%d's sibling CPU%d is now %s.", i, j, onoff ? "online" : "offline");
+					cont("CPU%d's sibling CPU%d is now off-line.", i, j);
 				}
 			}
 
@@ -673,15 +670,14 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
  *  resetCPUonline(): return all CPUs online and retry
  *
  *  Arguments: - structure with parameter set
- *  		   - bit-size of CPU-masks
  *
  *  Return value: -
  */
 static void
-resetCPUonline (prgset_t *set, int mask_sz){
+resetCPUonline (prgset_t *set){
 
 	// Limit to present CPUs
-	mask_sz = MIN(get_nprocs_conf(), mask_sz);
+	int mask_sz = MIN(get_nprocs_conf(), numa_bitmask_nbytes(set->affinity_mask) * 8);
 
 	cont("Trying reset CPU's online status");
 	if (!set->blindrun)
@@ -689,7 +685,7 @@ resetCPUonline (prgset_t *set, int mask_sz){
 		if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "on", 0))
 			err_exit_n(errno, "Can not change SMT state!");
 
-		char fstring[50]; // cpu string
+		char fstring[50]; // CPU VFS string
 		// bring all back online
 		for (int i=1;i<mask_sz;i++) {
 
@@ -742,46 +738,24 @@ prepareEnvironment(prgset_t *set) {
 
 	info("Starting environment setup");
 
-	struct bitmask * naffinity = numa_allocate_cpumask();
-	if (!naffinity)
-		err_exit("could not allocate memory!");
-
-	// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
-	// and avoid to fall into the CPU numbering trap
-	int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
+	// prepare bit-mask, no need to do it before
+	set->affinity_mask = parse_cpumask(set->affinity);
+	if (!set->affinity_mask){
+		err_msg("The resulting CPUset is empty");
+		return -1; // return to display help
+	}
 
 	/// --------------------
 	/// verify CPU topology and distribution
-	if (!testSMT(set)){
+	if (!testSMT(set))
 		cont("SMT is disabled, as required");
-
-		// prepare bit-mask, no need to do it before
-		set->affinity_mask = parse_cpumask(set->affinity);
-		if (!set->affinity_mask){
-			err_msg("The resulting CPUset is empty");
-			return -1; // return to display help
-		}
-	}
 	else
 		{
 			int ret = 0;
 
-			// temporary CPU mask
-			struct bitmask * switch_mask = parse_cpumask(set->affinity);
-
-			ret = switchCPUsibling(set, switch_mask, mask_sz, 0); // selective SMT off
-
-			numa_free_cpumask(switch_mask);
-
-			if (ret) // selective failed, try traditional
-				disableSMT(set); // SMT off
-
-			// prepare bit-mask, no need to do it before
-			set->affinity_mask = parse_cpumask(set->affinity);
-			if (!set->affinity_mask){
-				err_msg("The resulting CPUset is empty");
-				return -1; // return to display help
-			}
+			if (disableCPUsibling(set)) // selective SMT off
+				// selective failed, try traditional
+				ret = disableSMT(set); // SMT off
 
 			if (1 == ret && (resetCPUmask(set)))
 					return -1;
@@ -796,13 +770,25 @@ prepareEnvironment(prgset_t *set) {
 	 */
 
 	// get online cpu's
-	if (0 < getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr))) {
+	if (0 >= getkernvar(set->cpusystemfileprefix, "online", constr, sizeof(constr)))
+		// online CPU string not readable
+		err_exit("Can not read online CPUs");
+
+	struct bitmask * naffinity = numa_allocate_cpumask();
+	if (!naffinity)
+		err_exit("could not allocate memory!");
+
+	{
 		struct bitmask * con = numa_parse_cpustring_all(constr);
 		if (!con)
 			err_exit("Can not parse online CPUs");
 
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		int smi_cpu = 0;
+
+		// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
+		// and avoid to fall into the CPU numbering trap
+		int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
 
 		for (int i=0;i<mask_sz;i++) {
 
@@ -841,7 +827,7 @@ prepareEnvironment(prgset_t *set) {
 
 				if ((set->force) & (cpuretry)){
 					cpuretry--;
-					resetCPUonline(set, mask_sz);
+					resetCPUonline(set);
 					return prepareEnvironment(set); // retry
 				}
 				else
@@ -850,8 +836,6 @@ prepareEnvironment(prgset_t *set) {
 		}
 		numa_free_cpumask(con);
 	}
-	else // online CPU string not readable
-		err_exit("Can not read online CPUs");
 
 
 	// parse to string
@@ -984,7 +968,7 @@ prepareEnvironment(prgset_t *set) {
 
 	if (0 == countCGroupTasks(set))
 		// ksoftirqd -> offline, online again
-		pushCPUirqs(set, mask_sz);
+		pushCPUirqs(set);
 	else
 		info("Running container tasks present, skipping CPU hot-plug");
 
