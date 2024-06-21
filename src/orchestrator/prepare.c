@@ -65,6 +65,7 @@ static int cpuretry = 1;		// allow one retry to reset CPUs online
 static int capMask = CAPMASK_ALL;
 
 static void resetCPUonline (prgset_t *set);
+static int resetCPUstring(prgset_t *set);
 
 /*
  *  setPidMask(): utility function to set all PIDs of a certain CMD mask's affinity
@@ -348,54 +349,60 @@ disableCPUsibling(prgset_t *set) {
 	char fstring[50]; 	// CPU VFS file string
 	char str[50]; 		// generic string...
 
-	if (64 < set->affinity_mask->size){
-		warn("Can not deal with more than 64 CPUs for selective SMT.");
-		return -1;
-	}
-
 	if (set->dryrun && MSK_DRYNOSMTOFF)
 		cont("Skipping Hot-plug but testing mask..");
 
 	for (int i=0;i<set->affinity_mask->size;i++)
 		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by set bits
 
-			(void)sprintf(fstring, "cpu%d/topology/thread_siblings", i);
+			(void)sprintf(fstring, "cpu%d/topology/thread_siblings_list", i);
 			if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 				warn ("Can not read CPU topology data! Skipping.");
 				return -1;
 			}
 
-			uint64_t sibling = strtol(str, NULL, 16) & ~((uint64_t)1<<i);
-			if ((0 == sibling) && errno){
-				err_msg("Unable to parse sibling mask '%s'!", str);
+			struct bitmask * sibling = parse_cpumask(str);
+			if (NULL == sibling){
+				err_msg("Unable to parse sibling list '%s'!", str);
 				return -1;
 			}
 
-			for (int j=0;j<set->affinity_mask->size;j++)
-				if ((uint64_t)1<<j & sibling){
-					if (j<i){
-						warn("Using sibling thread CPU%d in RT affinity and can not switch hot-plug of main CPU%d thread not in RT-range!", i, j);
-						continue;
-					}
+			numa_bitmask_clearbit(sibling, i);
 
-					if (!numa_bitmask_isbitset(set->affinity_mask, j)){
-						warn("Using main thread CPU%d in RT affinity and can not switch hot-plug of sibling CPU%d thread not in RT-range!", i, j);
-						continue;
+			if (0 == numa_bitmask_weight(sibling)){
+				numa_free_cpumask(sibling);
+				continue;
+			}
+
+			for (int j=0;j<set->affinity_mask->size;j++)
+				if (numa_bitmask_isbitset(sibling, j)){
+					int cpu = j;
+					if (j<i){
+						warn("Using sibling thread CPU%d in RT affinity and can not disable main CPU%d thread not in RT-range!", i, j);
+						if (1 == numa_bitmask_weight(set->affinity_mask))
+							continue;
+						warn("Disabling sibling CPU%d for RT-operation instead!", i);
+						cpu=i;
 					}
-					numa_bitmask_clearbit(set->affinity_mask, j);
+					numa_bitmask_clearbit(set->affinity_mask, cpu);
 
 					if (set->dryrun && MSK_DRYNOSMTOFF)	// Do nothing, just test mask
 						continue;
 
-					(void)sprintf(fstring, "cpu%d/online", j);
+					(void)sprintf(fstring, "cpu%d/online", cpu);
 					if (0 > setkernvar(set->cpusystemfileprefix, fstring, "0", 0)){
-						err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+						err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", cpu);
 						continue;
 					}
 
-					cont("CPU%d's sibling CPU%d is now off-line.", i, j);
+					cont("CPU%d's sibling CPU%d is now off-line.", (i==cpu) ? j : i, cpu);
 				}
+			numa_free_cpumask(sibling);
 			}
+
+	// Reconstruct affinity list
+	if (resetCPUstring(set))
+		return -1;
 
 	return 0;
 }
@@ -426,6 +433,33 @@ disableSMT(prgset_t *set) {
 
 	return 1;
 }
+
+/*
+ *  resetCPUstring(): reconstructs the affinity list
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error if -1, 0 ok
+ *  				Only valid if the function returns
+ */
+static int
+resetCPUstring(prgset_t *set){
+
+	char str[100]; // generic string...
+
+	// replace affinity string with new string!
+	if (parse_bitmask(set->affinity_mask, str, sizeof(str))){
+		err_msg("Could not reconstruct CPU-list from new CPU-mask");
+		return -1;
+	}
+
+	free(set->affinity);
+	set->affinity = strdup(str);
+
+	return 0;
+}
+
+
 
 /*
  *  resetCPUmask(): test the affinity mask for correctness (offline CPUs in mask?)
@@ -468,19 +502,14 @@ resetCPUmask(prgset_t *set){
 		warn("Disabling SMT has reduced the number of available CPUs for real-time tasks from %d to %d!",
 				numa_bitmask_weight(oldmask), numa_bitmask_weight(set->affinity_mask));
 
-		// replace affinity string with new string!
-		if (!parse_bitmask(set->affinity_mask, str, sizeof(str))){
-			free(set->affinity);
-			set->affinity = strdup(str);
-		}
-		else{
-			err_msg("Could not reconstruct CPU-list from new CPU-mask");
-			numa_free_cpumask(oldmask);
-			return -1;
-		}
-	}
+		numa_free_cpumask(oldmask);
 
-	numa_free_cpumask(oldmask);
+		if (resetCPUstring(set))
+			return -1;
+	}
+	else
+		numa_free_cpumask(oldmask);
+
 	return 0;
 }
 
