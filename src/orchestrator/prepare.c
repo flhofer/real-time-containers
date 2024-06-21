@@ -314,6 +314,30 @@ countCGroupTasks(prgset_t *set) {
 
 
 /*
+ *  testSMT(): verify SMT status
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error if -1, 0 off, 1 on
+ */
+static int
+testSMT(prgset_t *set) {
+
+	char str[10]; 	// generic string...
+
+	// verify if SMT is disabled -> now force = disable
+	if (!(set->blindrun)
+			&& (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str))))
+		// value read OK
+		return (!strcmp(str, "on"));
+
+	// SMT failed or DryRun
+	warn("Skipping read of SMT status. This can influence latency performance!");
+
+	return -1;
+}
+
+/*
  *  switchCPUsibling(): disable/enable SMT sibling through kernel file system
  *
  *  Arguments: - structure with parameter set
@@ -334,7 +358,6 @@ switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int o
 		return -1;
 	}
 
-
 	if (set->dryrun && MSK_DRYNOSMTOFF)
 		cont("Skipping Hot-plug but testing mask..");
 
@@ -343,44 +366,45 @@ switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int o
 		if (numa_bitmask_isbitset(switch_mask, i)){ // filter by set bits
 
 			(void)sprintf(fstring, "cpu%d/topology/thread_siblings", i);
-			if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
-				uint64_t sibling = strtol(str, NULL, 16) & ~((uint64_t)1<<i);
-				if ((0 == sibling) && errno){
-					err_msg("Unable to parse sibling mask '%s'!", str);
-					return -1;
-				}
-				for (int j=0;j<MIN(mask_sz, sizeof(sibling)*8);j++)
-					if ((uint64_t)1<<j & sibling){
-						if (j<i){
-							warn("Using sibling thread CPU%d in RT affinity and can not disable main CPU%d thread not in RT-range!", i, j);
-							continue;
-						}
-
-						if (!onoff){
-							if (numa_bitmask_isbitset(switch_mask, j))
-								numa_bitmask_clearbit(switch_mask, j);
-							else {
-								warn("Using main thread CPU%d in RT affinity and can not disable sibling CPU%d thread not in RT-range!", i, j);
-								continue;
-
-							}
-						}
-						if (set->dryrun && MSK_DRYNOSMTOFF)	// Do nothing, just test mask
-							continue;
-
-						// verify if CPU-frequency is on performance -> set it
-						(void)sprintf(fstring, "cpu%d/online", j);
-						if (0 > setkernvar(set->cpusystemfileprefix, fstring, onoff ? "1" :"0", 0))
-							err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
-						else
-							cont("CPU%d's sibling CPU%d is now %s.", i, j, onoff ? "online" : "offline");
-					}
-			}
-			else{
+			if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 				warn ("Can not read CPU topology data! Skipping.");
 				return -1;
 			}
-		}
+
+			uint64_t sibling = strtol(str, NULL, 16) & ~((uint64_t)1<<i);
+			if ((0 == sibling) && errno){
+				err_msg("Unable to parse sibling mask '%s'!", str);
+				return -1;
+			}
+
+			for (int j=0;j<MIN(mask_sz, sizeof(sibling)*8);j++)
+				if ((uint64_t)1<<j & sibling){
+					if (j<i){
+						warn("Using sibling thread CPU%d in RT affinity and can not disable main CPU%d thread not in RT-range!", i, j);
+						continue;
+					}
+
+					if (!onoff){
+						if (numa_bitmask_isbitset(switch_mask, j))
+							numa_bitmask_clearbit(switch_mask, j);
+						else {
+							warn("Using main thread CPU%d in RT affinity and can not disable sibling CPU%d thread not in RT-range!", i, j);
+							continue;
+						}
+					}
+
+					if (set->dryrun && MSK_DRYNOSMTOFF)	// Do nothing, just test mask
+						continue;
+
+					// verify if CPU-frequency is on performance -> set it
+					(void)sprintf(fstring, "cpu%d/online", j);
+					if (0 > setkernvar(set->cpusystemfileprefix, fstring, onoff ? "1" :"0", 0))
+						err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+
+					cont("CPU%d's sibling CPU%d is now %s.", i, j, onoff ? "online" : "offline");
+				}
+			}
+
 	return 0;
 }
 
@@ -395,36 +419,20 @@ switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int o
 static int
 disableSMT(prgset_t *set) {
 
-	char str[10]; // generic string...
-
-	// verify if SMT is disabled -> now force = disable
-	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
-		// value read OK
-		if (!strcmp(str, "on")) {
-			// SMT - HT is on
-			if (set->dryrun & MSK_DRYNOSMTOFF)
-				cont("Skipping setting SMT.");
-			else {
-				if (!set->force)
-					err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
-				else {
-					if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", 0))
-						err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
-					else{
-						// We just disabled some CPUs -> re-check affinity
-						cont("SMT is now disabled, as required. Refresh configurations..");
-						return 1;
-					}
-				}
-			}
-		}
-		else
-			cont("SMT is disabled, as required");
+	if (set->dryrun & MSK_DRYNOSMTOFF){
+		cont("Skipping setting SMT.");
+		return 0;
 	}
-	else // SMT failed or DryRun
-		warn("Skipping read of SMT status. This can influence latency performance!");
+	if (!set->force)
+		err_exit("SMT is enabled. Set -f (force) flag to authorize disabling");
 
-	return 0;
+	if (0 > setkernvar(set->cpusystemfileprefix, "smt/control", "off", 0))
+		err_exit_n(errno, "SMT is enabled. Disabling was unsuccessful!");
+
+	// We just disabled some CPUs -> re-check affinity
+	cont("SMT is now disabled, as required. Refresh configurations..");
+
+	return 1;
 }
 
 /*
@@ -445,6 +453,7 @@ resetCPUmask(prgset_t *set){
 
 	struct bitmask * conmask;
 	struct bitmask * oldmask = numa_allocate_cpumask();
+
 	copy_bitmask_to_bitmask(set->affinity_mask, oldmask); 		// keep a copy for comparison
 
 	// get online cpu's
@@ -743,15 +752,8 @@ prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify CPU topology and distribution
-	{
-		int ret = 0;
-
-		struct bitmask * switch_mask = parse_cpumask(set->affinity);
-		ret = switchCPUsibling(set, switch_mask, mask_sz, 0); // selective SMT off
-		numa_free_cpumask(switch_mask);
-
-		if (ret) // selective failed, try traditional
-			disableSMT(set); // SMT off
+	if (!testSMT(set)){
+		cont("SMT is disabled, as required");
 
 		// prepare bit-mask, no need to do it before
 		set->affinity_mask = parse_cpumask(set->affinity);
@@ -759,12 +761,33 @@ prepareEnvironment(prgset_t *set) {
 			err_msg("The resulting CPUset is empty");
 			return -1; // return to display help
 		}
-
-		if (1 == ret && (resetCPUmask(set)))
-				return -1;
-		if (-1 == ret)
-			return -1;
 	}
+	else
+		{
+			int ret = 0;
+
+			// temporary CPU mask
+			struct bitmask * switch_mask = parse_cpumask(set->affinity);
+
+			ret = switchCPUsibling(set, switch_mask, mask_sz, 0); // selective SMT off
+
+			numa_free_cpumask(switch_mask);
+
+			if (ret) // selective failed, try traditional
+				disableSMT(set); // SMT off
+
+			// prepare bit-mask, no need to do it before
+			set->affinity_mask = parse_cpumask(set->affinity);
+			if (!set->affinity_mask){
+				err_msg("The resulting CPUset is empty");
+				return -1; // return to display help
+			}
+
+			if (1 == ret && (resetCPUmask(set)))
+					return -1;
+			if (-1 == ret)
+				return -1;
+		}
 
 	/*
 	 * ---------------------------------------------------------*
