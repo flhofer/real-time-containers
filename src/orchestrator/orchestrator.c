@@ -125,23 +125,24 @@ static void display_dryrun_help(int error)
 	(void)
 	printf( "\nHere the values for '--dry-run=' mask.\n"
 		    "The mask is a hex number where every bit disables a functionality interacting with the system.\n"
-		    "Perform binary ands to compose the resulting hex mask.\n"
+		    "Perform binary ands to compose the resulting hex mask.\n\n"
 
-			"0x%.4X		Do not disable SMT\n"
-			"0x%.4X		Do not change CPU governor\n"
-			"0x%.4X		Do not change CPU QoS setting -> same as above\n"
-			"0x%.4X		Do not change RT throttle\n"
-			"0x%.4X		Do not change RT RR slice\n"
-			"0x%.4X		Do not change kernel thread affinity\n"
+			"	0x%.4X		Do not disable SMT\n"
+			"	0x%.4X		Do not change CPU governor\n"
+			"	0x%.4X		Do not change CPU QoS setting -> same as above\n"
+			"	0x%.4X		Do not change RT throttle\n"
+			"	0x%.4X		Do not change RT RR slice\n"
+			"	0x%.4X		Do not change kernel thread affinity\n"
 			"\n"
-			"0x%.4X		Do not set Exclusive Control Groups ('root' for CGroup v2)\n"
-			"0x%.4X		Do not set affinity of container/task, CPU and memory\n"
-			"0x%.4X		Do not Hot-plug CPUs for IRQ push\n"
-			"0x%.4X		Do not push tasks into a new system group (only CGroup v1)\n"
+			"	0x%.4X		Do not set Exclusive Control Groups ('root' for CGroup v2)\n"
+			"	0x%.4X		Do not set affinity of container/task, CPU and memory\n"
+			"	0x%.4X		Do not Hot-plug CPUs for IRQ push\n"
+			"	0x%.4X		Do not push tasks into a new system group (only CGroup v1)\n"
 			"\n"
-			"0x%.4X		Do not set tracing kernel debug -! expect malfunction\n"
+			"	0x%.4X		Do not set tracing kernel debug -! expect malfunction\n"
 			"\n"
-			"0x%.4X		Disable ALL\n",
+			"	0x%.4X		Disable ALL\n"
+			"\n",
 			MSK_DRYNOSMTOFF, MSK_DRYNOCPUGOV, MSK_DRYNOCPUQOS, MSK_DRYNORTTHRT, MSK_DRYNORTSLCE, MSK_DRYNOKTRDAF,
 			MSK_DRYNOCGRPRT, MSK_DRYNOAFTY, MSK_DRYNOCPUPSH, MSK_DRYNOTSKPSH, MSK_DRYNOTRCNG, MSK_DRYALL );
 
@@ -215,6 +216,8 @@ static void display_help(int error)
 		exit(EXIT_FAILURE);
 
 	// For --help query only
+
+	display_dryrun_help(0);
 
 	(void)
 	printf("Report bugs to: info@florianhofer.it\n"
