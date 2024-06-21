@@ -149,7 +149,7 @@ START_TEST(kernutil_parse_bitmask_hex)
 		ret = parse_bitmask_hex(test, str, sizeof(str));
 
 		ck_assert_int_eq(ret, 0);
-		ck_assert_str_eq(str, "0000000200000003");
+		ck_assert_str_eq(str, "200000003");
 	}
 
 	numa_bitmask_free(test);
@@ -166,7 +166,7 @@ START_TEST(kernutil_parse_bitmask_hex)
 		ret = parse_bitmask_hex(test, str, sizeof(str));
 
 		ck_assert_int_eq(ret, 0);
-		ck_assert_str_eq(str, "00000000000000040000000100000003");
+		ck_assert_str_eq(str, "40000000100000003");
 	}
 	numa_bitmask_free(test);
 
@@ -182,7 +182,7 @@ START_TEST(kernutil_parse_bitmask_hex)
 		ret = parse_bitmask_hex(test, str, sizeof(str));
 
 		ck_assert_int_eq(ret, 0);
-		ck_assert_str_eq(str, "00000000000000040000000100000003");
+		ck_assert_str_eq(str, "40000000100000003");
 	}
 	numa_bitmask_free(test);
 }

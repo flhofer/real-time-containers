@@ -499,7 +499,7 @@ parse_bitmask_hex(struct bitmask *mask, char * str, size_t len){
 		}
 
 		if (found || (*(mask->maskp+i) != 0)){
-			(void)sprintf(num, "%0*lx", (int)sizeof(unsigned long)*2, *(mask->maskp+i));
+			(void)sprintf(num, "%0*lx", (!found) ? 0 : (int)sizeof(unsigned long)*2, *(mask->maskp+i));
 			(void)strcat(str, num);
 			found = 1;
 			len -= sizeof(unsigned long)*2;
