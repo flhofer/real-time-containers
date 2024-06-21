@@ -522,7 +522,6 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
 			char * hex = dir->d_name;
 #endif
 			// scan trough docker CGroup, find them?
-			// TODO: Restart removes pinning? -> maybe reset here only if outside affinity range -- see setContCGroups
 			if  ((DT_DIR == dir->d_type)
 				 && (64 == (strspn(hex, "abcdef1234567890")))) {
 				if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
@@ -604,7 +603,6 @@ setContCGroups(prgset_t *set, int setCont) {
 				char * hex = dir->d_name;
 #endif
 				// scan trough docker CGroup, find them?
-				// TODO: Restart removes pinning?
 				if  ((DT_DIR == dir->d_type)
 					 && (64 == (strspn(hex, "abcdef1234567890")))) {
 					if ((contp=realloc(contp,strlen(set->cpusetdfileprefix)  // container strings are very long!
@@ -865,7 +863,6 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
-// TODO: exclude CPUs not in a PIDs associated affinity_mask
 resTracer_t *
 checkPeriod(struct sched_attr * attr, int affinity) {
 	resTracer_t * ftrc = NULL;
@@ -1276,7 +1273,6 @@ findPidParameters(node_t* node, containers_t * configuration){
 		if (!img && cont && cont->img){
 			// detected container knows parent -> assign
 			img=cont->img;
-			node->imgid = img->imgid; // TODO imgid is widely unused. why?
 		}
 
 		// assign pids from cont or img, depending what is found

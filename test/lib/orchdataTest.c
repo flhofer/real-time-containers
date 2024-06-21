@@ -340,6 +340,8 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_qsort3);
     suite_add_tcase(s, tc0);
 
+    // FIXME: copyresources tested in duplicateOrRefreshContainer
+
 	TCase *tc1 = tcase_create("orchdata_pidcont");
 	tcase_add_unchecked_fixture(tc1, orchdata_setup, orchdata_teardown);
 	tcase_add_test(tc1, orchdata_pidcont);

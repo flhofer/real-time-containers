@@ -150,7 +150,6 @@ void qsortll(void **head, int (*compar)(const void *, const void*) )
 
 /* -------------------- special for Param structures --------------------- */
 
-// FIXME: tested in duplicateOrRefreshContainer
 void
 copyResourceConfigC(cont_t * from, cont_t * to){
 	// duplicate resources if needed

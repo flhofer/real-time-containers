@@ -952,7 +952,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			// TODO: check _l vs. 64 bit
 			if ((*frame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
