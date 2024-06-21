@@ -312,6 +312,78 @@ countCGroupTasks(prgset_t *set) {
 #endif
 }
 
+
+/*
+ *  switchCPUsibling(): disable/enable SMT sibling through kernel file system
+ *
+ *  Arguments: - structure with parameter set
+ * 			   - bit-mask to use, disabled will be reset
+ *
+ *
+ *  Return value: Error if -1, 0 ok, 1 = reset mask
+ *  				Only valid if the function returns
+ */
+static int
+switchCPUsibling(prgset_t *set, struct bitmask * switch_mask, int mask_sz, int onoff) {
+
+	char fstring[50]; 	// CPU VFS file string
+	char str[50]; 		// generic string...
+
+	if (64 < mask_sz){
+		warn("Can not deal with more than 64 CPUs for selective SMT.");
+		return -1;
+	}
+
+
+	if (set->dryrun && MSK_DRYNOSMTOFF)
+		cont("Skipping Hot-plug but testing mask..");
+
+	// TODO: check online we disable
+	for (int i=0;i<mask_sz;i++)
+		if (numa_bitmask_isbitset(switch_mask, i)){ // filter by set bits
+
+			(void)sprintf(fstring, "cpu%d/topology/thread_siblings", i);
+			if (0 < getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
+				uint64_t sibling = strtol(str, NULL, 16) & ~((uint64_t)1<<i);
+				if ((0 == sibling) && errno){
+					err_msg("Unable to parse sibling mask '%s'!", str);
+					return -1;
+				}
+				for (int j=0;j<MIN(mask_sz, sizeof(sibling)*8);j++)
+					if ((uint64_t)1<<j & sibling){
+						if (j<i){
+							warn("Using sibling thread CPU%d in RT affinity and can not disable main CPU%d thread not in RT-range!", i, j);
+							continue;
+						}
+
+						if (!onoff){
+							if (numa_bitmask_isbitset(switch_mask, j))
+								numa_bitmask_clearbit(switch_mask, j);
+							else {
+								warn("Using main thread CPU%d in RT affinity and can not disable sibling CPU%d thread not in RT-range!", i, j);
+								continue;
+
+							}
+						}
+						if (set->dryrun && MSK_DRYNOSMTOFF)	// Do nothing, just test mask
+							continue;
+
+						// verify if CPU-frequency is on performance -> set it
+						(void)sprintf(fstring, "cpu%d/online", j);
+						if (0 > setkernvar(set->cpusystemfileprefix, fstring, onoff ? "1" :"0", 0))
+							err_msg_n(errno, "CPU%d-Hotplug unsuccessful!", i);
+						else
+							cont("CPU%d's sibling CPU%d is now %s.", i, j, onoff ? "online" : "offline");
+					}
+			}
+			else{
+				warn ("Can not read CPU topology data! Skipping.");
+				return -1;
+			}
+		}
+	return 0;
+}
+
 /*
  *  disableSMT(): disable SMT through kernel file system
  *
@@ -323,10 +395,7 @@ countCGroupTasks(prgset_t *set) {
 static int
 disableSMT(prgset_t *set) {
 
-	char str[100]; // generic string...
-	int resetMask = 0; // if true, affinity mask is masked AND with online CPU's
-
-	// TODO: selective SMT
+	char str[10]; // generic string...
 
 	// verify if SMT is disabled -> now force = disable
 	if (!(set->blindrun) && (0 < getkernvar(set->cpusystemfileprefix, "smt/control", str, sizeof(str)))){
@@ -344,7 +413,7 @@ disableSMT(prgset_t *set) {
 					else{
 						// We just disabled some CPUs -> re-check affinity
 						cont("SMT is now disabled, as required. Refresh configurations..");
-						resetMask = 1;
+						return 1;
 					}
 				}
 			}
@@ -355,14 +424,7 @@ disableSMT(prgset_t *set) {
 	else // SMT failed or DryRun
 		warn("Skipping read of SMT status. This can influence latency performance!");
 
-	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity);
-	if (!set->affinity_mask){
-		err_msg("The resulting CPUset is empty");
-		return -1; // return to display help
-	}
-
-	return resetMask;
+	return 0;
 }
 
 /*
@@ -671,19 +733,6 @@ prepareEnvironment(prgset_t *set) {
 
 	info("Starting environment setup");
 
-	/// --------------------
-	/// verify CPU topology and distribution
-	{
-		int ret = 0;
-
-		ret = disableSMT(set); // SMT off
-
-		if (1 == ret && (resetCPUmask(set)))
-				return -1;
-		if (-1 == ret)
-			return -1;
-	}
-
 	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
 		err_exit("could not allocate memory!");
@@ -691,6 +740,31 @@ prepareEnvironment(prgset_t *set) {
 	// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
 	// and avoid to fall into the CPU numbering trap
 	int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
+
+	/// --------------------
+	/// verify CPU topology and distribution
+	{
+		int ret = 0;
+
+		struct bitmask * switch_mask = parse_cpumask(set->affinity);
+		ret = switchCPUsibling(set, switch_mask, mask_sz, 0); // selective SMT off
+		numa_free_cpumask(switch_mask);
+
+		if (ret) // selective failed, try traditional
+			disableSMT(set); // SMT off
+
+		// prepare bit-mask, no need to do it before
+		set->affinity_mask = parse_cpumask(set->affinity);
+		if (!set->affinity_mask){
+			err_msg("The resulting CPUset is empty");
+			return -1; // return to display help
+		}
+
+		if (1 == ret && (resetCPUmask(set)))
+				return -1;
+		if (-1 == ret)
+			return -1;
+	}
 
 	/*
 	 * ---------------------------------------------------------*
