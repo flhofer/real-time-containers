@@ -723,7 +723,7 @@ createResTracer(){
 		err_exit("Memory management inconsistency: resTracer already present!");
 
 	// backwards, cpu0 on top, we assume affinity_mask ok
-	for (int i=(prgset->affinity_mask->size); i >= 0;i--)
+	for (int i=(prgset->affinity_mask->size-1); i >= 0;i--)
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rHead, sizeof(struct resTracer));

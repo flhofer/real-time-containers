@@ -209,17 +209,14 @@ getRRslice(prgset_t * set){
 static void
 pushCPUirqs (prgset_t *set){
 
-
 	cont("Trying to push CPU's interrupts");
 	if (set->blindrun || (set->dryrun & MSK_DRYNOCPUPSH))
 		cont("skipped.");
 
 	char fstring[50]; // CPU VFS string
 
-	int mask_sz = numa_bitmask_nbytes(set->affinity_mask) * 8;
-
 	// bring all affinity except 0 off-line
-	for (int i=mask_sz-1;i>0;i--)
+	for (int i=set->affinity_mask->size-1;i>0;i--)
 		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
 
 			(void)sprintf(fstring, "cpu%d/online", i);
@@ -230,7 +227,7 @@ pushCPUirqs (prgset_t *set){
 		}
 
 	// bring all back online
-	for (int i=1;i<mask_sz;i++)
+	for (int i=1;i<set->affinity_mask->size;i++)
 		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by online/existing and affinity
 
 			(void)sprintf(fstring, "cpu%d/online", i);
@@ -351,9 +348,7 @@ disableCPUsibling(prgset_t *set) {
 	char fstring[50]; 	// CPU VFS file string
 	char str[50]; 		// generic string...
 
-	int mask_sz = numa_bitmask_nbytes(set->affinity_mask) * 8;
-
-	if (64 < mask_sz){
+	if (64 < set->affinity_mask->size){
 		warn("Can not deal with more than 64 CPUs for selective SMT.");
 		return -1;
 	}
@@ -361,7 +356,7 @@ disableCPUsibling(prgset_t *set) {
 	if (set->dryrun && MSK_DRYNOSMTOFF)
 		cont("Skipping Hot-plug but testing mask..");
 
-	for (int i=0;i<mask_sz;i++)
+	for (int i=0;i<set->affinity_mask->size;i++)
 		if (numa_bitmask_isbitset(set->affinity_mask, i)){ // filter by set bits
 
 			(void)sprintf(fstring, "cpu%d/topology/thread_siblings", i);
@@ -376,7 +371,7 @@ disableCPUsibling(prgset_t *set) {
 				return -1;
 			}
 
-			for (int j=0;j<MIN(mask_sz, sizeof(sibling)*8);j++)
+			for (int j=0;j<set->affinity_mask->size;j++)
 				if ((uint64_t)1<<j & sibling){
 					if (j<i){
 						warn("Using sibling thread CPU%d in RT affinity and can not switch hot-plug of main CPU%d thread not in RT-range!", i, j);
@@ -677,7 +672,7 @@ static void
 resetCPUonline (prgset_t *set){
 
 	// Limit to present CPUs
-	int mask_sz = MIN(get_nprocs_conf(), numa_bitmask_nbytes(set->affinity_mask) * 8);
+	int mask_sz = MIN(get_nprocs_conf(), set->affinity_mask->size);
 
 	cont("Trying reset CPU's online status");
 	if (!set->blindrun)
@@ -786,11 +781,7 @@ prepareEnvironment(prgset_t *set) {
 		// mask affinity and invert for system map / readout of smi of online CPUs
 		int smi_cpu = 0;
 
-		// Get size of THIS system's CPU-masks to obtain loop limit (they're dynamic)
-		// and avoid to fall into the CPU numbering trap
-		int mask_sz = numa_bitmask_nbytes(naffinity) * 8;
-
-		for (int i=0;i<mask_sz;i++) {
+		for (int i=0;i<set->affinity_mask->size;i++) {
 
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
