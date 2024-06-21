@@ -313,16 +313,15 @@ countCGroupTasks(prgset_t *set) {
 }
 
 /*
- *  disableSMTandTest(): disable SMT through kernel file system and
- *  test the affinity mask for correctness (offline CPUs in mask?)
+ *  disableSMT(): disable SMT through kernel file system
  *
  *  Arguments: - structure with parameter set
  *
- *  Return value: Error code
+ *  Return value: Error if -1, 0 ok, 1 = reset mask
  *  				Only valid if the function returns
  */
 static int
-disableSMTandTest(prgset_t *set) {
+disableSMT(prgset_t *set) {
 
 	char str[100]; // generic string...
 	int resetMask = 0; // if true, affinity mask is masked AND with online CPU's
@@ -363,49 +362,62 @@ disableSMTandTest(prgset_t *set) {
 		return -1; // return to display help
 	}
 
+	return resetMask;
+}
+
+/*
+ *  resetCPUmask(): test the affinity mask for correctness (offline CPUs in mask?)
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error if -1, 0 ok
+ *  				Only valid if the function returns
+ */
+static int
+resetCPUmask(prgset_t *set){
+
+	char str[100]; // generic string...
+
 	// Did the number of available CPUs change?
-	if (resetMask){
-		// SMT has been disabled - update affinity mask
+	// SMT has been disabled - update affinity mask
 
-		struct bitmask * conmask;
-		struct bitmask * oldmask = numa_allocate_cpumask();
-		copy_bitmask_to_bitmask(set->affinity_mask, oldmask); 		// keep a copy for comparison
+	struct bitmask * conmask;
+	struct bitmask * oldmask = numa_allocate_cpumask();
+	copy_bitmask_to_bitmask(set->affinity_mask, oldmask); 		// keep a copy for comparison
 
-		// get online cpu's
-		if (0 < getkernvar(set->cpusystemfileprefix, "online", str, sizeof(str))) {
-			conmask = numa_parse_cpustring_all(str);
-			if (!conmask)
-				err_exit("Can not parse online CPUs");
-			numa_and_cpumask(conmask,set->affinity_mask);				// AND with online CPUs
-			numa_free_cpumask(conmask);
+	// get online cpu's
+	if (0 < getkernvar(set->cpusystemfileprefix, "online", str, sizeof(str))) {
+		conmask = numa_parse_cpustring_all(str);
+		if (!conmask)
+			err_exit("Can not parse online CPUs");
+		numa_and_cpumask(conmask,set->affinity_mask);				// AND with online CPUs
+		numa_free_cpumask(conmask);
+	}
+	else
+		err_exit("Can not read online CPUs");
+
+	if (!numa_bitmask_equal(set->affinity_mask, oldmask)){		// Did the mask change?
+		if (0 == numa_bitmask_weight(set->affinity_mask)) {
+			err_msg("After disabling SMT, the resulting CPUset is empty!");
+			numa_free_cpumask(oldmask);
+			return -1; // return to display help
 		}
-		else
-			err_exit("Can not read online CPUs");
+		warn("Disabling SMT has reduced the number of available CPUs for real-time tasks from %d to %d!",
+				numa_bitmask_weight(oldmask), numa_bitmask_weight(set->affinity_mask));
 
-		if (!numa_bitmask_equal(set->affinity_mask, oldmask)){		// Did the mask change?
-			if (0 == numa_bitmask_weight(set->affinity_mask)) {
-				err_msg("After disabling SMT, the resulting CPUset is empty!");
-				numa_free_cpumask(oldmask);
-				return -1; // return to display help
-			}
-			warn("Disabling SMT has reduced the number of available CPUs for real-time tasks from %d to %d!",
-					numa_bitmask_weight(oldmask), numa_bitmask_weight(set->affinity_mask));
-
-			// replace affinity string with new string!
-			if (!parse_bitmask(set->affinity_mask, str, sizeof(str))){
-				free(set->affinity);
-				set->affinity = strdup(str);
-			}
-			else{
-				err_msg("Could not reconstruct CPU-list from new CPU-mask");
-				numa_free_cpumask(oldmask);
-				return -1;
-			}
+		// replace affinity string with new string!
+		if (!parse_bitmask(set->affinity_mask, str, sizeof(str))){
+			free(set->affinity);
+			set->affinity = strdup(str);
 		}
-
-		numa_free_cpumask(oldmask);
+		else{
+			err_msg("Could not reconstruct CPU-list from new CPU-mask");
+			numa_free_cpumask(oldmask);
+			return -1;
+		}
 	}
 
+	numa_free_cpumask(oldmask);
 	return 0;
 }
 
@@ -661,9 +673,16 @@ prepareEnvironment(prgset_t *set) {
 
 	/// --------------------
 	/// verify CPU topology and distribution
+	{
+		int ret = 0;
 
-	if (disableSMTandTest(set))	// SMT off
-		return -1;
+		ret = disableSMT(set); // SMT off
+
+		if (1 == ret && (resetCPUmask(set)))
+				return -1;
+		if (-1 == ret)
+			return -1;
+	}
 
 	struct bitmask * naffinity = numa_allocate_cpumask();
 	if (!naffinity)
