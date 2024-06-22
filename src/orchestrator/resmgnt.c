@@ -665,7 +665,7 @@ resetRTthrottle (prgset_t *set, int percent){
 	char buf[20];	// temporary stack buffer
 
 	// all modes except  Dynamic, set to -1 = unconstrained
-	if (-1 == percent){
+	if (-1 == percent){ // TODO: throttle is limited if no affinity lock is set
 		cont( "Set real-time bandwidth limit to (unconstrained)..");
 		value = RTLIM_UNL;
 	}

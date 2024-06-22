@@ -825,12 +825,14 @@ prepareEnvironment(prgset_t *set) {
 
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
-				// TODO: use return values for messaging
-				(void)setCPUgovernor(set, i);
+				if (setCPUgovernor(set, i))
+					warn("Could not configure CPU governor. Expect performance loss!");
 
-				(void)adjustCPUfreq(set, i);
+				if (adjustCPUfreq(set, i))
+					warn("Could not configure CPU-frequency. Expect performance loss!");
 
-				(void)setCPUpowerQos(set, i);
+				if (setCPUpowerQos(set, i))
+					warn("Could not configure CPU PM-QoS latency. Expect performance loss!");
 
 				// if smi is set, read SMI counter
 				if(set->smi) {
@@ -970,7 +972,7 @@ prepareEnvironment(prgset_t *set) {
 	if (KV_NOT_SUPPORTED == set->kernelversion)
 		warn("Running on unknown kernel version; Trying generic configuration..");
 
-	if (resetRTthrottle (set, -1)){ // TODO: throttle is limited if no affinity lock is set
+	if (resetRTthrottle (set, -1)){
 		// reset failed, let's try a CGroup reset first?? partitioned should work
 		cont( "trying to reset Docker's CGroups CPU's to %s first", set->affinity);
 		resetContCGroups(set, constr, set->numa);
