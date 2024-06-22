@@ -529,30 +529,36 @@ setCPUgovernor(prgset_t *set, int cpuno) {
 	char str[50]; 		// generic string...
 	char poss[50]; 		// possible settings string for governors
 
-	// verify if CPU-freq is on performance -> set it
-	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", cpuno);
-	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
-		warn("CPU%d available CPU scaling governors not found. Skipping.", cpuno);
-		return -1;
-	}
-
-	// value possible read ok
+	// read set scaling governor
 	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
 	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 		warn("CPU%d Scaling governor settings not found. Skipping.", cpuno);
 		return -1;
 	}
 
-	// value act read ok
+	// verify if CPU-freq is on performance
 	if (!strcmp(str, CPUGOVR)) {
 		cont("CPU-freq on CPU%d is set to \"" CPUGOVR "\" as required", cpuno);
 		return 0;
 	}
 
-	// TODO: test if CPUGOVR is in possible list
+	// value possible governors read ok?
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_available_governors", cpuno);
+	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, poss, sizeof(poss))){
+		warn("CPU%d available CPU scaling governors not found. Skipping.", cpuno);
+		return -1;
+	}
+
+	// verify if CPU-freq is on performance
+	if (NULL == strstr(poss, CPUGOVR)) {
+		warn("\"" CPUGOVR "\" is not part of possible CPU governors!", cpuno);
+		info("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, cpuno);
+		cont("Skipping setting of governor on CPU%d.", cpuno);
+		return -1;
+	}
 
 	// Governor is set to a different value
-	cont("Possible CPU-freq scaling governors \"%s\" on CPU%d.", poss, cpuno);
+	// ---
 
 	if ((set->dryrun & MSK_DRYNOCPUGOV) || set->blindrun){
 		cont("Skipping setting of governor on CPU%d.", cpuno);
@@ -660,7 +666,7 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
 	char str[50]; 		// generic string...
 
 	// CPU-IDLE settings, added with Kernel 4_15? 4_13?
-	(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", cpuno); // TODO: value dependent on governor>
+	(void)sprintf(fstring, "cpu%d/power/pm_qos_resume_latency_us", cpuno);
 	if (0 >= getkernvar(set->cpusystemfileprefix, fstring, str, sizeof(str))){
 		warn("CPU%d power saving configuration not found. Skipping.", cpuno);
 		return -1;
@@ -819,6 +825,7 @@ prepareEnvironment(prgset_t *set) {
 
 			if (numa_bitmask_isbitset(con, i)){ // filter by online/existing
 
+				// TODO: use return values for messaging
 				(void)setCPUgovernor(set, i);
 
 				(void)adjustCPUfreq(set, i);
@@ -1218,7 +1225,6 @@ void cleanupEnvironment(prgset_t *set){
 			}
 	}
 
-	// TODO: restore CGroup 2 to member - to discuss (containers still running ?)
 	freeTracer(&rHead); // free
 	adaptFree();
 
