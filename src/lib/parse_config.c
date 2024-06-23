@@ -466,7 +466,7 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		parse_dockerfileprefix(set);
 
 		// affinity default setting
-		if (!set->affinity){
+		if (!set->affinity){ // TODO: do not set, create in prepare!
 			char *defafin;
 			if (!(defafin = malloc(22))) // has never been set
 				err_exit("could not allocate memory!");
@@ -563,7 +563,8 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	set->rrtime = get_int_value_from(global, "rrtime", TRUE, set->rrtime);
 	//kernelversion -> runtime parameter
 
-	{ // affinity selection switch block
+	if (!set->setaffinity){
+	  // affinity selection switch block
 		char *setaffinity;
 
 		setaffinity = get_string_value_from(global, "setaffinity",
