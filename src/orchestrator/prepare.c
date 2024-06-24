@@ -747,43 +747,87 @@ resetCPUonline (prgset_t *set){
 int
 setDefaultAffinity(prgset_t *set) {
 
-	// TODO: read affinity-mode
-	// affinity default setting
-	if (!set->affinity){
-		char *defafin;
-		if (!(defafin = malloc(22))) // has never been set
-			err_exit("could not allocate memory!");
+	switch (set->setaffinity){
 
-		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
-		// no mask specified, use default
-		set->affinity = strdup(defafin);
-		free(defafin);
+		case AFFINITY_NUMASEPARATED:	// divide RT/non-RT according to NUMA separation (two groups)
+		case AFFINITY_NUMABALANCED:		// use multiple NUMA groups to create multiple RT-groups
+			err_exit("NUMA-based mode not implemented yet!");
+			break;
+
+		case AFFINITY_USEALL:			// go for all!! - uses no exclusive Docker partition!
+
+				break;
+
+		case AFFINITY_UNSPECIFIED:
+		default :
+			// use default settings
+
+			set->setaffinity = AFFINITY_USERSPECIFIED;
+			// no break
+
+		case AFFINITY_USERSPECIFIED:
+			// user defined settings
+			if (!set->affinity){
+				char *defafin;
+				if (!(defafin = malloc(22))) // has never been set
+					err_exit("could not allocate memory!");
+
+				(void)sprintf(defafin, "0-%d", get_nprocs_conf()-1);
+
+				set->affinity_mask = numa_parse_cpustring(defafin);
+
+				int syscpus=SYSCPUS;
+				for(int i=0; i<set->affinity_mask->size; i++)
+					if (numa_bitmask_isbitset(set->affinity_mask, i)){
+						// first x CPUs are system CPU
+						numa_bitmask_clearbit(set->affinity_mask, i);
+
+						syscpus--;
+						if (!syscpus)
+							break;
+					}
+
+				// still CPUs to be filled? or no more left?
+				if ((syscpus) || (!numa_bitmask_weight(set->affinity_mask)))
+					err_exit("Can not parse online CPU-list - not enough CPUs!");
+
+				// parse back from mask to list, shows only online
+				if (parse_bitmask(set->affinity_mask, defafin, sizeof(defafin)))
+					err_exit("Can not parse online CPU-list from online mask!");
+
+				info("Generated CPU-List for real-time operation before SMT-check: '%s'", defafin);
+				set->affinity = strdup(defafin);
+				free(defafin);
+			}
+
+			if (!set->numa){
+				char * numastr = malloc (5);
+				if (!(numastr))
+						err_exit("could not allocate memory!");
+				if (-1 != numa_available()) {
+					int numanodes = numa_max_node();
+
+					(void)sprintf(numastr, "0-%d", numanodes);
+				}
+				else{
+					warn("NUMA not enabled, defaulting to memory node '0'");
+					// default NUMA string
+					(void)sprintf(numastr, "0");
+				}
+				set->numa = strdup(numastr);
+				free(numastr);
+			}
 	}
 
-	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity);
+	// prepare bit-mask if not done before
 	if (!set->affinity_mask){
-		err_msg("The resulting CPUset is empty");
-		return -1; // return to display help
+		set->affinity_mask = parse_cpumask(set->affinity);
+		if (!set->affinity_mask){
+			err_msg("The resulting CPUset is empty");
+			return -1; // return to display help
+		}
 	}
 
-	{ // FIXME: only if not set!
-		char * numastr = malloc (5);
-		if (!(numastr))
-				err_exit("could not allocate memory!");
-		if (-1 != numa_available()) {
-			int numanodes = numa_max_node();
-
-			(void)sprintf(numastr, "0-%d", numanodes);
-		}
-		else{
-			warn("NUMA not enabled, defaulting to memory node '0'");
-			// default NUMA string
-			(void)sprintf(numastr, "0");
-		}
-		set->numa = strdup(numastr);
-		free(numastr);
-	}
 	return 0;
 }
 
