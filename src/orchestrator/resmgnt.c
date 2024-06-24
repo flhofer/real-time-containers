@@ -1021,6 +1021,19 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 }
 
 /*
+ *  recomputeTimes(): recomputes base and utilization factor of a resource
+ *
+ *  Arguments:  - resource entry for this CPU
+ *
+ *  Return value: Negative values return error
+ */
+int
+recomputeTimes(struct resTracer * res) {
+
+	return recomputeTimes_u(res, NULL);
+}
+
+/*
  *  recomputeCPUTimes_u(): recomputes base and utilization factor of a CPU
  *  						variant used for updates with skip item
  *

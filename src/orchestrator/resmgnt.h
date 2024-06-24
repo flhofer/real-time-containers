@@ -44,6 +44,7 @@
 	resTracer_t * getTracer(int32_t CPUno);		// return resTracer for CPU no
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
 	int	recomputeCPUTimes(int32_t CPUno);		// recompute UL for CPU
+	int recomputeTimes(struct resTracer * res);	// recompute UL for CPU using Trace
 	int	setPidAffinityAssinged (node_t * node);	// update PID affinity in run-time
 
 	uint64_t findPeriodMatch(uint64_t cdf_Period);	// find matching period in 1/40ths
