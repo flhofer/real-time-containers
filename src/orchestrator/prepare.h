@@ -8,6 +8,7 @@
 #ifndef PREPARE_H_
 	#define PREPARE_H_
 
+	int setDefaultAffinity(prgset_t *set);
 	int prepareEnvironment(prgset_t *set);
 	void cleanupEnvironment(prgset_t *set);
 

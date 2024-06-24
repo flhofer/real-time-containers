@@ -737,6 +737,57 @@ resetCPUonline (prgset_t *set){
 }
 
 /*
+ *  setDefaultAffinity(): initializes default affinity for CPUsets & NUMA
+ *
+ *  Arguments: - structure with parameter set
+ *
+ *  Return value: Error code
+ *  				Only valid if the function returns
+ */
+int
+setDefaultAffinity(prgset_t *set) {
+
+	// TODO: read affinity-mode
+	// affinity default setting
+	if (!set->affinity){
+		char *defafin;
+		if (!(defafin = malloc(22))) // has never been set
+			err_exit("could not allocate memory!");
+
+		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
+		// no mask specified, use default
+		set->affinity = strdup(defafin);
+		free(defafin);
+	}
+
+	// prepare bit-mask, no need to do it before
+	set->affinity_mask = parse_cpumask(set->affinity);
+	if (!set->affinity_mask){
+		err_msg("The resulting CPUset is empty");
+		return -1; // return to display help
+	}
+
+	{ // FIXME: only if not set!
+		char * numastr = malloc (5);
+		if (!(numastr))
+				err_exit("could not allocate memory!");
+		if (-1 != numa_available()) {
+			int numanodes = numa_max_node();
+
+			(void)sprintf(numastr, "0-%d", numanodes);
+		}
+		else{
+			warn("NUMA not enabled, defaulting to memory node '0'");
+			// default NUMA string
+			(void)sprintf(numastr, "0");
+		}
+		set->numa = strdup(numastr);
+		free(numastr);
+	}
+	return 0;
+}
+
+/*
  *  prepareEnvironment(): prepares the runtime environment for real-time
  *  operation. Creates CPU shield and configures the affinity of system
  *  processes and interrupts to reduce off-load on RT resources
