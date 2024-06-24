@@ -465,35 +465,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 		parse_dockerfileprefix(set);
 
-		// affinity default setting
-		if (!set->affinity){ // TODO: do not set, create in prepare!
-			char *defafin;
-			if (!(defafin = malloc(22))) // has never been set
-				err_exit("could not allocate memory!");
-
-			(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
-			// no mask specified, use default
-			set->affinity = strdup(defafin);
-			free(defafin);
-		}
-
-		{
-			char * numastr = malloc (5);
-			if (!(numastr))
-					err_exit("could not allocate memory!");
-			if (-1 != numa_available()) {
-				int numanodes = numa_max_node();
-
-				(void)sprintf(numastr, "0-%d", numanodes);
-			}
-			else{
-				warn("NUMA not enabled, defaulting to memory node '0'");
-				// default NUMA string
-				(void)sprintf(numastr, "0");
-			}
-			set->numa = strdup(numastr);
-			free(numastr);
-		}
 		return;
 	}
 
