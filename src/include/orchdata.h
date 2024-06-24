@@ -91,9 +91,11 @@
 	};
 
 	enum aff_mode {
-		AFFINITY_UNSPECIFIED =0,// use default settings
-		AFFINITY_SPECIFIED,	 	// user defined settings
-		AFFINITY_USEALL			// go for all!!
+		AFFINITY_UNSPECIFIED =0,		// use default settings
+		AFFINITY_USERSPECIFIED,	 		// user defined settings
+		AFFINITY_NUMASEPARATED = 0x10,	// divide RT/non-RT according to NUMA separation (two groups)
+		AFFINITY_NUMABALANCED,			// use multiple NUMA groups to create multiple RT-groups
+		AFFINITY_USEALL	= 0x20,			// go for all!! - uses no exclusive Docker partition!
 	};
 
 	// definition of container detection modes
