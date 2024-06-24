@@ -444,12 +444,18 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_VERSION:
 			(void)printf("\nSource compilation date: %s\n", __DATE__);
 			(void)printf("Copyright (C) 2019-24 Florian Hofer for\n"
+						 " * Libera Università di Bolzano, Italy - Project I4S* - \"Industry for the Smart-*\"\n"
 						 " * Siemens Corporate Technologies, Inc., Berkeley, CA, USA\n"
 						 " * Università degli Studi di Bologna, Italy - Project PRIN 2022 - \"JOULE\"\n"
 						 " * BI-REX - BIg data Research EXcellence competence center, Italy\n\n"
+
 						 "License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>\n"
 						 "This is free software: you are free to change and redistribute it.\n"
-						 "There is NO WARRANTY, to the extent permitted by law.\n");
+						 "There is NO WARRANTY, to the extent permitted by law.\n\n"
+
+						 "Report bugs to: info@florianhofer.it\n"
+						 "Project home page: <https://www.github.com/flhofer/real-time-containers/>\n");
+
 			exit(EXIT_SUCCESS);
 		case 'w':
 		case OPT_WCET:
