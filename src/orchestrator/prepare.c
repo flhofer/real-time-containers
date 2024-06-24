@@ -758,8 +758,47 @@ setDefaultAffinity(prgset_t *set) {
 			break;
 
 		case AFFINITY_USEALL:			// go for all!! - uses no exclusive Docker partition!
+			if (set->affinity)
+				free(set->affinity);
 
-				break;
+			resetCPUonline(set);		// bring ALL CPUs online!
+
+			{
+				char *defafin;
+				if (!(defafin = malloc(22))) // has never been set
+					err_exit("could not allocate memory!");
+
+				(void)sprintf(defafin, "0-%d", get_nprocs_conf()-1);
+
+				set->affinity_mask = numa_parse_cpustring(defafin);
+
+				info("Generated CPU-List for real-time operation before SMT-check: '%s'", defafin);
+				set->affinity = strdup(defafin);
+				free(defafin);
+			}
+
+			if (set->numa)
+				free(set->numa);
+
+			{
+				char * numastr = malloc (5);
+				if (!(numastr))
+						err_exit("could not allocate memory!");
+				if (-1 != numa_available()) {
+					int numanodes = numa_max_node();
+
+					(void)sprintf(numastr, "0-%d", numanodes);
+				}
+				else{
+					warn("NUMA not enabled, defaulting to memory node '0'");
+					// default NUMA string
+					(void)sprintf(numastr, "0");
+				}
+				set->numa = strdup(numastr);
+				free(numastr);
+			}
+
+			break;
 
 		case AFFINITY_UNSPECIFIED:
 		default :
