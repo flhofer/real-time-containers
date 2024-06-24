@@ -547,46 +547,14 @@ static void parse_global(struct json_object *global, prgset_t *set)
 
 	} // END affinity selection switch block
 
-	{  // default affinity mask and selection block
-
-		char *defafin;
-		if (!(defafin = malloc(22))) // has never been set
-			err_exit("could not allocate memory!");
-
-		(void)sprintf(defafin, "%d-%d", SYSCPUS+1, get_nprocs()-1);
-
-		// no mask specified, use default
-		if (AFFINITY_UNSPECIFIED == set->setaffinity
-			&& !set->affinity){
-			printDbg(PIN2 "Using default setting, affinity '%d' and '%s'.\n", SYSCPUS, defafin);
-
-			set->affinity = strdup(defafin);
-		}
-		else
-			// read from file
-			set->affinity = get_string_value_from(global, "affinity", TRUE, defafin);
-
-		free(defafin);
-	} // END default affinity block 
-
-	{
-		char * numastr = malloc (5);
-		if (!(numastr))
-				err_exit("could not allocate memory!");
-		if (-1 != numa_available()) {
-			int numanodes = numa_max_node();
-
-			(void)sprintf(numastr, "0-%d", numanodes);
-		}
-		else{
-			warn("NUMA not enabled, defaulting to memory node '0'");
-			// default NUMA string
-			(void)sprintf(numastr, "0");
-		}
-		set->numa = get_string_value_from(global, "numa", TRUE, numastr);
-		free(numastr);
+	if (!set->affinity) // Read from file if not set, set error if previous value is set but this is not
+			set->affinity = get_string_value_from(global, "affinity",
+					AFFINITY_UNSPECIFIED == set->setaffinity, NULL);
+	if (set->affinity && AFFINITY_UNSPECIFIED == set->setaffinity){
+		set->setaffinity = AFFINITY_USERSPECIFIED;
+		warn("User affinity set in configuration file but affinity mode not specified. Assuming USERSPECIFIED.");
 	}
-
+	set->numa = get_string_value_from(global, "numa", TRUE, NULL);
 	set->ftrace = get_bool_value_from(global, "ftrace", TRUE, set->ftrace);
 	set->ptresh = get_double_value_from(global, "ptresh", TRUE, set->ptresh);
 
