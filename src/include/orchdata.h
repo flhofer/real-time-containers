@@ -80,7 +80,7 @@
 	#define CGRP_PIDS "tasks"	// CGv1 file for running PIDs
 #endif
 
-	#define SYSCPUS 0 // 0-> count reserved for orchestrator and system
+	#define SYSCPUS 1 // 1 -> count of min CPUS reserved for orchestrator and system
 	#define CPUGOVR	"performance" // desired configuration for CPU governor
 
 	// definition of container detection modes
@@ -91,11 +91,11 @@
 	};
 
 	enum aff_mode {
-		AFFINITY_UNSPECIFIED =0,		// use default settings
+		AFFINITY_UNSPECIFIED 	= 0x00,	// use default settings
 		AFFINITY_USERSPECIFIED,	 		// user defined settings
-		AFFINITY_NUMASEPARATED = 0x10,	// divide RT/non-RT according to NUMA separation (two groups)
+		AFFINITY_NUMASEPARATED 	= 0x10,	// divide RT/non-RT according to NUMA separation (two groups)
 		AFFINITY_NUMABALANCED,			// use multiple NUMA groups to create multiple RT-groups
-		AFFINITY_USEALL	= 0x20,			// go for all!! - uses no exclusive Docker partition!
+		AFFINITY_USEALL			= 0x20,	// go for all!! - uses no exclusive Docker partition!
 	};
 
 	// definition of container detection modes
