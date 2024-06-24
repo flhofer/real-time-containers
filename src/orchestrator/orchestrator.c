@@ -294,11 +294,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case OPT_AFFINITY:
 			if (NULL != optarg) {
 				set->affinity = optarg;
-				set->setaffinity = AFFINITY_SPECIFIED;
+				set->setaffinity = AFFINITY_USERSPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
 				set->affinity = argv[optind];
 				optargs++;
-				set->setaffinity = AFFINITY_SPECIFIED;
+				set->setaffinity = AFFINITY_USERSPECIFIED;
 			// flag -a with no range = all
 			} else {
 				set->affinity = malloc(14);
@@ -499,6 +499,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	if (!error)
 		// parse json configuration
 		parse_config_file(config, set, contparm);
+
+	// fill missing default affinity values
+	if (setDefaultAffinity(set))
+		display_help(1);
 
 	if (set->smi) { // verify this statements, I just put them all
 		if (set->setaffinity == AFFINITY_UNSPECIFIED)

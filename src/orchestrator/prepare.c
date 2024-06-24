@@ -824,13 +824,6 @@ prepareEnvironment(prgset_t *set) {
 
 	info("Starting environment setup");
 
-	// prepare bit-mask, no need to do it before
-	set->affinity_mask = parse_cpumask(set->affinity);
-	if (!set->affinity_mask){
-		err_msg("The resulting CPUset is empty");
-		return -1; // return to display help
-	}
-
 	/// --------------------
 	/// verify CPU topology and distribution
 	if (!testSMT(set))
