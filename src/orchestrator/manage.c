@@ -597,8 +597,8 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 				}
 
 		// all done, recompute CPU-times
-		(void)recomputeCPUTimes(ntrc->affinity);
-		if ((trc) && 0 > recomputeCPUTimes(trc->affinity))
+		(void)recomputeTimes(ntrc);
+		if ((trc) && 0 > recomputeTimes(trc))
 			return -2; // more than one task to move
 		return 0;
 	}
@@ -1623,7 +1623,7 @@ dumpStats (){
 						"----------------------------------------------------------------------------------\n");
 
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-			(void)recomputeCPUTimes(trc->affinity);
+			(void)recomputeTimes(trc);
 			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
 					trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
 		}
