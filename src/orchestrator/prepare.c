@@ -453,8 +453,11 @@ resetCPUstring(prgset_t *set){
 		return -1;
 	}
 
-	free(set->affinity);
-	set->affinity = strdup(str);
+	if (strcmp(set->affinity, str)){
+		info("Updated CPU-List for real-time operation: '%s'", str);
+		free(set->affinity);
+		set->affinity = strdup(str);
+	}
 
 	return 0;
 }
