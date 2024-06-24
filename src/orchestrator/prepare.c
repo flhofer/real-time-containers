@@ -709,9 +709,6 @@ setCPUpowerQos(prgset_t *set, int cpuno) {
 static void
 resetCPUonline (prgset_t *set){
 
-	// Limit to present CPUs
-	int mask_sz = MIN(get_nprocs_conf(), set->affinity_mask->size);
-
 	cont("Trying reset CPU's online status");
 	if (!set->blindrun)
 	{
@@ -721,7 +718,7 @@ resetCPUonline (prgset_t *set){
 		char fstring[CMD_LEN]; 	// CPU VFS string
 		struct stat s;			// Stats to check if CPU exists (to permit holes)
 		// bring all back online
-		for (int i=1;i<mask_sz;i++) {
+		for (int i=1;i<set->affinity_mask->size;i++) {
 
 			(void)sprintf(fstring, "%scpu%d/online", set->cpusystemfileprefix, i);
 
