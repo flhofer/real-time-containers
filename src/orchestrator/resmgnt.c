@@ -642,9 +642,11 @@ setContCGroups(prgset_t *set, int setCont) {
 	if (AFFINITY_USEALL != set->setaffinity) // set exclusive only if not use-all
 #ifdef CGROUP2
 		// count = 0, do not set to root as docker will overwrite CPUset on first container start and block task creation
-		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root", set->dryrun & MSK_DRYNOCGRPRT)){
+		if (((count) || (!setCont)) && 0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpus.partition", "root",
+				(set->dryrun & MSK_DRYNOCGRPRT) || AFFINITY_USEALL == set->setaffinity)){ // do not set root if we have all used
 #else
-		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1", set->dryrun & MSK_DRYNOCGRPRT)){
+		if (0 > setkernvar(set->cpusetdfileprefix, "cpuset.cpu_exclusive", "1",
+				(set->dryrun & MSK_DRYNOCGRPRT) || AFFINITY_USEALL == set->setaffinity)){ // do not set exclusive if we have all used
 #endif
 			warn("Can not set CPU exclusive partition: %s", strerror(errno));
 		}

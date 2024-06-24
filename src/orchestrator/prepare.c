@@ -998,6 +998,9 @@ prepareEnvironment(prgset_t *set) {
 		numa_free_cpumask(con);
 	}
 
+	// if all set, all is also true for system == no system/Container confinement
+	if (AFFINITY_USEALL == set->setaffinity)
+		copy_bitmask_to_bitmask(set->affinity_mask, naffinity);
 
 	// parse to string
 	if (parse_bitmask (naffinity, cpus, CPUSTRLEN))
@@ -1241,7 +1244,8 @@ prepareEnvironment(prgset_t *set) {
 		}
 #else
 		if (AFFINITY_USEALL != set->setaffinity) // set only if not set use-all
-			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1", set->dryrun & MSK_DRYNOCGRPRT)){
+			if (0 > setkernvar(fileprefix, "cpuset.cpu_exclusive", "1",
+					(set->dryrun & MSK_DRYNOCGRPRT) || AFFINITY_USEALL == set->setaffinity)){ // do not set exclusive if we have all used
 				warn("Can not set CPU exclusive partition: %s", strerror(errno));
 			}
 
