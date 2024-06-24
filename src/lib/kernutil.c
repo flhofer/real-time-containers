@@ -762,7 +762,7 @@ policy_is_realtime(int policy)
 int
 string_to_policy(const char *policy_name, uint32_t *policy)
 {
-	if (strcmp(policy_name, "SCHED_OTHER") == 0)
+	if (strcmp(policy_name, "SCHED_OTHER") == 0) // TODO : add shorthand strings!
 		*policy = SCHED_OTHER;
 	else if (strcmp(policy_name, "SCHED_IDLE") == 0)
 		*policy = SCHED_IDLE;
@@ -793,8 +793,12 @@ string_to_affinity(const char *str)
 {
 	if (!strcmp(str, "unspecified"))
 		return AFFINITY_UNSPECIFIED;
-	else if (!strcmp(str, "specified"))
-		return AFFINITY_SPECIFIED;
+	else if (!strcmp(str, "user-specified"))
+		return AFFINITY_USERSPECIFIED;
+	else if (!strcmp(str, "numa-separated"))
+		return AFFINITY_NUMASEPARATED;
+	else if (!strcmp(str, "numa-balanced"))
+		return AFFINITY_NUMABALANCED;
 	else if (!strcmp(str, "useall"))
 		return AFFINITY_USEALL;
 	warn("Unrecognized value '%s' for affinity setting", str);
