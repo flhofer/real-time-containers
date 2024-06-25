@@ -594,6 +594,12 @@ START_TEST(findparams_dup_Test)
 	// reset
 	contparm->cont->next->status = MSK_STATSHRC | MSK_STATSHAT;
 	contparm->cont->next->pids->pid->status = MSK_STATSHRC | MSK_STATSHAT;
+
+	contparm->cont->status = MSK_STATSHRC | MSK_STATSHAT;
+	free (contparm->cont->attr);
+	numa_free_cpumask(contparm->cont->rscs->affinity_mask);
+	free(contparm->cont->rscs);
+
 	contparm->pids->status = MSK_STATSHRC | MSK_STATSHAT;
 	free (contparm->pids->attr);
 	numa_free_cpumask(contparm->pids->rscs->affinity_mask);
