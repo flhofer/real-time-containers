@@ -492,8 +492,9 @@ scanNew () {
 			tail = tail->next;
 
 			tail->next=tmp; // append rest of list after new item
+			continue;
 		} 
-		else		
+
 		// delete a dopped item
 		if (lnew->pid < abs(tail->next->pid)) {
 			// skip deactivated tracking items
@@ -511,14 +512,14 @@ scanNew () {
 				node_pop(&tail->next);
 				nhead = dummy.next;
 			}
+			continue;
 		} 
+
 		// ok, they're equal, skip to next
-		else {
-			printDbg(PIN "... No change\n");
-			// free allocated items, no longer needed
-			node_pop(&lnew);
-			tail = tail->next;
-		}
+		printDbg(PIN "... No change\n");
+		// free allocated items, no longer needed
+		node_pop(&lnew);
+		tail = tail->next;
 	}
 
 	while (NULL != tail->next) { // reached the end of the pid queue -- drop list end
