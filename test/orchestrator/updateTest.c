@@ -193,7 +193,7 @@ START_TEST(orchestrator_update_stop)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1;
 
 	iret1 = pthread_create( &thread1, NULL, thread_update, (void*) &stat1);
 	ck_assert_int_eq(iret1, 0);
@@ -215,7 +215,7 @@ START_TEST(orchestrator_update_findprocs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1;
 
 	pid_t pid1, pid2, pid3;
 	FILE * fd1, * fd2,  * fd3;
@@ -270,7 +270,7 @@ START_TEST(orchestrator_update_findprocsall)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1;
 
 	// set detect mode to pid 
 	free (prgset->cont_pidc);
@@ -297,7 +297,7 @@ START_TEST(orchestrator_update_rscs)
 {	
 	pthread_t thread1;
 	int  iret1;
-	int stat1 = 0;
+	int stat1 = 1;
 	pid_t pid1, pid2;
 	FILE * fd1, * fd2;
 
