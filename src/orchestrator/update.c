@@ -477,6 +477,7 @@ scanNew () {
 				printDbg(PIN "... Dropping deactivated PID %d\n", lnew->pid);
 
 				node_pop(&tail->next);
+				nhead = dummy.next;
 			}
 
 			printDbg(PIN "... Insert new PID %d\n", lnew->pid);
@@ -506,8 +507,10 @@ scanNew () {
 				tail->next->pid*=-1;
 				tail = tail->next;
 			}
-			else
+			else{
 				node_pop(&tail->next);
+				nhead = dummy.next;
+			}
 		} 
 		// ok, they're equal, skip to next
 		else {
@@ -530,6 +533,9 @@ scanNew () {
 			node_pop(&tail->next);
 	}
 
+	// Reconstruct head after cleanup!
+	nhead = dummy.next;
+
 	if (NULL != lnew) { // reached the end of the actual queue -- insert to list end
 		printDbg(PIN "... Insert at end, starting from PID %d - on\n", lnew->pid);
 		tail->next = lnew;
@@ -539,8 +545,9 @@ scanNew () {
 		}
 	}
 
-	// 
+	// Restore once done
 	nhead = dummy.next;
+
 	// unlock data thread
 	(void)pthread_mutex_unlock(&dataMutex);
 
