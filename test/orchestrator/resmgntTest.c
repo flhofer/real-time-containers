@@ -681,6 +681,10 @@ START_TEST(findparamsFailTest)
 	ck_assert_int_eq(retv, -1);
 	ck_assert(!nhead->param);
 
+	if (!nhead->pid){
+		free(nhead->param);
+		nhead->param = NULL;
+	}
 	node_pop(&nhead);
 }
 END_TEST
@@ -698,6 +702,8 @@ START_TEST(findparams_linkTest)
 
 	findparamsCheck( 1, 1 );
 
+	free(nhead->param);
+	nhead->param = NULL;
 	node_pop(&nhead);
 }
 END_TEST
@@ -715,6 +721,8 @@ START_TEST(findparams_link2Test)
 
 	findparamsCheck( 0, 1 );
 
+	free(nhead->param);
+	nhead->param = NULL;
 	node_pop(&nhead);
 }
 END_TEST
