@@ -43,6 +43,7 @@
 												// same, but with node for runtime
 	resTracer_t * getTracer(int32_t CPUno);		// return resTracer for CPU no
 	resTracer_t * grepTracer();					// return resTreacer with lowest Ul
+	int	getTracerMainCPU(resTracer_t * res);	// Return ID of main CPU of resTracer affinity
 	int	recomputeCPUTimes(int32_t CPUno);		// recompute UL for CPU
 	int recomputeTimes(struct resTracer * res);	// recompute UL for CPU using Trace
 	int	setPidAffinityAssinged (node_t * node);	// update PID affinity in run-time

@@ -579,17 +579,17 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 				if (0 < item->pid && item->param && item->param->cont
 						&& item->param->cont == node->param->cont){
 
-					item->mon.assigned = ntrc->affinity;
+					item->mon.assigned = getTracerMainCPU(ntrc);
 					if (!setPidAffinityAssinged (item)){
 						item->mon.resched++;
 						continue;
 					}
 					if (trc){ // Reallocate did not work, undo if possible
-						item->mon.assigned = trc->affinity;
+						item->mon.assigned = getTracerMainCPU(trc);
 						for (node_t * bitem = nhead; ((bitem)) && bitem != item; bitem=bitem->next)
 							if (0 < bitem->pid && bitem->param && bitem->param->cont
 									&& bitem->param->cont == item->param->cont){
-								bitem->mon.assigned = trc->affinity;
+								bitem->mon.assigned = getTracerMainCPU(trc);
 								(void)setPidAffinityAssinged (bitem);
 							}
 					}
@@ -1624,7 +1624,7 @@ dumpStats (){
 
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 			(void)recomputeTimes(trc);
-			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", trc->affinity,
+			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", getTracerMainCPU(trc),
 					trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
 		}
 	}

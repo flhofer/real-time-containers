@@ -729,7 +729,9 @@ createResTracer(){
 
 		if (numa_bitmask_isbitset(prgset->affinity_mask, i)){ // filter by selected only
 			push((void**)&rHead, sizeof(struct resTracer));
-			rHead->affinity = i;
+			rHead->affinity = numa_allocate_cpumask();
+			numa_bitmask_setbit(rHead->affinity, i);
+			rHead->numa = numa_node_of_cpu(i);
 			rHead->status = MSK_STATHRMC;
 //			rHead->U = 0.0;
 //			rHead->Umax = 0.0;
@@ -877,11 +879,11 @@ checkPeriod(struct sched_attr * attr, int affinity) {
 		res = checkUvalue(trc, attr, 0);
 		if ((0 <= res && res < last) // better match, or matching favorite
 			|| ((res == last) &&
-				(  (trc->affinity == abs(affinity))
+				(  (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
 				|| (trc->U < Ulast)) ) )	{
 			last = res;
 			// reset U if we had an affinity match
-			if (trc->affinity == abs(affinity))
+			if (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
 				Ulast= 0.0;
 			else
 				Ulast = trc->U;
@@ -946,9 +948,9 @@ checkPeriod_R(node_t * item, int include) {
  */
 resTracer_t *
 getTracer(int32_t CPUno) {
-	// loop through all and return the best fit
+
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (CPUno == trc->affinity)
+		if (numa_bitmask_isbitset(trc->affinity, CPUno))
 			return trc;
 	}
 
@@ -982,6 +984,28 @@ grepTracer() {
 }
 
 /*
+ *  getTracerMainCPU(): get the main CPU resource tracer for CPU x
+ *
+ *  Arguments: - - resource entry for the CPU
+ *
+ *  Return value: a pointer to the resource tracer
+ *					returns null if nothing is found
+ */
+int
+getTracerMainCPU(resTracer_t * res) {
+	if (!res || !res->affinity)
+		return -1;
+
+	// loop through all and return first fit
+	for (int i = 0; i<res->affinity->size; i++){
+		if (numa_bitmask_isbitset(res->affinity, i))
+			return i;
+	}
+
+	return -1;
+}
+
+/*
  *  recomputeTimes_u(): recomputes base and utilization factor of a resource
  *
  *  Arguments:  - resource entry for this CPU
@@ -997,7 +1021,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next){
-		if (item->mon.assigned != res->affinity
+		if (!numa_bitmask_isbitset(res->affinity, item->mon.assigned)
 				|| 0 > item->pid || item == skip)
 			continue;
 

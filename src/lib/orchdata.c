@@ -375,8 +375,10 @@ freePrgSet(prgset_t * prgset){
  */
 void
 freeTracer(resTracer_t ** rHead){
-	while (*rHead)
+	while (*rHead){
+		numa_free_cpumask((*rHead)->affinity);
 		pop((void**)rHead);
+	}
 }
 
 

@@ -30,7 +30,7 @@
 START_TEST(checkValueTest)
 {	
 	resTracer_t res = {
-			NULL, 0, 0.0, MSK_STATHRMC, 0, 0
+			NULL, NULL, 0, 0.0, MSK_STATHRMC, 0, 0
 	};
 	struct sched_attr par = {
 		48,
@@ -89,8 +89,7 @@ setup() {
 static void
 teardown() {
 	// free memory
-	while (rHead)
-		pop((void**)&rHead);
+	freeTracer(&rHead);
 	while (nhead)
 		pop((void**)&nhead);
 
@@ -106,11 +105,12 @@ START_TEST(createTracerTest)
 	createResTracer();
 
 	ck_assert_ptr_ne(NULL, rHead);
-	ck_assert_int_eq(rHead->affinity, 0);
+	ck_assert_int_eq(getTracerMainCPU(rHead), 0);
 	ck_assert_int_eq((int)rHead->basePeriod,0);
 	ck_assert_int_eq((int)rHead->usedPeriod,0);
 	ck_assert_int_eq((int)rHead->U,0);
 
+	numa_free_cpumask(rHead->affinity);
 	pop((void**)&rHead);
 
 	// test no CPU
@@ -141,6 +141,7 @@ START_TEST(grepTracerTest)
 	ck_assert_ptr_eq(grepTracer(), rHead->next);
 
 	// invert values
+	numa_free_cpumask(rHead->affinity);
 	pop((void**)&rHead);
 	rHead->U = 0.5;
 	push((void**)&rHead, sizeof(struct resTracer));
@@ -158,10 +159,13 @@ START_TEST(getTracerTest)
 	createResTracer();
 	// add one more, CPU2
 	push((void**)&rHead, sizeof(struct resTracer));
-	rHead->affinity = 6;
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 6);
+
 	// add one more, CPU1
 	push((void**)&rHead, sizeof(struct resTracer));
-	rHead->affinity = 3;
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 3);
 
 	ck_assert_ptr_eq(getTracer(3), rHead);
 	ck_assert_ptr_eq(getTracer(4), NULL);
@@ -178,12 +182,15 @@ START_TEST(checkPeriodTest)
 	rHead->basePeriod = 100000;
 	// add one more, CPU1
 	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 1);
 	rHead->basePeriod = 50000;
 	rHead->status = MSK_STATHRMC;
 	// add one more, CPU2
 	push((void**)&rHead, sizeof(struct resTracer));
 	rHead->basePeriod = 70000;
-	rHead->affinity = 1;
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 1);
 	rHead->status = MSK_STATHRMC;
 
 	struct sched_attr par ={
@@ -225,6 +232,8 @@ START_TEST(checkPeriod_RTest)
 	rHead->basePeriod = 100000;
 	// add one more, CPU1
 	push((void**)&rHead, sizeof(struct resTracer));
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 1);
 	rHead->basePeriod = 50000;
 	rHead->status = MSK_STATHRMC;
 

@@ -107,8 +107,8 @@ START_TEST(orchestrator_adaptive_resources)
 	ck_assert(!(rHead->next->next));
 
 	// check CPU assignments
-	ck_assert_int_eq(1, rHead->affinity);
-	ck_assert_int_eq(2, rHead->next->affinity);
+	ck_assert_int_eq(1, getTracerMainCPU(rHead));
+	ck_assert_int_eq(2, getTracerMainCPU(rHead->next));
 
 	// check element initialization values
 	ck_assert_int_eq(0, rHead->basePeriod);

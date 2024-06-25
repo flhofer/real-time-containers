@@ -174,7 +174,8 @@
 
 	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
-		int32_t	 affinity; 		// exclusive CPU-num
+		struct bitmask * affinity; 	// exclusive CPU-num / or SMT sibling
+		int 	 numa;			// NUMA node for this CPU / siblings
 		float	 U;				// utilization factor
 		int 	 status;		// generic status info
 		uint64_t usedPeriod;	// amount of CPU-time left..

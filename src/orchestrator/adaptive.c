@@ -150,8 +150,8 @@ static int
 addTracer(resAlloc_t * res, int cpu){
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 		if (((-1 == cpu)
-			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, trc->affinity)))
-			|| (cpu == trc->affinity)){
+			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, getTracerMainCPU(trc)))) // TEMP: use main CPU for check only!
+			|| (numa_bitmask_isbitset(trc->affinity, cpu))){
 
 			// check first. add and return check value
 			int ret = checkUvalue(trc, res->item->attr, 1);
@@ -498,7 +498,7 @@ adaptExecute() {
 	// apply only if not shared and if fixed cpu is assigned
 	for (resAlloc_t * res = aHead; ((res)); res=res->next)
 		if (!(res->item->status & MSK_STATSHRC) && (res->assigned))
-			res->item->rscs->affinity = res->assigned->affinity;
+			res->item->rscs->affinity = getTracerMainCPU(res->assigned);
 }
 
 /*
