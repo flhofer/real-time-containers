@@ -204,6 +204,8 @@ START_TEST(orchestrator_update_stop)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+
+	node_pop(&nhead);
 }
 END_TEST
 
