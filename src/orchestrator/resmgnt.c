@@ -455,7 +455,7 @@ updatePidWCET(node_t * node, uint64_t wcet){
 void
 updatePidCmdline(node_t * node){
 	char * cmdline;
-	char kparam[15]; // pid{x}/cmdline read string
+	char kparam[20]; // pid{x}/cmdline read string
 
 	if ((cmdline = malloc(MAXCMD_LEN))) { // alloc memory for strings
 
