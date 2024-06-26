@@ -138,7 +138,7 @@ setPidAffinityNode (node_t * node){
 		//TODO: warn ! this removes it if it's already present in a subgroup!
 		// -> can not see subgroup contents! -> visible in /proc/150985/cgroup , v2 format 0::/path/from/cgroup/root
 
-		char pid[6]; // PID is 5 digits + \0
+		char pid[11]; // PID is 10 digits + \0 now
 		(void)sprintf(pid, "%d", node->pid);
 		if (0 > setkernvar(prgset->cpusetdfileprefix , CGRP_PIDS, pid, prgset->dryrun & MSK_DRYNOAFTY)){
 			printDbg(PIN2 "Warn! Can not move task %s\n", pid);
