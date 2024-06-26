@@ -38,8 +38,12 @@
 
 #define GET_VARIABLE_NAME(Variable) (#Variable)
 
+#define ALPHAAVG_SECONDS	300	// how many seconds we want to "go back"
+
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
+// alpha for averaging
+static float alphaAVG = 0.99998;
 
 // #################################### THREAD configuration specific ############################################
 
@@ -1562,10 +1566,11 @@ manageSched(){
 		if (0.0 != trc->U) // ignore 0 min CPU
 			trc->Umin = MIN (trc->Umin, trc->U);
 		trc->Umax = MAX (trc->Umax, trc->U);
-		if (0.0 == trc->Uavg && 0.0 != trc->U)
+
+		if (0.0 == trc->Uavg)
 			trc->Uavg = trc->U;
 		else
-			trc->Uavg = trc->Uavg * 0.9 + trc->U * 0.1;
+			trc->Uavg = trc->Uavg * alphaAVG + trc->U * (1.0 - alphaAVG);
 	}
 
 	(void)pthread_mutex_unlock(&dataMutex);
@@ -1629,7 +1634,7 @@ dumpStats (){
 
 	if (SM_PADAPTIVE <= prgset->sched_mode) {
 		(void)printf( "\nStatistics on resource usage:\n"
-						"CPU : AVG (MIN/MAX)\n"
+						"CPU : AVG - 5min (MIN/MAX)\n"
 						"----------------------------------------------------------------------------------\n");
 
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
@@ -1667,6 +1672,9 @@ void *thread_manage (void *arg)
 			warn("clock_gettime() failed: %s", strerror(errno));
 		*pthread_state=-1;
 	}
+
+	// calculate alpha for 5 min (default) based on interval
+	alphaAVG = 1.0 - (float)prgset->interval / (float)USEC_PER_SEC / ALPHAAVG_SECONDS;
 
 	// initialize the thread locals
 	while(1)
