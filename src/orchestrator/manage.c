@@ -1268,11 +1268,12 @@ get_sched_info(node_t * item)
 	} /** IF_NULL **/
 
 	// read output into buffer!
-	if (0 >= fread (szStatBuff, sizeof(char), PIPE_BUFFER-1, fp)) {
+	int rd = fread (szStatBuff, sizeof(char), PIPE_BUFFER-1, fp);
+	if (0 >= rd) {
 		fclose (fp);
 		return -1;
 	}
-	szStatBuff[PIPE_BUFFER-1] = '\0'; // safety first
+	szStatBuff[rd] = '\0'; // safety first
 
 	fclose (fp);
 
