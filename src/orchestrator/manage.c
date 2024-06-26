@@ -756,8 +756,13 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		if (item->mon.last_ts)
 			while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
-				item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
 				item->mon.dl_scanfail++;
+
+				if (!item->attr.sched_period){
+					(void)get_sched_info(item);
+					break;
+				}
+				item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
 			}
 
 		// just add a period, we rely on periodicity
@@ -765,8 +770,13 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		uint64_t count = 1;
 		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
-			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 			item->mon.dl_scanfail++;
+
+			if (!item->attr.sched_period){
+				(void)get_sched_info(item);
+				break;
+			}
+			item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
 			count++;
 		}
 
