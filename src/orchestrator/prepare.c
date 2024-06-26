@@ -807,16 +807,16 @@ setDefaultAffinity(prgset_t *set) {
 		case AFFINITY_USERSPECIFIED:
 			// user defined settings
 			if (!set->affinity){
-				char *cpulst;
-				if (!(cpulst = malloc(100))) // has never been set
+				char *defafin;
+				if (!(defafin = malloc(100))) // has never been set
 					err_exit("could not allocate memory!");
 
 				// get online cpu's
-				if (0 >= getkernvar(set->cpusystemfileprefix, "online", cpulst, sizeof(cpulst)))
+				if (0 >= getkernvar(set->cpusystemfileprefix, "online", defafin, sizeof(defafin)))
 					// online CPU string not readable
 					err_exit("Can not read online CPUs");
 
-				set->affinity_mask = numa_parse_cpustring_all(cpulst);
+				set->affinity_mask = numa_parse_cpustring_all(defafin);
 
 				int syscpus=SYSCPUS;
 				for(int i=0; i<set->affinity_mask->size; i++)
@@ -834,12 +834,12 @@ setDefaultAffinity(prgset_t *set) {
 					err_exit("Can not parse online CPU-list - not enough CPUs!");
 
 				// parse back from mask to list, shows only online
-				if (parse_bitmask(set->affinity_mask, cpulst, sizeof(cpulst)))
+				if (parse_bitmask(set->affinity_mask, defafin, sizeof(defafin)))
 					err_exit("Can not parse online CPU-list from online mask!");
 
-				info("Generated CPU-List for real-time operation before SMT-check: '%s'", cpulst);
-				set->affinity = strdup(cpulst);
-				free(cpulst);
+				info("Generated CPU-List for real-time operation before SMT-check: '%s'", defafin);
+				set->affinity = strdup(defafin);
+				free(defafin);
 			}
 
 			if (!set->numa){
