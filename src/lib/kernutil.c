@@ -762,17 +762,23 @@ policy_is_realtime(int policy)
 int
 string_to_policy(const char *policy_name, uint32_t *policy)
 {
-	if (strcmp(policy_name, "SCHED_OTHER") == 0) // TODO : add shorthand strings!
+	if ((strcmp(policy_name, "SCHED_OTHER") == 0)
+			|| (strcmp(policy_name, "other") == 0))
 		*policy = SCHED_OTHER;
-	else if (strcmp(policy_name, "SCHED_IDLE") == 0)
+	else if ((strcmp(policy_name, "SCHED_IDLE") == 0)
+			|| (strcmp(policy_name, "idle") == 0))
 		*policy = SCHED_IDLE;
-	else if (strcmp(policy_name, "SCHED_BATCH") == 0)
+	else if ((strcmp(policy_name, "SCHED_BATCH") == 0)
+			|| (strcmp(policy_name, "batch") == 0))
 		*policy = SCHED_BATCH;
-	else if (strcmp(policy_name, "SCHED_RR") == 0)
+	else if ((strcmp(policy_name, "SCHED_RR") == 0)
+			|| (strcmp(policy_name, "rr") == 0))
 		*policy =  SCHED_RR;
-	else if (strcmp(policy_name, "SCHED_FIFO") == 0)
+	else if ((strcmp(policy_name, "SCHED_FIFO") == 0)
+			|| (strcmp(policy_name, "fifo") == 0))
 		*policy =  SCHED_FIFO;
-	else if (strcmp(policy_name, "SCHED_DEADLINE") == 0)
+	else if ((strcmp(policy_name, "SCHED_DEADLINE") == 0)
+			|| (strcmp(policy_name, "deadline") == 0))
 		*policy =  SCHED_DEADLINE;
 	else if (strcmp(policy_name, "default") == 0) // No change to program settings
 		*policy =  SCHED_NODATA;
