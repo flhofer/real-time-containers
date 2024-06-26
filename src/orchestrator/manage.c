@@ -780,7 +780,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				(void)get_sched_info(item);
 				break;
 			}
-			item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 			count++;
 		}
 
