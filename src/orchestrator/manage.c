@@ -1232,8 +1232,8 @@ updateSiblings(node_t * node){
 		}
 	}
 
-	if (mainp != node) // we are not the main task
-		return -1;
+	if (mainp != node)  // we are not the main task
+		return 0;		// assumed periodicity of sibling changed, let's ignore it
 
 	// ELSE update all TIDs
 	return pidReallocAndTest(checkPeriod_R(mainp, 0),
