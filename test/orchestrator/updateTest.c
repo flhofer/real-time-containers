@@ -87,6 +87,8 @@ START_TEST(orchestrator_update_getpids)
 #endif
 	usleep(1000); // wait for process creation // yield
 
+	selectUpdate();
+
 	getPids(&nhead, pid, NULL);
 
 	// verify 2 nodes exist
@@ -122,6 +124,8 @@ START_TEST(orchestrator_update_scannew)
 	free (prgset->cont_pidc);
 	prgset->cont_pidc = strdup("sleep");
 	prgset->use_cgroup = DM_CMDLINE;
+
+	selectUpdate();
 
 	usleep(1000); // wait for process creation // yield
 	scanNew();
@@ -179,6 +183,7 @@ START_TEST(orchestrator_update_dlinkread)
 	containerEvent->name = strdup("testcont");
 	containerEvent->image = strdup("testimg");
 
+	selectUpdate();
 	updateDocker();
 
     // TODO: expand -- use existing id

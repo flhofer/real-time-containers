@@ -30,8 +30,13 @@ static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 #undef PFX
 #define PFX "[update] "
 
+// GLocal vars
+char * pidSignature;
+
 // declarations 
 static void scanNew();
+static void getCmdLinePids (node_t **pidlst);
+static void (*pidUpdate)(node_t **) = getCmdLinePids; // default to PID command-line
 
 /*
  *  cmpPidItem(): compares two pidlist items for Qsort
@@ -222,25 +227,38 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 }
 
 /*
- *  getcPids(): utility function to get list of PID by PPID tag (DM_CNTPID mode)
+ *  getCmdLinePids(): intermediary for PID-Sig scan update
  *
- *  Arguments: - pointer to linked list of new PIDs
- * 			   - tag string containing the name of the parent PID to look for
+ *  Arguments: - pointer to linked list of PID
  *
  *  Return value: --
  */
 static void
-getpPids (node_t **pidlst, char * tag)
+getCmdLinePids (node_t **pidlst)
+{
+	// call function with computed signature at start
+	getPids(pidlst, pidSignature, NULL);
+}
+/*
+ *  getParentPids(): utility function to get list of PID by PPID tag (DM_CNTPID mode)
+ *
+ *  Arguments: - pointer to linked list of new PIDs
+ *
+ *  Return value: --
+ */
+static void
+getParentPids (node_t **pidlst)
 {
 	char pidline[BUFRD-18];
-	if (!tag) 
+
+	if (!prgset->cont_ppidc)
 		err_exit("Process signature tag is a null pointer!");
 
-	int tlen = strlen (tag) + 7;
+	int tlen = strlen (prgset->cont_ppidc) + 7;
 	char req[tlen];
 
 	// prepare literal and open pipe request
-	(void)sprintf (req,  "pidof %s", tag);
+	(void)sprintf (req,  "pidof %s", prgset->cont_ppidc);
 	FILE *fp;
 
 	if(!(fp = popen(req,"r")))
@@ -416,39 +434,8 @@ scanNew () {
 	int wasEmpty = (!nhead);
 	node_t *lnew = NULL; // pointer to new list head
 
-	switch (prgset->use_cgroup) {
-
-		case DM_CGRP: // detect by CGroup
-			getContPids(&lnew);
-			break;
-
-		case DM_CNTPID: // detect by container shim pid
-			getpPids(&lnew, prgset->cont_ppidc);
-			break;
-
-		case DM_CMDLINE:
-		default: ;// detect by pid signature
-			// cmdline of own thread
-			char pid[CMD_LEN];
-#ifdef BUSYBOX
-			if (prgset->psigscan && strlen (prgset->cont_pidc))
-				(void)sprintf(pid, "-T | grep -E '%s'", prgset->cont_pidc);
-			else if (strlen (prgset->cont_pidc))
-				(void)sprintf(pid, "| grep -E '%s'", prgset->cont_pidc);
-			else
-				(void)sprintf(pid, "| grep -v '^PID'");
-#else
-			if (prgset->psigscan && strlen (prgset->cont_pidc))
-				(void)sprintf(pid, "-TC %s", prgset->cont_pidc);
-			else if (strlen (prgset->cont_pidc))
-				(void)sprintf(pid, "-C %s", prgset->cont_pidc);
-			else 
-				pid[0] = '\0';
-#endif
-
-			getPids(&lnew, pid, NULL);
-			break;		
-	}
+	// call function for PID update, dependent on mode (Set at start)
+	pidUpdate(&lnew);
 
 	// SPIDs arrive out of order
 	qsortll((void **)&lnew, cmpPidItem);
@@ -570,6 +557,52 @@ scanNew () {
 }
 
 /*
+ *  selectUpdate(): select function and generate signature for update
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+selectUpdate () {
+	switch (prgset->use_cgroup) {
+
+		case DM_CGRP: // detect by CGroup
+			pidUpdate = getContPids;
+			break;
+
+		case DM_CNTPID: // detect by container shim pid
+			pidUpdate = getParentPids;
+			break;
+
+		case DM_CMDLINE:
+		default: ;// detect by pid signature
+
+			// Generate PID signature to look for!
+			pidSignature = malloc(CMD_LEN);
+			pidSignature[0] = '\0';
+
+	#ifdef BUSYBOX
+			if (prgset->psigscan && strlen (prgset->cont_pidc))
+				(void)sprintf(pidSignature, "-T | grep -E '%s'", prgset->cont_pidc);
+			else if (strlen (prgset->cont_pidc))
+				(void)sprintf(pidSignature, "| grep -E '%s'", prgset->cont_pidc);
+			else
+				(void)sprintf(pidSignature, "| grep -v '^PID'");
+	#else
+			if (prgset->psigscan && strlen (prgset->cont_pidc))
+				(void)sprintf(pidSignature, "-TC %s", prgset->cont_pidc);
+			else if (strlen (prgset->cont_pidc))
+				(void)sprintf(pidSignature, "-C %s", prgset->cont_pidc);
+	#endif
+			pidUpdate = getCmdLinePids;
+
+			pidSignature = realloc(pidSignature, strlen(pidSignature)+1);
+			break;
+	}
+}
+
+/*
  *  thread_update(): thread function call to manage and update present pids list
  *
  *  Arguments: - thread state/state machine, passed on to allow main thread stop
@@ -595,6 +628,8 @@ thread_update (void *arg)
 	if (prgset->runtime)
 		cont("Runtime set to %d seconds", prgset->runtime);
 
+	// select update function for scan mode
+	selectUpdate();
 
 	// initialize the thread locals
 	while(1) {
