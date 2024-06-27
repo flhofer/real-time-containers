@@ -79,7 +79,7 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
 /*
  *	setPidAffinity: sets the affinity of a PID at startup (NO CGRP)
  *
- *	Arguments: - PID of taks
+ *	Arguments: - PID of tasks
  *			   - bit-mask for affinity
  *
  *	Return value: 0 on success, -1 otherwise
@@ -127,7 +127,7 @@ setPidAffinity(pid_t pid, struct bitmask * mask) {
  *
  *	Arguments: - pointer to node with data
  *
- *	Return value: 0 on success, -1 otherwise
+ *	Return value: 0 on success, -1 or -2 otherwise
  */
 static int
 setPidAffinityNode (node_t * node){
@@ -152,7 +152,7 @@ setPidAffinityNode (node_t * node){
 		return -1;
 	}
 
-	// return -1(-2) if one failed
+	// return -1(-2) if one (or two) failed
 	return ret - setPidAffinity(node->pid,
 			node->param->rscs->affinity_mask);
 }
@@ -494,8 +494,8 @@ updatePidCmdline(node_t * node){
  * resetContCGroups : reset existing containers CGroups settings to default
  *
  * Arguments: - configuration parameter structure
- * 			  - cpu online string
- * 			  - numa nodes string
+ * 			  - CPU online string
+ * 			  - NUMA nodes string
  *
  * Return value: -
  */
@@ -767,7 +767,7 @@ findPeriodMatch(uint64_t cdf_Period){
  * 				- the `attr` structure of the task we are trying to fit in
  * 				- add or test, 0 = test, 1 = add to resources
  *
- *  Return value: a matching score, lower is better, -1 = error
+ *  Return value: a matching score, lower is better, -1 = error / over-utilizzation
  */
 int
 checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
@@ -988,8 +988,8 @@ grepTracer() {
  *
  *  Arguments: - - resource entry for the CPU
  *
- *  Return value: a pointer to the resource tracer
- *					returns null if nothing is found
+ *  Return value: number of primary CPU (=thread)
+ *					returns -1 if none is set
  */
 int
 getTracerMainCPU(resTracer_t * res) {
@@ -1011,7 +1011,7 @@ getTracerMainCPU(resTracer_t * res) {
  *  Arguments:  - resource entry for this CPU
  *  			- node to skip for computation
  *
- *  Return value: Negative values return error
+ *  Return value: Negative values return error; -1 = error / over-utilizzation
  */
 static int
 recomputeTimes_u(struct resTracer * res, node_t * skip) {
@@ -1049,7 +1049,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
  *
  *  Arguments:  - resource entry for this CPU
  *
- *  Return value: Negative values return error
+ *  Return value: Negative values return error; -1 = error / over-utilizzation
  */
 int
 recomputeTimes(struct resTracer * res) {
@@ -1064,6 +1064,8 @@ recomputeTimes(struct resTracer * res) {
  *  Arguments:  - CPU number
  *
  *  Return value: Negative values return error
+ *  		-1 = error / over-utilizzation
+ *  		-2 = tracer not found
  */
 static int
 recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
@@ -1083,7 +1085,9 @@ recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
  *
  *  Arguments:  - CPU number
  *
- *  Return value: Negative values return error
+ *  Return value: Negative values return error; -1 = error / over-utilizzation
+ *  		-1 = error / over-utilizzation
+ *  		-2 = tracer/CPU number not found
  */
 int
 recomputeCPUTimes(int32_t CPUno) {
@@ -1181,7 +1185,7 @@ duplicateOrRefreshContainer(node_t* dlNode, struct containers * configuration, c
 
 /*
  *  checkContainerMatch(): checks if a container matches node, by id or name
- *  				and creates (dulicate...) config if needed
+ *  				and creates (duplicates...) configuration if needed (call)
  *
  *  Arguments: - pointer to next container configuration
  *  		   - node to check for matching parameters
@@ -1209,7 +1213,7 @@ checkContainerMatch(cont_t ** cont, node_t * node, containers_t * configuration)
  *  findPidParameters(): assigns the PID parameters list of a running container
  *
  *  Arguments: - node to check for matching parameters
- *  		   - pid configuration list head
+ *  		   - configuration list head
  *
  *  Return value: 0 if successful, -1 if unsuccessful
  */
@@ -1314,13 +1318,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 			img=cont->img;
 		}
 
-		// assign pids from cont or img, depending what is found
+		// assign PIDs from cont or img, depending what is found
 		struct pids_parm * curr = (useimg) ? img->pids : cont->pids;
 
 		// check the first result
 		while (NULL != curr) {
 			if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
-				// found a matching pid inc root container
+				// found a matching PID in root container
 				node->param = curr->pid;
 				return 0;
 			}
@@ -1332,7 +1336,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 			curr = img->pids;
 			while (NULL != curr) {
 				if(curr->pid->psig && node->psig && strstr(node->psig, curr->pid->psig)) {
-					// found a matching pid inc root container
+					// found a matching PID in root container
 					node->param = curr->pid;
 					return 0;
 				}
@@ -1366,7 +1370,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		// no match found. and now?
 		printDbg(PIN2 "... container not found, trying PID scan\n");
 
-		// start from scratch in the PID config list only. Maybe Container ID is new
+		// start from scratch in the PID configuration list only. Maybe Container ID is new
 		struct pidc_parm * curr = configuration->pids;
 
 		while (NULL != curr) {
@@ -1374,13 +1378,13 @@ findPidParameters(node_t* node, containers_t * configuration){
 				&& !(curr->cont) && !(curr->img) ) { // only un-asociated items
 				warn("assigning configuration to unrelated PID");
 
-				// duplicate pidc and copy all info (can not detect if config is shared!)
+				// duplicate PID configuration and copy all info (can not detect if configuration is shared!)
 				push((void**)&configuration->pids, sizeof(pidc_t));
 				node->param = configuration->pids;
 				node->param->psig = strdup(curr->psig);
 
 				int oldst = curr->status;
-				curr->status &= ~MSK_STATSHAT & ~MSK_STATSHRC; // Unmask
+				curr->status &= ~MSK_STATSHAT & ~MSK_STATSHRC; // Un-mask
 				copyResourceConfigP(curr, node->param);
 				curr->status=oldst;
 
@@ -1391,7 +1395,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		}
 
 		if (!node->contid || !node->psig){
-			// no container id and psig, can't do anything for reconstruction
+			// no container id and PID signature, can't do anything for reconstruction
 			if (curr)
 				return 0;
 			printDbg(PIN2 "... PID not found. Ignoring\n");
@@ -1409,9 +1413,9 @@ findPidParameters(node_t* node, containers_t * configuration){
 		cont->attr = configuration->attr;
 
 		if (!curr){
-			// config not found, create PID parameter entry
+			// PID configuration not found, create PID parameter entry
 			printDbg(PIN2 "... parameters not found, creating from PID settings and container\n");
-			// create new pidconfig
+			// create new PID configuration
 			push((void**)&configuration->pids, sizeof(pidc_t));
 			curr = configuration->pids;
 
@@ -1433,7 +1437,7 @@ findPidParameters(node_t* node, containers_t * configuration){
 		push((void**)&cont->pids, sizeof(pids_t));
 		cont->pids->pid = curr;
 
-		// pidconfig curr gets container config cont
+		// PID configuration 'curr' gets container configuration 'cont'
 		node->param->cont = cont;
 
 		return 0;
