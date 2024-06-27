@@ -602,6 +602,68 @@ selectUpdate () {
 	}
 }
 
+
+/*
+ *  setThreadParameters(): set thread runtime parametes as of prgset
+ *
+ *  Arguments:
+ *
+ *  Return value:
+ */
+static void
+setThreadParameters () {
+	// setup of thread scheduling and priority
+	if (SCHED_OTHER != prgset->policy && SCHED_IDLE != prgset->policy && SCHED_BATCH != prgset->policy) {
+		// set policy to thread
+		if (SCHED_DEADLINE == prgset->policy) {
+			struct sched_attr scheda  = { 48,
+										SCHED_DEADLINE,
+										SCHED_FLAG_RESET_ON_FORK,
+										0,
+										0,
+										prgset->update_wcet*1000, prgset->interval*1000, prgset->interval*1000
+										};
+
+			// enable bandwidth reclaim if supported, allow to reduce impact..
+			if (KV_413 <= prgset->kernelversion)
+				scheda.sched_flags |= SCHED_FLAG_RECLAIM;
+
+			if (sched_setattr(gettid(), &scheda, 0L)) {	// Custom function!
+				warn("Could not set thread policy!");
+				// reset value -- not written in main anymore
+				prgset->policy = SCHED_OTHER;
+			}
+			else
+				cont("set update thread to '%s', runtime %dus.",
+					policy_to_string(prgset->policy), prgset->update_wcet);
+
+		}
+		else {
+			struct sched_param schedp  = { prgset->priority };
+
+			if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
+				warn("Could not set thread policy!");
+				// reset value -- not written in main anymore
+				prgset->policy = SCHED_OTHER;
+			}
+			else
+				cont("set update thread to '%s', priority %d.",
+					policy_to_string(prgset->policy), prgset->priority);
+		}
+	}
+	else if (SCHED_OTHER == prgset->policy && prgset->priority) {
+		// SCHED_OTHER only, BATCH or IDLE are static to 0
+		struct sched_param schedp  = { prgset->priority };
+
+		if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
+			warn("Could not set thread policy!");
+		}
+		else
+			cont("set update thread to '%s', niceness %d.",
+				policy_to_string(prgset->policy), prgset->priority);
+	}
+}
+
 /*
  *  thread_update(): thread function call to manage and update present pids list
  *
@@ -631,76 +693,31 @@ thread_update (void *arg)
 	// select update function for scan mode
 	selectUpdate();
 
+	setThreadParameters();
+
 	// initialize the thread locals
 	while(1) {
 
 		switch( *pthread_state )
 		{
-		case 0:			
-			// setup of thread, configuration of scheduling and priority
+		case 0:
+
 			*pthread_state=-1; // must be first thing! -> main writes -1 to stop
+
+			// Read clock tick rate
 			cont("Sample time set to %dus.", prgset->interval);
 			// get jiffies per sec -> to ms
 			ticksps = sysconf(_SC_CLK_TCK);
-			if (1 > ticksps) { // must always be greater 0 
+			if (1 > ticksps) { // must always be greater 0
 				warn("could not read clock tick config!");
 				break;
 			}
-			else{ 
+			else{
 				// clock settings found -> check for validity
 				cont("clock tick used for scheduler debug found to be %ldHz.", ticksps);
-				if (500000/ticksps > prgset->interval)  
+				if (500000/ticksps > prgset->interval)
 					warn("-- scan time more than double the debug update rate. On purpose?"
 							" (obsolete kernel value) -- ");
-			}
-			if (SCHED_OTHER != prgset->policy && SCHED_IDLE != prgset->policy && SCHED_BATCH != prgset->policy) {
-				// set policy to thread
-				if (SCHED_DEADLINE == prgset->policy) {
-					struct sched_attr scheda  = { 48, 
-												SCHED_DEADLINE,
-												SCHED_FLAG_RESET_ON_FORK,
-												0,
-												0,
-												prgset->update_wcet*1000, prgset->interval*1000, prgset->interval*1000
-												};
-
-					// enable bandwidth reclaim if supported, allow to reduce impact..
-					if (KV_413 <= prgset->kernelversion) 
-						scheda.sched_flags |= SCHED_FLAG_RECLAIM;
-
-					if (sched_setattr(gettid(), &scheda, 0L)) {	// Custom function!
-						warn("Could not set thread policy!");
-						// reset value -- not written in main anymore
-						prgset->policy = SCHED_OTHER;
-					}
-					else
-						cont("set update thread to '%s', runtime %dus.",
-							policy_to_string(prgset->policy), prgset->update_wcet);
-
-				}
-				else {
-					struct sched_param schedp  = { prgset->priority };
-
-					if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
-						warn("Could not set thread policy!");
-						// reset value -- not written in main anymore
-						prgset->policy = SCHED_OTHER;
-					}
-					else
-						cont("set update thread to '%s', priority %d.",
-							policy_to_string(prgset->policy), prgset->priority);
-				}
-			}
-			else if (SCHED_OTHER == prgset->policy && prgset->priority) {
-				// SCHED_OTHER only, BATCH or IDLE are static to 0
-				struct sched_param schedp  = { prgset->priority };
-
-				if (sched_setscheduler(gettid(), prgset->policy, &schedp)) {
-					warn("Could not set thread policy!");
-				}
-				else 
-					cont("set update thread to '%s', niceness %d.",
-						policy_to_string(prgset->policy), prgset->priority);
 			}
 
 			// start docker link thread
