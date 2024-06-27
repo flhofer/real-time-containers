@@ -924,9 +924,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				item->mon.assigned = fthread->cpuno;
 
 				// Removed from, should give no issues
-				if (0 > recomputeCPUTimes(CPU))
+				if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
 					if (SM_DYNSIMPLE <= prgset->sched_mode)
-						pickPidReallocCPU(CPU, 0);
+						(void)pickPidReallocCPU(CPU, 0);
 
 				if (0 <= CPU)
 					item->mon.resched++;
@@ -945,7 +945,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// recompute actual CPU, new tasks might be there now
 	if (0 > recomputeCPUTimes(fthread->cpuno))
 		if (SM_DYNSIMPLE <= prgset->sched_mode)
-			pickPidReallocCPU(fthread->cpuno, 0);
+			(void)pickPidReallocCPU(fthread->cpuno, 0);
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next )
