@@ -1069,7 +1069,7 @@ recomputeTimes(struct resTracer * res) {
  */
 static int
 recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
-	if (-1 == CPUno)	// default, not assigned
+	if (0 > CPUno)	// default, not assigned
 		return 0;
 
 	resTracer_t * trc;
