@@ -1,4 +1,4 @@
-README for orchestrator v0.90
+README for orchestrator v0.93
 
 ==============
  INTRODUCTION
@@ -6,9 +6,9 @@ README for orchestrator v0.90
 
 'orchestrator' is an orchestration application that optimizes real-time scheduled container allocation. Its function is to maintain schedulability and determinism while managing resource requirements by reorganizing assignments and reconfiguring its run-time environment based on heuristic or statistical data and run-time evaluations.
 
-The code is currently maintained on GitHub at
+The code is actively maintained on GitHub at
 
-	git@github.com:flhofer/real-time-containers.git
+    git@github.com:flhofer/real-time-containers.git
 
 There are multiple operating modes: static, adaptive, and dynamic.
 The static version limits the allocation to configuration values and does not reschedule processes once the slot is determined. For adaptive and dynamic allocation, parameters dictate the behavior; see usage.
@@ -17,39 +17,37 @@ The static version limits the allocation to configuration values and does not re
  REQUIREMENTS
 ==============
 
-'orchestrator' runs on GNU/Linux compliant systems also with 'BusyBox', GNU libc, or Musl. It needs GNU 'make' and a recent compiler (tested on: gcc) for basic features with the following development packages for compilation:
-* libnuma-dev		(NUMA manipulation)
-* libcap-dev		(POSIX Capabilities library)
-* check				(CHECK C based run-time test framework)
-* libsubunit-dev	(CHECK sub-unit export library)
-* libjson-c-dev		(JSON configuration parsing)
-* libgsl-dev		(Heuristics - GNU scientific library)
-* libgsl-dbg		(Heuristics - for dev only)
+'orchestrator' runs on GNU/Linux compliant systems and 'BusyBox', GNU libc, or Musl. It needs GNU 'make' and a recent compiler (tested on GCC) for basic features with the following development packages for compilation:
+* libnuma-dev       (NUMA manipulation)
+* libcap-dev        (POSIX Capabilities library)
+* check             (CHECK C based run-time test framework)
+* libsubunit-dev    (CHECK sub-unit export library)
+* libjson-c-dev     (JSON configuration parsing)
+* libgsl-dev        (Heuristics - GNU scientific library)
+* libgsl-dbg        (Heuristics - for dev only)
 
 ==================================
  BUILDING AND INSTALLING 
 ==================================
 
 The source code package contains three sources: orchestrator, check test framework, and use case simulation package.
-For standard build configuration of the orchestrator only, run 
+For standard build configuration of the orchestrator only, run
 
 $ make
 
-There is no automated system-dependent configuration yet. Furthermore, the folder tools contains scripts to create build containers to build the code. For example, executing `container_build.sh` will create container images of four distributions: `alpine, debian, fedora, ubuntu`*. Finally, if you want to enable the debug symbols and highly verbose outputs, set the DEBUG parameter as follows: 
+There is no automated system-dependent configuration yet. Furthermore, the folder `tools` contains scripts to create build containers to build the code. For example, executing `container_build.sh` will create container images of four distributions: `alpine, debian, fedora, ubuntu`*. Finally, if you want to enable the debug symbols and highly verbose outputs, set the DEBUG parameter as follows:
 
 $ make DEBUG=1
 
-* NOTE: Fedora distribution builds, but not all features are available. Alpine distribution does not build without specifying or managing the timespec structure, a default for other distributions.
-
 Similarly, for the test framework, to compile type
 
-$ make check
+$ make test
 
-alternatively with DEBUG, type
+alternatively, with DEBUG, type
 
-$ make check DEBUG=1
+$ make test DEBUG=1
 
-or replace check with 'usecase' for the use case build. No installation procedure is defined at the moment. A further parameter that can be passed during compile is COVERAGE=1, enabling coverage test and output. With 'make all', all three builds are executed at once. Finally, the 'make test' option runs the unit tests of the check framework.,
+or replace `test` with 'usecase' for the use case build. There is no installation procedure defined at the moment. A further parameter you can pass during compilation is COVERAGE=1, enabling coverage test and output. With 'make all', all three builds are executed at once. Finally, the 'make check' option runs the unit tests of the check framework and generates the coverage badge, if appropriate.
 
 Refer to the check user manual for running specific unit tests only (environment variables CK_RUN_SUITE, CK_RUN_CASE, and CK_NO_FORK). https://libcheck.github.io/check/doc/check_html/check_4.html
 
@@ -59,7 +57,7 @@ Refer to the check user manual for running specific unit tests only (environment
 
 Options available as of this version
 
-    $ ./orchestrator [-a <affinity range> -A <mode> -b -B -c <clock> -C <cgroup> -d -D -f -F -i <scan interval> -k -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -P -q -r <run-time> --rr=<rr-slice-size> -s [container cmd signature] -S [Alg-NR] --smi -v -w <WCET>] [configuration-file]
+    $ ./orchestrator [-a <affinity range> -A <mode> -b -B -c <clock> -C <cgroup> -d -D --dry-run=<mask> -f -F -i <scan interval> -k -l <loop count> -m -n [cmd signature] -p <priority> --policy=<name> -P -q -r <run-time> --rr=<rr-slice-size> -s [container cmd signature] -S [Alg-NR] --smi -v -w <WCET>] [configuration-file]
 
 where:
 * affinity range defines the CGroup separation for RT and nRT tasks, 0-(x-1), and x-CPUs. The affinity range can be specified as a comma-separated list and ranges, e.g., "0,4,7-10";
@@ -69,12 +67,13 @@ where:
 * clock is the type of clock timer used for recurring threads; The default is the monotonic system clock;
 * -C sets the CGroup based container detection mode. By default, the CGroup is set to 'docker/'. When changing, remind ending the group name with a slash;
 * -d enables the setting deadline overflow flag for all real-time deadline scheduled tasks; This permits the task to reclaim unused real-time bandwidth beyond the allotted amount.
-* -D sets the dry-run flag. The orchestrator will change no kernel or environment parameters but only actual values reported.
+* -D sets the dry-run flag. The orchestrator will change no kernel or environment parameters; only actual values will be reported.
+* --dry-run sets the dry-run mask allowing more fine-grained control over what to turn off. Check the help output for updated values.
 * -f forces execution, even if parameters are seen as risky, and enables changes that might influence other services on the system.
 * -F enables kernel function trace-based run-time statistics instead of scheduler debug. The latter is limited to a run-time refresh of 10ms.
 * interval is the update interval set for refresh and running statistics. It influences the reactivity of PID-based detection modes and changes the overhead amount.
 * with the flag -k, the data of PIDs that leave will be kept in memory for statistical purposes only.
-* loop count is the number of update loops until the presence of new containers is verified checked (not valid for docker-link); 
+* loop count is the number of update loops until the presence of new containers is verified checked (not valid for docker-link);
 * -m enables memory page locking, reducing page-fault-induced delays.
 * -n defines the command-line signature detection mode. An optional parameter may be given to specify the base command to look for, e.g. 'rt-app' if looking for instances of rt-app
 * the policy and the priority refer to the parameters applied to the metric update thread; available options: other, normal, batch, idle, deadline, fifo, or rr.
@@ -96,125 +95,125 @@ The configuration file specified is optional. By default, 'config.json' will be 
 'orchestrator' reads a configuration file to determine the parameters and resources assigned to each container. The default filename is set to 'config.json,' and the file follows strict JSON data representation. The file is usually found in the local working directory.
 The configuration file settings for this version consist of multiple sections and objects. These objects are connected in a hierarchy and can be present at different levels. The simplest is a PID configuration object. Its layout is as follows:
 
-{  								
-	"cmd" : "rt-app conf2.json",// process run signature identification, full or partial
-	"params" : {				// real-time parameters - optional
-		"policy" : "SCHED_OTHER",// required scheduling policy, 'default' leaves the setting unchanged
-		"flags"  : 0,			// process flags -> inheritance
-		"nice"   : 0,			// niceness factor for CFS schedules
-		"prio"   : 0,			// priority for RT schedules, FIFO & RR
-		"runtime": 1000000,		// EDF run-time in us
-		"deadline": 4000000,	// EDF deadline in us
-		"period" : 4000000		// EDF period in us
-	},
-	"res" : {					// resouces to allocate for process, optional
-		"affinity" : -1,		// CPU affinity, -1 = all with preference CPU 1
-		"rt-soft" : -1,			// real-time soft limit, execution time -> SIGXCPU
-		"rt-hard" : -1,			// real-time hard limit, execution time -> SIGKILL
-		"data-soft" : -1, 		// data/heap soft limit
-// -> not used	"data-hard" : -1,		// data/heap hard limit
-	},
+{                                  
+    "cmd" : "rt-app conf2.json", // process run signature identification, full or partial
+    "params" : {                 // real-time parameters - optional
+        "policy" : "SCHED_OTHER",// required scheduling policy, 'default' leaves the setting unchanged
+        "flags"  : 0,            // process flags -> inheritance
+        "nice"   : 0,            // niceness factor for CFS schedules
+        "prio"   : 0,            // priority for RT schedules, FIFO & RR
+        "runtime": 1000000,      // EDF run-time in us
+        "deadline": 4000000,     // EDF deadline in us
+        "period" : 4000000       // EDF period in us
+    },
+    "res" : {                    // resources to allocate for process, optional
+        "affinity" : -1,         // CPU affinity, -1 = all with preference CPU 1
+        "rt-soft" : -1,          // real-time soft limit, execution time -> SIGXCPU
+        "rt-hard" : -1,          // real-time hard limit, execution time -> SIGKILL
+        "data-soft" : -1,        // data/heap soft limit
+// -> not used    "data-hard" : -1,        // data/heap hard limit
+    },
 },
 
 The next object in the hierarchy is a container. It is similar to a PID configuration.
 
-{  								
-	"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
-	"params" : { ... },			// real-time parameters - optional
-	"res" : { ... },			// resouces to allocate for processes, optional
-	"pids" : [{ ... }],			// list of PID objects for this container
+{                                  
+    "contid" : "4efcb6c965de",   // full or partial (at least 12 characters) of container id
+    "params" : { ... },          // real-time parameters - optional
+    "res" : { ... },             // resources to allocate for processes, optional
+    "pids" : [{ ... }],          // list of PID objects for this container
 },
 
 An image configuration, again, is similar.
 
-{  								
-	"imgid" : "1ede341dace5",	// full or partial (at least 12 characters) of img id
-	"params" : { ... }, 		// real-time parameters - optional
-	"res" : { ... },			// resouces to allocate for processes, optional
-	"cont" : [{ ... }],			// list of containers that are based on this image
-	"pids" : [{ ... }],			// list of default PID objects for this image
+{
+    "imgid" : "1ede341dace5",    // full or partial (at least 12 characters) of img id
+    "params" : { ... },          // real-time parameters - optional
+    "res" : { ... },             // resources to allocate for processes, optional
+    "cont" : [{ ... }],          // list of containers that are based on this image
+    "pids" : [{ ... }],          // list of default PID objects for this image
 },
 
 All these objects are part of a global configuration. This configuration permits setting most settings for the program otherwise passed as command-line parameters. If both specify a setting, the config parameters override the command-line parameters. Here is an example of a JSON configuration. Omitted values in "global" default to the values in the example.
 
 {
 
-	"global" : {
-		"logdir" : "./",						// logging directory - TODO
-		"log_basename" : "orchestrator.txt",	// logging basename - TODO
-		"prc_kernel" : "/proc/sys/kernel/",		// kernel settings vfs
-		"sys_cgroup" : "/sys/fs/cgroup/",       // cgroup vfs for resource grouping
-		"sys_cpu" :	"/sys/devices/system/cpu/", // cpu settings, ol vfs
-		"cont_ppidc" : "containerd-shim",		// pid comm signature for container shim
-		"cont_pidc" : "",						// pid comm signature, opt, for filtering
-		"cont_cgrp" : "docker/",				// subdirectory in cgroups where containers are
-		"priority" : 0,							// priority of update thread
-		"clock" : 0,							// clock type to use for delays (not in deadline)
-		"default_policy" : "SCHED_OTHER",		// scheduling policy for update thread
-		"quiet" : 0, 							// quiet mode
-		"affother" : 0,							// tie non-RT tasks to same settings
-		"setdflag" : 0,							// sed dl-overrun flag for deadline tasks
-		"interval" : 5000,						// update scan interval in us
-		"dl_wcet": 100,							// run-time budget for update thread (deadline)
-		"loops" : 100,							// number of loops bf checking for new containers
-		"runtime" : 0,							// max run-time, 0 = infinite
-		"psigscan" : 0, 						// parent signature scan 
-		"trackpids" : 0,						// keep left pids in stat
-		"lock_pages" : 0,						// lock pages (memory) for orchestrator
-		"smi" : 0,								// smi counter reading
-		"rrtime" : 100,							// slice time for rr scheduling, 100us
-		"setaffinity" : "AFFINITY_UNSPECIFIED", // affinity area for containers *_UNSPECIFIED, _SPECIFIED and _USEALL
-		"affinity" : "1-2",						// cpu affinity for containers, coma separated cpu list
-		"ftrace" : 0,							// enable kernel function tracing 
-		ptresh   : 0.9							// probability threshold for resource switching
-	}
+    "global" : {
+        "logdir" : "./",                           // logging directory - TODO
+        "log_basename" : "orchestrator.txt",       // logging basename - TODO
+        "prc_kernel" : "/proc/sys/kernel/",        // kernel settings vfs
+        "sys_cgroup" : "/sys/fs/cgroup/",          // cgroup vfs for resource grouping
+        "sys_cpu" :    "/sys/devices/system/cpu/", // cpu settings, ol vfs
+        "cont_ppidc" : "containerd-shim",          // pid comm signature for container shim
+        "cont_pidc" : "",                          // pid comm signature, opt, for filtering
+        "cont_cgrp" : "docker/",                   // subdirectory in cgroups where containers are
+        "priority" : 0,                            // priority of update thread
+        "clock" : 0,                               // clock type to use for delays (not in deadline)
+        "default_policy" : "SCHED_OTHER",          // scheduling policy for update thread
+        "quiet" : 0,                               // quiet mode
+        "affother" : 0,                            // tie non-RT tasks to same settings
+        "setdflag" : 0,                            // sed dl-overrun flag for deadline tasks
+        "interval" : 5000,                         // update scan interval in us
+        "dl_wcet": 100,                            // run-time budget for update thread (deadline)
+        "loops" : 100,                             // number of loops bf checking for new containers
+        "runtime" : 0,                             // max run-time, 0 = infinite
+        "psigscan" : 0,                            // parent signature scan 
+        "trackpids" : 0,                           // keep left pids in stat
+        "lock_pages" : 0,                          // lock pages (memory) for orchestrator
+        "smi" : 0,                                 // smi counter reading
+        "rrtime" : 100,                            // slice time for rr scheduling, 100us
+        "setaffinity" : "user-specified",          // affinity area for containers unspecified, user-specified, numa-separated, numa-balanced, and useall
+        "affinity" : "1-2",                        // cpu affinity for containers, coma separated cpu list
+        "ftrace" : 0,                              // enable kernel function tracing 
+        ptresh   : 0.9                             // probability threshold for resource switching
+    }
 
-	"images" : [						// list of images with matching containers and pds
-	{  								
-		"imgid" : "4efcb6c965de",	// full or partial (at least 12 characters) of img id
-		"params" : { ... }, 		// real-time parameters - default to globals
-		"res" : { ... },			// resouces to allocate for image, default to globals
+    "images" : [                                   // list of images with matching containers and PIDs
+    {
+        "imgid" : "4efcb6c965de",                  // full or partial (at least 12 characters) of image name or id
+        "params" : { ... },                        // real-time parameters - default to globals
+        "res" : { ... },                           // resources to allocate for image, default to globals
 
-		"cont" : [					// list of containers that are based on this image
-		{  								
-				"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
-				"params" : { ... },	// real-time parameters, default to image
-				"res" : { ... },	// resouces to allocate, default to image
-				"pids" : [{ 
-					"cmd" : "rt-app conf2.json",
-					"params" : { ... },	// real-time parameters, default to container
-					"res" : { ... },	// resouces to allocate, default to container
-				 }],	// list of PID objects for this container
-		}, ... ],
+        "cont" : [                                 // list of containers that are based on this image
+        {                                  
+                "contid" : "4efcb6c965de",         // full or partial (at least 12 characters) of container name or id
+                "params" : { ... },                // real-time parameters, default to image
+                "res" : { ... },                   // resources to allocate, default to image
+                "pids" : [{ 
+                    "cmd" : "rt-app conf2.json",
+                    "params" : { ... },            // real-time parameters, default to container
+                    "res" : { ... },               // resources to allocate, default to container
+                 }],                               // list of PID objects for this container
+        }, ... ],
 
-		"pids" : [ 				// list of default PID objects for this image
-		{
-			"cmd" : "rt-app conf2.json",
-			"params" : { ... },	// real-time parameters, default to image
-			"res" : { ... },	// resouces to allocate, default to image
-		}, ... ],
+        "pids" : [                                 // list of default PID objects for this image
+        {
+            "cmd" : "rt-app conf2.json",
+            "params" : { ... },                    // real-time parameters, default to image
+            "res" : { ... },                       // resources to allocate, default to image
+        }, ... ],
 
-	}, ... ],
+    }, ... ],
 
-	"containers" : [					// list of containers that are not based on known image
-	{  								
-		"contid" : "4efcb6c965de",	// full or partial (at least 12 characters) of container id
-		"params" : { ... },			// real-time parameters, defaults to global
-		"res" : { ... },			// resouces to allocate for container, defaults to global
-		"pids" : [{ ... }],			// list of PID objects for this container
-	}, ... ],
+    "containers" : [                               // list of containers that are not based on known image
+    {                                  
+        "contid" : "4efcb6c965de",                 // full or partial (at least 12 characters) of container name or id
+        "params" : { ... },                        // real-time parameters, defaults to global
+        "res" : { ... },                           // resources to allocate for container, defaults to global
+        "pids" : [{ ... }],                        // list of PID objects for this container
+    }, ... ],
 
-	"pids" : [ 						// list of PID objects we dont know container or image
-	{
-		... 
-	}, ... ],
+    "pids" : [                                     // list of PID objects we dont know container or image
+    {
+        ... 
+    }, ... ],
 
-	"scheduling" : {			// real-time parameters for global defaults
-		...
-	},
-	"resources" : {				// resouces to allocate for global defaults
-		...
-	},
+    "scheduling" : {                               // real-time parameters for global defaults
+        ...
+    },
+    "resources" : {                                // resources to allocate for global defaults
+        ...
+    },
 }
 
 This hierarchical setting allows thus specifying:
@@ -232,11 +231,11 @@ OR
 
 The lookup hierarchy for PIDs is as follows, where every element in the path must match: 
 
-1)	image->container->pid	, if not found
-2)	image->pid				, if not found
-3)	container->pid			, if not found
-4)	pid						, if not found
-5)	left unchanged
+1)    image->container->pid    , if not found
+2)    image->pid               , if not found
+3)    container->pid           , if not found
+4)    pid                      , if not found
+5)    left unchanged
 
 Depending on the use of the software, some fields might be needed or not. In addition, the parameters and resource affinity may, in some cases, be complementary. For example, if the scheduling is done statically on entry events, the orchestrator might use the "params" settings to allocate the best slot based on available resources. 
 
@@ -246,6 +245,6 @@ Depending on the use of the software, some fields might be needed or not. In add
 
 The following command presents a possible running scenario:
 
-	$ ./orchestrator -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
+    $ ./orchestrator -n rt-app -P -b -a 1-3 --policy=deadline -i 5000
 
 The orchestrator will read the 'config.json' file in the local directory and then scan for containers. The scan will look for processes starting with the command 'rt-app' and also verify all their threads. All threads running in a container will be bound to the same affinity range, set as 1-3. the tool will perform the scan with a periodicity of 5ms scheduled as a SCHED_DEADLINE task. Every 100 scan cycles, the orchestrator will look for new containers to realign. All other parameters are left default.
