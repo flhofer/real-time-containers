@@ -1487,12 +1487,13 @@ manageSched(){
 						info("Update PID %d '%s' period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
 						item->mon.resample++;
 
+						item->mon.cdf_period = newPeriod;
 						// check if there is a better fit for the period, and if it is main
 						if (-1 == updateSiblings(item))
 							warn("PID %d '%s' Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
-
-					item->mon.cdf_period = newPeriod;
+					else
+						item->mon.cdf_period = newPeriod;
 				}
 			}
 
