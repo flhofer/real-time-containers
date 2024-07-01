@@ -280,11 +280,12 @@ setPidResources_u(node_t * node) {
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
-		// at start, assign node to static/adaptive table affinity match, only if there is a clear candidate
-		if (node->pid && 0 <= node->param->rscs->affinity){
+		// TODO: this should be done elsewhere!?
+		if (node->pid && (0 <= node->param->rscs->affinity)){
+			// at start, assign node to static/adaptive table affinity match
 			node->mon.assigned = node->param->rscs->affinity;
 
-			if (0 <= node->mon.assigned && setPidAffinityAssinged(node))
+			if (setPidAffinityAssinged(node))
 				warn("Can not assign startup allocation for PID %d", node->pid);
 
 			// put start values as dist initial values
