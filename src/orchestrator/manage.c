@@ -923,7 +923,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				int32_t CPU = item->mon.assigned;
 				item->mon.assigned = fthread->cpuno;
 
-				// Removed from, should give no issues
+				// Removed from old CPU, should give no issues
 				if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
 					if (SM_DYNSIMPLE <= prgset->sched_mode)
 						(void)pickPidReallocCPU(CPU, 0);
@@ -955,12 +955,14 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			if (item->status & MSK_STATNAFF){
 				// unassigned CPU was not part of adaptive table
 				if (SCHED_NODATA == item->attr.sched_policy)
-						updatePidAttr(item);
-				// never assigned to a resource and we have data (SCHED_DL), check for fit
-				if (SCHED_DEADLINE == item->attr.sched_policy) {
-					if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
-							getTracer(fthread->cpuno), item))
-						warn("Unsuccessful first allocation of DL task PID %d '%s'", item->pid, (item->psig) ? item->psig : "");
+					updatePidAttr(item);
+				if (SM_PADAPTIVE <= prgset->sched_mode){
+					// never assigned to a resource and we have data (SCHED_DL), check for fit
+					if (SCHED_DEADLINE == item->attr.sched_policy) {
+						if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
+								getTracer(fthread->cpuno), item))
+							warn("Unsuccessful first allocation of DL task PID %d '%s'", item->pid, (item->psig) ? item->psig : "");
+					}
 				}
 			}
 
