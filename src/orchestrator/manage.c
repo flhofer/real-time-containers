@@ -1465,6 +1465,7 @@ manageSched(){
 		updatePidCmdline(item);
 
 		if (SM_PADAPTIVE <= prgset->sched_mode){
+
 			if (!(runstats_histCheck(item->mon.pdf_phist))){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
 
@@ -1474,24 +1475,24 @@ manageSched(){
 					(void)runstats_histFit(&item->mon.pdf_phist);
 
 					// period changed enough for a different time-slot?
-					if (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod)
-							&& newPeriod > item->mon.cdf_runtime){
-						if (item->mon.cdf_period * 95 > newPeriod * 100
-								|| item->mon.cdf_period * 105 < newPeriod * 100){
-							// meaningful change?
-							info("Update PID %d %s period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
-							item->mon.resample++;
-						}
-						item->mon.cdf_period = newPeriod;
+					if ( (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod))
+							&& (newPeriod > item->mon.cdf_runtime)
+							&& (item->mon.cdf_period * 95 > newPeriod * 100				// TODO: introduce constant or variable
+								|| item->mon.cdf_period * 105 < newPeriod * 100)){
+
+						// meaningful change?
+
+						info("Update PID %d %s period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
+						item->mon.resample++;
+
 						// check if there is a better fit for the period, and if it is main
 						if (-1 == updateSiblings(item))
 							warn("PID %d %s Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
-					else
-						item->mon.cdf_period = newPeriod;
-					}
-				}
 
+					item->mon.cdf_period = newPeriod;
+				}
+			}
 
 			if (!(runstats_histCheck(item->mon.pdf_hist))){
 				// if histogram is set and count is ok, update and fit curve
