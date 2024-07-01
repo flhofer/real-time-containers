@@ -1200,7 +1200,7 @@ thread_ftrace(void *arg){
  *
  *  Arguments: - item that triggered update request
  *
- *  Return value: -1 don't touch, 0 = main or no siblings
+ *  Return value: -1 error, -2 = more to move, 0 = success, 1 = no change
  */
 static int
 updateSiblings(node_t * node){
@@ -1233,11 +1233,11 @@ updateSiblings(node_t * node){
 	}
 
 	if (mainp != node)  // we are not the main task
-		return 0;		// assumed periodicity of sibling changed, let's ignore it
+		return 1;		// assumed period of sibling changed, let's ignore it
 
 	// ELSE update all TIDs
-	return pidReallocAndTest(checkPeriod_R(mainp, 0),
-			getTracer(mainp->mon.assigned), node);
+	return pidReallocAndTest(checkPeriod_R(node, 0),
+			getTracer(node->mon.assigned), node);
 }
 
 /*
@@ -1484,7 +1484,7 @@ manageSched(){
 						}
 						item->mon.cdf_period = newPeriod;
 						// check if there is a better fit for the period, and if it is main
-						if (0 > updateSiblings(item))
+						if (-1 == updateSiblings(item))
 							warn("PID %d %s Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
 					else
