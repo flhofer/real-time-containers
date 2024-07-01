@@ -697,15 +697,15 @@ pickPidAddRuntimeHist(node_t *item){
 			b = (double)item->mon.dl_rt;
 
 		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
-			warn("Histogram init failure for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
+			warn("Histogram init failure for PID %d '%s' runtime", item->pid, (item->psig) ? item->psig : "");
 	}
 
 	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
-	printDbg(PFX "Runtime for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", b);
+	printDbg(PFX "Runtime for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
 		if (ret != 1) // GSL_EDOM
-			warn("Histogram increment error for PID %d %s runtime", item->pid, (item->psig) ? item->psig : "");
+			warn("Histogram increment error for PID %d '%s' runtime", item->pid, (item->psig) ? item->psig : "");
 
 	// ---------- Compute diffs and averages  ----------
 
@@ -960,7 +960,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				if (SCHED_DEADLINE == item->attr.sched_policy) {
 					if (0 > pidReallocAndTest(checkPeriod_R(item, 0),
 							getTracer(fthread->cpuno), item))
-						warn("Unsuccessful first allocation of DL task PID %d %s", item->pid, (item->psig) ? item->psig : "");
+						warn("Unsuccessful first allocation of DL task PID %d '%s'", item->pid, (item->psig) ? item->psig : "");
 				}
 			}
 
@@ -981,12 +981,12 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 						if (!(item->mon.pdf_phist)){
 							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-								warn("Histogram init failure for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+								warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 						}
 
-						printDbg(PFX "Period for PID %d %s %f\n", item->pid, (item->psig) ? item->psig : "", period);
+						printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
 						if ((runstats_histAdd(item->mon.pdf_phist, period)))
-							warn("Histogram increment error for PID %d %s period", item->pid, (item->psig) ? item->psig : "");
+							warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 					}
 					item->status &= ~MSK_STATNRSCH;
 					item->mon.last_tsP = ts;
@@ -1347,7 +1347,7 @@ get_sched_info(node_t * item)
 							item->mon.dl_overrun++;
 
 							// usually: we have jitter but execution stays constant -> more than a slot?
-							printDbg(PIN "PID %d %s Deadline overrun by %ldns, sum %ld\n",
+							printDbg(PIN "PID %d '%s' Deadline overrun by %ldns, sum %ld\n",
 								item->pid, (item->psig) ? item->psig : "", diff, item->mon.dl_diff);
 						}
 
@@ -1482,12 +1482,12 @@ manageSched(){
 
 						// meaningful change?
 
-						info("Update PID %d %s period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
+						info("Update PID %d '%s' period: %luus", item->pid, (item->psig) ? item->psig : "", newPeriod/1000);
 						item->mon.resample++;
 
 						// check if there is a better fit for the period, and if it is main
 						if (-1 == updateSiblings(item))
-							warn("PID %d %s Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
+							warn("PID %d '%s' Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
 
 					item->mon.cdf_period = newPeriod;
@@ -1536,7 +1536,7 @@ manageSched(){
 						{
 							// something went wrong
 							if (!(item->status & MSK_STATHERR))
-								warn("CDF initialization/range error for PID %d %s", item->pid, (item->psig) ? item->psig : "");
+								warn("CDF initialization/range error for PID %d '%s'", item->pid, (item->psig) ? item->psig : "");
 							item->status |= MSK_STATHERR;
 						}
 
@@ -1547,10 +1547,10 @@ manageSched(){
 					if (SCHED_DEADLINE == item->attr.sched_policy){
 						updatePidWCET(item, newWCET);
 					}
-					if ( item->mon.cdf_runtime * 95 > newWCET * 100
+					if ( item->mon.cdf_runtime * 95 > newWCET * 100				// TODO: introduce constant or variable
 							|| item->mon.cdf_runtime * 105 < newWCET * 100){
 						// meaningful change?
-						info("Update PID %d %s runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
+						info("Update PID %d '%s' runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 						item->mon.resample++;
 					}
 					item->mon.cdf_runtime = newWCET;
