@@ -963,6 +963,11 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 								getTracer(fthread->cpuno), item))
 							warn("Unsuccessful first allocation of DL task PID %d '%s'", item->pid, (item->psig) ? item->psig : "");
 					}
+					else {
+						// Set affinity, starting from PAdaptive as it might "correct" the setting, before it doesn't
+						if (!setPidAffinityAssinged(item))
+							warn("Setting run-time affinity for unassigned PID %d '%s'", item->pid, item->psig ? item->psig : "");
+					}
 				}
 			}
 
