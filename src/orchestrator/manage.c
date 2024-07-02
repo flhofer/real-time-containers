@@ -772,7 +772,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		// just add a period, we rely on periodicity
 		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
 
-		uint64_t count = 1;
+		int64_t count = 1;
 		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 			item->mon.dl_scanfail++;
 
