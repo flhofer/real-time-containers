@@ -761,16 +761,32 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		// ----------  period ended ----------
 
-		if (item->mon.last_ts)
-			while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
-				item->mon.dl_scanfail++;
-				item->mon.last_ts += item->attr.sched_period;
-			}
+		// calculate difference to last reading, should be < 1 period
+		int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
+		int64_t count = 0;
 
-		// just add a period, we rely on periodicity
-		item->mon.deadline += item->attr.sched_period;
+		if (0 > diff)
+			warn("Negative time difference for PID %d! Check buffers and load", item->pid);
 
-		int64_t count = 1;
+		// difference is very close to multiple of period we might have a scan fail
+		// in addition to the overshoot
+		while (diff >= ((int64_t)item->attr.sched_period - TSCHS)) {
+			item->mon.dl_scanfail++;
+			count++;
+			diff -= (int64_t)item->attr.sched_period;
+			item->mon.last_ts += MIN (item->attr.sched_period, ts);
+		}
+		if (count)
+			// update deadline info if we missed something
+			(void)get_sched_info(item);
+		else
+			// just add a period, we rely on periodicity
+			item->mon.deadline += item->attr.sched_period;
+
+		if (ts == item->mon.last_ts)
+			warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
+
+		count = 1;
 		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 			item->mon.dl_scanfail++;
 			item->mon.deadline += item->attr.sched_period;
@@ -846,7 +862,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 
 	// find PID = actual running PID
 	for (node_t * item = nhead; ((item)); item=item->next )
-		// find next PID and put timeStamp last seen, compute period if last time ended
+
 		if (item->pid == *frame.common_pid){
 			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
 				item->status |=  MSK_STATNRSCH;
@@ -929,7 +945,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 		}
 
-		// find next PID and put timeStamp last seen, compute period if last time ended
+		// find next PID and put timeStamp last seen
 		if (item->pid == *frame.next_pid)
 			item->mon.last_ts = ts;
 	}
