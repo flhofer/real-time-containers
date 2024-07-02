@@ -741,9 +741,13 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		// ---------- Check first if it is a valid period ----------
 
-		if (!item->attr.sched_period)
+		if (!item->attr.sched_period){
 			updatePidAttr(item);
+			return;
+		}
 		// period should never be zero from here on
+		if (!item->mon.last_ts)
+			return;
 
 		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
 		if (!item->mon.deadline)
@@ -751,8 +755,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				warn("Unable to read schedule debug buffer!");
 
 		if (item->mon.deadline > ts){
-			if (item->mon.last_ts)
-				item->mon.dl_rt += (ts - item->mon.last_ts);
+			item->mon.dl_rt += (ts - item->mon.last_ts);
 			return;
 		}
 
@@ -761,26 +764,16 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		if (item->mon.last_ts)
 			while (item->mon.last_ts < item->mon.deadline ){	 // missed a start time-stamp read?
 				item->mon.dl_scanfail++;
-
-				if (!item->attr.sched_period){
-					(void)get_sched_info(item);
-					break;
-				}
-				item->mon.last_ts += MAX( item->attr.sched_period, 1000); // safety..
+				item->mon.last_ts += item->attr.sched_period;
 			}
 
 		// just add a period, we rely on periodicity
-		item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+		item->mon.deadline += item->attr.sched_period;
 
 		int64_t count = 1;
 		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
 			item->mon.dl_scanfail++;
-
-			if (!item->attr.sched_period){
-				(void)get_sched_info(item);
-				break;
-			}
-			item->mon.deadline += MAX( item->attr.sched_period, 1000); // safety..
+			item->mon.deadline += item->attr.sched_period;
 			count++;
 		}
 
@@ -804,9 +797,8 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
 			pickPidAddRuntimeHist(item);
 		}
-		// reset runtime to new value
-		if (item->mon.last_ts) // compute runtime
-			item->mon.dl_rt = (ts - item->mon.last_ts);
+		// reset runtime to new periods value
+		item->mon.dl_rt = (ts - item->mon.last_ts);
 	}
 	else{
 		// if not DL use estimated value
