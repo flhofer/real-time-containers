@@ -761,36 +761,52 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 		// ----------  period ended ----------
 
-		// calculate difference to last reading, should be < 1 period
-		int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
-		int64_t count = 0;
 
-		if (0 > diff)
-			warn("Negative time difference for PID %d! Check buffers and load", item->pid);
+		{	// adjust period deadline and recompute RT if missed
 
-		// difference is very close to multiple of period we might have a scan fail
-		// in addition to the overshoot
-		while (diff >= ((int64_t)item->attr.sched_period - TSCHS)) {
-			item->mon.dl_scanfail++;
-			count++;
-			diff -= (int64_t)item->attr.sched_period;
-			item->mon.last_ts += MIN (item->attr.sched_period, ts);
-		}
-		if (count)
-			// update deadline info if we missed something
-			(void)get_sched_info(item);
-		else
 			// just add a period, we rely on periodicity
 			item->mon.deadline += item->attr.sched_period;
 
-		if (ts == item->mon.last_ts)
-			warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
+			int64_t count = 1;
+			// after update still not in line? (buffer updates 10ms)
+			while (item->mon.deadline < ts){
+				item->mon.dl_scanfail++;
+				item->mon.deadline += item->attr.sched_period;
+				count++;
+			}
 
-		count = 1;
-		while (item->mon.deadline < ts){	 // after update still not in line? (buffer updates 10ms)
-			item->mon.dl_scanfail++;
-			item->mon.deadline += item->attr.sched_period;
-			count++;
+			// Fix runtime based on how many periods we skipped
+			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
+			if (item->mon.dl_rt){
+				// statistics about variability
+				item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+				pickPidAddRuntimeHist(item);
+			}
+
+			// update deadline time-stamp from scheduler debug output if we missed something
+			if (1 < count)
+				(void)get_sched_info(item);
+
+		}
+
+		{	// check time-stamps and alignment with period!
+
+			// calculate time-stamp difference to last reading, should be < 1 period
+			int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
+
+			if (0 > diff)
+				warn("Negative time difference for PID %d! Check buffers and load", item->pid);
+
+			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) { // was - TSCHS, maybe cause for last_ts > ts!
+				item->mon.dl_scanfail++;
+				diff -= (int64_t)item->attr.sched_period;
+				item->mon.last_ts += item->attr.sched_period;
+			}
+
+			if (ts <= item->mon.last_ts){
+				warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
+				item->mon.last_ts = ts;
+			}
 		}
 
 		/*
@@ -807,13 +823,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			}
 		}
 
-		item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
-		if (item->mon.dl_rt){
-			// statistics about variability
-			item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
-			pickPidAddRuntimeHist(item);
-		}
-		// reset runtime to new periods value
+		// reset runtime to start from 0 + difference for new periods value
 		item->mon.dl_rt = (ts - item->mon.last_ts);
 	}
 	else{
