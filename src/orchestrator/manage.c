@@ -983,7 +983,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					}
 					else {
 						// Set affinity, starting from PAdaptive as it might "correct" the setting, before it doesn't
-						if (!setPidAffinityAssinged(item))
+						if ((1 < getPidAffinityAssingedNr(item)) && (!setPidAffinityAssinged(item)))
 							warn("Setting run-time affinity for unassigned PID %d '%s'", item->pid, item->psig ? item->psig : "");
 					}
 				}
