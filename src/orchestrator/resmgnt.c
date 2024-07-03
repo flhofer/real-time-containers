@@ -176,8 +176,7 @@ setPidAffinityAssinged (node_t * node){
 
 	// Set affinity
 	if (numa_sched_setaffinity(node->pid, node->mon.assigned_mask)){
-		err_msg_n(errno,"setting affinity for PID %d",
-			node->pid);
+		err_msg_n(errno,"setting affinity for PID %d", node->pid);
 		return -1;
 	}
 	// reset no affinity bit (if set)
@@ -185,6 +184,28 @@ setPidAffinityAssinged (node_t * node){
 	return 0;
 }
 
+/*
+ *	getPidAffinityAssingedNr: get the number of CPUs that have an affinity with the PID
+ *
+ *	Arguments: - pointer to node with data
+ *
+ *	Return value: CPU-count, -1 otherwise
+ */
+int
+getPidAffinityAssingedNr(node_t * node){
+	if (node->mon.assigned_mask)
+		numa_bitmask_clearall(node->mon.assigned_mask);
+	else
+		node->mon.assigned_mask = numa_allocate_cpumask();
+
+	// Set affinity
+	if (numa_sched_getaffinity(node->pid, node->mon.assigned_mask)){
+		err_msg_n(errno,"getting affinity for PID %d", node->pid);
+		return -1;
+	}
+
+	return (int)numa_bitmask_weight(node->mon.assigned_mask);
+}
 
 /*
  *	setContainerAffinity: sets the affinity of a container containing PIDs (CGRP ONLY)

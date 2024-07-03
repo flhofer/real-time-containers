@@ -47,6 +47,7 @@
 	int	recomputeCPUTimes(int32_t CPUno);		// recompute UL for CPU
 	int recomputeTimes(struct resTracer * res);	// recompute UL for CPU using Trace
 	int	setPidAffinityAssinged (node_t * node);	// update PID affinity in run-time
+	int	getPidAffinityAssingedNr(node_t * node);// get the number of CPUs that have an affinity with the PID
 
 	uint64_t findPeriodMatch(uint64_t cdf_Period);	// find matching period in 1/40ths
 
