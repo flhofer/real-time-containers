@@ -777,28 +777,27 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 
 			// Fix runtime based on how many periods we skipped
 			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
-			if (item->mon.dl_rt){
-				// statistics about variability
-				item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
-				pickPidAddRuntimeHist(item);
-			}
 
 			// update deadline time-stamp from scheduler debug output if we missed something
-			if (1 < count)
+			if (1 < count){
+				warn("Periods of PID %d have been skipped, re-fetching deadline!", item->pid);
 				(void)get_sched_info(item);
+			}
 
 		}
 
-		{	// check time-stamps and alignment with period!
+		{	// check time-stamps and alignment with period! Adjust and log resulting runtime
 
 			// calculate time-stamp difference to last reading, should be < 1 period
 			int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
+			int64_t count = 0;
 
 			if (0 > diff)
 				warn("Negative time difference for PID %d! Check buffers and load", item->pid);
 
 			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) { // was - TSCHS, maybe cause for last_ts > ts!
 				item->mon.dl_scanfail++;
+				count++;
 				diff -= (int64_t)item->attr.sched_period;
 				item->mon.last_ts += item->attr.sched_period;
 			}
@@ -806,25 +805,38 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			if (ts <= item->mon.last_ts){
 				warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
 				item->mon.last_ts = ts;
+				diff = 0;
 			}
+
+			if (count){	// we skipped a period, estimate runtime!
+				warn("Periods of PID %d have been skipped, estimating runtime!", item->pid);
+				diff = ts - (item->mon.deadline - item->attr.sched_deadline);
+			}
+
+			/*
+			 * Check if we had a overrun and verify buffers
+			 */
+			if ((SM_DYNSIMPLE <= prgset->sched_mode)
+					&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+				// check reschedule?
+				if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
+					// reschedule
+					item->mon.dl_overrun++;	// exceeded buffer
+					if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
+						warn("Task overrun - Could not find CPU to reschedule for PID %d", item->pid);
+				}
+			}
+
+			if (item->mon.dl_rt){
+				// statistics about variability
+				item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
+				pickPidAddRuntimeHist(item);
+			}
+
+			// reset runtime to start from 0 + difference for new periods value
+			item->mon.dl_rt = diff;
 		}
 
-		/*
-		 * Check if we had a overrun and verify buffers
-		 */
-		if ((SM_DYNSIMPLE <= prgset->sched_mode)
-				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
-			// check reschedule?
-			if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
-				// reschedule
-				item->mon.dl_overrun++;	// exceeded buffer
-				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
-					warn("Task overrun - Could not find CPU to reschedule");
-			}
-		}
-
-		// reset runtime to start from 0 + difference for new periods value
-		item->mon.dl_rt = (ts - item->mon.last_ts);
 	}
 	else{
 		// if not DL use estimated value
