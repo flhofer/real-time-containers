@@ -924,17 +924,15 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// add addr
 		*ptr = addr + *(int32_t*)ptr;
 
-	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%ld ==> next_comm=%s next_pid=%d next_prio=%d\n",
-				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, *frame.prev_state,
+#ifdef DEBUG
+	char flags[10];
 
-				//				(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1))
-				//				? __print_flags(*frame.prev_state & ((((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) - 1),"|", { 0x0001, "S" }, { 0x0002, "D" }, { 0x0004, "T" }, { 0x0008, "t" }, { 0x0010, "X" }, { 0x0020, "Z" }, { 0x0040, "P" }, { 0x0080, "I" }) : "R",
-				//						*frame.prev_state & (((0x0000 | 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0040) + 1) << 1) ? "+" : "",
+	(void)get_status_flags(*frame.prev_state, flags, sizeof(flags));
 
-//				(*frame.prev_state & 0xFF ? __print_flags(*frame.prev_state & 0xFF,"|",
-//						*frame.prev_state & 0x100 ? "+" : "",
-
+	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d\n",
+				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, flags,
 				frame.next_comm, *frame.next_pid, *frame.next_prio);
+#endif
 
 	if ((*frame.prev_comm & 0x80) || (*frame.next_comm & 0x80)) // malformed buffer? valid char?
 		return -1;

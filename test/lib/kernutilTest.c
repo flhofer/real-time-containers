@@ -213,6 +213,32 @@ START_TEST(kernutil_parse_cpumask)
 }
 END_TEST
 
+/// TEST CASE -> create a string from status flags
+/// EXPECTED -> returns a sting with status letter chain
+START_TEST(kernutil_get_status_flags)
+{
+	char * text = NULL;
+
+	ck_assert_int_eq(-1, get_status_flags(0, text, 0));
+	ck_assert_int_eq(-1, get_status_flags(0, text, 10));
+
+	text = malloc(10);
+
+	ck_assert_int_eq(-1, get_status_flags(0, text, 0));
+
+	ck_assert_int_eq(0, get_status_flags(0, text, 10));
+	ck_assert_str_eq("R", text);
+
+	ck_assert_int_eq(0, get_status_flags(0x100, text, 10));
+	ck_assert_str_eq("R+", text);
+
+	ck_assert_int_eq(0, get_status_flags(0xD0, text, 10));
+	ck_assert_str_eq("X|P|I", text);
+
+	free(text);
+}
+END_TEST
+
 void library_kernutil (Suite * s) {
 
 	TCase *tc1 = tcase_create("kernutil");
@@ -223,6 +249,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_test(tc1, kernutil_parse_bitmask);
 	tcase_add_test(tc1, kernutil_parse_bitmask_hex);
 	tcase_add_test(tc1, kernutil_parse_cpumask);
+	tcase_add_test(tc1, kernutil_get_status_flags);
 
     suite_add_tcase(s, tc1);
 

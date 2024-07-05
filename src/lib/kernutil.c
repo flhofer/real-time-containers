@@ -811,3 +811,69 @@ string_to_affinity(const char *str)
 	return 0; // default to other
 }
 
+/*
+ *  get_status_flags(): compose a status string from process status flag
+ *
+ *  Arguments: - status flags
+ *  		   - buffer for string write
+ *  		   - buffer size
+ *
+ *  Return value: returns 0 if ok, -1 if error
+ */
+int
+get_status_flags(uint64_t status, char * buff, int size){
+
+	if (!buff || size < 10)
+		return -1;
+
+	size-=3; // keep 1 for \0, 1 for '+', 1 for last '|'
+	int pos = 0;
+	int i = 0;
+
+	if (0 == (status & 0x000000FF)){
+		buff[pos++]='R';
+	}
+	else
+		while ((pos < size) && (status)){
+			uint64_t flag = status & ((uint64_t)1<<i);
+			if (flag){
+				if (pos > 0)
+					buff[pos++]='|';
+				switch (flag){
+				case 0x00000001:
+					buff[pos++]='S';
+					break;
+				case 0x00000002:
+					buff[pos++]='D';
+					break;
+				case 0x00000004:
+					buff[pos++]='T';
+					break;
+				case 0x00000008:
+					buff[pos++]='t';
+					break;
+				case 0x00000010:
+					buff[pos++]='X';
+					break;
+				case 0x00000020:
+					buff[pos++]='Z';
+					break;
+				case 0x00000040:
+					buff[pos++]='P';
+					break;
+				case 0x00000080:
+					buff[pos++]='I';
+					break;
+				}
+			}
+			status &= ~((uint64_t)1<<i);
+			i++;
+		}
+
+	if (status & 0x00000100)
+		buff[pos++]='+';
+
+	buff[pos]='\0';
+
+	return 0;
+}

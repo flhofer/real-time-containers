@@ -42,5 +42,6 @@
 
 	uint32_t string_to_affinity(const char *str);
 
+	int get_status_flags(uint64_t status, char * buff, int size);
 #endif
 
