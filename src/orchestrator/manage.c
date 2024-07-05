@@ -1005,6 +1005,30 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
 				pickPidConsolidateRuntime(item, ts);
+
+				// period histogram and CDF, update on actual switch
+				if ((SM_PADAPTIVE <= prgset->sched_mode)
+						&& (SCHED_DEADLINE != item->attr.sched_policy)
+			//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED // FIXME: need-resched what for again
+						){
+
+					if (item->mon.last_tsP){
+
+						double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+						if (!(item->mon.pdf_phist)){
+							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+								warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
+						}
+
+						printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
+						if ((runstats_histAdd(item->mon.pdf_phist, period)))
+							warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
+					}
+					item->status &= ~MSK_STATNRSCH;
+					item->mon.last_tsP = ts;
+				}
+
 			}
 			else
 				if (item->mon.last_ts) // compute runtime
@@ -1053,29 +1077,6 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// find PID that triggered wake-up
 		if (item->pid == *frame.pid){
-
-			// period histogram and CDF, update on actual switch
-			if ((SM_PADAPTIVE <= prgset->sched_mode)
-					&& (SCHED_DEADLINE != item->attr.sched_policy)
-		//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED // FIXME: need-resched what for again
-					){
-
-				if (item->mon.last_tsP){
-
-					double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
-
-					if (!(item->mon.pdf_phist)){
-						if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-							warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-					}
-
-					printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
-					if ((runstats_histAdd(item->mon.pdf_phist, period)))
-						warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-				}
-				item->status &= ~MSK_STATNRSCH;
-				item->mon.last_tsP = ts;
-			}
 
 			if (prgset->ftrace)
 				// previous PID in list, exiting, update runtime data
