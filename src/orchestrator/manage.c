@@ -997,6 +997,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 						// Set affinity, starting from PAdaptive as it might "correct" the setting, before it doesn't
 						if ((1 < getPidAffinityAssingedNr(item)) && (!setPidAffinityAssinged(item)))
 							warn("Setting run-time affinity for unassigned PID %d '%s'", item->pid, item->psig ? item->psig : "");
+						else
+							item->status &= ~MSK_STATNAFF;	// reset - no further need for it as weight is <=1 or set not possible (process exited)
 					}
 				}
 			}
