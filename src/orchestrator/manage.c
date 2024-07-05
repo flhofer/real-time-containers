@@ -762,6 +762,9 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		// ----------  period ended ----------
 		item->mon.dl_count++;	// total period counter
 
+		// WE ASSUME NO SCANFAIL IF PERIOD IS OVERRUN
+		// ----------- NEW APPROACH -----------------
+
 		{	// adjust period deadline and recompute RT if missed
 
 			// just add a period, we rely on periodicity
@@ -775,15 +778,9 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				count++;
 			}
 
-			// Fix runtime based on how many periods we skipped
-			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
-
 			// update deadline time-stamp from scheduler debug output if we missed something
-			if (1 < count){
-				warn("Periods of PID %d have been skipped, re-fetching deadline!", item->pid);
+			if (1 < count)
 				(void)get_sched_info(item);
-			}
-
 		}
 
 		{	// check time-stamps and alignment with period! Adjust and log resulting runtime
@@ -815,6 +812,9 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				diff = ts - (item->mon.deadline - item->attr.sched_deadline);
 			}
 
+			// Fix runtime based on how many periods we skipped
+			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
+
 			/*
 			 * Check if we had a overrun and verify buffers
 			 */
@@ -829,11 +829,9 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				}
 			}
 
-			if (item->mon.dl_rt){
+			if (item->mon.dl_rt)
 				// statistics about variability
-				item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
 				pickPidAddRuntimeHist(item);
-			}
 
 			// reset runtime to start from 0 + difference for new periods value
 			item->mon.dl_rt = diff;
@@ -1021,7 +1019,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 }
 
 /*
- *  pickPidInfoW(): process PID fTrace wakeup
+ *  pickPidInfoW(): process PID fTrace wake-up / waking
  * 					update data with kernel tracer debug out
  *
  *  Arguments: - frame containing the runtime info
