@@ -760,7 +760,7 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 		}
 
 		// ----------  period ended ----------
-
+		item->mon.dl_count++;	// total period counter
 
 		{	// adjust period deadline and recompute RT if missed
 
