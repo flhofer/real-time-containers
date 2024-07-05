@@ -823,51 +823,26 @@ string_to_affinity(const char *str)
 int
 get_status_flags(uint64_t status, char * buff, int size){
 
-	if (!buff || size < 10)
+	if (!buff || size < 4)
 		return -1;
 
 	size-=3; // keep 1 for \0, 1 for '+', 1 for last '|'
 	int pos = 0;
-	int i = 0;
+
+	char flagstring[9] = "SDTtXZPI";
 
 	if (0 == (status & 0x000000FF)){
 		buff[pos++]='R';
 	}
 	else
-		while ((pos < size) && (status)){
-			uint64_t flag = status & ((uint64_t)1<<i);
-			if (flag){
-				if (pos > 0)
+		for (int i = 0; i < sizeof(flagstring) && (status) && (pos < size); i++){
+			if (status & ((uint64_t)1<<i)){
+				if (pos)
 					buff[pos++]='|';
-				switch (flag){
-				case 0x00000001:
-					buff[pos++]='S';
-					break;
-				case 0x00000002:
-					buff[pos++]='D';
-					break;
-				case 0x00000004:
-					buff[pos++]='T';
-					break;
-				case 0x00000008:
-					buff[pos++]='t';
-					break;
-				case 0x00000010:
-					buff[pos++]='X';
-					break;
-				case 0x00000020:
-					buff[pos++]='Z';
-					break;
-				case 0x00000040:
-					buff[pos++]='P';
-					break;
-				case 0x00000080:
-					buff[pos++]='I';
-					break;
-				}
+
+				buff[pos++]=flagstring[i];
 			}
 			status &= ~((uint64_t)1<<i);
-			i++;
 		}
 
 	if (status & 0x00000100)
