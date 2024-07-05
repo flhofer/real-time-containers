@@ -21,7 +21,10 @@
 	#define MSK_STATSIBL		0x8 // PID has siblings in container
 	#define MSK_STATNAFF		0x10 // PID has no affinity yet
 	#define MSK_STATHERR		0x20 // HIST CDF initialization error
-	#define MSK_STATNRSCH		0x40 // Running task has requested reschedule
+
+	#define MSK_STATNRSCH		0x100 // Running task has requested reschedule
+	#define MSK_STATNPRD		0x200 // Running task has ended a Period => for period estimation
+	#define MSK_STATNRTME		0x400 // Running task has ended a Period => new runtime calculation
 
 	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
