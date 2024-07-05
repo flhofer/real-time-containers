@@ -198,8 +198,8 @@ getPidAffinityAssingedNr(node_t * node){
 	else
 		node->mon.assigned_mask = numa_allocate_cpumask();
 
-	// Set affinity
-	if (numa_sched_getaffinity(node->pid, node->mon.assigned_mask)){
+	// get affinity WARN wrongly specified in man(7), returns error or number of bytes read
+	if (0 > numa_sched_getaffinity(node->pid, node->mon.assigned_mask)){
 		err_msg_n(errno,"getting affinity for PID %d", node->pid);
 		return -1;
 	}
