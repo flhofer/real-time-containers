@@ -1003,7 +1003,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			if ((*frame.prev_state & 0x00FD) // ~'D' uninterruptible sleep -> system call
+			if ((*frame.prev_state & 0x00FD) // Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
 				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
 				// update real-time statistics and consolidate other values
 				pickPidConsolidateRuntime(item, ts);
@@ -1011,7 +1011,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				// period histogram and CDF, update on actual switch
 				if ((SM_PADAPTIVE <= prgset->sched_mode)
 						&& (SCHED_DEADLINE != item->attr.sched_policy)
-	//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED
+	//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED // FIXME: need-resched what for again
 						){
 
 					if (item->mon.last_tsP){
@@ -1246,8 +1246,8 @@ updateSiblings(node_t * node){
 
 	node_t * mainp = node;
 
-	if (// (node->status & MSK_STATSIBL) && // removed temporarily as flag is not reliable
-			(node->param)
+	if ((node->status & MSK_STATSIBL)
+			&& (node->param)
 			&& (node->param->cont)){
 
 		uint64_t smp = NSEC_PER_SEC;

@@ -388,14 +388,19 @@ setPidResources(node_t * node) {
 	else
 		node->status |= MSK_STATUPD | MSK_STATNMTCH;
 
-	// check if we have siblings in container TODO: not all cases are found
+	if (!node->pid)
+		return;
+
+	// check siblings in container and update them
 	int hasSiblings = node->status & MSK_STATSIBL;
-	for (node_t * item = nhead; (item) && !hasSiblings; item=item->next)
-		if (item->param && item->param->cont && node->param
-			&& item->param->cont == node->param->cont){
+
+	for (node_t * item = nhead; (item); item=item->next)
+		if (node != item && item->param && item->param->cont && node->param
+			&& item->param->cont == node->param->cont){		// same container parameter = same container
 			hasSiblings = MSK_STATSIBL;
 			item->status |= MSK_STATSIBL;
 		}
+
 	node->status |= hasSiblings;
 }
 
