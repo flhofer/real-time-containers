@@ -792,10 +792,12 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 			int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
 			int64_t count = 0;
 
-			if (0 > diff)
+			if (0 > diff){
 				warn("Negative time difference for PID %d! Check buffers and load", item->pid);
+				diff = 0;
+			}
 
-			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) { // was - TSCHS, maybe cause for last_ts > ts!
+			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) {
 				item->mon.dl_scanfail++;
 				count++;
 				diff -= (int64_t)item->attr.sched_period;
