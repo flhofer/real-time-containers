@@ -1634,7 +1634,7 @@ dumpStats (){
 	(void)printf( "\nStatistics for real-time SCHED_DEADLINE, FIFO and RR PIDs, %ld scans:"
 					" (others are omitted)\n"
 					"Average exponential with alpha=0.9\n\n"
-					"PID - Rsh - Smpl - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
+					"PID   - Rsh - Smpl - Cycle Overruns(total/found/fail) - avg rt (min/max) - sum diff (min/max/avg)\n"
 			        "----------------------------------------------------------------------------------\n",
 					scount );
 
@@ -1652,7 +1652,7 @@ dumpStats (){
 		switch(item->attr.sched_policy){
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
+			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
@@ -1662,7 +1662,7 @@ dumpStats (){
 			break;
 
 		case SCHED_DEADLINE:
-			(void)printf("%5d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s\n",
+			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample, item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
