@@ -951,13 +951,14 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				int32_t CPU = item->mon.assigned;
 				item->mon.assigned = fthread->cpuno;
 
-				// Removed from old CPU, should give no issues
-				if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
-					if (SM_DYNSIMPLE <= prgset->sched_mode)
-						(void)pickPidReallocCPU(CPU, 0);
-
-				if (0 <= CPU)
+				if (0 <= CPU){
 					item->mon.resched++;
+
+					// Removed from old CPU, should give no issues
+					if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
+						if (SM_DYNSIMPLE <= prgset->sched_mode)
+							(void)pickPidReallocCPU(CPU, 0);
+				}
 				else
 					// not assigned by orchestrator -> it sets assigned in setPidResources_u
 					item->status |= MSK_STATNAFF;
