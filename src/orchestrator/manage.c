@@ -789,7 +789,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
 	}
 
-	if (item->mon.rt)
+	if (item->mon.rt && item->mon.last_ts)
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
@@ -1485,7 +1485,8 @@ manageSched(){
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
-					(void)runstats_histFit(&item->mon.pdf_phist);
+					if (runstats_histFit(&item->mon.pdf_phist))
+						info("Happened for period in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 
 					// period changed enough for a different time-slot?
 					if ( (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod))
@@ -1573,7 +1574,8 @@ manageSched(){
 				else
 					warn ("Estimation error, can not update WCET");
 
-				(void)runstats_histFit(&item->mon.pdf_hist);
+				if (runstats_histFit(&item->mon.pdf_hist))
+					info("Happened for runtime in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 			}
 		}
     }
@@ -1626,11 +1628,12 @@ dumpStats (){
 		switch(item->attr.sched_policy){
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
+			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
 				policy_to_string(item->attr.sched_policy),
 				(item->psig) ? item->psig : "");
 			break;
