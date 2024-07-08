@@ -742,84 +742,42 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// ----------  period ended ----------
 		item->mon.dl_count++;				// total period counter
 
-		if (item->mon.deadline < ts - TSCHS){
+		// returned from task after last deadline?
+		if (item->mon.deadline < ts - TSCHS){ // FIXZME: scheduler resolution needed?
 			item->mon.dl_overrun++;
 		}
 
+		{
+			// just add a period, we rely on periodicity
+			item->mon.deadline += item->attr.sched_period;
 
-		// returned from task after last deadline but before new period??
-		if ( item->mon.last_tsP + item->attr.sched_period < ts )
-			item->mon.dl_overrun++;
+			int64_t count = 1;
+			// after update still not in line? (buffer updates 10ms)
+			while (item->mon.deadline < ts){
+				item->mon.dl_scanfail++;
+				item->mon.deadline += item->attr.sched_period;
+				count++;
+			}
 
-		// WE ASSUME NO SCANFAIL IF PERIOD IS OVERRUN
-		// ----------- NEW APPROACH -----------------
-
-//		{	// adjust period deadline and recompute RT if missed
-//
-//			// just add a period, we rely on periodicity
-//			item->mon.deadline += item->attr.sched_period;
-//
-//			int64_t count = 1;
-//			// after update still not in line? (buffer updates 10ms)
-//			while (item->mon.deadline < ts){
-//				item->mon.dl_scanfail++;
-//				item->mon.deadline += item->attr.sched_period;
-//				count++;
-//			}
-//
-//			// update deadline time-stamp from scheduler debug output if we missed something
-//			if (1 < count)
-//				(void)get_sched_info(item);
-//		}
-
-//		{	// check time-stamps and alignment with period! Adjust and log resulting runtime
-//
-//			// calculate time-stamp difference to last reading, should be < 1 period
-//			int64_t diff = (int64_t)ts-(int64_t)item->mon.last_tsP;
-//			int64_t count = 0;
-//
-//			if (0 > diff){
-//				warn("Negative time difference for PID %d! Check buffers and load", item->pid);
-//				diff = 0;
-//			}
-//
-//			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) {
-//				item->mon.dl_scanfail++;
-//				count++;
-//				diff -= (int64_t)item->attr.sched_period;
-//				item->mon.last_ts += item->attr.sched_period;
-//			}
-//
-//			if (ts <= item->mon.last_ts){
-//				warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
-//				item->mon.last_ts = ts;
-//				diff = 0;
-//			}
-//
-//			if (count){	// we skipped a period, estimate runtime!
-//				warn("Periods of PID %d have been skipped, estimating runtime!", item->pid);
-//				diff = ts - (item->mon.deadline - item->attr.sched_deadline);
-//			}
-//
-//			// Fix runtime based on how many periods we skipped
-//			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
-
-			/*
-			 * Check if we had a budget overrun and verify buffers
-			 */
-			if ((SM_DYNSIMPLE <= prgset->sched_mode)
-					&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
-				// check reschedule?
-				if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
-					// reschedule
-					item->mon.dl_overrun++;	// exceeded buffer
-					if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
-						warn("Task overrun - Could not find CPU to reschedule for PID %d", item->pid);
-				}
-//			}
-
-			item->status |=	MSK_STATNPRD; // store for tsP evaluation
+			// update deadline time-stamp from scheduler debug output if we missed something
+			if (1 < count)
+				(void)get_sched_info(item);
 		}
+
+		/*
+		 * Check if we had a budget overrun and verify buffers
+		 */
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+			// check reschedule?
+			if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
+				// reschedule
+				item->mon.dl_overrun++;	// exceeded buffer
+				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
+					warn("Task overrun - Could not find CPU to reschedule for PID %d", item->pid);
+			}
+		}
+		item->status |=	MSK_STATNPRD; // store for tsP evaluation
 
 	}
 
@@ -955,10 +913,10 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				// time between DL switches should tell jitter (technically perfect..)
 				item->status &= ~MSK_STATNPRD;
 
-				item->mon.dl_diff = (int64_t)ts - item->mon.last_tsP;
+				item->mon.dl_diff = (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
 				item->mon.last_tsP = ts;			// this period start
 
-				if (abs(item->mon.dl_diff) > TSCHS)
+				if ((item->mon.last_tsP) && abs(item->mon.dl_diff) > TSCHS)
 					item->mon.dl_overrun++;
 			}
 		}
