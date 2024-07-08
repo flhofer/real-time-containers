@@ -737,31 +737,15 @@ pickPidAddRuntimeHist(node_t *item){
 static void
 pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
-	if (item->mon.last_ts)
-		item->mon.dl_rt = ts - item->mon.last_ts;
-
 	if (SCHED_DEADLINE == item->attr.sched_policy){
-
-		// ---------- Check first if it is a valid period ----------
-
-		if (!item->attr.sched_period){
-			updatePidAttr(item);
-			return;
-		}
-		// time-stamp should never be zero from here on
-		if (!item->mon.last_tsP)
-			return;
-
-		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
-		if (!item->mon.deadline)
-			if (get_sched_info(item))			 // update deadline from debug buffer
-				warn("Unable to read schedule debug buffer!");
-
-		if (item->mon.deadline > ts)
-			return;
 
 		// ----------  period ended ----------
 		item->mon.dl_count++;				// total period counter
+
+		if (item->mon.deadline < ts - TSCHS){
+			item->mon.dl_overrun++;
+		}
+
 
 		// returned from task after last deadline but before new period??
 		if ( item->mon.last_tsP + item->attr.sched_period < ts )
@@ -821,7 +805,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 //			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
 
 			/*
-			 * Check if we had a overrun and verify buffers
+			 * Check if we had a budget overrun and verify buffers
 			 */
 			if ((SM_DYNSIMPLE <= prgset->sched_mode)
 					&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
@@ -834,8 +818,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 				}
 //			}
 
-			// set flag new RT calculation start
-			item->status |= MSK_STATNRTME;
+			item->status |=	MSK_STATNPRD; // store for tsP evaluation
 		}
 
 	}
@@ -844,8 +827,6 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
-	// execute to the end = new period
-	item->status |= MSK_STATNPRD;
 }
 
 /*
@@ -861,7 +842,7 @@ static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	//thread information flags, probable meaning
-	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
+	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */ // TODO: fix, this is incorrect
 	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
 	//#define TIF_SIGPENDING	2	/* signal pending */
 	//#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
@@ -886,7 +867,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	for (node_t * item = nhead; ((item)); item=item->next )
 
 		if (item->pid == *frame.common_pid){
-			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task // TODO: unused
+			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by event on running task  = Task has to go online // TODO: unused
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -967,11 +948,20 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		}
 
 		// find next PID and put timeStamp last started running
-		if (item->pid == *frame.next_pid)
-			if (item->status & MSK_STATNRTME){
-				item->status &= ~MSK_STATNRTME;
-				item->mon.last_ts = ts;
+		if (item->pid == *frame.next_pid){
+			item->mon.last_ts = ts;
+
+			if (item->status & MSK_STATNPRD){
+				// time between DL switches should tell jitter (technically perfect..)
+				item->status &= ~MSK_STATNPRD;
+
+				item->mon.dl_diff = (int64_t)ts - item->mon.last_tsP;
+				item->mon.last_tsP = ts;			// this period start
+
+				if (abs(item->mon.dl_diff) > TSCHS)
+					item->mon.dl_overrun++;
 			}
+		}
 	}
 
 	// recompute actual CPU, new tasks might be there now
@@ -1006,13 +996,24 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
+			if (!item->attr.sched_period)
+				updatePidAttr(item);
+
+			// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
+			if (!item->mon.deadline)
+				if (get_sched_info(item))			 // update deadline from debug buffer
+					warn("Unable to read schedule debug buffer!");
+
 			// update real-time statistics and consolidate other values on period end
+			if (item->mon.last_ts)
+				item->mon.dl_rt += ts - item->mon.last_ts;
 
-			if ((SCHED_DEADLINE == item->attr.sched_policy)
-				|| (*frame.prev_state & 0x00FD)){ // Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
+			if (((SCHED_DEADLINE != item->attr.sched_policy)
+					|| (*frame.prev_state & 0x0100))	// Not Deadline or Preemption Set
+				&& !(*frame.prev_state & 0x00FD)) 		// Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
+				break;							  		// break here, not final process switch
 
-				pickPidConsolidatePeriod(item, ts);
-			}
+			pickPidConsolidatePeriod(item, ts);
 
 			break;
 		}
@@ -1058,52 +1059,29 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// find PID that triggered wake-up
 		if (item->pid == *frame.pid){
 
-			// previous PID in list, exiting, update runtime data
-			if (SCHED_DEADLINE == item->attr.sched_policy){
-				if (prgset->ftrace && (item->status & MSK_STATNPRD)) {
-					item->status &= ~MSK_STATNPRD;		// reset flag
+			if ((item->mon.last_tsP) && (item->mon.deadline)){
 
-					// time between wake-up/waking and last after deadline tells jitter
-					item->mon.dl_diff = (int64_t)ts - item->mon.last_tsP;
-					item->mon.last_tsP = ts;			// this period start
+				double period = (double)(item->mon.deadline - item->mon.last_tsP)/(double)NSEC_PER_SEC;
 
-					if (abs(item->mon.dl_diff) > TSCHS)
-						item->mon.dl_overrun++;
+				if (!(item->mon.pdf_phist)){
+					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+						warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 				}
+
+				printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
+				if ((runstats_histAdd(item->mon.pdf_phist, period)))
+					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
+
+				if (item->mon.cdf_period)
+					if (TSCHS < abs(period - item->mon.cdf_period))
+						item->mon.dl_overrun++;			// count number of times period deviates from ideal CDF
+
 			}
-			else{
 
-				if (item->status & MSK_STATNPRD){		// new period has begun!
+			item->mon.last_tsP = ts;					// this period start
+			item->mon.deadline = item->mon.last_tsP;	// previous period start
 
-					item->status &= ~MSK_STATNPRD;		// reset flag
-
-					if ((item->mon.last_tsP) && (item->mon.deadline)){
-
-						double period = (double)(item->mon.last_tsP - item->mon.deadline)/(double)NSEC_PER_SEC;
-
-						if (!(item->mon.pdf_phist)){
-							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-								warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-						}
-
-						printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
-						if ((runstats_histAdd(item->mon.pdf_phist, period)))
-							warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-
-						if (item->mon.cdf_period)
-							if (TSCHS < abs(period - item->mon.cdf_period))
-								item->mon.dl_overrun++;			// count number of times period deviates from ideal CDF
-
-					}
-
-					item->mon.deadline = item->mon.last_tsP;	// previous period start
-					item->mon.last_tsP = ts;					// this period start
-
-					item->mon.dl_count++;						// count number of periods
-
-					item->status |= MSK_STATNRTME;				// set flag new RT calculation
-				}
-			}
+			item->mon.dl_count++;						// count number of periods
 
 			break;
 		}
