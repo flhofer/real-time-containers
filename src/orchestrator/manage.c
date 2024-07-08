@@ -743,8 +743,15 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// ----------  period ended ----------
 		item->mon.dl_count++;				// total period counter
 
+		if (!item->attr.sched_period)
+			updatePidAttr(item);
+
+		if (!item->mon.deadline)
+			if (get_sched_info(item))			 // update deadline from debug buffer
+				warn("Unable to read schedule debug buffer!");
+
 		// returned from task after last deadline?
-		if (item->mon.deadline < ts - TSCHS){ // FIXZME: scheduler resolution needed?
+		if (item->mon.deadline < ts - TSCHS){ // FIXME: scheduler resolution needed?
 			item->mon.dl_overrun++;
 		}
 
@@ -954,14 +961,6 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					}
 				}
 			}
-
-			if (!item->attr.sched_period)
-				updatePidAttr(item);
-
-			// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
-			if (!item->mon.deadline)
-				if (get_sched_info(item))			 // update deadline from debug buffer
-					warn("Unable to read schedule debug buffer!");
 
 			// update real-time statistics and consolidate other values on period end
 			if (item->mon.last_ts)
@@ -1340,7 +1339,7 @@ get_sched_info(node_t * item)
 					item->mon.dl_count++;
 			}
 			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
-				if (0 == item->mon.deadline)
+				if (!item->mon.deadline)
 					item->mon.deadline = num;
 				else if (num != item->mon.deadline) {
 					// it's not, updated deadline found
