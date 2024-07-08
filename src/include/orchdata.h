@@ -197,7 +197,8 @@
 		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task
 		uint64_t last_tsP;		// last time stamp for this task's period
-		uint64_t deadline;		// deadline last read absolute value (may approximate next iter)
+		uint64_t deadline;		// DL: deadline last read absolute value (may approximate next iter)
+								// FIFO/RR?.. WakeUp+cdf_period
 
 		int64_t  dl_rt;			// deadline last read runtime value/budget
 		// Deadline diff - or runtime buffer (ftrace)

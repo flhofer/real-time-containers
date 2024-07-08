@@ -655,8 +655,8 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
 			continue;
 
-		// !! WARN, works only for deadline scheduled tasks
-		if (citem->mon.deadline && citem->attr.sched_period
+		if (citem->mon.deadline
+				&& (citem->attr.sched_period || citem->mon.cdf_period)
 				&& citem->mon.deadline <= item->mon.deadline){
 			// dl present and smaller than next dl of item
 
@@ -664,8 +664,8 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
-				stdl += citem->attr.sched_period;
-				usedtime += citem->attr.sched_runtime;
+				stdl += citem->attr.sched_period + citem->mon.cdf_period; 		// one of them is empty
+				usedtime += citem->attr.sched_runtime + citem->mon.cdf_runtime; // one of them is empty
 			}
 		}
 	}
