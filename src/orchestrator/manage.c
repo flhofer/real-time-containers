@@ -665,7 +665,8 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
 				stdl += citem->attr.sched_period + citem->mon.cdf_period; 		// one of them is empty
-				usedtime += citem->attr.sched_runtime + citem->mon.cdf_runtime; // one of them is empty
+				usedtime += (citem->mon.cdf_runtime) ? 							// if estimation OK, use that value (ptresh!) instead of WCET for DL
+						citem->mon.cdf_runtime : citem->attr.sched_runtime;
 			}
 		}
 	}
@@ -694,13 +695,13 @@ pickPidAddRuntimeHist(node_t *item){
 		if (0.0 == b && item->mon.cdf_runtime)
 			b = (double)item->mon.cdf_runtime;
 		if (0.0 == b)
-			b = (double)item->mon.dl_rt;
+			b = (double)item->mon.rt;
 
 		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
 			warn("Histogram init failure for PID %d '%s' runtime", item->pid, (item->psig) ? item->psig : "");
 	}
 
-	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
+	double b = (double)item->mon.rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
 	printDbg(PFX "Runtime for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
@@ -714,12 +715,12 @@ pickPidAddRuntimeHist(node_t *item){
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
-	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
-	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
-	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.rt);
+	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.rt);
+	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.rt /* *1 */)/10;
 
 	// reset counter, done with statistics, task in sleep (suspend)
-	item->mon.dl_rt = 0;
+	item->mon.rt = 0;
 
 }
 
@@ -768,9 +769,9 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		 * Check if we had a budget overrun and verify buffers
 		 */
 		if ((SM_DYNSIMPLE <= prgset->sched_mode)
-				&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
+				&& (item->mon.cdf_runtime && (item->mon.rt > item->mon.cdf_runtime))){
 			// check reschedule?
-			if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
+			if ((pickPidCheckBuffer(item, ts, item->mon.rt - item->mon.cdf_runtime))){
 				// reschedule
 				item->mon.dl_overrun++;	// exceeded buffer
 				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
@@ -781,7 +782,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
 	}
 
-	if (item->mon.dl_rt)
+	if (item->mon.rt)
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
@@ -964,7 +965,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 			// update real-time statistics and consolidate other values on period end
 			if (item->mon.last_ts)
-				item->mon.dl_rt += ts - item->mon.last_ts;
+				item->mon.rt += ts - item->mon.last_ts;
 
 			if (((SCHED_DEADLINE != item->attr.sched_policy)
 					|| (*frame.prev_state & 0x0100))	// Not Deadline or Preemption Set
@@ -1309,8 +1310,8 @@ get_sched_info(node_t * item)
 				num += nanos;
 
 				// compute difference
-				diff = (int64_t)(num - item->mon.dl_rt);
-				item->mon.dl_rt = num; 	// store last seen runtime
+				diff = (int64_t)(num - item->mon.rt);
+				item->mon.rt = num; 	// store last seen runtime
 			}
 			if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
 				// computation loop end
@@ -1335,7 +1336,7 @@ get_sched_info(node_t * item)
 					&& (strncasecmp(ltag, "dl.runtime", 4) == 0)) {
 				// store last seen runtime
 				ltrt = num;
-				if (num != item->mon.dl_rt)
+				if (num != item->mon.rt)
 					item->mon.dl_count++;
 			}
 			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
@@ -1374,7 +1375,7 @@ get_sched_info(node_t * item)
 						// runtime replenished - deadline changed: old value may be real RT ->
 						// Works only if scan time < slack time
 						// and if not, this here filters the hole (maybe)
-						diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+						diff = (int64_t)item->attr.sched_runtime - item->mon.rt;
 						if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
 							item->mon.rt_min = MIN (item->mon.rt_min, diff);
 							item->mon.rt_max = MAX (item->mon.rt_max, diff);
@@ -1387,7 +1388,7 @@ get_sched_info(node_t * item)
 
 				// update last seen runtime
 				if (!prgset->ftrace)
-					item->mon.dl_rt = ltrt;
+					item->mon.rt = ltrt;
 				break; // we're done reading
 			}
 		}

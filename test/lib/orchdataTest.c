@@ -41,7 +41,7 @@ START_TEST(orchdata_ndpush)
 	ck_assert_int_eq(nhead->mon.dl_scanfail, 0);
 	ck_assert_int_eq(nhead->mon.dl_overrun, 0);
 	ck_assert_int_eq(nhead->mon.deadline, 0);
-	ck_assert_int_eq(nhead->mon.dl_rt, 0);
+	ck_assert_int_eq(nhead->mon.rt, 0);
 	ck_assert_int_eq(nhead->mon.dl_diff, 0);
 	ck_assert_int_eq(nhead->mon.dl_diffmin, INT64_MAX);
 	ck_assert_int_eq(nhead->mon.dl_diffavg, 0);
