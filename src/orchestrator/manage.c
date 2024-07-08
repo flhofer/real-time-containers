@@ -1059,9 +1059,9 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// find PID that triggered wake-up
 		if (item->pid == *frame.pid){
 
-			if ((item->mon.last_tsP) && (item->mon.deadline)){
+			if (item->mon.last_tsP){
 
-				double period = (double)(item->mon.deadline - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+				double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
 
 				if (!(item->mon.pdf_phist)){
 					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
@@ -1072,16 +1072,16 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				if ((runstats_histAdd(item->mon.pdf_phist, period)))
 					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 
-				if (item->mon.cdf_period)
+				if (item->mon.cdf_period){
 					if (TSCHS < abs(period - item->mon.cdf_period))
-						item->mon.dl_overrun++;			// count number of times period deviates from ideal CDF
+						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
+					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
+				}
 
 			}
 
-			item->mon.last_tsP = ts;					// this period start
-			item->mon.deadline = item->mon.last_tsP;	// previous period start
-
-			item->mon.dl_count++;						// count number of periods
+			item->mon.last_tsP = ts;		// this period start
+			item->mon.dl_count++;			// count number of periods
 
 			break;
 		}
