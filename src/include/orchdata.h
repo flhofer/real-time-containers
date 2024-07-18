@@ -190,10 +190,10 @@
 	typedef struct sched_mon { // actual values for monitoring
 
 		// runtime statistics
-		int64_t rt;				// deadline last read runtime value/budget
-		int64_t rt_min;			// minimum run-time value
-		int64_t rt_avg;			// average run-time value
-		int64_t rt_max;			// maximum run-time value
+		uint64_t rt;			// deadline last read runtime value/budget
+		uint64_t rt_min;		// minimum run-time value
+		uint64_t rt_avg;		// average run-time value
+		uint64_t rt_max;		// maximum run-time value
 
 		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task

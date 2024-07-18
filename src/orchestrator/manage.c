@@ -711,17 +711,22 @@ pickPidAddRuntimeHist(node_t *item){
 	// ---------- Compute diffs and averages  ----------
 
 	// exponentially weighted moving average, alpha = 0.9
-	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
+	if (!item->mon.dl_diffavg)
+		item->mon.dl_diffavg = item->mon.dl_diff;
+	else
+		item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
+	if (!item->mon.rt_avg)
+		item->mon.rt_avg = item->mon.rt;
+	else
+		item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.rt /* *1 */)/10;
 	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.rt);
 	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.rt);
-	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.rt /* *1 */)/10;
 
 	// reset counter, done with statistics, task in sleep (suspend)
 	item->mon.rt = 0;
-
 }
 
 /*
@@ -778,7 +783,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		if ((SM_DYNSIMPLE <= prgset->sched_mode)
 				&& (item->mon.cdf_runtime && (item->mon.rt > item->mon.cdf_runtime))){
 			// check reschedule?
-			if ((pickPidCheckBuffer(item, ts, item->mon.rt - item->mon.cdf_runtime))){
+			if ((pickPidCheckBuffer(item, ts, (int64_t)item->mon.rt - item->mon.cdf_runtime))){
 				// reschedule
 				item->mon.dl_overrun++;	// exceeded buffer
 				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
@@ -921,7 +926,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				// time between DL switches should tell jitter (technically perfect..)
 				item->status &= ~MSK_STATNPRD;
 
-				item->mon.dl_diff = (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
+				// floating skew=jitter
+				item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
 				item->mon.last_tsP = ts;			// this period start
 
 				if ((item->mon.last_tsP) && abs(item->mon.dl_diff) > TSCHS)
@@ -1031,7 +1037,8 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 
 				if (item->mon.cdf_period){
-					if (TSCHS < abs(period - item->mon.cdf_period))
+					item->mon.dl_diff += (int64_t)period - (int64_t)findPeriodMatch((uint64_t)item->mon.cdf_period);
+					if (TSCHS < item->mon.dl_diff)						// count only positive overruns based on period match
 						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
 					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
 				}
@@ -1310,7 +1317,7 @@ get_sched_info(node_t * item)
 
 				// compute difference
 				diff = (int64_t)(num - item->mon.rt);
-				item->mon.rt = num; 	// store last seen runtime
+				item->mon.rt = (uint64_t)num; 	// store last seen runtime
 			}
 			if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
 				// computation loop end
