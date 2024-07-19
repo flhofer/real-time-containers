@@ -810,14 +810,11 @@ static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	//thread information flags, probable meaning
-	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */ // TODO: fix, this is incorrect
-	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
-	//#define TIF_SIGPENDING	2	/* signal pending */
-	//#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-	//#define TIF_SINGLESTEP	4	/* reenable singlestep on user return*/
-	//#define TIF_SSBD			5	/* Speculative store bypass disable */
-	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
-	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
+	//#define FT_unknown 0x20 set on wakeup
+	//#define FT_softIRQ 0x10
+	//#define FT_hardIRQ 0x8
+	//#define FT_needResched 0x4
+	//#define FT_irqoff 0x1
 
 	// use local copy and add addr's address with its offset
 	struct tr_common frame = tr_common;
@@ -835,7 +832,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	for (node_t * item = nhead; ((item)); item=item->next )
 
 		if (item->pid == *frame.common_pid){
-			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by event on running task  = Task has to go online // TODO: unused
+			if (!(*frame.common_flags & 0x4)){ // = NEED_RESCHED requested by event on running task  = Task has to go online
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
