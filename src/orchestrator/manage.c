@@ -711,10 +711,7 @@ pickPidAddRuntimeHist(node_t *item){
 	// ---------- Compute diffs and averages  ----------
 
 	// exponentially weighted moving average, alpha = 0.9
-	if (!item->mon.dl_diffavg)
-		item->mon.dl_diffavg = item->mon.dl_diff;
-	else
-		item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
+	item->mon.dl_diffavg = (item->mon.dl_diffavg * 9 + item->mon.dl_diff /* *1 */)/10;
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
@@ -1666,7 +1663,7 @@ dumpStats (){
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 			(void)recomputeTimes(trc);
 			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", getTracerMainCPU(trc),
-					trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
+					trc->Uavg * 100, MIN(trc->Umin, trc->Umax) * 100, trc->Umax * 100 );
 		}
 	}
 
