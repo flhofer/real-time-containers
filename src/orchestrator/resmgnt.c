@@ -374,8 +374,6 @@ void
 setPidResources(node_t * node) {
 
 	// parameters unassigned
-	if (!prgset->quiet)
-		(void)printf("\n");
 	if (node->pid)
 		info("new PID in list %d", node->pid);
 	else if (node->contid)
