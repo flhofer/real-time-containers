@@ -1495,8 +1495,8 @@ manageSched(){
 					// period changed enough for a different time-slot?
 					if ( (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod))
 							&& (newPeriod > item->mon.cdf_runtime)
-							&& (item->mon.cdf_period * 95 > newPeriod * 100				// TODO: introduce constant or variable
-								|| item->mon.cdf_period * 105 < newPeriod * 100)){
+							&& (item->mon.cdf_period * MINCHNGL > newPeriod * 100
+								|| item->mon.cdf_period * MINCHNGH < newPeriod * 100)){
 
 						// meaningful change?
 
@@ -1566,8 +1566,8 @@ manageSched(){
 					if (SCHED_DEADLINE == item->attr.sched_policy){
 						updatePidWCET(item, newWCET);
 					}
-					if ( item->mon.cdf_runtime * 95 > newWCET * 100				// TODO: introduce constant or variable
-							|| item->mon.cdf_runtime * 105 < newWCET * 100){
+					if ( item->mon.cdf_runtime * MINCHNGL > newWCET * 100
+							|| item->mon.cdf_runtime * MINCHNGH < newWCET * 100){
 						// meaningful change?
 						info("Update PID %d '%s' runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 						item->mon.resample++;

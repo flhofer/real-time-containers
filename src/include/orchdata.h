@@ -84,6 +84,9 @@
 	#define SYSCPUS 1 // 1 -> count of min CPUS reserved for orchestrator and system
 	#define CPUGOVR	"performance" // desired configuration for CPU governor
 
+	#define MINCHNGL	95		// Minimum change for PDF update in percent
+	#define MINCHNGH	105		// Minimum change for PDF update in percent
+
 	// definition of container detection modes
 	enum det_mode {
 		DM_CMDLINE = 0,	// use command line signature for detection
