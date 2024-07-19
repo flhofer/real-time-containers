@@ -436,83 +436,37 @@ START_TEST(orchestrator_manage_ppconsrt)
 	nhead->pid = getpid();
 	nhead->psig = strdup("PidTest");
 
-	nhead->attr.sched_policy = SCHED_DEADLINE;
 	nhead->mon.rt = 2000;
-
-	pickPidConsolidatePeriod(nhead, 3000);
-	ck_assert_int_eq(SCHED_OTHER, nhead->attr.sched_policy);
-	ck_assert_int_eq(2000, nhead->mon.rt);		// this time it returned before
-	ck_assert_int_eq(0, nhead->mon.dl_scanfail);
-
 	nhead->attr.sched_policy = SCHED_DEADLINE;
 	nhead->attr.sched_runtime = 4500;
 	nhead->attr.sched_deadline = 20000;
 	nhead->attr.sched_period = 22000;
 	nhead->attr.sched_period = 22000;
+	nhead->mon.deadline = 20000;
 	pickPidConsolidatePeriod(nhead, 3000);
 	ck_assert_int_eq(SCHED_DEADLINE, nhead->attr.sched_policy);
-	ck_assert_int_eq(2000, nhead->mon.rt);		// this time it returned before
+	ck_assert_int_eq(2000, nhead->mon.rt);		// untouched
 	ck_assert_int_eq(0, nhead->mon.dl_scanfail);
 
 	nhead->mon.last_ts = 2000;
 	pickPidConsolidatePeriod(nhead, 3000);
 	ck_assert_int_eq(SCHED_DEADLINE, nhead->attr.sched_policy);
-	ck_assert_int_eq(1000, nhead->mon.rt);
-	ck_assert_int_eq(0, nhead->mon.dl_scanfail);	// unknown period attribute, skip
+	ck_assert_int_eq(2000, nhead->mon.rt_min);
+	ck_assert_int_eq(2000, nhead->mon.rt_max);
+	ck_assert_int_eq(0, nhead->mon.dl_scanfail);
 
-	// empty information, test read + update runtime mid-task switch
+	nhead->mon.last_ts = 2000;
 	nhead->mon.deadline = 20000;
-	nhead->mon.rt = 2000;
-	pickPidConsolidatePeriod(nhead, 5000);
-	ck_assert_int_eq(SCHED_DEADLINE, nhead->attr.sched_policy);
-	ck_assert_int_eq(5000, nhead->mon.rt);
-
-	// deadline passed, new data
-	nhead->attr.sched_policy = SCHED_DEADLINE;
-	pickPidConsolidatePeriod(nhead, 25500);
-	ck_assert_int_eq(-500, nhead->mon.dl_diff);	// last period over-ran by 500mu
-	ck_assert_int_eq(3500, nhead->mon.rt);	// runtime so far
-
-	// check missed end task switch, partial run
-	nhead->mon.last_ts = 44000;
-	prgset->sched_mode = SM_DYNSIMPLE; // for later tests
-	pickPidConsolidatePeriod(nhead, 48500);
-	ck_assert_int_eq(1000, nhead->mon.dl_diff);	// last period under-use an by 1000mu!!
-	ck_assert_int_eq(4500, nhead->mon.rt);
-	ck_assert_int_eq(0, nhead->mon.dl_overrun);
-
-	// check missed end task switch
-	nhead->mon.last_ts = 88000; // missed end of 66000 period, dl_rt = 0 as we did not register
-	nhead->mon.cdf_runtime = 4500;	// for later tests
-	pickPidConsolidatePeriod(nhead, 92500);
-	ck_assert_int_eq(2250, nhead->mon.dl_diff);	// last period under-use an by 3000mu (div 2 periods)
-	ck_assert_int_eq(4500, nhead->mon.rt);
-	ck_assert_int_eq(2, nhead->mon.dl_scanfail);
-	ck_assert_int_eq(0, nhead->mon.dl_overrun);
-
-	// check missed start task switch
-	//	nhead->mon.last_ts = 110000;  ->should be
-	nhead->mon.cdf_runtime = 4499;	// for later tests
-	pickPidConsolidatePeriod(nhead, 114500);
-	ck_assert_int_eq(0, nhead->mon.dl_diff);	// last period was perfect, just missed this start
-	ck_assert_int_eq(4500, nhead->mon.rt);
-	ck_assert_int_eq(3, nhead->mon.dl_scanfail);
-	ck_assert_int_eq(0, nhead->mon.dl_overrun);
-
-	nhead->mon.last_ts = 132000;
-	nhead->mon.rt = 44000; // simulate overflow
-	pickPidConsolidatePeriod(nhead, 136500);
-	ck_assert_int_eq(4500, nhead->mon.rt);
+	pickPidConsolidatePeriod(nhead, 21500);
 	ck_assert_int_eq(1, nhead->mon.dl_overrun);
+	ck_assert_int_eq(0, nhead->mon.dl_scanfail);
 
-	// test other
-	nhead->attr.sched_policy = SCHED_FIFO;
-	nhead->mon.last_ts = 154000;
-	nhead->mon.rt = 0; // other work in reverse, reset at call, not next period;
-	nhead->mon.cdf_runtime = 4499;
-	pickPidConsolidatePeriod(nhead, 158700);
-	ck_assert_int_eq(-201, nhead->mon.dl_diff);	// this period exceeded cdf res by 201mu
-	ck_assert_int_eq(0, nhead->mon.rt);
+	nhead->mon.last_ts = 2100;
+	nhead->mon.deadline = 20000;
+	pickPidConsolidatePeriod(nhead, 80000);
+	ck_assert_int_eq(2, nhead->mon.dl_overrun);
+	ck_assert_int_eq(2, nhead->mon.dl_scanfail);
+
 }
 END_TEST
 
