@@ -1031,7 +1031,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 
 				if (item->mon.cdf_period){
-					item->mon.dl_diff += (int64_t)period - (int64_t)findPeriodMatch((uint64_t)item->mon.cdf_period);
+					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP - (int64_t)findPeriodMatch((uint64_t)item->mon.cdf_period);
 					if (TSCHS < item->mon.dl_diff)						// count only positive overruns based on period match
 						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
 					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
