@@ -511,7 +511,7 @@ elif [[ $cmd == "test" ]]; then
 		echo $fps >>$fpsFile
 
 		i=3 # start with worker 4
-		while [ $i -lt 8 ]
+		while [ $i -lt ${maxWorkers} ]
 		    echo "Sleeping for $sleepTime seconds"
 		    sleep $sleepTime;
 		do
