@@ -655,8 +655,8 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
 			continue;
 
-		// !! WARN, works only for deadline scheduled tasks
-		if (citem->mon.deadline && citem->attr.sched_period
+		if (citem->mon.deadline
+				&& (citem->attr.sched_period || citem->mon.cdf_period)
 				&& citem->mon.deadline <= item->mon.deadline){
 			// dl present and smaller than next dl of item
 
@@ -664,8 +664,9 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
-				stdl += citem->attr.sched_period;
-				usedtime += citem->attr.sched_runtime;
+				stdl += citem->attr.sched_period + citem->mon.cdf_period; 		// one of them is empty
+				usedtime += (citem->mon.cdf_runtime) ? 							// if estimation OK, use that value (ptresh!) instead of WCET for DL
+						citem->mon.cdf_runtime : citem->attr.sched_runtime;
 			}
 		}
 	}
@@ -694,13 +695,13 @@ pickPidAddRuntimeHist(node_t *item){
 		if (0.0 == b && item->mon.cdf_runtime)
 			b = (double)item->mon.cdf_runtime;
 		if (0.0 == b)
-			b = (double)item->mon.dl_rt;
+			b = (double)item->mon.rt;
 
 		if ((runstats_histInit(&(item->mon.pdf_hist), b/(double)NSEC_PER_SEC)))
 			warn("Histogram init failure for PID %d '%s' runtime", item->pid, (item->psig) ? item->psig : "");
 	}
 
-	double b = (double)item->mon.dl_rt/(double)NSEC_PER_SEC; // transform to sec
+	double b = (double)item->mon.rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
 	printDbg(PFX "Runtime for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", b);
 	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
@@ -714,17 +715,19 @@ pickPidAddRuntimeHist(node_t *item){
 	item->mon.dl_diffmin = MIN (item->mon.dl_diffmin, item->mon.dl_diff);
 	item->mon.dl_diffmax = MAX (item->mon.dl_diffmax, item->mon.dl_diff);
 
-	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.dl_rt);
-	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.dl_rt);
-	item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.dl_rt /* *1 */)/10;
+	if (!item->mon.rt_avg)
+		item->mon.rt_avg = item->mon.rt;
+	else
+		item->mon.rt_avg = (item->mon.rt_avg * 9 + item->mon.rt /* *1 */)/10;
+	item->mon.rt_min = MIN (item->mon.rt_min, item->mon.rt);
+	item->mon.rt_max = MAX (item->mon.rt_max, item->mon.rt);
 
 	// reset counter, done with statistics, task in sleep (suspend)
-	item->mon.dl_rt = 0;
-
+	item->mon.rt = 0;
 }
 
 /*
- *  pickPidConsolidateRuntime(): update runtime data, init stats when needed
+ *  pickPidConsolidatePeriod(): update runtime data, init stats when needed
  *
  *  This function is called at end of NON-DL tasks (e.g. timer-wait) period
  *  or every time a DL tasks is preempted or yields (-> check if new period )
@@ -735,35 +738,26 @@ pickPidAddRuntimeHist(node_t *item){
  *  Return value: -
  */
 static void
-pickPidConsolidateRuntime(node_t *item, uint64_t ts){
+pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 
-		// ---------- Check first if it is a valid period ----------
+		// ----------  period ended ----------
+		item->mon.dl_count++;				// total period counter
 
-		if (!item->attr.sched_period){
+		if (!item->attr.sched_period)
 			updatePidAttr(item);
-			return;
-		}
-		// period should never be zero from here on
-		if (!item->mon.last_ts)
-			return;
 
-		// compute deadline -> what if we read the debug output here??.. maybe we lost track of deadline?
 		if (!item->mon.deadline)
 			if (get_sched_info(item))			 // update deadline from debug buffer
 				warn("Unable to read schedule debug buffer!");
 
-		if (item->mon.deadline > ts){
-			item->mon.dl_rt += (ts - item->mon.last_ts);
-			return;
+		// returned from task after last deadline?
+		if (item->mon.deadline < ts - TSCHS){ // FIXME: scheduler resolution needed?
+			item->mon.dl_overrun++;
 		}
 
-		// ----------  period ended ----------
-		item->mon.dl_count++;	// total period counter
-
-		{	// adjust period deadline and recompute RT if missed
-
+		{
 			// just add a period, we rely on periodicity
 			item->mon.deadline += item->attr.sched_period;
 
@@ -775,79 +769,32 @@ pickPidConsolidateRuntime(node_t *item, uint64_t ts){
 				count++;
 			}
 
-			// Fix runtime based on how many periods we skipped
-			item->mon.dl_rt /= count; // if we had multiple periods we missed the leave of one, divide
-
 			// update deadline time-stamp from scheduler debug output if we missed something
-			if (1 < count){
-				warn("Periods of PID %d have been skipped, re-fetching deadline!", item->pid);
+			if (1 < count)
 				(void)get_sched_info(item);
-			}
-
 		}
 
-		{	// check time-stamps and alignment with period! Adjust and log resulting runtime
-
-			// calculate time-stamp difference to last reading, should be < 1 period
-			int64_t diff = (int64_t)ts-(int64_t)item->mon.last_ts;
-			int64_t count = 0;
-
-			if (0 > diff){
-				warn("Negative time difference for PID %d! Check buffers and load", item->pid);
-				diff = 0;
+		/*
+		 * Check if we had a budget overrun and verify buffers
+		 */
+		if ((SM_DYNSIMPLE <= prgset->sched_mode)
+				&& (item->mon.cdf_runtime && (item->mon.rt > item->mon.cdf_runtime))){
+			// check reschedule?
+			if ((pickPidCheckBuffer(item, ts, (int64_t)item->mon.rt - item->mon.cdf_runtime))){
+				// reschedule
+				item->mon.dl_overrun++;	// exceeded buffer
+				if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
+					warn("Task overrun - Could not find CPU to reschedule for PID %d", item->pid);
 			}
-
-			while (diff >= ((int64_t)item->attr.sched_period + TSCHS)) {
-				item->mon.dl_scanfail++;
-				count++;
-				diff -= (int64_t)item->attr.sched_period;
-				item->mon.last_ts += item->attr.sched_period;
-			}
-
-			if (ts <= item->mon.last_ts){
-				warn("Time-stamp mismatch for PID %d! Check buffers and load", item->pid);
-				item->mon.last_ts = ts;
-				diff = 0;
-			}
-
-			if (count){	// we skipped a period, estimate runtime!
-				warn("Periods of PID %d have been skipped, estimating runtime!", item->pid);
-				diff = ts - (item->mon.deadline - item->attr.sched_deadline);
-			}
-
-			/*
-			 * Check if we had a overrun and verify buffers
-			 */
-			if ((SM_DYNSIMPLE <= prgset->sched_mode)
-					&& (item->mon.cdf_runtime && (item->mon.dl_rt > item->mon.cdf_runtime))){
-				// check reschedule?
-				if ((pickPidCheckBuffer(item, ts, item->mon.dl_rt - item->mon.cdf_runtime))){
-					// reschedule
-					item->mon.dl_overrun++;	// exceeded buffer
-					if (pickPidReallocCPU(item->mon.assigned, item->mon.deadline))
-						warn("Task overrun - Could not find CPU to reschedule for PID %d", item->pid);
-				}
-			}
-
-			if (item->mon.dl_rt){
-				// statistics about variability
-				item->mon.dl_diff = item->attr.sched_runtime - item->mon.dl_rt;
-				pickPidAddRuntimeHist(item);
-			}
-
-			// reset runtime to start from 0 + difference for new periods value
-			item->mon.dl_rt = diff;
 		}
+		item->status |=	MSK_STATNPRD; // store for tsP evaluation
 
 	}
-	else{
-		// if not DL use estimated value
-		if (item->mon.last_ts)
-			item->mon.dl_rt += (ts - item->mon.last_ts);
-		if (item->mon.cdf_runtime)
-			item->mon.dl_diff = item->mon.cdf_runtime - item->mon.dl_rt;
+
+	if (item->mon.rt && item->mon.last_ts)
+		// statistics about variability
 		pickPidAddRuntimeHist(item);
-	}
+
 }
 
 /*
@@ -863,14 +810,11 @@ static int
 pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t ts) {
 
 	//thread information flags, probable meaning
-	//#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-	//#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
-	//#define TIF_SIGPENDING	2	/* signal pending */
-	//#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-	//#define TIF_SINGLESTEP	4	/* reenable singlestep on user return*/
-	//#define TIF_SSBD			5	/* Speculative store bypass disable */
-	//#define TIF_SYSCALL_EMU	6	/* syscall emulation active */
-	//#define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
+	//#define FT_unknown 0x20 set on wakeup
+	//#define FT_softIRQ 0x10
+	//#define FT_hardIRQ 0x8
+	//#define FT_needResched 0x4
+	//#define FT_irqoff 0x1
 
 	// use local copy and add addr's address with its offset
 	struct tr_common frame = tr_common;
@@ -888,7 +832,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	for (node_t * item = nhead; ((item)); item=item->next )
 
 		if (item->pid == *frame.common_pid){
-			if (!(*frame.common_flags & 0x8)){ // = NEED_RESCHED requested by running task
+			if (!(*frame.common_flags & 0x4)){ // = NEED_RESCHED requested by event on running task  = Task has to go online
 				item->status |=  MSK_STATNRSCH;
 			}
 		}
@@ -953,13 +897,14 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				int32_t CPU = item->mon.assigned;
 				item->mon.assigned = fthread->cpuno;
 
-				// Removed from old CPU, should give no issues
-				if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
-					if (SM_DYNSIMPLE <= prgset->sched_mode)
-						(void)pickPidReallocCPU(CPU, 0);
-
-				if (0 <= CPU)
+				if (0 <= CPU){
 					item->mon.resched++;
+
+					// Removed from old CPU, should give no issues
+					if (-1 == recomputeCPUTimes(CPU))	// if -2 = CPU not found, i.e. affinity preference, no real affinity set yet, do nothing
+						if (SM_DYNSIMPLE <= prgset->sched_mode)
+							(void)pickPidReallocCPU(CPU, 0);
+				}
 				else
 					// not assigned by orchestrator -> it sets assigned in setPidResources_u
 					item->status |= MSK_STATNAFF;
@@ -967,9 +912,22 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 		}
 
-		// find next PID and put timeStamp last seen
-		if (item->pid == *frame.next_pid)
+		// find next PID and put timeStamp last started running
+		if (item->pid == *frame.next_pid){
 			item->mon.last_ts = ts;
+
+			if (item->status & MSK_STATNPRD){
+				// time between DL switches should tell jitter (technically perfect..)
+				item->status &= ~MSK_STATNPRD;
+
+				// floating skew=jitter
+				item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
+				item->mon.last_tsP = ts;			// this period start
+
+				if ((item->mon.last_tsP) && abs(item->mon.dl_diff) > TSCHS)
+					item->mon.dl_overrun++;
+			}
+		}
 	}
 
 	// recompute actual CPU, new tasks might be there now
@@ -982,8 +940,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == *frame.prev_pid){
 
+			// unassigned CPU was not part of adaptive table
+
 			if (item->status & MSK_STATNAFF){
-				// unassigned CPU was not part of adaptive table
 				if (SCHED_NODATA == item->attr.sched_policy)
 					updatePidAttr(item);
 				if (SM_PADAPTIVE <= prgset->sched_mode){
@@ -1003,37 +962,16 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			if ((*frame.prev_state & 0x00FD) // Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
-				|| (SCHED_DEADLINE == item->attr.sched_policy)) {
-				// update real-time statistics and consolidate other values
-				pickPidConsolidateRuntime(item, ts);
+			// update real-time statistics and consolidate other values on period end
+			if (item->mon.last_ts)
+				item->mon.rt += ts - item->mon.last_ts;
 
-				// period histogram and CDF, update on actual switch
-				if ((SM_PADAPTIVE <= prgset->sched_mode)
-						&& (SCHED_DEADLINE != item->attr.sched_policy)
-	//					&& (item->status & MSK_STATNRSCH)	// task asked for, NEED_RESCHED // FIXME: need-resched what for again
-						){
+			if (((SCHED_DEADLINE != item->attr.sched_policy)
+					|| (*frame.prev_state & 0x0100))	// Not Deadline or Preemption Set
+				&& !(*frame.prev_state & 0x00FD)) 		// Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
+				break;							  		// break here, not final process switch
 
-					if (item->mon.last_tsP){
-
-						double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
-
-						if (!(item->mon.pdf_phist)){
-							if ((runstats_histInit(&(item->mon.pdf_phist), period)))
-								warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-						}
-
-						printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
-						if ((runstats_histAdd(item->mon.pdf_phist, period)))
-							warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
-					}
-					item->status &= ~MSK_STATNRSCH;
-					item->mon.last_tsP = ts;
-				}
-			}
-			else
-				if (item->mon.last_ts) // compute runtime
-					item->mon.dl_rt += (ts - item->mon.last_ts);
+			pickPidConsolidatePeriod(item, ts);
 
 			break;
 		}
@@ -1044,7 +982,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 }
 
 /*
- *  pickPidInfoW(): process PID fTrace wakeup
+ *  pickPidInfoW(): process PID fTrace wake-up / waking
  * 					update data with kernel tracer debug out
  *
  *  Arguments: - frame containing the runtime info
@@ -1071,6 +1009,43 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
 				frame.comm, *frame.pid, *frame.prio, *frame.target_cpu);
+
+	// lock data to avoid inconsistency
+	(void)pthread_mutex_lock(&dataMutex);
+
+	for (node_t * item = nhead; ((item)); item=item->next )
+		// find PID that triggered wake-up
+		if (item->pid == *frame.pid){
+
+			if (item->mon.last_tsP){
+
+				double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+
+				if (!(item->mon.pdf_phist)){
+					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
+						warn("Histogram init failure for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
+				}
+
+				printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
+				if ((runstats_histAdd(item->mon.pdf_phist, period)))
+					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
+
+				if (item->mon.cdf_period){
+					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP - (int64_t)findPeriodMatch((uint64_t)item->mon.cdf_period);
+					if (TSCHS < item->mon.dl_diff)						// count only positive overruns based on period match
+						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
+					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
+				}
+
+			}
+
+			item->mon.last_tsP = ts;		// this period start
+			item->mon.dl_count++;			// count number of periods
+
+			break;
+		}
+
+	(void)pthread_mutex_unlock(&dataMutex);
 
 	return 0;
 }
@@ -1335,8 +1310,8 @@ get_sched_info(node_t * item)
 				num += nanos;
 
 				// compute difference
-				diff = (int64_t)(num - item->mon.dl_rt);
-				item->mon.dl_rt = num; 	// store last seen runtime
+				diff = (int64_t)(num - item->mon.rt);
+				item->mon.rt = (uint64_t)num; 	// store last seen runtime
 			}
 			if (strncasecmp(ltag, "nr_voluntary_switches", 4) == 0)	{
 				// computation loop end
@@ -1361,11 +1336,11 @@ get_sched_info(node_t * item)
 					&& (strncasecmp(ltag, "dl.runtime", 4) == 0)) {
 				// store last seen runtime
 				ltrt = num;
-				if (num != item->mon.dl_rt)
+				if (num != item->mon.rt)
 					item->mon.dl_count++;
 			}
 			if (strncasecmp(ltag, "dl.deadline", 4) == 0)	{
-				if (0 == item->mon.deadline)
+				if (!item->mon.deadline)
 					item->mon.deadline = num;
 				else if (num != item->mon.deadline) {
 					// it's not, updated deadline found
@@ -1400,7 +1375,7 @@ get_sched_info(node_t * item)
 						// runtime replenished - deadline changed: old value may be real RT ->
 						// Works only if scan time < slack time
 						// and if not, this here filters the hole (maybe)
-						diff = (int64_t)item->attr.sched_runtime - item->mon.dl_rt;
+						diff = (int64_t)item->attr.sched_runtime - item->mon.rt;
 						if (!((int64_t)item->attr.sched_runtime - ltrt) && diff){
 							item->mon.rt_min = MIN (item->mon.rt_min, diff);
 							item->mon.rt_max = MAX (item->mon.rt_max, diff);
@@ -1413,7 +1388,7 @@ get_sched_info(node_t * item)
 
 				// update last seen runtime
 				if (!prgset->ftrace)
-					item->mon.dl_rt = ltrt;
+					item->mon.rt = ltrt;
 				break; // we're done reading
 			}
 		}
@@ -1511,13 +1486,14 @@ manageSched(){
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
-					(void)runstats_histFit(&item->mon.pdf_phist);
+					if (0 > runstats_histFit(&item->mon.pdf_phist))
+						info("Happened for period in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 
 					// period changed enough for a different time-slot?
 					if ( (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod))
 							&& (newPeriod > item->mon.cdf_runtime)
-							&& (item->mon.cdf_period * 95 > newPeriod * 100				// TODO: introduce constant or variable
-								|| item->mon.cdf_period * 105 < newPeriod * 100)){
+							&& (item->mon.cdf_period * MINCHNGL > newPeriod * 100
+								|| item->mon.cdf_period * MINCHNGH < newPeriod * 100)){
 
 						// meaningful change?
 
@@ -1587,8 +1563,8 @@ manageSched(){
 					if (SCHED_DEADLINE == item->attr.sched_policy){
 						updatePidWCET(item, newWCET);
 					}
-					if ( item->mon.cdf_runtime * 95 > newWCET * 100				// TODO: introduce constant or variable
-							|| item->mon.cdf_runtime * 105 < newWCET * 100){
+					if ( item->mon.cdf_runtime * MINCHNGL > newWCET * 100
+							|| item->mon.cdf_runtime * MINCHNGH < newWCET * 100){
 						// meaningful change?
 						info("Update PID %d '%s' runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 						item->mon.resample++;
@@ -1599,7 +1575,8 @@ manageSched(){
 				else
 					warn ("Estimation error, can not update WCET");
 
-				(void)runstats_histFit(&item->mon.pdf_hist);
+				if (0 > runstats_histFit(&item->mon.pdf_hist))
+					info("Happened for runtime in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 			}
 		}
     }
@@ -1652,11 +1629,12 @@ dumpStats (){
 		switch(item->attr.sched_policy){
 		case SCHED_FIFO:
 		case SCHED_RR:
-			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %s - %s\n",
+			(void)printf("%7d%c: %3ld-%5ld-%3ld(%ld/%ld/%ld) - %ld(%ld/%ld) - %ld(%ld/%ld/%ld) - %s - %s\n",
 				abs(item->pid), item->pid<0 ? '*' : ' ',
 				item->mon.resched, item->mon.resample,  item->mon.dl_overrun, item->mon.dl_count+item->mon.dl_scanfail,
 				item->mon.dl_count, item->mon.dl_scanfail,
 				item->mon.rt_avg, item->mon.rt_min, item->mon.rt_max,
+				item->mon.dl_diff, item->mon.dl_diffmin, item->mon.dl_diffmax, item->mon.dl_diffavg,
 				policy_to_string(item->attr.sched_policy),
 				(item->psig) ? item->psig : "");
 			break;
@@ -1682,7 +1660,7 @@ dumpStats (){
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 			(void)recomputeTimes(trc);
 			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", getTracerMainCPU(trc),
-					trc->Uavg * 100, trc->Umin * 100, trc->Umax * 100 );
+					trc->Uavg * 100, MIN(trc->Umin, trc->Umax) * 100, trc->Umax * 100 );
 		}
 	}
 

@@ -600,8 +600,12 @@ runstats_histFit(stat_hist **h)
 	double mn = gsl_histogram_mean(*h);	 // sample mean
 	size_t mn_bin = n/2;
 
-	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin)))
-			err_msg("Unable to find mean in histogram!");
+	int ret = GSL_SUCCESS;
+
+	if ((0.0 != mn) && (gsl_histogram_find(*h, mn, &mn_bin))){
+		err_msg("Unable to find mean in histogram!");
+		ret = GSL_FAILURE;
+	}
 
 	// outside margins? 20-80%.. STDev has no meaning!!
 	if (n * 2 > MIN(maxbin, mn_bin) * 10	// 10er bins 0-1
@@ -619,6 +623,7 @@ runstats_histFit(stat_hist **h)
 	if (0 == sd){ // if standard deviation = 0, i.e., all points in one bin, set to bin-with
 		sd = (gsl_histogram_max(*h) - gsl_histogram_min(*h))/n;
 		err_msg("Error determining STDev!");
+		ret = GSL_FAILURE;
 	}
 
 	// compute ideal bin size according to Scott 1979, with N = ~min 10 bins
@@ -647,11 +652,12 @@ runstats_histFit(stat_hist **h)
 		return GSL_FAILURE;
 	}
 
-	int ret;
-	if ((ret = gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)))
+	if (gsl_histogram_set_ranges_uniform (*h, bin_min, bin_max)){
 		err_msg("unable to initialize histogram bins: %s", gsl_strerror(ret));
+		ret = GSL_FAILURE;
+	}
 
-	return ((ret != 0) ? GSL_FAILURE : GSL_CONTINUE);
+	return ret;
 }
 
 /*

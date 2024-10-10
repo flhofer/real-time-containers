@@ -22,6 +22,7 @@
 	#define MSK_STATNAFF		0x10 // PID has no affinity yet
 	#define MSK_STATHERR		0x20 // HIST CDF initialization error
 	#define MSK_STATNRSCH		0x40 // Running task has requested reschedule
+	#define MSK_STATNPRD		0x80 // Running task has ended a Period
 
 	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
@@ -82,6 +83,9 @@
 
 	#define SYSCPUS 1 // 1 -> count of min CPUS reserved for orchestrator and system
 	#define CPUGOVR	"performance" // desired configuration for CPU governor
+
+	#define MINCHNGL	95		// Minimum change for PDF update in percent
+	#define MINCHNGH	105		// Minimum change for PDF update in percent
 
 	// definition of container detection modes
 	enum det_mode {
@@ -189,30 +193,28 @@
 	typedef struct sched_mon { // actual values for monitoring
 
 		// runtime statistics
-		int64_t rt_min;			// minimum run-time value
-		int64_t rt_avg;			// average run-time value
-		int64_t rt_max;			// maximum run-time value
+		uint64_t rt;			// deadline last read runtime value/budget
+		uint64_t rt_min;		// minimum run-time value
+		uint64_t rt_avg;		// average run-time value
+		uint64_t rt_max;		// maximum run-time value
 
 		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task
 		uint64_t last_tsP;		// last time stamp for this task's period
-		uint64_t deadline;		// deadline last read absolute value (may approximate next iter)
+		uint64_t deadline;		// DL: deadline last read absolute value (may approximate next iter)
+								// FIFO/RR?.. WakeUp+cdf_period
+		uint64_t dl_count;		// deadline/period verification/change count
+		uint64_t dl_scanfail;	// deadline/period debug scan failure (diff == period)
+		uint64_t dl_overrun;	// deadline/period overrun count
 
-		int64_t  dl_rt;			// deadline last read runtime value/budget
-		// Deadline diff - or runtime buffer (ftrace)
 		int64_t  dl_diff;		// overrun-GRUB handling : deadline diff sum!
-
-		uint64_t dl_count;		// deadline verification/change count
-		uint64_t dl_scanfail;	// deadline debug scan failure (diff == period)
-		uint64_t dl_overrun;	// overrun count
-
 		int64_t  dl_diffmin;	// overrun-GRUB handling : diff min peak, filtered
 		int64_t  dl_diffavg;	// overrun-GRUB handling : diff avg sqr, filtered
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
 
 		// CDF and distribution values
-		uint64_t cdf_runtime;	// CDF pthresh max runtime, trigger level
-		uint64_t cdf_period;	// ** RFU ** CDF computed periodic distance for non DL tasks
+		uint64_t cdf_runtime;	// CDF p-thresh max runtime, trigger level
+		uint64_t cdf_period;	// CDF computed periodic distance for non DL tasks
 
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
 		stat_cdf *  pdf_cdf;	// CDF data collection

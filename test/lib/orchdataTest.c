@@ -34,14 +34,14 @@ START_TEST(orchdata_ndpush)
 	ck_assert_ptr_eq(nhead->imgid, NULL);
 	ck_assert_int_eq(nhead->attr.size, 48);
 	ck_assert_int_eq(nhead->attr.sched_policy, SCHED_NODATA);
-	ck_assert_int_eq(nhead->mon.rt_min, INT64_MAX);
+	ck_assert_int_eq(nhead->mon.rt_min, UINT64_MAX);
 	ck_assert_int_eq(nhead->mon.rt_avg, 0);
-	ck_assert_int_eq(nhead->mon.rt_max, INT64_MIN);
+	ck_assert_int_eq(nhead->mon.rt_max, 0);
 	ck_assert_int_eq(nhead->mon.dl_count, 0);
 	ck_assert_int_eq(nhead->mon.dl_scanfail, 0);
 	ck_assert_int_eq(nhead->mon.dl_overrun, 0);
 	ck_assert_int_eq(nhead->mon.deadline, 0);
-	ck_assert_int_eq(nhead->mon.dl_rt, 0);
+	ck_assert_int_eq(nhead->mon.rt, 0);
 	ck_assert_int_eq(nhead->mon.dl_diff, 0);
 	ck_assert_int_eq(nhead->mon.dl_diffmin, INT64_MAX);
 	ck_assert_int_eq(nhead->mon.dl_diffavg, 0);
