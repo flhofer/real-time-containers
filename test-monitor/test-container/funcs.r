@@ -18,13 +18,17 @@ getDataPars <- function(records) {
 	runStD = sqrt(var(recfiltered$RunT))
 	runDif = runMdn-runAvg;
 	runMax = max(recfiltered$RunT)
-	prdMin = min(recfiltered$Period)
 	prdAvg = mean(recfiltered$Period)
+	prdMaxP = max(records$Period)
+	pcount = sum ( floor ((records$Period - prdAvg*0.5 )/ prdAvg) ) # WARING! could loose some results!!
+
+	recfiltered <- recfiltered[!(recfiltered$Period > prdAvg*1.5),] # Dump all values higher than 1.5* avg period
+	# then repeat
+	prdMin = min(recfiltered$Period)
+	prdAvg = mean(recfiltered$Period) 
 	prdMdn = median(recfiltered$Period)
 	prdStD = sqrt(var(recfiltered$Period))
 	prdMax = max(recfiltered$Period)
-	prdMaxP = max(records$Period)
-	pcount = sum ( floor ((records$Period - prdAvg*0.5 )/ prdAvg) ) # WARING! could loose some results!!
 
 	return (data.frame (runMin, runMdn, runAvg, runDif, runStD, runMax,	prdMin, prdMdn, prdAvg, prdStD, prdMax, prdMaxP, pcount))
 }
