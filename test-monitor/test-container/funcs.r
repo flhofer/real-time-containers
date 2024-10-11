@@ -24,7 +24,7 @@ getDataPars <- function(records) {
 	prdStD = sqrt(var(recfiltered$Period))
 	prdMax = max(recfiltered$Period)
 	prdMaxP = max(records$Period)
-	pcount = sum ( records$Period > prdAvg*1.5) # WARING! could loose some results!!
+	pcount = sum ( floor ((records$Period - prdAvg*0.5 )/ prdAvg) ) # WARING! could loose some results!!
 
 	return (data.frame (runMin, runMdn, runAvg, runDif, runStD, runMax,	prdMin, prdMdn, prdAvg, prdStD, prdMax, prdMaxP, pcount))
 }
