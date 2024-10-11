@@ -30,7 +30,6 @@ real-time containers research repository, general tree structure. Folders marked
 	|   ├── latency		# scripts and results for `cyclictest` latency tests on bare metal and cloud instances (archived)
 	|   ├── polena 		# files for Xenomai3 kernel build (archived)
 	|   ├── polenaRT	# files for PREEMPT-RT kernel build and `Moby` compatible RT-environment configuration
-	|   ├── statsched 	# R scripts for results analysis for `orchestrator` static scheduling tests (archived)
 	|   ├── test-container	# scripts and configurations for the kernel boot parameter test based on `rt-app` containers
 	|   └── usecase		# folders with use cases applications and simulations 
 	├── Makefile		# Makefile for orchestrator, tests via check and use cases 1-2
