@@ -6,7 +6,8 @@ options("width"=200)
 library(ggplot2)
 
 #tests  <- cbind(list(group4)) # overwrite for now
-machines <- c("BMB", "T3B", "T3UB", "C5C") # overwrite for now
+#machines <- c("BMB", "T3B", "T3UB", "C5C") # overwrite for now, defaults to VM instance comparison T3/C5/BM
+#machines <- c("test0","test1","test2","test3","test4","test5","test6","test7","test8","test9","test10","test11") # For kernel parameter comparison
 
 sink("containerstats.txt")
 
@@ -35,6 +36,7 @@ for (i in 1:length(machines)) {
 				dat <- loadData(x) # load log file of experiment, container
 				if (nrow(dat) >0){
 					dat <- dat[-c(1:(10000000/dat$cDur)),] # delete first second
+					dat <- head(dat, -1) # delete last row as it is often incomplete
 				}
 
 				r <-rbind(r, getDataPars(dat))
