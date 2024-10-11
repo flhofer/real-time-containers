@@ -1,4 +1,4 @@
-source("funcs.R")
+source("funcs.r")
 
 # Set the working directory
 setwd("./test/")

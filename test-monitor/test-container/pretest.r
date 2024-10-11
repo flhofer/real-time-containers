@@ -1,5 +1,5 @@
 # Set the working directory
-source("funcs.R")
+source("funcs.r")
 
 setwd("./pretest/")
 options("width"=200)
