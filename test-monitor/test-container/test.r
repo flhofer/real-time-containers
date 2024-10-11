@@ -16,9 +16,8 @@ for (i in 1:length(machines)) {
 
 		tplot <- data.frame()
 
+		testPcount = 0;
 		for (k in 1:length(tests[[l]])) {
-			testPcount = 0;
-
 
 			# Label and directory pattern
 			cat(machines[i], "-", tests[[l]][[k]], "\n")
