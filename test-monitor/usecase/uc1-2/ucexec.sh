@@ -64,6 +64,7 @@ let sleepTime=120
 #let sleepTime=60
 #Sleep 30 seconds between start of new FPS and launch of new worker
 let beforeNewWorkerSleepTime=30
+let afterNewWorkerSleepTime=0
 
 echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
 echo
@@ -219,8 +220,8 @@ startNewTest() {
 	    fi
         startWorkerContainer $newInstance
 		if [ ! $loadSwitch = 1 ] ; then
-	        echo "Sleeping for $beforeNewWorkerSleepTime seconds before increasing load"
-	        sleep $beforeNewWorkerSleepTime
+	        echo "Sleeping for $afterNewWorkerSleepTime seconds before increasing load"
+	        sleep $afterNewWorkerSleepTime
 		    echo "Setting FPS = $newfps"
 		    echo $newfps >> $fpsFile
 	    fi
@@ -344,8 +345,8 @@ runTest() {
         startWorkerEventDriven $instance 
     done
 
-    echo "Sleeping for 5 seconds before launching datagenerators"
-    sleep 5
+    echo "Sleeping for $afterNewWorkerSleepTime seconds before launching datagenerators"
+    sleep $afterNewWorkerSleepTime
 
     #Launch Event-driver datagenerator/datadistributor (all-in-one)
     # NOTE: datadistributor is a binary copy of datagenerator, function depends on settings
@@ -512,8 +513,8 @@ elif [[ $cmd == "test" ]]; then
 		cmdargs=" --generator 1 --maxTests 6 --maxWritePipes 1 --baseWritePipeName $fifoDir/datadistributor "
 		startContainer rt-datagenerator "$cmdargs" datagenerator "$datageneratorPolicy $datageneratorPriority"
 
-		echo "Sleeping for 30 seconds"
-		sleep 30
+		echo "Sleeping for $afterNewWorkerSleepTime seconds"
+		sleep $afterNewWorkerSleepTime
 
 		#Set initial FPS=24
 		let fps=24
