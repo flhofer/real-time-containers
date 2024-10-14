@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="css/menu.css">
+<title>PREEMPT_RT - Real-Time Containers Test results, Orchestrator</title>
+<script type="text/javascript" src="js/csi.min.js"></script>
+</head>
+<body>
+<div class="topnav" id="myTopnav">
+<a href="https://www.florianhofer.it/">Home</a>
+<a href="https://flhofer.github.io/I4S/">Project</a>
+<!-- <a href="#contact">Contact</a>
+<a href="#locations">Locations</a>
+<a href="#patch">Kernel patches</a>
+<a href="#about">About</a> -->
+<a href="javascript:void(0);" class="icon" onclick="menuOpen()">
+<i class="fa fa-bars"></i>
+</a>
+</div>
+<div style="padding-left:16px">
+	<table>
+		<!-- HEADER -->
+		<tr>
+			<td>TEST setup</td><td>FIFO GRP ms</td><td>FIFO GRP fps</td><td>MIX GRP ms</td><td>MIX GRP runtime</td>
+		</tr>
+		<tr>
+			<td>Normal</td><td rowspan="3"><img src="reference/TEST0_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST0_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST0_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST0_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Exclusive</td><td rowspan="3"><img src="reference/TEST1_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST1_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST1_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST1_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>NO SMT</td><td rowspan="3"><img src="reference/TEST2_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST2_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST2_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST2_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Managed</td><td rowspan="3"><img src="reference/TEST3_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST3_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST3_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST3_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Adaptive</td><td rowspan="3"><img src="reference/TEST4_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST4_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST4_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST4_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>PAdaptive noinfo</td><td rowspan="3"><img src="reference/TEST5_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST5_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST5_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST5_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + progressive adaptive orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>PAdaptive</td><td rowspan="3"><img src="reference/TEST6_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST6_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST6_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST6_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + progressive adaptive orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Dynamic noinfo</td><td rowspan="3"><img src="reference/TEST7_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST7_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST7_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST7_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + dynamic orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Dynamic</td><td rowspan="3"><img src="reference/TEST8_1fdelay.png"/></td><td rowspan="3"><img src="reference/TEST8_1FPS.png"/></td><td rowspan="3"><img src="reference/TEST8_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="reference/TEST8_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + dynamic orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="reference/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Latest - PA noinfo</td><td rowspan="3"><img src="latest/TEST5_1fdelay.png"/></td><td rowspan="3"><img src="latest/TEST5_1FPS.png"/></td><td rowspan="3"><img src="latest/TEST5_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="latest/TEST5_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + progressive adaptive orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="latest/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Latest - PA</td><td rowspan="3"><img src="latest/TEST6_1fdelay.png"/></td><td rowspan="3"><img src="latest/TEST6_1FPS.png"/></td><td rowspan="3"><img src="latest/TEST6_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="latest/TEST6_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + progressive adaptive orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="latest/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Latest - DY noinfo</td><td rowspan="3"><img src="latest/TEST7_1fdelay.png"/></td><td rowspan="3"><img src="latest/TEST7_1FPS.png"/></td><td rowspan="3"><img src="latest/TEST7_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="latest/TEST7_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + dynamic orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="latest/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>Latest - DY</td><td rowspan="3"><img src="latest/TEST8_1fdelay.png"/></td><td rowspan="3"><img src="latest/TEST8_1FPS.png"/></td><td rowspan="3"><img src="latest/TEST8_2_Test2fdelay.png"/></td> <td rowspan="3"><img src="latest/TEST8_2_Test2delay.png"/></td>
+		</tr>
+		<tr>
+			<td><small>4 Threads, 4 CPUS - 3 exclusive for Docker + dynamic orchestration</small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td><small><div data-include="latest/date.txt"></div></small></td><td></td><td></td><td></td><td></td>
+		</tr>
+		<tr>
+			<td>&nbsp;</td><td></td><td></td><td></td><td></td>
+		</tr>
+	</table>
+</div>
+<div class="bnavbar" id="bnav">
+&#9400; 2020 Florian Hofer
+</div>
+<script type="text/javascript" src="../js/menu.js"></script>
+</body>
+</html>
