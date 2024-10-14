@@ -52,18 +52,17 @@ datageneratorPriority=49
 datadistributorPolicy="--fifo"
 datadistributorPriority=48
 
-#TODO: FROM USECASE 1!!
 #REGULAR
 #For executing the regular test, sleep 30 minutes between FPS changes
 #let sleepTime=30*60
+
 #INITIAL
 #For initial testing, sleep 2 minutes between FPS changes
 let sleepTime=120
-#TEMPORARY
-#For debugging, sleep 1 minute between FPS changes
-#let sleepTime=60
-#Sleep 30 seconds between start of new FPS and launch of new worker
-let beforeNewWorkerSleepTime=30
+
+#loadswitch=1 Sleep x seconds between start of new FPS and launch of new worker
+let beforeNewWorkerSleepTime=0
+#loadswitch=0 Sleep x seconds after launch of new worker before setting new FPS
 let afterNewWorkerSleepTime=0
 
 echo "local_resultsDir=$local_resultsDir; container_resultsDir=$container_resultsDir; fifoDir=$fifoDir"
@@ -87,7 +86,7 @@ Defaults are:
 number = 1		execute use case 1 only
 noworkers = 8   use case 1 max 8 workers
 nooftests = 3	use case 2 number of tests 3
-loadswitch = 0	if set to 1, switch to higher load first, then start container
+loadswitch = 1	if set to 1, switch to higher load first, then start container
 
 EOF
 	exit 1	
@@ -215,13 +214,17 @@ startNewTest() {
 		if [ $loadSwitch = 1 ] ; then
 		    echo "Setting FPS = $newfps"
 		    echo $newfps >> $fpsFile
-	        echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
-	        sleep $beforeNewWorkerSleepTime
+			if [ $beforeNewWorkerSleepTime -gt 0 ] ; then
+			    echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
+			    sleep $beforeNewWorkerSleepTime
+			fi
 	    fi
         startWorkerContainer $newInstance
 		if [ ! $loadSwitch = 1 ] ; then
-	        echo "Sleeping for $afterNewWorkerSleepTime seconds before increasing load"
-	        sleep $afterNewWorkerSleepTime
+			if [ $afterNewWorkerSleepTime -gt 0 ] ; then
+			    echo "Sleeping for $afterNewWorkerSleepTime seconds before increasing load"
+			    sleep $afterNewWorkerSleepTime
+			fi
 		    echo "Setting FPS = $newfps"
 		    echo $newfps >> $fpsFile
 	    fi
@@ -492,7 +495,7 @@ elif [[ $cmd == "test" ]]; then
 	if [[ $tno == 1 ]]; then
 		# update parameters for tests
 		maxWorkers=${1:-'8'}
-		loadSwitch=${2:-'0'}
+		loadSwitch=${2:-'1'}
 
 		#Cleanup
 		rm -f $fpsFile 2>/dev/null
@@ -542,7 +545,7 @@ elif [[ $cmd == "test" ]]; then
 	elif [[ $tno == 2 ]]; then
 		# update parameters for tests
 		totalTests=${1:-'3'}
-		loadSwitch=${2:-'0'}
+		loadSwitch=${2:-'1'}
 
 		# store base dir to allow subdirectories test change
 		base_resultsDir="$local_resultsDir"
