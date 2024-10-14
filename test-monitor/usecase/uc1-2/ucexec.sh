@@ -74,7 +74,7 @@ function printUsage() {
 
 	cat <<EOF
 
-Usage: $0 test [number] [noworkers/notests]
+Usage: $0 test [number] [noworkers/notests] [loadswitch]
  or    $0 [prepcmd] [noworkers]
 
 where:
@@ -86,6 +86,7 @@ Defaults are:
 number = 1		execute use case 1 only
 noworkers = 8   use case 1 max 8 workers
 nooftests = 3	use case 2 number of tests 3
+loadswitch = 0	if set to 1, switch to higher load first, then start container
 
 EOF
 	exit 1	
@@ -209,11 +210,20 @@ startNewTest() {
     newfps=$1
     newInstance=$2
     if [ $newInstance -lt $maxWorkers ] ; then
-        echo "Setting FPS = $newfps"
-        echo $newfps >> $fpsFile
-        echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
-        sleep $beforeNewWorkerSleepTime
+
+		if [ $loadSwitch = 1 ] ; then
+		    echo "Setting FPS = $newfps"
+		    echo $newfps >> $fpsFile
+	        echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
+	        sleep $beforeNewWorkerSleepTime
+	    fi
         startWorkerContainer $newInstance
+		if [ ! $loadSwitch = 1 ] ; then
+	        echo "Sleeping for $beforeNewWorkerSleepTime seconds before increasing load"
+	        sleep $beforeNewWorkerSleepTime
+		    echo "Setting FPS = $newfps"
+		    echo $newfps >> $fpsFile
+	    fi
     else
     	echo "Exiting rather than starting worker $newInstance: maxWorkers=$maxWorkers"
         let newfps=-2
@@ -333,6 +343,9 @@ runTest() {
         echo "Calling startWorkerEventDriven $instance"
         startWorkerEventDriven $instance 
     done
+
+    echo "Sleeping for 5 seconds before launching datagenerators"
+    sleep 5
 
     #Launch Event-driver datagenerator/datadistributor (all-in-one)
     # NOTE: datadistributor is a binary copy of datagenerator, function depends on settings
@@ -476,17 +489,14 @@ elif [[ $cmd == "test" ]]; then
 	killRemnantsFunc
 
 	if [[ $tno == 1 ]]; then
+		# update parameters for tests
+		maxWorkers=${1:-'8'}
+		loadSwitch=${2:-'0'}
 
 		#Cleanup
 		rm -f $fpsFile 2>/dev/null
 		touch $fpsFile
 
-		# update parameters for tests
-		if [ $# -gt 0 ] ; then
-			maxWorkers=$1
-		else
-			maxWorkers=8
-		fi
 		echo "maxWorkers=$maxWorkers"
 
 		#Launch first 3 workers
@@ -529,6 +539,10 @@ elif [[ $cmd == "test" ]]; then
 		sleep 120
 
 	elif [[ $tno == 2 ]]; then
+		# update parameters for tests
+		totalTests=${1:-'3'}
+		loadSwitch=${2:-'0'}
+
 		# store base dir to allow subdirectories test change
 		base_resultsDir="$local_resultsDir"
 		# same config as for UC1, but test instead of sleep time. TODO To expand	
@@ -548,12 +562,6 @@ elif [[ $cmd == "test" ]]; then
 		worker3PeriodPolling=15000000
 		worker4PeriodPolling=21000000
 
-		# Test parameters
-		if [ $# -gt 0 ] ; then
-		    totalTests=$1
-		else
-		    totalTests=3
-		fi
 		echo "totalTests=$totalTests"
 
 		for ((tNum=0; tNum<totalTests; tNum++)); do
