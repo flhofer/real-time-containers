@@ -613,6 +613,7 @@ runstats_histFit(stat_hist **h)
 
 		gsl_histogram_free(*h); // clear all because of out of range, force re-init
 		*h = NULL;	// reset variable
+		err_msg("Mean out of boundaries!");
 		return GSL_EDOM; // out of range
 	}
 
@@ -636,7 +637,12 @@ runstats_histFit(stat_hist **h)
 	double bin_min = MAX(0.0, mn - ((double)new_n/2.0)*W); // no negative values
 	double bin_max = mn + ((double)new_n/2.0)*W;
 
-	if (n !=  new_n){
+//	if ((n == new_n)
+//		&& ()){
+//
+//	}
+
+	if (n != new_n){
 		// if bin count differs, reallocate
 		gsl_histogram_free (*h);
 		n = new_n;
