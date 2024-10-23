@@ -211,19 +211,22 @@ startNewTest() {
     newInstance=$2
     if [ $newInstance -lt $maxWorkers ] ; then
 
+		echo "Setting FPS = $newfps"
 		if [ $loadSwitch = 1 ] ; then
-		    echo "Setting FPS = $newfps"
-		    echo $newfps >> $fpsFile
-			if [ $beforeNewWorkerSleepTime -gt 0 ] ; then
-			    echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
-			    sleep $beforeNewWorkerSleepTime
-			fi
-	    fi
+			echo $newfps >> $fpsFile
+		else
+			echo "-2" >> $fpsFile
+		fi
+		if [ $beforeNewWorkerSleepTime -gt 0 ] ; then
+			echo "Sleeping for $beforeNewWorkerSleepTime seconds before launching new worker"
+			sleep $beforeNewWorkerSleepTime
+		fi
+		
         startWorkerContainer $newInstance
 		if [ ! $loadSwitch = 1 ] ; then
 			if [ $afterNewWorkerSleepTime -gt 0 ] ; then
-			    echo "Sleeping for $afterNewWorkerSleepTime seconds before increasing load"
-			    sleep $afterNewWorkerSleepTime
+				echo "Sleeping for $afterNewWorkerSleepTime seconds before increasing load"
+				sleep $afterNewWorkerSleepTime
 			fi
 		    echo "Setting FPS = $newfps"
 		    echo $newfps >> $fpsFile
