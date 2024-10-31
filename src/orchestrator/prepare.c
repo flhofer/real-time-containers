@@ -571,6 +571,7 @@ setCPUgovernor(prgset_t *set, int cpuno) {
 	if (!set->force)
 		err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, cpuno);
 
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
 	if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
 		err_exit_n(errno, "CPU-freq change unsuccessful!");
 
