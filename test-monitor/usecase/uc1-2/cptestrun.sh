@@ -1,5 +1,8 @@
 #!/bin/bash
 
+nocpumax=$(( $(nproc --all) - 1))
+nonumand=2
+
 function prepareTest() {
 	no=$1
 	testno=$2
@@ -7,31 +10,59 @@ function prepareTest() {
 
 	if [ "$no" -eq 0 ]; then
 
-		# do nothing, default setting TODO: reset all
+		# do nothing, default setting TODO: reset all - disable second cpu?
+		eval 'mkdir -p /sys/fs/cgroup/docker.slice'
+		eval 'echo "member" > /sys/fs/cgroup/docker.slice/cpuset.cpus.partition'
+		sleep 1
+
+		active=$( seq -s , 0 $nonumand $nocpumax );
+ 		for i in $( seq 0 $nonumand $nocpumax ); do
+			eval "echo 1 > /sys/devices/system/cpu/cpu$i/online"
+		done
+		sleep 1
+
+		eval 'echo "'$active'" > /sys/fs/cgroup/docker.slice/cpuset.cpus'
+		sleep 1
+
+		if [ $nonumand -gt 1 ]; then
+			for i in $( seq 1 $nonumand $nocpumax ); do
+				eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
+			done
+		fi
+
 		sleep 1
 	fi
 	# always write separation for >=1
 	if [ "$no" -ge 1 ]; then
 
 		# Manual settings with exclusive docker, 3 CPU dedicated + SMT
+		active=$( seq -s , $nonumand $nonumand $nocpumax );
+		eval 'mkdir -p /sys/fs/cgroup/docker.slice'
 		eval 'echo -1 > /proc/sys/kernel/sched_rt_runtime_us'
-		eval 'echo "1-3,5-7" > /sys/fs/cgroup/cpuset/docker/cpuset.cpus' 
-		eval 'echo "1" > /sys/fs/cgroup/cpuset/docker/cpuset.cpu_exclusive' 
+		eval 'echo "'$active'" > /sys/fs/cgroup/docker.slice/cpuset.cpus'
+		eval 'echo "root" > /sys/fs/cgroup/docker.slice/cpuset.cpus.partition'
 
 	fi
 	# always write SMT for >=2
 	if [ "$no" -ge 2 ]; then
 
+		eval 'echo "member" > /sys/fs/cgroup/docker.slice/cpuset.cpus.partition'
+		sleep 1
 		# Without SMT
-		for i in {4..7}; do
+		for i in $( seq $(( $nocpumax/2+1 )) 1 $nocpumax ) ; do
 			eval "echo 0 > /sys/devices/system/cpu/cpu$i/online"
 		done
+
+		sleep 1
+		active=$( seq -s , $nonumand $nonumand $(( $nocpumax/2 )) );
+		eval 'echo "'$active'" > /sys/fs/cgroup/docker.slice/cpuset.cpus'
+		eval 'echo "root" > /sys/fs/cgroup/docker.slice/cpuset.cpus.partition'
 
 	fi
 	if [ "$no" -eq 3 ]; then
 
 		# Environment setup only
-		eval ./orchestrator -fk >> logs/out${no}.txt 2>&1 &
+		eval ./orchestrator -fk -a $active >> logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -39,9 +70,9 @@ function prepareTest() {
 
 		# Adaptive
 		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -A 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -A 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fk -A 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -A 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
@@ -49,7 +80,7 @@ function prepareTest() {
 	elif [ "$no" -eq 5 ]; then
 
 		# PAdaptive no info
-		eval ./orchestrator -fk -A 1 >> logs/out${no}.txt 2>&1 &
+		eval ./orchestrator -fk -a $active -A 1 >> logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -57,9 +88,9 @@ function prepareTest() {
 
 		# PAdaptive info
 		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -A 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -A 1 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fk -A 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -A 1 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
@@ -67,7 +98,7 @@ function prepareTest() {
 	elif [ "$no" -eq 7 ]; then
 
 		# DSimple no info
-		eval ./orchestrator -fk -S 0 >> logs/out${no}.txt 2>&1 &
+		eval ./orchestrator -fk -a $active -S 0 >> logs/out${no}.txt 2>&1 &
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
 
@@ -75,9 +106,9 @@ function prepareTest() {
 
 		# Dsimple info
 		if [ "$testno" -eq 1 ]; then
-			eval ./orchestrator -fk -S 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -S 0 orchUC1a.json > logs/out${no}.txt 2>&1 &
 		else
-			eval ./orchestrator -fk -S 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
+			eval ./orchestrator -fk -a $active -S 0 orchUC2a.json >> logs/out${no}.txt 2>&1 &
 		fi
 		sleep 10
 		SPID=$(ps h -o pid -C orchestrator)
