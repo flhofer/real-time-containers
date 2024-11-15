@@ -684,5 +684,11 @@ int main(int argc, char **argv)
     info("exiting safely");
     cleanupEnvironment(prgset);
 
+#ifdef DEBUG
+	if (!(dbg_out = stderr)) {
+		fclose(dbg_out);
+	}
+#endif
+
     return EXIT_SUCCESS;
 }
