@@ -740,6 +740,9 @@ pickPidAddRuntimeHist(node_t *item){
 static void
 pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
+	// failed period increment counter
+	int64_t fail_count = 0;
+
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 
 		// ----------  period ended ----------
@@ -748,30 +751,51 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
 
-		if (!item->mon.deadline)
+		if (!item->mon.deadline){
 			if (get_sched_info(item))			 // update deadline from debug buffer
 				warn("Unable to read schedule debug buffer!");
-
-		// returned from task after last deadline?
-		if (item->mon.deadline < ts - TSCHS){ // FIXME: scheduler resolution needed?
-			item->mon.dl_overrun++;
+			printDbg(PFX "BEF deadline %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+			// sched-debug buffer not always up-to date
+			while (item->mon.deadline < ts)
+				item->mon.deadline += item->attr.sched_period;
 		}
 
-		{
-			// just add a period, we rely on periodicity
-			item->mon.deadline += item->attr.sched_period;
 
-			int64_t count = 1;
-			// after update still not in line? (buffer updates 10ms)
+		{
+			// returned from task after last deadline?
+			if //((item->mon.deadline < ts)
+					(item->mon.rt > item->attr.sched_period) {
+				item->mon.dl_overrun++;
+
+				uint64_t rt = item->mon.rt;
+
+				while (rt > item->attr.sched_period){
+					rt -= item->attr.sched_period;
+					item->mon.deadline += item->attr.sched_period;
+					fail_count++;
+				}
+			}
+
+			// we still didn't reach new value? others may be scanfail
 			while (item->mon.deadline < ts){
 				item->mon.dl_scanfail++;
 				item->mon.deadline += item->attr.sched_period;
-				count++;
+				fail_count++;
 			}
 
 			// update deadline time-stamp from scheduler debug output if we missed something
-			if (1 < count)
-				(void)get_sched_info(item);
+			if (fail_count){
+				if (get_sched_info(item))			 // update deadline from debug buffer
+					warn("Unable to read schedule debug buffer!");
+				printDbg(PFX "AFT deadline %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+				// sched-debug buffer not always up-to date
+				while (item->mon.deadline < ts)
+					item->mon.deadline += item->attr.sched_period;
+			}
+
+			// just add a period, we rely on periodicity
+			item->mon.deadline += item->attr.sched_period;
+
 		}
 
 		/*
@@ -795,6 +819,12 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
+	if (fail_count)
+		while (fail_count){
+			// remove preemptively as we will have 1 period off
+			item->mon.dl_diff -= item->attr.sched_period;
+			fail_count --;
+		}
 }
 
 /*
