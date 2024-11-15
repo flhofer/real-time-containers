@@ -922,11 +922,8 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 				// floating skew=jitter
 				if (item->mon.last_tsP)
-					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
+					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP - (int64_t)item->attr.sched_period;
 				item->mon.last_tsP = ts;			// this period start
-
-				if ((item->mon.last_tsP) && abs(item->mon.dl_diff) > TSCHS)
-					item->mon.dl_overrun++;
 			}
 		}
 	}
