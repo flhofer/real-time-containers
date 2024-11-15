@@ -1488,7 +1488,7 @@ manageSched(){
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
-					if (0 > runstats_histFit(&item->mon.pdf_phist))
+					if (runstats_histFit(&item->mon.pdf_phist))
 						info("Happened for period in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 
 					// period changed enough for a different time-slot?
@@ -1577,7 +1577,7 @@ manageSched(){
 				else
 					warn ("Estimation error, can not update WCET");
 
-				if (0 > runstats_histFit(&item->mon.pdf_hist))
+				if (runstats_histFit(&item->mon.pdf_hist))
 					info("Happened for runtime in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 			}
 		}
