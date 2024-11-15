@@ -1036,6 +1036,8 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
 					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
 				}
+				else
+					item->mon.deadline = 0;								// Reset to avoid for deadline boundary check
 
 			}
 
