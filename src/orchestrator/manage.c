@@ -754,8 +754,8 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		if (!item->mon.deadline){
 			if (get_sched_info(item))			 // update deadline from debug buffer
 				warn("Unable to read schedule debug buffer!");
-			printDbg(PFX "BEF deadline %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
-			// sched-debug buffer not always up-to date
+			printDbg(PFX "Deadline PID %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+			// sched-debug buffer not always up-to date, 10ms refresh rate
 			while (item->mon.deadline < ts)
 				item->mon.deadline += item->attr.sched_period;
 		}
@@ -787,8 +787,8 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 			if (fail_count){
 				if (get_sched_info(item))			 // update deadline from debug buffer
 					warn("Unable to read schedule debug buffer!");
-				printDbg(PFX "AFT deadline %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
-				// sched-debug buffer not always up-to date
+				printDbg(PFX "Deadline PID %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+				// sched-debug buffer not always up-to date, 10ms refresh rate
 				while (item->mon.deadline < ts)
 					item->mon.deadline += item->attr.sched_period;
 			}
@@ -819,12 +819,11 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
-	if (fail_count)
-		while (fail_count){
-			// remove preemptively as we will have 1 period off
-			item->mon.dl_diff -= item->attr.sched_period;
-			fail_count --;
-		}
+	// remove preemptively after statistics as we will have 1 period off
+	while (fail_count){
+		item->mon.dl_diff -= item->attr.sched_period;
+		fail_count--;
+	}
 }
 
 /*

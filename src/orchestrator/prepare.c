@@ -605,7 +605,7 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 			}
 	}
 	else
-		printDbg(PIN "Can not read Turbo-state. Is your CPU Turbo-capable? Skipping.");
+		printDbg(PIN "Can not read Turbo-state. Is your CPU Turbo-capable? Skipping.\n");
 
 	// verify if CPU-freq is on performance -> set it
 	(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", cpuno);
