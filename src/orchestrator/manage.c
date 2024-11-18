@@ -1194,6 +1194,11 @@ thread_ftrace(void *arg){
 			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
 				warn ("Unable to parse ring-buffer page!");
 
+#ifdef DEBUG
+			if ((ret = kbuffer_missed_events(kbuf)))
+				printDbg (PFX "Missed %d events on CPU%d!\n", ret, fthread->cpuno );
+#endif
+
 			// read first element
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
