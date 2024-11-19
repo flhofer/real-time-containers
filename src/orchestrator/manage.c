@@ -760,11 +760,11 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 				item->mon.deadline += item->attr.sched_period;
 		}
 
+		if (item->attr.sched_period) {
 
-		{
 			// returned from task after last deadline?
-			if //((item->mon.deadline < ts)
-					(item->mon.rt > item->attr.sched_period) {
+			if ((item->mon.deadline < ts)
+				 &&	(item->mon.rt > item->attr.sched_period)) {
 				item->mon.dl_overrun++;
 
 				uint64_t rt = item->mon.rt;
@@ -868,7 +868,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	// print here to have both line together
-	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
+	printStat( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
 	return 0;
@@ -902,7 +902,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)get_status_flags(*frame.prev_state, flags, sizeof(flags));
 
-	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d\n",
+	printStat ("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, flags,
 				frame.next_comm, *frame.next_pid, *frame.next_prio);
 #endif
@@ -1034,7 +1034,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	if (*frame.comm & 0x80) // malformed buffer? valid char?
 		return -1;
 
-	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
+	printStat("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
 				frame.comm, *frame.pid, *frame.prio, *frame.target_cpu);
 
 	// lock data to avoid inconsistency
@@ -1182,7 +1182,7 @@ thread_ftrace(void *arg){
 				if (ret < -1) {
 					pstate = 2;
 					*retVal = errno;
-					err_msg ("File read failed");
+					err_msg ("File read failed: %s", strerror(errno));
 				} // else stay here
 
 				break;
