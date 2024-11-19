@@ -994,8 +994,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			if (item->mon.last_ts)
 				item->mon.rt += ts - item->mon.last_ts;
 
-			if (((SCHED_DEADLINE != item->attr.sched_policy)
-					|| (*frame.prev_state & 0x0100))	// Not Deadline or Preemption Set
+			if (((SCHED_DEADLINE != item->attr.sched_policy)	// not deadline
+					|| (*frame.prev_state & 0x0100)				// set preemption
+					|| (0 == *frame.next_prio))					// or next is 'migration/x'; always preempts
 				&& !(*frame.prev_state & 0x00FD)) 		// Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
 				break;							  		// break here, not final process switch
 
