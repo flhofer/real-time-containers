@@ -13,6 +13,7 @@ Created on Jun 12, 2024
 
 import vxi11
 import re
+import time
 
 class Scope(object):
     '''
@@ -59,14 +60,35 @@ class Scope(object):
         
         self._instr.ask("C1:ATTN 1")    # Set probe attenuation to 1x
         self._instr.ask("C2:ATTN 1")    # Set probe attenuation to 1x        
-    
+ 
+    def setChannels(self):
+        '''
+        Set screen and channel values to match our display area
+        24V pulsing singal at 25Hz
+        '''
+        
+        self._instr.ask("C2:TRA OFF")    # enable channel 2
+        self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
+        self._instr.ask("C1:OFST -12V") # Offset Ver
+        self._instr.ask("TDIV 5ms")    # Time division hor, 16 divs= 1,6 ms
+        self._instr.ask("TRDL 20ms")   # set h offset to 350 to allow right slack..
+        self._instr.ask("C1:TRLV 12V")
+      
+        self._instr.ask("PACL")         # reset al custom paramters
+        self._instr.ask("PACU 1,PER,C1")
+        
+        file1 = open("MyFile.txt", "w")
+        for _ in range(1,10):
+            file1.write(str(time.time_ns()) + self._instr.ask("C1:PAVA? CUST1") + "\n")    # enable peak read
+        file1.close()  
+        
     def checkSampleRate(self):
         '''
         Verify if the sample rate is high enough to find glitches
         '''
         
         rateStr=self._instr.ask("SARA?").removeprefix("SARA ")
-        prs = re.compile('([0-9.]+)\s*(\w+)')
+        prs = re.compile('([0-9.]+)\\s*(\\w+)')
         rateBase, rateSuff = prs.match(rateStr).groups()
         rate = float(rateBase)
         if 'G' == rateSuff[0]:
@@ -88,6 +110,29 @@ class Scope(object):
         
         if rate > 5000 * freq:
             raise 
+
+    def setFileName(self, number):
+        pass
+#        self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
+#        print(self._instr.ask("ALST?"))
+#        self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
+#        self._instr.ask("STST C1,UDSK")
+#        self._instr.ask("CSVS DD,MAX,SAVE,OFF")
+#        self._instr.ask("GET_CSV DD,MAX,SAVE,OFF")
+        
+    def storeWaveform(self):
+
+#        self._instr.ask("STO C1,UDSK")
+        self._instr.ask("WFSU SP,0,NP,20000,FP,0")
+        # file1 = open("MyFile.dat", "wb")
+        # self._instr.write("C1:WF? ALL")
+        # file1.write(self._instr.read_raw())
+        # file1.close()
+        file1 = open("MyFile.dat", "wb")
+        self._instr.write("C1:WF? ALL")
+        file1.write(self._instr.read_raw())
+        file1.close()
+
                 
     def setCursors(self):
         '''
@@ -104,7 +149,7 @@ class Scope(object):
         '''
         #TODO: pass to func
         delayStr= self._instr.ask("C1-C2 MEAD? FRR").split(",", 1)[1]   # read value
-        prs = re.compile('([0-9.]+)\s*(\w+)')
+        prs = re.compile('([0-9.]+)\\s*(\\w+)')
         delayBase, delaySuff = prs.match(delayStr).groups()
         delay = float(delayBase)
         if 'n' == delaySuff[0]:

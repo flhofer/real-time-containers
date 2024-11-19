@@ -47,10 +47,11 @@ def testScope(ip_addr):
     s = startScope(ip_addr)
     s.setChannels()
     
-    s.measureJitter()
+    s.setFileName(1)
+  #  s.measureJitter()
     
     # save to file?
-
+    s.storeWaveform()
 
     # repeat until interrupted
     
