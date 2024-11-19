@@ -7,10 +7,13 @@
 	#include <string.h>
 
 	#if DEBUG
-		extern FILE * dbg_out; // debug output file, defined in main
+		extern FILE * dbg_out; 		// debug output file, defined in main
+		extern FILE * stats_out; 	// debug output file, defined in main
 		#define printDbg(...) (void)fprintf (dbg_out, __VA_ARGS__)
+		#define printStat(...) (void)fprintf (stats_out, __VA_ARGS__)
 	#else
 		#define printDbg(...) //
+		#define printStat(...) //
 	#endif
 
 	// Common standard printing definitions
