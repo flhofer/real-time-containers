@@ -112,13 +112,14 @@ class Scope(object):
             raise 
 
     def setFileName(self, number):
-        pass
+
 #        self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
 #        print(self._instr.ask("ALST?"))
 #        self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
 #        self._instr.ask("STST C1,UDSK")
-#        self._instr.ask("CSVS DD,MAX,SAVE,OFF")
-#        self._instr.ask("GET_CSV DD,MAX,SAVE,OFF")
+        print(self._instr.ask("WFSU SP,0,NP,0,FP,0,SN,0"))
+#        print(self._instr.ask("GET_CSV? DD,MAX,SAVE,OFF"))
+        pass
         
     def storeWaveform(self):
 
