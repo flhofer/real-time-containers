@@ -756,7 +756,7 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 				warn("Unable to read schedule debug buffer!");
 			printDbg(PFX "Deadline PID %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
 			// sched-debug buffer not always up-to date, 10ms refresh rate
-			while (item->mon.deadline < ts)
+			while ((item->attr.sched_period) && (item->mon.deadline < ts))
 				item->mon.deadline += item->attr.sched_period;
 		}
 
@@ -1147,7 +1147,7 @@ thread_ftrace(void *arg){
 			if (NULL != fthread->dbgfile)
 				fn = fthread->dbgfile;
 			else{
-				fn = malloc(100);
+				fn = malloc(CMD_LEN);
 				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), fthread->cpuno);
 			}
 			if (-1 == access (fn, R_OK)) {
@@ -1178,7 +1178,7 @@ thread_ftrace(void *arg){
 				break;
 			}
 			// read output into buffer!
-			if (0 >= (ret = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
+			if (0 >= (ret = fread (buffer, sizeof(char), PIPE_BUFFER, fp))) {
 				if (ret < -1) {
 					pstate = 2;
 					*retVal = errno;
@@ -1187,9 +1187,6 @@ thread_ftrace(void *arg){
 
 				break;
 			}
-			// empty buffer? it always starts with a header
-			else if (buffer[0]==0 )
-				break;
 
 			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
 				warn ("Unable to parse ring-buffer page!");
@@ -1202,7 +1199,7 @@ thread_ftrace(void *arg){
 			// read first element
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
-			while ((pEvent)  && (!ftrace_stop)) {
+			while ((pEvent) && (!ftrace_stop)) {
 				int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t) = pickPidCommon; // default to common for unknown formats
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
