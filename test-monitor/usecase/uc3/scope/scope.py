@@ -75,7 +75,7 @@ class Scope(object):
         self._instr.ask("C1:TRLV 12V")
       
         self._instr.ask("PACL")         # reset al custom paramters
-        self._instr.ask("PACU 1,PER,C1")
+        self._instr.ask("PACU PER,C1")
         
         file1 = open("MyFile.txt", "w")
         for _ in range(1,10):
