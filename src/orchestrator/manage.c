@@ -793,8 +793,9 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 					item->mon.deadline += item->attr.sched_period;
 			}
 
-			// just add a period, we rely on periodicity
-			item->mon.deadline += item->attr.sched_period;
+			// just add a period, we rely on periodicity - sometimes readout gives the next period
+			if ((int64_t)item->mon.deadline - (int64_t)ts < (int64_t)item->attr.sched_period)
+				item->mon.deadline += item->attr.sched_period;
 
 		}
 
