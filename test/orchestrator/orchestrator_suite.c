@@ -24,6 +24,9 @@ Suite * orchestrator_suite(void) {
 	if (!dbg_out) {
 		dbg_out = (FILE *)stderr;
 	}
+	if (!stats_out) {
+		stats_out = (FILE *)stderr;
+	}
 	orchestrator_update(s);
 	orchestrator_manage(s);
 	orchestrator_adaptive(s);
