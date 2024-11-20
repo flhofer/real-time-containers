@@ -301,7 +301,7 @@ setPidResources_u(node_t * node) {
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
-		// TODO: this should be done elsewhere!?
+		// If fixed affinity is set, set right away and as active including setAffinity
 		if (node->pid && (0 <= node->param->rscs->affinity)){
 			// at start, assign node to static/adaptive table affinity match
 			node->mon.assigned = node->param->rscs->affinity;
@@ -937,7 +937,6 @@ checkPeriod_R(node_t * item, int include) {
 	if (0 > item->mon.assigned)
 		return NULL;
 
-	int affinity = INT_MIN;
 	resTracer_t * ftrc = NULL;
 
 	// temp update without item
@@ -945,17 +944,14 @@ checkPeriod_R(node_t * item, int include) {
 		if (0 > recomputeCPUTimes_u(item->mon.assigned, item))
 			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
 
-	if ((item->param) && (item->param->rscs))
-		affinity = item->param->rscs->affinity;
-
 	if (SCHED_DEADLINE == item->attr.sched_policy)
-		ftrc = checkPeriod(&item->attr, affinity);
+		ftrc = checkPeriod(&item->attr, item->mon.assigned);
 	else{
 		struct sched_attr attr = { 48 };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
 		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
-		ftrc = checkPeriod(&attr, affinity);
+		ftrc = checkPeriod(&attr, item->mon.assigned);
 	}
 
 	// reset to with item
