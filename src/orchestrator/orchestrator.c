@@ -208,9 +208,9 @@ static void display_help(int error)
            "         --smi             Enable SMI counting\n"
 #endif
 #ifdef DEBUG
-	       "-v [lvl] --verbose[=lvl]   verbose output for debug purposes\n"
-		   "                           level 1=STDERR,\n"
-		   "                           level 2=Messages STDERR, stats file '/tmp/orch_stats.log'\n"
+	       "-v [LVL] --verbose[=LVL]   verbose output for debug purposes\n"
+		   "                           level 1 = STDERR,\n"
+		   "                           level 2 = Messages STDERR, stats file '/tmp/orch_stats.log'\n"
 #endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, CGRP_DCKR, TSCAN, TDETM, CONT_PID, TWCET
