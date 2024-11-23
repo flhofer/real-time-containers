@@ -14,5 +14,6 @@
 
 // debug output file
 extern FILE  * dbg_out;
+extern FILE  * stats_out;
 
 #endif /* _TEST_H_ */

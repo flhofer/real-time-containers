@@ -571,6 +571,7 @@ setCPUgovernor(prgset_t *set, int cpuno) {
 	if (!set->force)
 		err_exit("CPU-freq is set to \"%s\" on CPU%d. Set -f (force) flag to authorize change to \"" CPUGOVR "\"", str, cpuno);
 
+	(void)sprintf(fstring, "cpu%d/cpufreq/scaling_governor", cpuno);
 	if (0 > setkernvar(set->cpusystemfileprefix, fstring, CPUGOVR, 0))
 		err_exit_n(errno, "CPU-freq change unsuccessful!");
 
@@ -604,7 +605,7 @@ adjustCPUfreq(prgset_t *set, int cpuno) {
 			}
 	}
 	else
-		printDbg(PIN "Can not read Turbo-state. Is your CPU Turbo-capable? Skipping.");
+		printDbg(PIN "Can not read Turbo-state. Is your CPU Turbo-capable? Skipping.\n");
 
 	// verify if CPU-freq is on performance -> set it
 	(void)sprintf(fstring, "cpu%d/cpufreq/base_frequency", cpuno);

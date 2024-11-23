@@ -420,6 +420,9 @@ static void parse_images(struct json_object *images, containers_t *conts)
 /// Return value: no return value, exits on error
 void parse_dockerfileprefix(prgset_t *set)
 {
+	if (!(set->cgroupfileprefix))
+		set->cgroupfileprefix = strdup("/sys/fs/cgroup/");
+
 	set->cpusetdfileprefix = malloc(strlen(set->cgroupfileprefix) + strlen(CGRP_CSET) + strlen(set->cont_cgrp)+1);
 	if (!set->cpusetdfileprefix)
 		err_exit("Could not allocate memory");
@@ -483,9 +486,20 @@ static void parse_global(struct json_object *global, prgset_t *set)
 	if (!set->procfileprefix)
 		set->procfileprefix = get_string_value_from(global, "prc_kernel", TRUE,
 			"/proc/sys/kernel/");
-	if (!set->cgroupfileprefix)
-		set->cgroupfileprefix = get_string_value_from(global, "sys_cgroup", TRUE,
+	{
+		// default may be set already in parse_dockerfileprefix
+		char *prefix = get_string_value_from(global, "sys_cgroup", TRUE,
 		"/sys/fs/cgroup/");
+
+		if (!(set->cgroupfileprefix) || (strcmp(set->cgroupfileprefix, prefix))){
+			free(set->cgroupfileprefix);
+			set->cgroupfileprefix = prefix;
+			if (set->cont_cgrp)
+				parse_dockerfileprefix(set);
+		}
+		else
+			free(prefix);
+	}
 	if (!set->cpusystemfileprefix)
 		set->cpusystemfileprefix = get_string_value_from(global, "sys_cpu", TRUE,
 		"/sys/devices/system/cpu/");

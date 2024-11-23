@@ -740,6 +740,9 @@ pickPidAddRuntimeHist(node_t *item){
 static void
 pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
+	// failed period increment counter
+	int64_t fail_count = 0;
+
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 
 		// ----------  period ended ----------
@@ -748,30 +751,52 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		if (!item->attr.sched_period)
 			updatePidAttr(item);
 
-		if (!item->mon.deadline)
+		if (!item->mon.deadline){
 			if (get_sched_info(item))			 // update deadline from debug buffer
 				warn("Unable to read schedule debug buffer!");
-
-		// returned from task after last deadline?
-		if (item->mon.deadline < ts - TSCHS){ // FIXME: scheduler resolution needed?
-			item->mon.dl_overrun++;
+			printDbg(PFX "Deadline PID %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+			// sched-debug buffer not always up-to date, 10ms refresh rate
+			while ((item->attr.sched_period) && (item->mon.deadline < ts))
+				item->mon.deadline += item->attr.sched_period;
 		}
 
-		{
-			// just add a period, we rely on periodicity
-			item->mon.deadline += item->attr.sched_period;
+		if (item->attr.sched_period) {
 
-			int64_t count = 1;
-			// after update still not in line? (buffer updates 10ms)
+			// returned from task after last deadline?
+			if ((item->mon.deadline < ts)
+				 &&	(item->mon.rt > item->attr.sched_period)) {
+				item->mon.dl_overrun++;
+
+				uint64_t rt = item->mon.rt;
+
+				while (rt > item->attr.sched_period){
+					rt -= item->attr.sched_period;
+					item->mon.deadline += item->attr.sched_period;
+					fail_count++;
+				}
+			}
+
+			// we still didn't reach new value? others may be scanfail
 			while (item->mon.deadline < ts){
 				item->mon.dl_scanfail++;
 				item->mon.deadline += item->attr.sched_period;
-				count++;
+				fail_count++;
 			}
 
 			// update deadline time-stamp from scheduler debug output if we missed something
-			if (1 < count)
-				(void)get_sched_info(item);
+			if (fail_count){
+				if (get_sched_info(item))			 // update deadline from debug buffer
+					warn("Unable to read schedule debug buffer!");
+				printDbg(PFX "Deadline PID %d %lu read for %lu with buffer %ld", item->pid, item->mon.deadline, ts, (int64_t)item->mon.deadline - (int64_t)ts);
+				// sched-debug buffer not always up-to date, 10ms refresh rate
+				while (item->mon.deadline < ts)
+					item->mon.deadline += item->attr.sched_period;
+			}
+
+			// just add a period, we rely on periodicity - sometimes readout gives the next period
+			if ((int64_t)item->mon.deadline - (int64_t)ts < (int64_t)item->attr.sched_period)
+				item->mon.deadline += item->attr.sched_period;
+
 		}
 
 		/*
@@ -795,6 +820,11 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
 
+	// remove preemptively after statistics as we will have 1 period off
+	while (fail_count){
+		item->mon.dl_diff -= item->attr.sched_period;
+		fail_count--;
+	}
 }
 
 /*
@@ -839,7 +869,7 @@ pickPidCommon(const void * addr, const struct ftrace_thread * fthread, uint64_t 
 	(void)pthread_mutex_unlock(&dataMutex);
 
 	// print here to have both line together
-	printDbg( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
+	printStat( "[%lu.%09lu] type=%u flags=%x preempt=%u pid=%d\n", ts/NSEC_PER_SEC, ts%NSEC_PER_SEC,
 			*frame.common_type, *frame.common_flags, *frame.common_preempt_count, *frame.common_pid);
 
 	return 0;
@@ -873,7 +903,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	(void)get_status_flags(*frame.prev_state, flags, sizeof(flags));
 
-	printDbg("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d\n",
+	printStat ("    prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s ==> next_comm=%s next_pid=%d next_prio=%d\n",
 				frame.prev_comm, *frame.prev_pid, *frame.prev_prio, flags,
 				frame.next_comm, *frame.next_pid, *frame.next_prio);
 #endif
@@ -921,11 +951,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				item->status &= ~MSK_STATNPRD;
 
 				// floating skew=jitter
-				item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP + (int64_t)item->attr.sched_period;
+				if (item->mon.last_tsP)
+					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP - (int64_t)item->attr.sched_period;
 				item->mon.last_tsP = ts;			// this period start
-
-				if ((item->mon.last_tsP) && abs(item->mon.dl_diff) > TSCHS)
-					item->mon.dl_overrun++;
 			}
 		}
 	}
@@ -966,8 +994,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			if (item->mon.last_ts)
 				item->mon.rt += ts - item->mon.last_ts;
 
-			if (((SCHED_DEADLINE != item->attr.sched_policy)
-					|| (*frame.prev_state & 0x0100))	// Not Deadline or Preemption Set
+			if (((SCHED_DEADLINE != item->attr.sched_policy)	// not deadline
+					|| (*frame.prev_state & 0x0100)				// set preemption
+					|| (0 == *frame.next_prio))					// or next is 'migration/x'; always preempts
 				&& !(*frame.prev_state & 0x00FD)) 		// Not 'D' = uninterruptible sleep -> system call, nor 'R' = running and preempted
 				break;							  		// break here, not final process switch
 
@@ -1007,7 +1036,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	if (*frame.comm & 0x80) // malformed buffer? valid char?
 		return -1;
 
-	printDbg("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
+	printStat("    comm=%s pid=%d prio=%d target_cpu=%03d\n",
 				frame.comm, *frame.pid, *frame.prio, *frame.target_cpu);
 
 	// lock data to avoid inconsistency
@@ -1036,6 +1065,8 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
 					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
 				}
+				else
+					item->mon.deadline = 0;								// Reset to avoid for deadline boundary check
 
 			}
 
@@ -1118,7 +1149,7 @@ thread_ftrace(void *arg){
 			if (NULL != fthread->dbgfile)
 				fn = fthread->dbgfile;
 			else{
-				fn = malloc(100);
+				fn = malloc(CMD_LEN);
 				(void)sprintf(fn, "%sper_cpu/cpu%d/trace_pipe_raw", get_debugfileprefix(), fthread->cpuno);
 			}
 			if (-1 == access (fn, R_OK)) {
@@ -1149,26 +1180,28 @@ thread_ftrace(void *arg){
 				break;
 			}
 			// read output into buffer!
-			if (0 >= (ret = fread (buffer, sizeof(unsigned char), PIPE_BUFFER, fp))) {
+			if (0 >= (ret = fread (buffer, sizeof(char), PIPE_BUFFER, fp))) {
 				if (ret < -1) {
 					pstate = 2;
 					*retVal = errno;
-					err_msg ("File read failed");
+					err_msg ("File read failed: %s", strerror(errno));
 				} // else stay here
 
 				break;
 			}
-			// empty buffer? it always starts with a header
-			else if (buffer[0]==0 )
-				break;
 
 			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
 				warn ("Unable to parse ring-buffer page!");
 
+#ifdef DEBUG
+			if ((ret = kbuffer_missed_events(kbuf)))
+				printDbg (PFX "Missed %d events on CPU%d!\n", ret, fthread->cpuno );
+#endif
+
 			// read first element
 			pEvent = kbuffer_read_event(kbuf, &timestamp);
 
-			while ((pEvent)  && (!ftrace_stop)) {
+			while ((pEvent) && (!ftrace_stop)) {
 				int (*eventcall)(const void *, const struct ftrace_thread *, uint64_t) = pickPidCommon; // default to common for unknown formats
 
 				for (struct ftrace_elist * event = elist_head; ((event)); event=event->next)
@@ -1486,7 +1519,7 @@ manageSched(){
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
 
-					if (0 > runstats_histFit(&item->mon.pdf_phist))
+					if (runstats_histFit(&item->mon.pdf_phist))
 						info("Happened for period in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 
 					// period changed enough for a different time-slot?
@@ -1575,7 +1608,7 @@ manageSched(){
 				else
 					warn ("Estimation error, can not update WCET");
 
-				if (0 > runstats_histFit(&item->mon.pdf_hist))
+				if (runstats_histFit(&item->mon.pdf_hist))
 					info("Happened for runtime in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
 			}
 		}

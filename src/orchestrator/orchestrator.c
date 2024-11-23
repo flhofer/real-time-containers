@@ -33,6 +33,7 @@ prgset_t * prgset; 			// program settings structure
 #ifdef DEBUG
 // debug output file
 	FILE  * dbg_out;
+	FILE  * stats_out;
 #endif
 
 // mutex to avoid read while updater fills or empties existing threads
@@ -207,7 +208,9 @@ static void display_help(int error)
            "         --smi             Enable SMI counting\n"
 #endif
 #ifdef DEBUG
-	       "-v       --verbose         verbose output for debug purposes\n"
+	       "-v [LVL] --verbose[=LVL]   verbose output for debug purposes\n"
+		   "                           level 1 = STDERR,\n"
+		   "                           level 2 = Messages STDERR, stats file '/tmp/orch_stats.log'\n"
 #endif
 	       "-w       --wcet=TIME       WCET runtime for deadline policy in us, default=%d\n"
 			, CGRP_DCKR, TSCAN, TDETM, CONT_PID, TWCET
@@ -248,6 +251,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	int optargs = 0;
 #ifdef DEBUG
 	dbg_out = fopen("/dev/null", "w");
+	stats_out = fopen("/dev/null", "w");
 	int verbose = 0;
 #endif
 
@@ -279,13 +283,13 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			{"smi",              no_argument,       NULL, OPT_SMI },
 			{"system",           optional_argument, NULL, OPT_SYSTEM },
 			{"version",			 no_argument,		NULL, OPT_VERSION},
-			{"verbose",          no_argument,       NULL, OPT_VERBOSE },
+			{"verbose",          optional_argument, NULL, OPT_VERBOSE },
 			{"policy",           required_argument, NULL, OPT_POLICY },
 			{"wcet",             required_argument, NULL, OPT_WCET },
 			{"help",             no_argument,       NULL, OPT_HELP },
 			{NULL, 0, NULL, 0}
 		};
-		int c = getopt_long(argc, argv, "a::A::bBc:C:dDfFhi:kl:mn::p:Pqr:s::S::vw:",
+		int c = getopt_long(argc, argv, "a::A::bBc:C:dDfFhi:kl:mn::p:Pqr:s::S::v::w:",
 				    long_options, &option_index);
 		if (-1 == c)
 			break;
@@ -439,6 +443,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'v':
 		case OPT_VERBOSE: 
 			verbose = 1; 
+			if (NULL != optarg) {
+				verbose = atoi(optarg);
+			} else if (optind<argc) {
+				verbose = atoi(argv[optind]);
+				optargs++;
+			}
 			break;
 #endif
 		case OPT_VERSION:
@@ -483,6 +493,12 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	if (verbose) {
 		fclose(dbg_out);
 		dbg_out = stderr;
+
+		fclose(stats_out);
+		if (2 == verbose)
+			stats_out = fopen("/tmp/orch_stats.log", "w");
+		else
+			stats_out = stderr;
 	}
 #endif
 
@@ -683,6 +699,17 @@ int main(int argc, char **argv)
     // close and cleanup
     info("exiting safely");
     cleanupEnvironment(prgset);
+
+#ifdef DEBUG
+	if (dbg_out != stderr) {
+		fflush(dbg_out);
+		fclose(dbg_out);
+	}
+	if (stats_out != stderr) {
+		fflush(stats_out);
+		fclose(stats_out);
+	}
+#endif
 
     return EXIT_SUCCESS;
 }

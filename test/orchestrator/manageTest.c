@@ -457,12 +457,14 @@ START_TEST(orchestrator_manage_ppconsrt)
 
 	nhead->mon.last_ts = 2000;
 	nhead->mon.deadline = 20000;
+	nhead->mon.rt = 22050;
 	pickPidConsolidatePeriod(nhead, 21500);
 	ck_assert_int_eq(1, nhead->mon.dl_overrun);
 	ck_assert_int_eq(0, nhead->mon.dl_scanfail);
 
 	nhead->mon.last_ts = 2100;
 	nhead->mon.deadline = 20000;
+	nhead->mon.rt = 22050;
 	pickPidConsolidatePeriod(nhead, 80000);
 	ck_assert_int_eq(2, nhead->mon.dl_overrun);
 	ck_assert_int_eq(2, nhead->mon.dl_scanfail);

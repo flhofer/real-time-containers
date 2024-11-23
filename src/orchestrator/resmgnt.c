@@ -301,7 +301,7 @@ setPidResources_u(node_t * node) {
 	// save if not successful, only CG mode contains ID's
 	if (DM_CGRP == prgset->use_cgroup) {
 		node->status |= !(setContainerAffinity(node)) & MSK_STATUPD;
-		// TODO: this should be done elsewhere!?
+		// If fixed affinity is set, set right away and as active including setAffinity
 		if (node->pid && (0 <= node->param->rscs->affinity)){
 			// at start, assign node to static/adaptive table affinity match
 			node->mon.assigned = node->param->rscs->affinity;
@@ -890,31 +890,43 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
  *  checkPeriod(): find a resource that fits period
  *
  *  Arguments: - the attr structure of the task
- *  		   - the set affinity
+ *  		   - the set affinity, positive = fixed, negative = preference
+ *  		   - the running CPU, -1 if not set yet
  *
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod(struct sched_attr * attr, int affinity) {
+checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
 	resTracer_t * ftrc = NULL;
 	int last = INT_MAX;	// last checked tracer's score, max value by default
 	float Ulast = 10.0;	// last checked traces's utilization rate
 	int res;
 
+	// hard-affinity, return right away
+	if (0 <= affinity)
+		return getTracer(affinity);
+
 	// loop through	all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+
 		res = checkUvalue(trc, attr, 0);
-		if ((0 <= res && res < last) // better match, or matching favorite
-			|| ((res == last) &&
-				(  (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
-				|| (trc->U < Ulast)) ) )	{
+		if ((0 <= res && res < last)	// better match
+			|| ((res == last) &&		// equal match but!
+
+				( (trc->U < Ulast) ||	// Load is lower or
+				 ((trc->U == Ulast) &&	// equal Ul with either CPU or -affinity match
+					   (((0 <= CPU) &&     (numa_bitmask_isbitset(trc->affinity, CPU)))			// CPU is a favorite
+					|| ((0 > affinity) && (numa_bitmask_isbitset(trc->affinity, -affinity))))	// CPU is a favorite
+				 	 	 ))
+				))	{
+
+			// skip if found tracer is preference and values are the same
+			if ((res == last) && (trc->U == Ulast) && (ftrc)
+					&& (0 > affinity) && (numa_bitmask_isbitset(ftrc->affinity, -affinity)))
+				continue;
 			last = res;
-			// reset U if we had an affinity match
-			if (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
-				Ulast= 0.0;
-			else
-				Ulast = trc->U;
+			Ulast = trc->U;
 			ftrc = trc;
 		}
 	}
@@ -949,13 +961,13 @@ checkPeriod_R(node_t * item, int include) {
 		affinity = item->param->rscs->affinity;
 
 	if (SCHED_DEADLINE == item->attr.sched_policy)
-		ftrc = checkPeriod(&item->attr, affinity);
+		ftrc = checkPeriod(&item->attr, affinity, item->mon.assigned);
 	else{
 		struct sched_attr attr = { 48 };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
 		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
-		ftrc = checkPeriod(&attr, affinity);
+		ftrc = checkPeriod(&attr, affinity, item->mon.assigned);
 	}
 
 	// reset to with item

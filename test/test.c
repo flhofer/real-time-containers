@@ -11,6 +11,7 @@
 
 // debug output file
 FILE  * dbg_out;
+FILE  * stats_out;
 
 containers_t * contparm; // container parameter settings
 prgset_t * prgset; // program settings structure

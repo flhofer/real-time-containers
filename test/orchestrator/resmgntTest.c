@@ -190,7 +190,7 @@ START_TEST(checkPeriodTest)
 	push((void**)&rHead, sizeof(struct resTracer));
 	rHead->basePeriod = 70000;
 	rHead->affinity = numa_allocate_cpumask();
-	numa_bitmask_setbit(rHead->affinity, 1);
+	numa_bitmask_setbit(rHead->affinity, 2);
 	rHead->status = MSK_STATHRMC;
 
 	struct sched_attr par ={
@@ -202,21 +202,28 @@ START_TEST(checkPeriodTest)
 			100000
 	};
 
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next->next);// exact period match
+	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead->next->next);// exact period match
 //  TODO: temporarly skipped as harmonic matches have no number preference in simple version
 //	par.sched_period = 10000;
 //	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// par is new period, prefer higher GCD
 	par.sched_period = 140000;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead);			// par is double period ;)
+	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead);			// par is double period ;)
 	par.sched_period = 75000;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead);			// no perfect fit, prefer better U fit
+	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead);			// no perfect fit, prefer better U fit
 	rHead->U = 0.1;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next);		// no perfect fit, prefer better U fit
+	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead->next);		// no perfect fit, prefer better U fit
 	rHead->basePeriod = 100000;
 	par.sched_period = 100000;
-	ck_assert_ptr_eq(checkPeriod(&par, -1), rHead);				// par, prefer affinity
+	rHead->next->next->U = 0.1;
+	ck_assert_ptr_eq(checkPeriod(&par, -2, -1), rHead);				// par CPU 0 and 2, prefer affinity
+	rHead->next->U = 0.1;
+	rHead->next->basePeriod = 100000;
+	ck_assert_ptr_eq(checkPeriod(&par, -2, -1), rHead);				// all par, prefer affinity
+	ck_assert_ptr_eq(checkPeriod(&par, -2, 1), rHead);				// all par, prefer affinity
+	ck_assert_ptr_eq(checkPeriod(&par, -99, 1), rHead->next);		// then running CPU
+	rHead->next->basePeriod = 50000;
 	rHead->U = 0.7;
-	ck_assert_ptr_eq(checkPeriod(&par, -99), rHead->next->next);// par, prefer lower U
+	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead->next->next);// par, prefer lower U
 
 	// TODO: all full returns NULL
 }
