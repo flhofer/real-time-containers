@@ -903,19 +903,20 @@ checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
 	float Ulast = 10.0;	// last checked traces's utilization rate
 	int res;
 
+	// hard-affinity, return right away
+	if (0 <= affinity)
+		return getTracer(affinity);
+
 	// loop through	all and return the best fit
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
+
 		res = checkUvalue(trc, attr, 0);
 		if ((0 <= res && res < last) // better match, or matching favorite
 			|| ((res == last) &&
 				(  (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
 				|| (trc->U < Ulast)) ) )	{
 			last = res;
-			// reset U if we had an affinity match
-			if (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
-				Ulast= 0.0;
-			else
-				Ulast = trc->U;
+			Ulast = trc->U;
 			ftrc = trc;
 		}
 	}
