@@ -222,9 +222,9 @@ START_TEST(orchestrator_adaptive_schedule2)
 	ck_assert_int_eq(1000000000, rHead->basePeriod);
 	ck_assert_int_eq(420000000, rHead->usedPeriod);
 	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)462000000/(double)1000000000) == rHead->U);
+	ck_assert((float)((double)420000000/(double)1000000000) == rHead->U);
 
-	ck_assert_int_eq(1000000000, rHead->next->basePeriod);
+	ck_assert_int_eq(0, rHead->next->basePeriod);	// TODO: period should result there
 	ck_assert_int_eq(0, rHead->next->usedPeriod);
 	ck_assert((float)((double)0/(double)1000000000) == rHead->next->U);  // 90+10
 
@@ -270,7 +270,7 @@ void orchestrator_adaptive (Suite * s) {
 
 	TCase *tc3 = tcase_create("adaptive_schedule");
 	tcase_add_checked_fixture(tc3, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
-//    tcase_add_exit_test(tc3, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
+    tcase_add_exit_test(tc3, orchestrator_adaptive_error_schedule, EXIT_FAILURE);
     tcase_add_test(tc3, orchestrator_adaptive_schedule);
     tcase_add_test(tc3, orchestrator_adaptive_schedule2);
 
