@@ -890,13 +890,14 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
  *  checkPeriod(): find a resource that fits period
  *
  *  Arguments: - the attr structure of the task
- *  		   - the set affinity
+ *  		   - the set affinity, positive = fixed, negative = preference
+ *  		   - the running CPU, -1 if not set yet
  *
  *  Return value: a pointer to the resource tracer
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod(struct sched_attr * attr, int affinity) {
+checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
 	resTracer_t * ftrc = NULL;
 	int last = INT_MAX;	// last checked tracer's score, max value by default
 	float Ulast = 10.0;	// last checked traces's utilization rate
@@ -937,6 +938,7 @@ checkPeriod_R(node_t * item, int include) {
 	if (0 > item->mon.assigned)
 		return NULL;
 
+	int affinity = INT_MIN;
 	resTracer_t * ftrc = NULL;
 
 	// temp update without item
@@ -944,14 +946,17 @@ checkPeriod_R(node_t * item, int include) {
 		if (0 > recomputeCPUTimes_u(item->mon.assigned, item))
 			printDbg(PIN2 "Recompute times for CPU %d unsuccessful!", item->mon.assigned);
 
+	if ((item->param) && (item->param->rscs))
+		affinity = item->param->rscs->affinity;
+
 	if (SCHED_DEADLINE == item->attr.sched_policy)
-		ftrc = checkPeriod(&item->attr, item->mon.assigned);
+		ftrc = checkPeriod(&item->attr, affinity, item->mon.assigned);
 	else{
 		struct sched_attr attr = { 48 };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
 		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
-		ftrc = checkPeriod(&attr, item->mon.assigned);
+		ftrc = checkPeriod(&attr, affinity, item->mon.assigned);
 	}
 
 	// reset to with item
