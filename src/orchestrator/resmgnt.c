@@ -911,10 +911,20 @@ checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 
 		res = checkUvalue(trc, attr, 0);
-		if ((0 <= res && res < last) // better match, or matching favorite
-			|| ((res == last) &&
-				(  (numa_bitmask_isbitset(trc->affinity, abs(affinity)))
-				|| (trc->U < Ulast)) ) )	{
+		if ((0 <= res && res < last)	// better match
+			|| ((res == last) &&		// equal match but!
+
+				( (trc->U < Ulast) ||	// Load is lower or
+				 ((trc->U == Ulast) &&	// equal Ul with either CPU or -affinity match
+					   (((0 <= CPU) &&     (numa_bitmask_isbitset(trc->affinity, CPU)))			// CPU is a favorite
+					|| ((0 > affinity) && (numa_bitmask_isbitset(trc->affinity, -affinity))))	// CPU is a favorite
+				 	 	 ))
+				))	{
+
+			// skip if found tracer is preference and values are the same
+			if ((res == last) && (trc->U == Ulast) && (ftrc)
+					&& (0 > affinity) && (numa_bitmask_isbitset(ftrc->affinity, -affinity)))
+				continue;
 			last = res;
 			Ulast = trc->U;
 			ftrc = trc;
