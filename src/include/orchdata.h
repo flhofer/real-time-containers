@@ -86,6 +86,8 @@
 
 	#define MINCHNGL	95		// Minimum change for PDF update in percent
 	#define MINCHNGH	105		// Minimum change for PDF update in percent
+	#define ULTOLMIN	0.95	// Minimum tolerance v * x for ULoad for comparison CPU-selection
+	#define ULTOLMAX	1.05	// Maxmum tolerance  v * x for ULoad for comparison CPU-selection
 
 	// definition of container detection modes
 	enum det_mode {
