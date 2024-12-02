@@ -66,7 +66,7 @@ class Scope(object):
         Set screen and channel values to match our display area
         24V pulsing singal at 25Hz
         '''
-        
+        #TODO: change to string-list passed as one
         self._instr.ask("C2:TRA OFF")    # enable channel 2
         self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
         self._instr.ask("C1:OFST -12V") # Offset Ver
@@ -77,11 +77,9 @@ class Scope(object):
         self._instr.ask("PACL")         # reset al custom paramters
         self._instr.ask("PACU PER,C1")
         
-        file1 = open("MyFile.txt", "w")
-        for _ in range(1,10):
-            file1.write(str(time.time_ns()) + self._instr.ask("C1:PAVA? CUST1") + "\n")    # enable peak read
-        file1.close()  
-        
+        self._instr.ask("PESU Infinite")  # set infinite persistence
+        self._instr.ask("PERS ON")        # set persistence on
+     
     def checkSampleRate(self):
         '''
         Verify if the sample rate is high enough to find glitches
@@ -113,18 +111,23 @@ class Scope(object):
 
     def setFileName(self, number):
 
-#        self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
-#        print(self._instr.ask("ALST?"))
-#        self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
-#        self._instr.ask("STST C1,UDSK")
+        # PARAMETERS FOR USB STORE
+        # self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
+        # print(self._instr.ask("ALST?"))
+        # self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
+        # self._instr.ask("STST C1,UDSK")
+
+        # Retrieve OF POINTS with X size
         print(self._instr.ask("WFSU SP,0,NP,0,FP,0,SN,0"))
-#        print(self._instr.ask("GET_CSV? DD,MAX,SAVE,OFF"))
+        # print(self._instr.ask("GET_CSV? DD,MAX,SAVE,OFF"))
         pass
         
     def storeWaveform(self):
 
 #        self._instr.ask("STO C1,UDSK")
         self._instr.ask("WFSU SP,0,NP,20000,FP,0")
+
+        #TODO: manual save of raw data? store info as CSV instead?
         # file1 = open("MyFile.dat", "wb")
         # self._instr.write("C1:WF? ALL")
         # file1.write(self._instr.read_raw())
@@ -161,4 +164,13 @@ class Scope(object):
             delay /= 1000
             
         return delay
+    
+    def getperiod(self):
+        pass
+        # manual readout is too slow
+        # file1 = open("MyFile.txt", "w")
+        # for _ in range(1,10):
+        #     file1.write(str(time.time_ns()) + self._instr.ask("C1:PAVA? CUST1") + "\n")    # enable peak read
+        # file1.close()  
+
     
