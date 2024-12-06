@@ -37,7 +37,7 @@ class Scope(object):
     def setScreen(self):
         '''
         Set screen and channel values to match our display area
-        24V pulsing singal at ~1KHz
+        24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
         
         self._instr.ask("C2:TRA ON")    # enable channel 2
@@ -64,18 +64,20 @@ class Scope(object):
     def setChannels(self):
         '''
         Set screen and channel values to match our display area
-        24V pulsing singal at 25Hz
+        24V pulsing Singal at 5Hz
         '''
         #TODO: change to string-list passed as one
-        self._instr.ask("C2:TRA OFF")    # enable channel 2
-        self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
-        self._instr.ask("C1:OFST -12V") # Offset Ver
-        self._instr.ask("TDIV 5ms")    # Time division hor, 16 divs= 1,6 ms
-        self._instr.ask("TRDL 20ms")   # set h offset to 350 to allow right slack..
-        self._instr.ask("C1:TRLV 12V")
+        self._instr.ask("C2:TRA ON")    # enable channel 2
+        self._instr.ask("C1:VDIV 10V")  # set to upper half
+        self._instr.ask("C1:OFST 10V")  # Offset vertical
+        self._instr.ask("TDIV 5ms")     # Time division horizontal 5 ms
+        self._instr.ask("TRDL 15ms")    # set h offset to 350 to allow right slack..
+        self._instr.ask("C1:TRLV 12V")  # Trigger half, voltage
+        self._instr.ask("C2:VDIV 10V")  # set to lower half
+        self._instr.ask("C2:OFST -30V") # Offset vertical
       
-        self._instr.ask("PACL")         # reset al custom paramters
-        self._instr.ask("PACU PER,C1")
+        self._instr.ask("PACL")         # reset all custom parameters
+        self._instr.ask("PACU PER,C1")  # add period to parameters for channel 1
         
         self._instr.ask("PESU Infinite")  # set infinite persistence
         self._instr.ask("PERS ON")        # set persistence on
