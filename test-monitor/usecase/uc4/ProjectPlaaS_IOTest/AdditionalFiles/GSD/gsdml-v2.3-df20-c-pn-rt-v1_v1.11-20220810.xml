@@ -1,0 +1,1320 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- edited with XMLSpy v2011 (http://www.altova.com) by TeaM DJiNN (TeaM DJiNN) -->
+<ISO15745Profile xmlns="http://www.profibus.com/GSDML/2003/11/DeviceProfile" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.profibus.com/GSDML/2003/11/DeviceProfile ..\xsd\GSDML-DeviceProfile-V2.3.xsd">
+	<ProfileHeader>
+		<ProfileIdentification>PROFINET Device Profile</ProfileIdentification>
+		<ProfileRevision>1.00</ProfileRevision>
+		<ProfileName>Device Profile for PROFINET Devices</ProfileName>
+		<ProfileSource>PROFIBUS Nutzerorganisation e. V. (PNO)</ProfileSource>
+		<ProfileClassID>Device</ProfileClassID>
+		<ISO15745Reference>
+			<ISO15745Part>4</ISO15745Part>
+			<ISO15745Edition>1</ISO15745Edition>
+			<ProfileTechnology>GSDML</ProfileTechnology>
+		</ISO15745Reference>
+	</ProfileHeader>
+	<ProfileBody>
+		<DeviceIdentity VendorID="0x0325" DeviceID="0x0001">
+			<InfoText TextId="DF20-C-PN-RT-V1"/>
+			<VendorName Value="DEGSON"/>
+		</DeviceIdentity>
+		<DeviceFunction>
+			<Family MainFamily="I/O" ProductFamily="RemoteIO"/>
+		</DeviceFunction>
+		<ApplicationProcess>
+			<DeviceAccessPointList>
+				<DeviceAccessPointItem ID="ID_DAP1" PhysicalSlots="0..33" ModuleIdentNumber="0x00000001" MinDeviceInterval="32" ImplementationType="DF20-C-PN-RT-V1" DNS_CompatibleName="DF20-C-PN-RT-V1" FixedInSlots="0" ExtendedAddressAssignmentSupported="false" ObjectUUID_LocalIndex="1" MultipleWriteSupported="false" PowerOnToCommReady="210" DeviceAccessSupported="true" RequiredSchemaVersion="V2.3" PNIO_Version="V2.2" NameOfStationNotTransferable="true">
+					<ModuleInfo>
+						<Name TextId="TOK_DAP1_NAME"/>
+						<InfoText TextId="TOK_DAP1_INFO"/>
+						<VendorName Value="DF20-C-PN-RT-V1"/>
+						<OrderNumber Value="30050000270"/>
+						<HardwareRelease Value="1"/>
+						<SoftwareRelease Value="V10.00.00"/>
+					</ModuleInfo>
+					<SubslotList>
+						<SubslotItem SubslotNumber="32768" TextId="TOK_Subslot_8000"/>
+						<SubslotItem SubslotNumber="32769" TextId="TOK_Subslot_8001"/>
+						<SubslotItem SubslotNumber="32770" TextId="TOK_Subslot_8002"/>
+					</SubslotList>
+					<IOConfigData MaxInputLength="1440" MaxOutputLength="1440"/>
+					<UseableModules>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x10" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x11" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x12" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x13" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x20" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x21" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x22" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x23" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x30" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x31" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x32" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x33" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x34" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x35" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x38" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x3A" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x3B" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x3C" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x40" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x41" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x42" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x43" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x44" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x45" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x60" AllowedInSlots="1..33"/>
+						<!--<ModuleItemRef ModuleItemTarget="ID_MOD_0x50" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x51" AllowedInSlots="1..33"/>-->
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x80" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x81" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x88" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x89" AllowedInSlots="1..33"/>
+						<ModuleItemRef ModuleItemTarget="ID_MOD_0x90" AllowedInSlots="1" FixedInSlots="1"/>
+					</UseableModules>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="DAP1" SubmoduleIdentNumber="0x00000001" Writeable_IM_Records="1 2 3 4">
+							<IOData IOPS_Length="1" IOCS_Length="1"/>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="8192" Length="1">
+									<Name TextId="TI_OFFSET"/>
+									<Const Data="0x00"/>
+									<!-- const offset in ns input trigger T3 -->
+								</ParameterRecordDataItem>
+								<ParameterRecordDataItem Index="8193" Length="1">
+									<Name TextId="TO_OFFSET"/>
+									<Const Data="0x00"/>
+									<!-- const offset in ns output trigger T4 -->
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_DAP1_NAME"/>
+								<InfoText TextId="TOK_DAP1_INFO"/>
+							</ModuleInfo>
+							<IsochroneMode T_DC_Base="4" T_DC_Min="1" T_DC_Max="8" T_IO_Base="1000" T_IO_InputMin="40" T_IO_OutputMin="40" IsochroneModeRequired="false"/>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+					<SystemDefinedSubmoduleList>
+						<InterfaceSubmoduleItem ID="DAP1_IDS_2I" SubslotNumber="32768" SubmoduleIdentNumber="0x8000" IsochroneModeSupported="true" SupportedRT_Classes="RT_CLASS_1;RT_CLASS_3" IsochroneModeInRT_Classes="RT_CLASS_3" TextId="TOK_DAP_InterfaceModule" SupportedProtocols="LLDP;SNMP" SupportedMibs="MIB2" NetworkComponentDiagnosisSupported="true" DCP_BoundarySupported="false" PTP_BoundarySupported="true" DCP_HelloSupported="true">
+							<RT_Class3Properties MaxBridgeDelay="3860" MaxNumberIR_FrameData="128" ForwardingMode="Relative"/>
+							<SynchronisationMode SupportedRole="SyncSlave" MaxLocalJitter="10" T_PLL_MAX="1000" SupportedSyncProtocols="PTCP"/>
+							<ApplicationRelations NumberOfAdditionalInputCR="0" NumberOfAdditionalMulticastProviderCR="0" NumberOfAdditionalOutputCR="0" NumberOfMulticastConsumerCR="0" NumberOfAR="2">
+								<TimingProperties SendClock="8 16 32" ReductionRatio="1 2 4 8 16 32 64 128 256 512"/>
+								<RT_Class3TimingProperties SendClock="8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100 104 108 112 116 120 124 128" ReductionRatio="1" ReductionRatioPow2="2 4 8 16 32 64 128"/>
+							</ApplicationRelations>
+							<MediaRedundancy SupportedRole="Client"/>
+						</InterfaceSubmoduleItem>
+						<PortSubmoduleItem ID="DAP1_IDS_2P1" SubslotNumber="32769" SubmoduleIdentNumber="0x8001" MAUTypes="16" TextId="TOK_Port1" MaxPortRxDelay="173" MaxPortTxDelay="74" PortDeactivationSupported="false" LinkStateDiagnosisCapability="Up+Down" SupportsRingportConfig="true" IsDefaultRingport="true"/>
+						<PortSubmoduleItem ID="DAP1_IDS_2P2" SubslotNumber="32770" SubmoduleIdentNumber="0x8002" MAUTypes="16" TextId="TOK_Port2" MaxPortRxDelay="173" MaxPortTxDelay="74" PortDeactivationSupported="false" LinkStateDiagnosisCapability="Up+Down" SupportsRingportConfig="true" IsDefaultRingport="true"/>
+					</SystemDefinedSubmoduleList>
+					<Graphics>
+						<GraphicItemRef Type="DeviceSymbol" GraphicItemTarget="ID_Graph_V2"/>
+					</Graphics>
+				</DeviceAccessPointItem>
+			</DeviceAccessPointList>
+			<ModuleList>
+				<ModuleItem ID="ID_MOD_0x10" ModuleIdentNumber="0x00000010">
+					<ModuleInfo CategoryRef="RemoteIO_DI">
+						<Name TextId="TOK_TextID_Module_0x10"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x10"/>
+						<OrderNumber Value="30050000272"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x10_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_1" Length="1" UseAsBits="true"/>
+								</Input>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x10_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x10_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x11" ModuleIdentNumber="0x00000011">
+					<ModuleInfo CategoryRef="RemoteIO_DI">
+						<Name TextId="TOK_TextID_Module_0x11"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x11"/>
+						<OrderNumber Value="30050000273"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x11_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_1" Length="1" UseAsBits="true"/>
+								</Input>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x11_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x11_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x12" ModuleIdentNumber="0x00000012">
+					<ModuleInfo CategoryRef="RemoteIO_DI">
+						<Name TextId="TOK_TextID_Module_0x12"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x12"/>
+						<OrderNumber Value="30050000274"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x12_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_2" Length="2" UseAsBits="true"/>
+								</Input>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x12_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x12_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x13" ModuleIdentNumber="0x00000013">
+					<ModuleInfo CategoryRef="RemoteIO_DI">
+						<Name TextId="TOK_TextID_Module_0x13"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x13"/>
+						<OrderNumber Value="30050000275"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x13_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_2" Length="2" UseAsBits="true"/>
+								</Input>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x13_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x13_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x20" ModuleIdentNumber="0x00000020">
+					<ModuleInfo CategoryRef="RemoteIO_DO">
+						<Name TextId="TOK_TextID_Module_0x20"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x20"/>
+						<OrderNumber Value="30050000276"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x20_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_1" Length="1" UseAsBits="true"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x20_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x20_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x21" ModuleIdentNumber="0x00000021">
+					<ModuleInfo CategoryRef="RemoteIO_DO">
+						<Name TextId="TOK_TextID_Module_0x21"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x21"/>
+						<OrderNumber Value="30050000277"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x21_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_1" Length="1" UseAsBits="true"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x21_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x21_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x22" ModuleIdentNumber="0x00000022">
+					<ModuleInfo CategoryRef="RemoteIO_DO">
+						<Name TextId="TOK_TextID_Module_0x22"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x22"/>
+						<OrderNumber Value="30050000278"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x22_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_2" Length="2" UseAsBits="true"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x22_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x22_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x23" ModuleIdentNumber="0x00000023">
+					<ModuleInfo CategoryRef="RemoteIO_DO">
+						<Name TextId="TOK_TextID_Module_0x23"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x23"/>
+						<OrderNumber Value="30050000279"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x23_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_2" Length="2" UseAsBits="true"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x23_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x23_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x30" ModuleIdentNumber="0x00000030">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x30"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x30"/>
+						<OrderNumber Value="30050000280"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x30_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="49" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x30_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="AnalogInput_Filter_Parameter" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="1..4" DefaultValue="4" ValueItemTarget="Input_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x30_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x30_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x31" ModuleIdentNumber="0x00000031">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x31"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x31"/>
+						<OrderNumber Value="30050000322"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x31_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="49" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x31_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="AnalogInput_Filter_Parameter" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="1..4" DefaultValue="4" ValueItemTarget="Input_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x31_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x31_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x32" ModuleIdentNumber="0x00000032">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x32"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x32"/>
+						<OrderNumber Value="30050000281"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x32_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="49" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x32_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="AnalogInput_Filter_Parameter" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="1..4" DefaultValue="4" ValueItemTarget="Input_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x32_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x32_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x33" ModuleIdentNumber="0x00000033">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x33"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x33"/>
+						<OrderNumber Value="30050000323"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x33_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="49" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x33_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="AnalogInput_Filter_Parameter" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="1..4" DefaultValue="4" ValueItemTarget="Input_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x33_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x33_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x34" ModuleIdentNumber="0x00000034">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x34"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x34"/>
+						<OrderNumber Value="30050000337"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x34_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="52" Length="2" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x34_Sub_0x1"/>
+									<Const Data="0x04,0x01"/>
+									<Ref ValueItemTarget="Input_Filter_Parameter" DataType="Unsigned8" ByteOffset="0" DefaultValue="4" AllowedValues="1..4" Changeable="true" Visible="true" TextId="AnalogInput_Filter_Parameter"/>
+									<Ref ValueItemTarget="Voltage_Range" DataType="Unsigned8" ByteOffset="1" DefaultValue="1" AllowedValues="1..2" Changeable="true" Visible="true" TextId="AnalogInput_Voltage_Range"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x34_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x34_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x35" ModuleIdentNumber="0x00000035">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x35"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x35"/>
+						<OrderNumber Value="30050000339"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x35_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="52" Length="2" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x35_Sub_0x1"/>
+									<Const Data="0x04,0x01"/>
+									<Ref ValueItemTarget="Input_Filter_Parameter" DataType="Unsigned8" ByteOffset="0" DefaultValue="4" AllowedValues="1..4" Changeable="true" Visible="true" TextId="AnalogInput_Filter_Parameter"/>
+									<Ref ValueItemTarget="Current_Range" DataType="Unsigned8" ByteOffset="1" DefaultValue="1" AllowedValues="1..2" Changeable="true" Visible="true" TextId="AnalogInput_Current_Range"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x35_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x35_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x38" ModuleIdentNumber="0x00000038">
+					<ModuleInfo CategoryRef="RemoteIO_AI">
+						<Name TextId="TOK_TextID_Module_0x38"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x38"/>
+						<OrderNumber Value="30050000326"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x38_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="49" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x38_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="AnalogInput_Filter_Parameter" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="1..4" DefaultValue="4" ValueItemTarget="Input_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x38_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x38_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x3A" ModuleIdentNumber="0x0000003a">
+					<ModuleInfo CategoryRef="RemoteIO_RTD/TC">
+						<Name TextId="TOK_TextID_Module_0x3A"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x3A"/>
+						<OrderNumber Value="30050000327"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x3A_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="50" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x3A_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="RTD Type" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="0..1" DefaultValue="0" ValueItemTarget="RTD Type"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x3A_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x3A_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x3B" ModuleIdentNumber="0x0000003B">
+					<ModuleInfo CategoryRef="RemoteIO_RTD/TC">
+						<Name TextId="TOK_TextID_Module_0x3B"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x3B"/>
+						<!--<OrderNumber Value="30050000327"/>-->
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x3B_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="59" Length="2" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x3B_Sub_0x1"/>
+									<Const Data="0x00,0x00"/>
+									<Ref ValueItemTarget="RTD Type" Visible="true" DataType="Unsigned8" ByteOffset="0" Changeable="true" AllowedValues="0..1" DefaultValue="0" TextId="RTD Type"/>
+									<Ref ValueItemTarget="RTD_Filter_Select" Visible="true" DataType="Unsigned8" ByteOffset="1" Changeable="true" AllowedValues="2..6" DefaultValue="2" TextId="RTD_Filter_Parameter"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x3B_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x3B_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>				
+				<ModuleItem ID="ID_MOD_0x3C" ModuleIdentNumber="0x0000003c">
+					<ModuleInfo CategoryRef="RemoteIO_RTD/TC">
+						<Name TextId="TOK_TextID_Module_0x3C"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x3C"/>
+						<OrderNumber Value="30050000328"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x3C_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="I-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="51" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x3C_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref TextId="TC Type" Visible="true" DataType="Unsigned8" BitOffset="0" ByteOffset="0" Changeable="true" AllowedValues="0..3" DefaultValue="0" ValueItemTarget="TC Type"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x3C_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x3C_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x40" ModuleIdentNumber="0x00000040">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x40"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x40"/>
+						<OrderNumber Value="30050000282"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x40_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x40_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x40_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x41" ModuleIdentNumber="0x00000041">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x41"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x41"/>
+						<OrderNumber Value="30050000324"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x41_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x41_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x41_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x42" ModuleIdentNumber="0x00000042">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x42"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x42"/>
+						<OrderNumber Value="30050000283"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x42_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x42_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x42_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x43" ModuleIdentNumber="0x00000043">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x43"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x43"/>
+						<OrderNumber Value="30050000325"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x43_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x43_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x43_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x44" ModuleIdentNumber="0x00000044">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x44"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x44"/>
+						<OrderNumber Value="30050000338"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x44_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="53" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x44_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref ValueItemTarget="Voltage_Range" DataType="Unsigned8" ByteOffset="0" DefaultValue="1" AllowedValues="1..2" Changeable="true" Visible="true" TextId="AnalogInput_Voltage_Range"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x44_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x44_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x45" ModuleIdentNumber="0x00000045">
+					<ModuleInfo CategoryRef="RemoteIO_AO">
+						<Name TextId="TOK_TextID_Module_0x45"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x45"/>
+						<OrderNumber Value="30050000340"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x45_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Output>
+									<DataItem TextId="O-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 1" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 2" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+									<DataItem TextId="O-channel 3" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Output>
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="53" Length="1" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x45_Sub_0x1"/>
+									<Const Data="0x01"/>
+									<Ref ValueItemTarget="Current_Range" DataType="Unsigned8" ByteOffset="0" DefaultValue="1" AllowedValues="1..2" Changeable="true" Visible="true" TextId="AnalogInput_Current_Range"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x45_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x45_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x60" ModuleIdentNumber="0x00000060">
+					<ModuleInfo CategoryRef="RemoteIO_CM">
+						<Name TextId="TOK_TextID_Module_0x60"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x60"/>
+						<!--<OrderNumber Value="30050000340"/>-->
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x60_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_134" Length="134" UseAsBits="false"/>
+								</Input>
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_134" Length="134" UseAsBits="false"/>
+								</Output>								
+							</IOData>
+							<RecordDataList>
+								<ParameterRecordDataItem Index="60" Length="12" TransferSequence="1">
+									<Name TextId="IDT_RECORD_1_Mod_0x60_Sub_0x1"/>
+									<Const Data="0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00"/>
+									<Ref ValueItemTarget="OperationMode1" DataType="Unsigned8" ByteOffset="0" DefaultValue="0" AllowedValues="0..4" Changeable="true" Visible="true" TextId="OperationMode"/>
+									<Ref ValueItemTarget="Interface1" DataType="Unsigned8" ByteOffset="1" DefaultValue="0" AllowedValues="0..2" Changeable="true" Visible="true" TextId="Interface"/>
+									<Ref ValueItemTarget="Parity1" DataType="Unsigned8" ByteOffset="2" DefaultValue="0" AllowedValues="0..5" Changeable="true" Visible="true" TextId="Parity"/>
+									<Ref ValueItemTarget="DataBits1" DataType="Unsigned8" ByteOffset="3" DefaultValue="0" AllowedValues="0..2" Changeable="true" Visible="true" TextId="DataBits"/>
+									<Ref DataType="Unsigned32" ByteOffset="4" DefaultValue="115200" AllowedValues="0..500000" Changeable="true" Visible="true" TextId="Baudrate"/>
+									<Ref ValueItemTarget="StopBit1" DataType="Unsigned8" ByteOffset="8" DefaultValue="0" AllowedValues="0..2" Changeable="true" Visible="true" TextId="StopBit"/>	
+									<Ref DataType="Unsigned8" ByteOffset="9" DefaultValue="1" AllowedValues="1..247" Changeable="true" Visible="true" TextId="Slaveaddr"/>
+									<Ref DataType="Unsigned16" ByteOffset="10" DefaultValue="100" AllowedValues="0..65535" Changeable="true" Visible="true" TextId="IntervalTime"/>
+								</ParameterRecordDataItem>
+							</RecordDataList>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x45_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x45_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>				
+				<ModuleItem ID="ID_MOD_0x80" ModuleIdentNumber="0x00000080">
+					<ModuleInfo CategoryRef="RemoteIO_Pulse">
+						<Name TextId="TOK_TextID_Module_0x80"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x80"/>
+						<OrderNumber Value="30050000329"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x80_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_10" Length="10"/>
+								</Input>
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_2" Length="2"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x80_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x80_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x81" ModuleIdentNumber="0x00000081">
+					<ModuleInfo CategoryRef="RemoteIO_Pulse">
+						<Name TextId="TOK_TextID_Module_0x81"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x81"/>
+						<OrderNumber Value="30050000330"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x81_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_10" Length="10"/>
+								</Input>
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_2" Length="2"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x81_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x81_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x88" ModuleIdentNumber="0x00000088">
+					<ModuleInfo CategoryRef="RemoteIO_Pulse">
+						<Name TextId="TOK_TextID_Module_0x88"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x88"/>
+						<OrderNumber Value="30050000331"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x88_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_18" Length="18"/>
+								</Input>
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_10" Length="10"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x88_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x88_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x89" ModuleIdentNumber="0x00000089">
+					<ModuleInfo CategoryRef="RemoteIO_Pulse">
+						<Name TextId="TOK_TextID_Module_0x89"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x89"/>
+						<OrderNumber Value="30050000332"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x89_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem DataType="OctetString" TextId="TOK_Input_DataItem_OctetString_18" Length="18"/>
+								</Input>
+								<Output>
+									<DataItem DataType="OctetString" TextId="TOK_Output_DataItem_OctetString_10" Length="10"/>
+								</Output>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x89_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x89_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+				<ModuleItem ID="ID_MOD_0x90" ModuleIdentNumber="0x00000090">
+					<ModuleInfo CategoryRef="RemoteIO_Alarm">
+						<Name TextId="TOK_TextID_Module_0x90"/>
+						<InfoText TextId="TOK_Info_TextID_Module_0x90"/>
+						<OrderNumber Value="30050000272"/>
+						<HardwareRelease Value="1.0"/>
+						<SoftwareRelease Value="1.0"/>
+					</ModuleInfo>
+					<VirtualSubmoduleList>
+						<VirtualSubmoduleItem ID="ID_MOD_0x90_SUB_0x1" SubmoduleIdentNumber="0x0001" FixedInSubslots="1" PROFIsafeSupported="false">
+							<IOData IOPS_Length="1" IOCS_Length="1">
+								<Input>
+									<DataItem TextId="I-channel 0" DataType="Unsigned16" Length="2" UseAsBits="false"/>
+								</Input>
+							</IOData>
+							<ModuleInfo>
+								<Name TextId="TOK_TextID_Mod_0x90_Sub_0x1"/>
+								<InfoText TextId="TOK_Info_TextID_Mod_0x90_Sub_0x1"/>
+							</ModuleInfo>
+						</VirtualSubmoduleItem>
+					</VirtualSubmoduleList>
+				</ModuleItem>
+			</ModuleList>
+			<ValueList>
+				<ValueItem ID="Input_Filter_Parameter">
+					<Assignments>
+						<Assign TextId="300Hz" Content="1"/>
+						<Assign TextId="150Hz" Content="2"/>
+						<Assign TextId="80Hz" Content="3"/>
+						<Assign TextId="20Hz" Content="4"/>
+					</Assignments>
+				</ValueItem>
+				<ValueItem ID="RTD_Filter_Select">
+					<Assignments>
+						<Assign TextId="10Hz" Content="1"/>
+						<Assign TextId="5Hz" Content="2"/>
+						<Assign TextId="4Hz" Content="3"/>
+						<Assign TextId="3Hz" Content="4"/>
+						<Assign TextId="2Hz" Content="5"/>
+						<Assign TextId="1Hz" Content="6"/>						
+					</Assignments>
+				</ValueItem>				
+				<ValueItem ID="Voltage_Range">
+					<Assignments>
+						<Assign TextId="-10V~+10V" Content="1"/>
+						<Assign TextId="0V~+10V" Content="2"/>
+					</Assignments>
+				</ValueItem>
+				<ValueItem ID="Current_Range">
+					<Assignments>
+						<Assign TextId="0~20ma" Content="1"/>
+						<Assign TextId="4~20ma" Content="2"/>
+					</Assignments>
+				</ValueItem>
+				<ValueItem ID="RTD Type">
+					<Assignments>
+						<Assign TextId="RESISTANCE_TYPE_PT100" Content="0"/>
+						<Assign TextId="RESISTANCE_TYPE_PT1000" Content="1"/>
+					</Assignments>
+				</ValueItem>
+				<ValueItem ID="TC Type">
+					<Assignments>
+						<Assign TextId="THERMOCOUPLE_TYPE_K" Content="0"/>
+						<Assign TextId="THERMOCOUPLE_TYPE_E" Content="1"/>
+						<Assign TextId="THERMOCOUPLE_TYPE_T" Content="2"/>
+						<Assign TextId="THERMOCOUPLE_TYPE_J" Content="3"/>
+					</Assignments>
+				</ValueItem>
+				<ValueItem ID="OperationMode1">
+					<Assignments>
+						<Assign TextId="Custom"   Content="0"/>
+						<Assign TextId="ModRtu_M" Content="1"/>
+						<Assign TextId="ModAs_M"  Content="2"/>
+						<Assign TextId="ModRtu_S" Content="3"/>
+						<Assign TextId="ModA_S"   Content="4"/>
+					</Assignments>
+				</ValueItem>	
+				<ValueItem ID="Interface1">
+					<Assignments>
+						<Assign TextId="RS232"   Content="0"/>
+						<Assign TextId="RS485"   Content="1"/>
+						<Assign TextId="RS422"   Content="2"/>
+					</Assignments>					
+				</ValueItem>
+				<ValueItem ID="Parity1">
+					<Assignments>
+						<Assign TextId="None"   Content="0"/>
+						<Assign TextId="Odd"   	Content="1"/>
+						<Assign TextId="Even"   Content="2"/>
+						<Assign TextId="Space"  Content="3"/>						
+						<Assign TextId="Mark"   Content="4"/>
+						<Assign TextId="Any"   	Content="5"/>												
+					</Assignments>					
+				</ValueItem>
+				<ValueItem ID="DataBits1">
+					<Assignments>
+						<Assign TextId="8bits"   Content="0"/>
+						<Assign TextId="9bits"   Content="1"/>
+						<Assign TextId="7bits"   Content="2"/>
+					</Assignments>					
+				</ValueItem>	
+				<ValueItem ID="StopBit1">
+					<Assignments>
+						<Assign TextId="1Bit"       Content="0"/>
+						<Assign TextId="1.5Bits"    Content="1"/>
+						<Assign TextId="2Bits"      Content="2"/>
+					</Assignments>					
+				</ValueItem>																
+			</ValueList>
+			<GraphicsList>
+				<GraphicItem ID="ID_Graph_V2" GraphicFile="GSDML_DEGSON_LOGO"/>
+			</GraphicsList>
+			<CategoryList>
+				<CategoryItem ID="RemoteIO_DI" TextId="DI"/>
+				<CategoryItem ID="RemoteIO_DO" TextId="DO"/>
+				<CategoryItem ID="RemoteIO_DIO" TextId="DIO"/>
+				<CategoryItem ID="RemoteIO_AI" TextId="AI"/>
+				<CategoryItem ID="RemoteIO_AO" TextId="AO"/>
+				<CategoryItem ID="RemoteIO_CM" TextId="CM"/>
+				<CategoryItem ID="RemoteIO_Pulse" TextId="Pulse"/>
+				<CategoryItem ID="RemoteIO_RTD/TC" TextId="RTD/TC"/>
+				<CategoryItem ID="RemoteIO_Alarm" TextId="Alarm"/>
+			</CategoryList>
+			<ExternalTextList>
+				<PrimaryLanguage>
+					<!--english-->
+					<Text TextId="DF20-C-PN-RT-V1" Value="DF20-C-PN-RT-V1 "/>
+					<!--DAP - port IO device example-->
+					<Text TextId="PNIO" Value="PNIO"/>
+					<Text TextId="DAP_NAME" Value="PNIO"/>
+					<Text TextId="PNIO_PN" Value="Manufacturer ProfiNet Series"/>
+					<Text TextId="DAP_MODULE_INFO" Value="Device Access Point,A DAP represents the bus interface and thus determines the essential features of the IO device"/>
+					<Text TextId="TOK_DAP1_NAME" Value="DF20-C-PN-RT-V1"/>
+					<Text TextId="TOK_DAP1_INFO" Value="DF20-C-PN-RT-V1"/>
+					<!--port name-->
+					<Text TextId="TOK_Subslot_8000" Value="X1"/>
+					<Text TextId="TOK_Subslot_8001" Value="P1"/>
+					<Text TextId="TOK_Subslot_8002" Value="P2"/>
+					<Text TextId="TOK_DAP_InterfaceModule" Value="Interface"/>
+					<Text TextId="TOK_Port1" Value="RJ45 10/100 MBit/s"/>
+					<Text TextId="TOK_Port2" Value="RJ45 10/100 MBit/s"/>
+					<Text TextId="TI_OFFSET" Value="TI_OFFSET"/>
+					<Text TextId="TO_OFFSET" Value="TO_OFFSET"/>
+					<!--File name-->
+					<Text TextId="DI" Value="DI"/>
+					<Text TextId="DO" Value="DO"/>
+					<Text TextId="DIO" Value="DIO"/>
+					<Text TextId="AI" Value="AI"/>
+					<Text TextId="AO" Value="AO"/>
+					<Text TextId="CM" Value="CM"/>					
+					<Text TextId="Pulse" Value="Pulse"/>
+					<Text TextId="RTD/TC" Value="RTD/TC"/>
+					<Text TextId="Alarm" Value="Alarm"/>
+					<!--module name-->
+					<Text TextId="TOK_TextID_Module_0x10" Value="DF20-M-8DI-N"/>
+					<Text TextId="TOK_TextID_Module_0x11" Value="DF20-M-8DI-P"/>
+					<Text TextId="TOK_TextID_Module_0x12" Value="DF20-M-16DI-N"/>
+					<Text TextId="TOK_TextID_Module_0x13" Value="DF20-M-16DI-P"/>
+					<Text TextId="TOK_TextID_Module_0x20" Value="DF20-M-8DO-N"/>
+					<Text TextId="TOK_TextID_Module_0x21" Value="DF20-M-8DO-P"/>
+					<Text TextId="TOK_TextID_Module_0x22" Value="DF20-M-16DO-N"/>
+					<Text TextId="TOK_TextID_Module_0x23" Value="DF20-M-16DO-P"/>
+					<Text TextId="TOK_TextID_Module_0x30" Value="DF20-M-4AI-U-0"/>
+					<Text TextId="TOK_TextID_Module_0x31" Value="DF20-M-4AI-U-1"/>
+					<Text TextId="TOK_TextID_Module_0x32" Value="DF20-M-4AI-I-2"/>
+					<Text TextId="TOK_TextID_Module_0x33" Value="DF20-M-4AI-I-3"/>
+					<Text TextId="TOK_TextID_Module_0x34" Value="DF20-M-4AI-U-4"/>
+					<Text TextId="TOK_TextID_Module_0x35" Value="DF20-M-4AI-I-5"/>
+					<Text TextId="TOK_TextID_Module_0x38" Value="DF20-M-2LC-S-5"/>
+					<Text TextId="TOK_TextID_Module_0x3A" Value="DF20-M-2RTD-PT"/>
+					<Text TextId="TOK_TextID_Module_0x3B" Value="DF20-M-4RTD-PT"/>
+					<Text TextId="TOK_TextID_Module_0x3C" Value="DF20-M-4TC-KETJ"/>
+					<Text TextId="TOK_TextID_Module_0x40" Value="DF20-M-4AO-U-0"/>
+					<Text TextId="TOK_TextID_Module_0x41" Value="DF20-M-4AO-U-1"/>
+					<Text TextId="TOK_TextID_Module_0x42" Value="DF20-M-4AO-I-2"/>
+					<Text TextId="TOK_TextID_Module_0x43" Value="DF20-M-4AO-I-3"/>
+					<Text TextId="TOK_TextID_Module_0x44" Value="DF20-M-4AO-U-4"/>
+					<Text TextId="TOK_TextID_Module_0x45" Value="DF20-M-4AO-I-5"/>
+					<Text TextId="TOK_TextID_Module_0x50" Value="DF20-M-8DIO-N"/>
+					<Text TextId="TOK_TextID_Module_0x51" Value="DF20-M-8DIO-P"/>
+					<Text TextId="TOK_TextID_Module_0x60" Value="DF20-M-1RTU-232/485/422"/>					
+					<Text TextId="TOK_TextID_Module_0x80" Value="DF20-M-1CNT-EL-5"/>
+					<Text TextId="TOK_TextID_Module_0x81" Value="DF20-M-1CNT-EL-4"/>
+					<Text TextId="TOK_TextID_Module_0x88" Value="DF20-M-2CNT-PIL-5"/>
+					<Text TextId="TOK_TextID_Module_0x89" Value="DF20-M-2CNT-PIL-4"/>
+					<Text TextId="TOK_TextID_Module_0x90" Value="Alarm"/>
+					<!--module info name-->
+					<Text TextId="TOK_Info_TextID_Module_0x10" Value="Diagital Input 8bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Module_0x11" Value="Diagital Input 8bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Module_0x12" Value="Diagital Input 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Module_0x13" Value="Diagital Input 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Module_0x20" Value="Diagital Output 8bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Module_0x21" Value="Diagital Output 8bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Module_0x22" Value="Diagital Output 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Module_0x23" Value="Diagital Output 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Module_0x30" Value="4 Channels Analog Input,-10V~+10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x31" Value="4 Channels Analog Input,0~10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x32" Value="4 Channels Analog Input,0~20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x33" Value="4 Channels Analog Input,4~20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x34" Value="4 Channels Analog Input,-10V(0V)~+10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x35" Value="4 Channels Analog Input,0(4)~+20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x38" Value="Pressure Measurement"/>
+					<Text TextId="TOK_Info_TextID_Module_0x3A" Value="Temperature Measurement"/>
+					<Text TextId="TOK_Info_TextID_Module_0x3B" Value="Temperature Measurement"/>					
+					<Text TextId="TOK_Info_TextID_Module_0x3C" Value="Temperature Measurement"/>
+					<Text TextId="TOK_Info_TextID_Module_0x40" Value="4 Channels Analog Output,-10V~+10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x41" Value="4 Channels Analog Output,0~+10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x42" Value="4 Channels Analog Output,0~20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x43" Value="4 Channels Analog Output,4~20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x44" Value="4 Channels Analog Output,-10V(0V)~+10V"/>
+					<Text TextId="TOK_Info_TextID_Module_0x45" Value="4 Channels Analog Output,0(4)~+20ma"/>
+					<Text TextId="TOK_Info_TextID_Module_0x50" Value="Diagital InOut 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Module_0x51" Value="Diagital InOut 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Module_0x60" Value="Serial Communication Module"/>					
+					<Text TextId="TOK_Info_TextID_Module_0x80" Value="5V ENC Input"/>
+					<Text TextId="TOK_Info_TextID_Module_0x81" Value="24V ENC Input"/>
+					<Text TextId="TOK_Info_TextID_Module_0x88" Value="5V PULSE Input"/>
+					<Text TextId="TOK_Info_TextID_Module_0x89" Value="24V PULSE Input"/>
+					<Text TextId="TOK_Info_TextID_Module_0x90" Value="Module Error Message"/>
+					<!--submodule name-->
+					<Text TextId="TOK_TextID_Mod_0x10_Sub_0x1" Value="DF20-M-8DI-N"/>
+					<Text TextId="TOK_TextID_Mod_0x11_Sub_0x1" Value="DF20-M-8DI-P"/>
+					<Text TextId="TOK_TextID_Mod_0x12_Sub_0x1" Value="DF20-M-16DI-N"/>
+					<Text TextId="TOK_TextID_Mod_0x13_Sub_0x1" Value="DF20-M-16DI-P"/>
+					<Text TextId="TOK_TextID_Mod_0x20_Sub_0x1" Value="DF20-M-8DO-N"/>
+					<Text TextId="TOK_TextID_Mod_0x21_Sub_0x1" Value="DF20-M-8DO-P"/>
+					<Text TextId="TOK_TextID_Mod_0x22_Sub_0x1" Value="DF20-M-16DO-N"/>
+					<Text TextId="TOK_TextID_Mod_0x23_Sub_0x1" Value="DF20-M-16DO-P"/>
+					<Text TextId="TOK_TextID_Mod_0x30_Sub_0x1" Value="DF20-M-4AI-U-0"/>
+					<Text TextId="TOK_TextID_Mod_0x31_Sub_0x1" Value="DF20-M-4AI-U-1"/>
+					<Text TextId="TOK_TextID_Mod_0x32_Sub_0x1" Value="DF20-M-4AI-I-2"/>
+					<Text TextId="TOK_TextID_Mod_0x33_Sub_0x1" Value="DF20-M-4AI-I-3"/>
+					<Text TextId="TOK_TextID_Mod_0x34_Sub_0x1" Value="DF20-M-4AI-U-4"/>
+					<Text TextId="TOK_TextID_Mod_0x35_Sub_0x1" Value="DF20-M-4AI-I-5"/>
+					<Text TextId="TOK_TextID_Mod_0x38_Sub_0x1" Value="DF20-M-2LC-S-5"/>
+					<Text TextId="TOK_TextID_Mod_0x3A_Sub_0x1" Value="DF20-M-2RTD-PT"/>
+					<Text TextId="TOK_TextID_Mod_0x3B_Sub_0x1" Value="DF20-M-4RTD-PT"/>					
+					<Text TextId="TOK_TextID_Mod_0x3C_Sub_0x1" Value="DF20-M-4TC-KETJ"/>
+					<Text TextId="TOK_TextID_Mod_0x40_Sub_0x1" Value="DF20-M-4AO-U-0"/>
+					<Text TextId="TOK_TextID_Mod_0x41_Sub_0x1" Value="DF20-M-4AO-U-1"/>
+					<Text TextId="TOK_TextID_Mod_0x42_Sub_0x1" Value="DF20-M-4AO-I-2"/>
+					<Text TextId="TOK_TextID_Mod_0x43_Sub_0x1" Value="DF20-M-4AO-I-3"/>
+					<Text TextId="TOK_TextID_Mod_0x44_Sub_0x1" Value="DF20-M-4AO-U-4"/>
+					<Text TextId="TOK_TextID_Mod_0x45_Sub_0x1" Value="DF20-M-4AO-I-5"/>
+					<Text TextId="TOK_TextID_Mod_0x50_Sub_0x1" Value="DF20-M-8DIO-N"/>
+					<Text TextId="TOK_TextID_Mod_0x51_Sub_0x1" Value="DF20-M-8DIO-P"/>
+					<Text TextId="TOK_TextID_Mod_0x60_Sub_0x1" Value="DF20-M-1RTU-232/485/422"/>					
+					<Text TextId="TOK_TextID_Mod_0x80_Sub_0x1" Value="DF20-M-1CNT-EL-5"/>
+					<Text TextId="TOK_TextID_Mod_0x81_Sub_0x1" Value="DF20-M-1CNT-EL-4"/>
+					<Text TextId="TOK_TextID_Mod_0x88_Sub_0x1" Value="DF20-M-2CNT-PIL-5"/>
+					<Text TextId="TOK_TextID_Mod_0x89_Sub_0x1" Value="DF20-M-2CNT-PIL-4"/>
+					<Text TextId="TOK_TextID_Mod_0x90_Sub_0x1" Value="Alarm"/>
+					<!--submodule info name-->
+					<Text TextId="TOK_Info_TextID_Mod_0x10_Sub_0x1" Value="Diagital Input 8bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x11_Sub_0x1" Value="Diagital Input 8bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x12_Sub_0x1" Value="Diagital Input 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x13_Sub_0x1" Value="Diagital Input 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x14_Sub_0x1" Value="Diagital Input 32bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x15_Sub_0x1" Value="Diagital Input 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x20_Sub_0x1" Value="Diagital Output 8bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x21_Sub_0x1" Value="Diagital Output 8bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x22_Sub_0x1" Value="Diagital Output 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x23_Sub_0x1" Value="Diagital Output 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x24_Sub_0x1" Value="Diagital Output 32bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x25_Sub_0x1" Value="Diagital Output 32bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x30_Sub_0x1" Value="4 Channels Analog Input,-10V~+10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x31_Sub_0x1" Value="4 Channels Analog Input,0~10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x32_Sub_0x1" Value="4 Channels Analog Input,0~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x33_Sub_0x1" Value="4 Channels Analog Input,4~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x34_Sub_0x1" Value="4 Channels Analog Input,-10V(0)~10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x35_Sub_0x1" Value="4 Channels Analog Input,0(4)~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x38_Sub_0x1" Value="Pressure Measurement"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x3A_Sub_0x1" Value="Temperature Measurement"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x3B_Sub_0x1" Value="Temperature Measurement"/>					
+					<Text TextId="TOK_Info_TextID_Mod_0x3C_Sub_0x1" Value="Temperature Measurement"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x3E_Sub_0x1" Value="4 Channels Analog Input,-10V~+10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x3F_Sub_0x1" Value="4 Channels Analog Input,0~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x40_Sub_0x1" Value="4 Channels Analog Output,-10V~+10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x41_Sub_0x1" Value="4 Channels Analog Output,0~+10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x42_Sub_0x1" Value="4 Channels Analog Output,0~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x43_Sub_0x1" Value="4 Channels Analog Output,4~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x44_Sub_0x1" Value="4 Channels Analog Output,-10V(0)~+10V"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x45_Sub_0x1" Value="4 Channels Analog Output,0(4)~20ma"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x50_Sub_0x1" Value="Diagital InOut 16bit NPN"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x51_Sub_0x1" Value="Diagital InOut 16bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x52_Sub_0x1" Value="Diagital InOut 32bit NPN "/>
+					<Text TextId="TOK_Info_TextID_Mod_0x53_Sub_0x1" Value="Diagital InOut 32bit PNP"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x55_Sub_0x1" Value="Pressure Measurement"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x60_Sub_0x1" Value="Serial Communication Module"/>					
+					<Text TextId="TOK_Info_TextID_Mod_0x80_Sub_0x1" Value="5V ENC Input"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x81_Sub_0x1" Value="24V ENC Input"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x88_Sub_0x1" Value="5V PULSE Input"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x89_Sub_0x1" Value="24V PULSE Input"/>
+					<Text TextId="TOK_Info_TextID_Mod_0x90_Sub_0x1" Value="Module Error Message"/>
+					<!--dataitem name-->
+					<Text TextId="TOK_Input_DataItem_OctetString_1" Value="Input 1 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_2" Value="Input 2 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_4" Value="Input 4 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_1" Value="Output 1 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_2" Value="Output 2 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_4" Value="Output 4 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_8" Value="Input 8 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_8" Value="Output 8 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_10" Value="Input 10 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_18" Value="Input 18 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_10" Value="Output 10 bytes"/>
+					<Text TextId="TOK_Input_DataItem_OctetString_134" Value="Input 134 bytes"/>
+					<Text TextId="TOK_Output_DataItem_OctetString_134" Value="Output 134 bytes"/>					
+					<Text TextId="I-channel 0" Value="I-channel 0"/>
+					<Text TextId="I-channel 1" Value="I-channel 1"/>
+					<Text TextId="I-channel 2" Value="I-channel 2"/>
+					<Text TextId="I-channel 3" Value="I-channel 3"/>
+					<Text TextId="O-channel 0" Value="O-channel 0"/>
+					<Text TextId="O-channel 1" Value="O-channel 1"/>
+					<Text TextId="O-channel 2" Value="O-channel 2"/>
+					<Text TextId="O-channel 3" Value="O-channel 3"/>
+					<!--errortype name-->
+					<Text TextId="TOK_Name_ErrorType16" Value="Parameter Assignment Error"/>
+					<Text TextId="TOK_HelpName_ErrorType16" Value="Assigning parameter failed."/>
+					<!-- record data item name  -->
+					<Text TextId="IDT_RECORD_1_Mod_0x30_Sub_0x1" Value="DF20-M-4AI-U-0_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x31_Sub_0x1" Value="DF20-M-4AI-U-1_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x32_Sub_0x1" Value="DF20-M-4AI-I-2_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x33_Sub_0x1" Value="DF20-M-4AI-I-3_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x34_Sub_0x1" Value="DF20-M-4AI-U-4_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x35_Sub_0x1" Value="DF20-M-4AI-I-5_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x38_Sub_0x1" Value="DF20-M-2LC-S-5_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x3A_Sub_0x1" Value="DF20-M-2RTD-PT_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x3B_Sub_0x1" Value="DF20-M-4RTD-PT_Parameter"/>					
+					<Text TextId="IDT_RECORD_1_Mod_0x3C_Sub_0x1" Value="DF20-M-4TC-KETJ_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x44_Sub_0x1" Value="DF20-M-4AO-U-4_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x45_Sub_0x1" Value="DF20-M-4AO-I-5_Parameter"/>
+					<Text TextId="IDT_RECORD_1_Mod_0x60_Sub_0x1" Value="DF20-M-1RTU-232/485/422_Parameter"/>					
+					<Text TextId="AnalogInput_Filter_Parameter" Value="Filter_Parameter"/>
+					<Text TextId="AnalogInput_Voltage_Range" Value="Voltage_Range"/>
+					<Text TextId="AnalogInput_Current_Range" Value="Current_Range"/>
+					<Text TextId="RTD Type" Value="RTD Type Select"/>
+					<Text TextId="RTD_Filter_Parameter" Value="RTD_Filter Select"/>					
+					<Text TextId="TC Type" Value="TC Type Select"/>
+					<Text TextId="OperationMode" Value="OperationMode"/>		
+					<Text TextId="Interface" Value="Interface"/>
+					<Text TextId="Parity" Value="Parity"/>
+					<Text TextId="DataBits" Value="DataBits"/>
+					<Text TextId="Baudrate" Value="Baudrate(bps)"/>
+					<Text TextId="StopBit" Value="StopBit"/>
+					<Text TextId="Slaveaddr" Value="Slaveaddr"/>
+					<Text TextId="IntervalTime" Value="IntervalTime(ms)"/>																																											
+					<Text TextId="300Hz" Value="300Hz"/>
+					<Text TextId="150Hz" Value="150Hz"/>
+					<Text TextId="80Hz" Value="80Hz"/>
+					<Text TextId="20Hz" Value="20Hz"/>
+					<Text TextId="10Hz" Value="10Hz"/>
+					<Text TextId="5Hz" Value="5Hz"/>
+					<Text TextId="4Hz" Value="4Hz"/>
+					<Text TextId="3Hz" Value="3Hz"/>
+					<Text TextId="2Hz" Value="2Hz"/>
+					<Text TextId="1Hz" Value="1Hz"/>											
+					<Text TextId="-10V~+10V" Value="-10V~+10V"/>
+					<Text TextId="0V~+10V" Value="0V~+10V"/>
+					<Text TextId="0~20ma" Value="0~20ma"/>
+					<Text TextId="4~20ma" Value="4~20ma"/>
+					<Text TextId="RESISTANCE_TYPE_PT100" Value="PT100"/>
+					<Text TextId="RESISTANCE_TYPE_PT1000" Value="PT1000"/>
+					<Text TextId="THERMOCOUPLE_TYPE_K" Value="K"/>
+					<Text TextId="THERMOCOUPLE_TYPE_E" Value="E"/>
+					<Text TextId="THERMOCOUPLE_TYPE_T" Value="T"/>
+					<Text TextId="THERMOCOUPLE_TYPE_J" Value="J"/>	
+
+					<Text TextId="Custom"   Value="Custom"/>						
+					<Text TextId="ModRtu_M" Value="ModRtu_M"/>
+					<Text TextId="ModAs_M"  Value="ModAs_M"/>
+					<Text TextId="ModRtu_S" Value="ModRtu_S"/>
+					<Text TextId="ModA_S"   Value="ModA_S"/>	
+
+					<Text TextId="RS232"  Value="RS232"/>
+					<Text TextId="RS485"  Value="RS485"/>
+					<Text TextId="RS422"  Value="RS422"/>
+
+					<Text TextId="None"  Value="None"/>
+					<Text TextId="Odd"   Value="Odd"/>
+					<Text TextId="Even"  Value="Even"/>
+					<Text TextId="Space"  Value="Space"/>
+					<Text TextId="Mark"  Value="Mark"/>
+					<Text TextId="Any"  Value="Any"/>					
+
+					<Text TextId="8bits"  Value="8bits"/>
+					<Text TextId="9bits"  Value="9bits"/>
+					<Text TextId="7bits"  Value="7bits"/>
+					
+					<Text TextId="1Bit"  Value="1Bit"/>
+					<Text TextId="1.5Bits"  Value="1.5Bits"/>
+					<Text TextId="2Bits"  Value="2Bits"/>
+																																
+					<!-- diagnosis  -->
+					<Text TextId="TOK_Name_ErrorType15" Value="Over Temperature"/>
+					<Text TextId="TOK_Name_ErrorType15_SubErrorType1" Value="Values={1:d}, {2:d}, {3:d}"/>
+				</PrimaryLanguage>
+			</ExternalTextList>
+		</ApplicationProcess>
+	</ProfileBody>
+</ISO15745Profile>
