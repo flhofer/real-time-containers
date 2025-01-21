@@ -14,6 +14,7 @@ Created on Jun 12, 2024
 import vxi11
 import re
 import time
+from time import sleep
 
 class Scope(object):
     '''
@@ -39,7 +40,9 @@ class Scope(object):
         Set screen and channel values to match our display area
         24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
-        
+
+        self._instr.ask("PERS OFF")     # disable persistence
+        self._instr.ask("PESU 0")       # set persistence to 0
         self._instr.ask("C2:TRA ON")    # enable channel 2
 
         self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
@@ -79,8 +82,10 @@ class Scope(object):
         self._instr.ask("PACL")         # reset all custom parameters
         self._instr.ask("PACU PER,C1")  # add period to parameters for channel 1
         
+        sleep(1)
         self._instr.ask("PESU Infinite")  # set infinite persistence
         self._instr.ask("PERS ON")        # set persistence on
+        sleep(5)
      
     def checkSampleRate(self):
         '''
@@ -126,18 +131,31 @@ class Scope(object):
         
     def storeWaveform(self):
 
-#        self._instr.ask("STO C1,UDSK")
-        self._instr.ask("WFSU SP,0,NP,20000,FP,0")
+        # store CSV data points 10 times
+        file1 = open("wave.csv", "w")
+        for _ in range(1,10):
+            print(time.time_ns())
+            file1.write(self._instr.ask("GET_CSV? DD, DIS, SAVE, OFF"))
+        file1.close()
 
-        #TODO: manual save of raw data? store info as CSV instead?
-        # file1 = open("MyFile.dat", "wb")
-        # self._instr.write("C1:WF? ALL")
-        # file1.write(self._instr.read_raw())
-        # file1.close()
-        file1 = open("MyFile.dat", "wb")
-        self._instr.write("C1:WF? ALL")
+        # Store wave screenshot
+        file1 = open("wave.jpg", "wb")
+        self._instr.write("SCDP")
         file1.write(self._instr.read_raw())
         file1.close()
+
+# #        self._instr.ask("STO C1,UDSK")
+#         # self._instr.ask("WFSU SP,0,NP,20000,FP,0")
+#
+#         #TODO: manual save of raw data? store info as CSV instead?
+#         # file1 = open("MyFile.dat", "wb")
+#         # self._instr.write("C1:WF? ALL")
+#         # file1.write(self._instr.read_raw())
+#         # file1.close()
+#         file1 = open("MyFile.dat", "wb")
+#         self._instr.write("C2:WF? ALL")
+#         file1.write(self._instr.read_raw())
+#         file1.close()
 
                 
     def setCursors(self):
@@ -154,7 +172,7 @@ class Scope(object):
         -> use FRR = difference time
         '''
         #TODO: pass to func
-        delayStr= self._instr.ask("C1-C2 MEAD? FRR").split(",", 1)[1]   # read value
+        delayStr= self._instr.ask("C1-C2 MEAD? FRF").split(",", 1)[1]   # read value
         prs = re.compile('([0-9.]+)\\s*(\\w+)')
         delayBase, delaySuff = prs.match(delayStr).groups()
         delay = float(delayBase)
