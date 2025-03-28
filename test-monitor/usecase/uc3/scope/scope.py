@@ -148,6 +148,8 @@ class Scope(object):
             file1.write(self._instr.ask("GET_CSV? DD, DIS, SAVE, OFF"))
         file1.close()
 
+        self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
+
         # Store wave screenshot
         file1 = open("wave.jpg", "wb")
         self._instr.write("SCDP")
