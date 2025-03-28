@@ -5,6 +5,15 @@ setwd("./pretest/")
 options("width"=200)
 library(ggplot2)
 
+tests <- list()
+group1 <- paste0(c("1-"), 1:10)
+group2 <- paste0(c("2-"), 1:2)
+group3 <- paste0(c("3-"), 1:3)
+group4 <- paste0(c("4-"), 1:10)
+tests  <- cbind( tests, list(group1, group2, group3, group4))
+
+machines <- c("C5", "BM" , "T3", "T3U")
+
 #types <- c("test1", "test2", "test3", "test4")
 #types <- c("test8", "test5", "test6", "test7")
 #types <- c("test9", "test10", "test11", "test12")
