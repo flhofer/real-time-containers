@@ -8,7 +8,7 @@ Created on Jun 12, 2024
 @license:    GPLv3
 
 @contact:    info@florianhofer.it
-@deffield    updated: 2024-06-12
+@deffield    updated: 2025-03-27
 '''
 
 import vxi11
@@ -41,8 +41,9 @@ class Scope(object):
         24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
 
+        self._instr.ask("STOP")         # stop acquisition
         self._instr.ask("PERS OFF")     # disable persistence
-        self._instr.ask("PESU 0")       # set persistence to 0
+        self._instr.ask("PESU 1")       # set persistence to 1sec
         self._instr.ask("C2:TRA ON")    # enable channel 2
 
         self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
@@ -62,7 +63,12 @@ class Scope(object):
         self._instr.ask("SET50")        # Set trigger level to 50% pp 
         
         self._instr.ask("C1:ATTN 1")    # Set probe attenuation to 1x
-        self._instr.ask("C2:ATTN 1")    # Set probe attenuation to 1x        
+        self._instr.ask("C2:ATTN 1")    # Set probe attenuation to 1x       
+        
+        self._instr.ask("SCSV YES")     # set screen saver 
+
+        sleep(0.5)
+        self._instr.ask("TRMD AUTO")    # Start acquisition
  
     def setChannels(self):
         '''
