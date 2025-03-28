@@ -70,17 +70,21 @@ class Scope(object):
         sleep(0.5)
         self._instr.ask("TRMD AUTO")    # Start acquisition
  
-    def setChannels(self):
+    def setChannels(self, prg_prd=1):
         '''
         Set screen and channel values to match our display area
         24V pulsing Singal at 5Hz
+        prg_prd: program period defines PLC main cycle update in ms
         '''
         #TODO: change to string-list passed as one
         self._instr.ask("C2:TRA ON")    # enable channel 2
+
         self._instr.ask("C1:VDIV 10V")  # set to upper half
         self._instr.ask("C1:OFST 10V")  # Offset vertical
-        self._instr.ask("TDIV 5ms")     # Time division horizontal 5 ms
-        self._instr.ask("TRDL 15ms")    # set h offset to 350 to allow right slack..
+
+        self._instr.ask("TDIV {0}ms".format(prg_prd))     # Time division horizontal 5 ms
+        self._instr.ask("TRDL {0}ms".format(prg_prd * 3))    # set h offset to 350 to allow right slack..
+
         self._instr.ask("C1:TRLV 12V")  # Trigger half, voltage
         self._instr.ask("C2:VDIV 10V")  # set to lower half
         self._instr.ask("C2:OFST -30V") # Offset vertical
@@ -88,10 +92,10 @@ class Scope(object):
         self._instr.ask("PACL")         # reset all custom parameters
         self._instr.ask("PACU PER,C1")  # add period to parameters for channel 1
         
-        sleep(1)
-        self._instr.ask("PESU Infinite")  # set infinite persistence
+        sleep(0.5)
         self._instr.ask("PERS ON")        # set persistence on
-        sleep(5)
+        self._instr.ask("PESU Infinite")  # set infinite persistence
+        sleep(2)
      
     def checkSampleRate(self):
         '''
