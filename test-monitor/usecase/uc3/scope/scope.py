@@ -46,17 +46,6 @@ class Scope(object):
         self._instr.ask("PESU 1")       # set persistence to 1sec
         self._instr.ask("C2:TRA ON")    # enable channel 2
 
-        self._instr.ask("C1:VDIV 3.5V") # 8 Div's total = 28Vpp
-        self._instr.ask("C2:VDIV 3.5V") # 8 Div's total = 28Vpp
-
-        self._instr.ask("TDIV 100us")   # Time division hor, 16 divs= 1,6 ms
-        
-        self._instr.ask("C1:OFST -12V") # Offset Ver
-        self._instr.ask("C2:OFST -12V") # Offset Ver
-        
-        self._instr.ask("TDIV 50us")    # set to 50us hor div
-        self._instr.ask("TRDL 350us")   # set h offset to 350 to allow right slack..
-
         self._instr.ask("C1:TRSL POS")  # Positive trigger
         self._instr.ask("C2:TRSL POS")  # Positive trigger
 
@@ -156,14 +145,16 @@ class Scope(object):
         file1.write(self._instr.read_raw())
         file1.close()
 
-# #        self._instr.ask("STO C1,UDSK")
+#         # STORE AS USB DATA INSTEAD?
+#         self._instr.ask("STO C1,UDSK")
 #         # self._instr.ask("WFSU SP,0,NP,20000,FP,0")
-#
-#         #TODO: manual save of raw data? store info as CSV instead?
+
+#         # RAW DATA WRITE TO FILE
 #         # file1 = open("MyFile.dat", "wb")
 #         # self._instr.write("C1:WF? ALL")
 #         # file1.write(self._instr.read_raw())
 #         # file1.close()
+
 #         file1 = open("MyFile.dat", "wb")
 #         self._instr.write("C2:WF? ALL")
 #         file1.write(self._instr.read_raw())
