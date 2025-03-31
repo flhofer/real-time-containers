@@ -27,7 +27,7 @@ class Scope(object):
         '''
         try:
             self._instr =  vxi11.Instrument(ip_addr)
-            self._instr.timeout = 1000
+            self._instr.timeout = 10    # set timeout to 10 seconds (default)
             print("Connected to :  ", self._instr.ask("*IDN?"))
             print("Status : ", self._instr.ask("ALST?"))
         except Exception as e:
