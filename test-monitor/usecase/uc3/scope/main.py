@@ -52,10 +52,12 @@ def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
     s = startScope(ip_addr)
     s.setChannels(prgtime)
     
-    for tnum in range(1,tcnt):
+    for tnum in range(1,tcnt+1):
         if verbose > 0:
             print("Next round, test no %{0}".format(tnum))
     
+        s.clearScreen()
+        
         # prepare filename save
         s.setFileName(tnum)
 
@@ -75,7 +77,7 @@ def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
             print("Storing waveform..")
 
         # save to file?
-        for _ in range(1,wcnt):
+        for _ in range(0,wcnt):
             s.storeWaveform()
         
         s.storeScreen()
