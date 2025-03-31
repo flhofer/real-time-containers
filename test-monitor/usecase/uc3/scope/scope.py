@@ -40,13 +40,12 @@ class Scope(object):
         24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
 
-        self._instr.ask("STOP")         # stop acquisition
-        self._instr.ask("PERS OFF")     # disable persistence
         self._instr.ask("PESU 1")       # set persistence to 1sec
+        self._instr.ask("PERS OFF")     # disable persistence
         self._instr.ask("C2:TRA ON")    # enable channel 2
 
         self._instr.ask("C1:TRSL POS")  # Positive trigger
-        self._instr.ask("C2:TRSL POS")  # Positive trigger
+        # self._instr.ask("C2:TRSL POS")  # Positive trigger
 
         self._instr.ask("SET50")        # Set trigger level to 50% pp 
         
@@ -55,23 +54,14 @@ class Scope(object):
         
         self._instr.ask("SCSV YES")     # set screen saver 
 
-        sleep(0.5)
         self._instr.ask("TRMD AUTO")    # Start acquisition
 
     def clearScreen(self):
         '''
-        Clear screen (Stop and resume)
+        Clear screen 
         '''
 
-        self._instr.ask("STOP")         # stop acquisition
-        self._instr.ask("PERS OFF")     # disable persistence
-        self._instr.ask("PESU 1")       # set persistence to 1sec
-        sleep(0.5)
-        self._instr.ask("TRMD AUTO")    # Start acquisition
-        sleep(0.5)
-        self._instr.ask("PERS ON")        # set persistence on
-        self._instr.ask("PESU Infinite")  # set infinite persistence
-        sleep(2)
+        self._instr.ask("PACL")         # reset all custom parameters/screen/persistence
         
     def setChannels(self, prg_prd=1):
         '''
@@ -94,15 +84,13 @@ class Scope(object):
         self._instr.ask("C1:TRLV 12V")  # Trigger half, voltage
         self._instr.ask("C2:VDIV 10V")  # set to lower half
         self._instr.ask("C2:OFST -30V") # Offset vertical
-      
-#        self._instr.ask("PACL")         # reset all custom parameters
-#        self._instr.ask("PACU PER,C1")  # add period to parameters for channel 1
+
+        # self._instr.ask("PACL")         # reset all custom parameters
+        # self._instr.ask("PACU PER,C1")  # add period to parameters for channel 1
         
-        sleep(0.5)
-        self._instr.ask("PERS ON")        # set persistence on
         self._instr.ask("PESU Infinite")  # set infinite persistence
-        sleep(2)
-     
+        self._instr.ask("PERS ON")        # set persistence on
+
     def checkSampleRate(self):
         '''
         Verify if the sample rate is high enough to find glitches
