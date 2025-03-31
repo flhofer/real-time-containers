@@ -18,14 +18,15 @@ main is a scope connector to program 'skippy' compatible oscilloscopes for jitte
 import sys
 import os
 import scope
+from time import time_ns, sleep
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 
 __all__ = []
-__version__ = 0.1
+__version__ = 0.2
 __date__ = '2024-06-12'
-__updated__ = '2024-06-12'
+__updated__ = '2025-03-31'
 
 DEBUG = 1
 TESTRUN = 0
@@ -37,27 +38,47 @@ def startScope(ip_addr):
     
     s = scope.Scope(ip_addr)
 
-    # Preparation for aquisition
+    # Preparation for acquisition
     s.setScreen()
 
     return s 
 
-def testScope(ip_addr):
+def testScope(ip_addr, prgtime, ttime, tnum, wnum):
+
+    # take time-stamp right away, use as reference
+    tstamp=time_ns()
 
     s = startScope(ip_addr)
-    s.setChannels(0.25)
+    s.setChannels(prgtime)
     
-    s.setFileName(1)
+    for tcnt in range(1,tnum):
     
-    s.setCursors()
-    # print(s.measureJitter())
-
-    # save to file?
-    s.storeWaveform()
-
-    # repeat until interrupted
+        # prepare filename save
+        s.setFileName(tnum)
     
+        # Wait until almost end of test time
+        sleep(max (ttime - 60, 0))
+        while(True):
+            if time_ns() >= tstamp + (tnum * ttime - 10) * 1000:
+                break
+            sleep(0.5)
 
+        s.setCursors()
+        # print(s.measureJitter())
+    
+        # save to file?
+        for _ in range(1,wnum):
+            print(time_ns())
+            s.storeWaveform()
+        
+        s.storeScreen()
+
+        # repeat until interrupted or timeout
+        while(tcnt < tnum):
+            # wait until end of test
+            if time_ns() >= tstamp + tnum * ttime * 1000:
+                break
+            sleep(0.5)
 
 class CLIError(Exception):
     '''Generic exception to raise and log different fatal errors.'''
@@ -103,13 +124,22 @@ USAGE
         # parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         # parser.add_argument("-i", "--include", dest="include", help="only include paths matching this regex pattern. Note: exclude is given preference over include. [default: %(default)s]", metavar="RE" )
         # parser.add_argument("-e", "--exclude", dest="exclude", help="exclude paths matching this regex pattern. [default: %(default)s]", metavar="RE" )
-        # parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument(dest="ip_addr", help="IP-address of the VXI-11 compatible oscilloscope", metavar="ip_addr")
-
+        parser.add_argument(dest="ip_addr", help="IP-address of the VXI-11 compatible oscilloscope")
+        parser.add_argument("-n", "--tnum", dest="tnum", type=int, default = 10, help="set number of tests (repeat) [default: %(default)d]")
+        parser.add_argument("-p", "--prgtime", dest="prgtime", type=float, default=1, help="set the main program cycle duration for flank comparison [default: %(default).2fms]")
+        parser.add_argument("-t", "--ttime", dest="ttime", type=int, default = 100, help="set test duration for each test run [default: %(default)ds]")
+        parser.add_argument('-V', '--version', action='version', version=program_version_message)
+        parser.add_argument("-w", "--wnum", dest="wnum", type=int, default = 10, help="set number scope waves to save within one file [default: %(default)d]")
+        
         # Process arguments
         args = parser.parse_args()
 
         ip_addr = args.ip_addr
+        prgtime = args.prgtime
+        ttime = args.ttime
+        tnum = args.tnum
+        wnum = args.wnum
+        
         # verbose = args.verbose
         # recurse = args.recurse
         # inpat = args.include
@@ -129,7 +159,7 @@ USAGE
         #     ### do something with inpath ###
         #     print(inpath)
             
-        testScope(ip_addr)
+        testScope(ip_addr, prgtime, ttime, tnum, wnum)
         return 0
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
@@ -144,7 +174,7 @@ USAGE
 
 if __name__ == "__main__":   
     # if DEBUG:
-    #     sys.argv.append("-h")
+        # sys.argv.append("-h")
         # sys.argv.append("-v")
         # sys.argv.append("-r")
     if TESTRUN:
