@@ -57,7 +57,22 @@ class Scope(object):
 
         sleep(0.5)
         self._instr.ask("TRMD AUTO")    # Start acquisition
- 
+
+    def clearScreen(self):
+        '''
+        Clear screen (Stop and resume)
+        '''
+
+        self._instr.ask("STOP")         # stop acquisition
+        self._instr.ask("PERS OFF")     # disable persistence
+        self._instr.ask("PESU 1")       # set persistence to 1sec
+        sleep(0.5)
+        self._instr.ask("TRMD AUTO")    # Start acquisition
+        sleep(0.5)
+        self._instr.ask("PERS ON")        # set persistence on
+        self._instr.ask("PESU Infinite")  # set infinite persistence
+        sleep(2)
+        
     def setChannels(self, prg_prd=1):
         '''
         Set screen and channel values to match our display area
@@ -158,7 +173,8 @@ class Scope(object):
     def storeScreen(self):
 
         self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
-
+        sleep(0.5)
+        
         # Store wave screenshot
         file1 = open(self._fname + ".jpg", "wb")
         self._instr.write("SCDP")
