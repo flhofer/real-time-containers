@@ -118,27 +118,45 @@ class Scope(object):
         if rate > 5000 * freq:
             raise 
 
-    def setFileName(self, number):
+    def setFileName(self, number, basename="Wave", sto_type="CSV"):
 
-        # PARAMETERS FOR USB STORE
-        # self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
-        # print(self._instr.ask("ALST?"))
-        # self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
-        # self._instr.ask("STST C1,UDSK")
+        self._sto_type=sto_type
+        
+        if sto_type ==  "USB":
+            PARAMETERS FOR USB STORE
+            self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
+            print(self._instr.ask("ALST?"))
+            self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
+            self._instr.ask("STST C1,UDSK")
 
-        # Retrieve OF POINTS with X size
-        print(self._instr.ask("WFSU SP,0,NP,0,FP,0,SN,0"))
-        # print(self._instr.ask("GET_CSV? DD,MAX,SAVE,OFF"))
-        pass
+        self._fname = basename + str(number)
         
     def storeWaveform(self):
 
+        if self._sto_type = "CSV":       
         # store CSV data points 10 times
-        file1 = open("wave.csv", "w")
-        for _ in range(1,10):
-            print(time.time_ns())
+            file1 = open(self._fname +  ".csv", "a")
             file1.write(self._instr.ask("GET_CSV? DD, DIS, SAVE, OFF"))
-        file1.close()
+            file1.close()
+
+        elif self._sto_type = "USB":
+            # STORE AS USB DATA INSTEAD?
+            self._instr.ask("STO C1,UDSK")
+            self._instr.ask("WFSU SP,0,NP,20000,FP,0")
+
+        elif self._sto_type="RAW":
+            # RAW DATA WRITE TO FILE
+            file1 = open(self._fname + "-C1.dat", "ab")
+            self._instr.write("C1:WF? ALL")
+            file1.write(self._instr.read_raw())
+            file1.close()
+
+            file1 = open(self._fname + "-C2.dat", "ab")
+            self._instr.write("C2:WF? ALL")
+            file1.write(self._instr.read_raw())
+            file1.close()
+
+    def storeScreen(self):
 
         self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
 
@@ -147,22 +165,6 @@ class Scope(object):
         self._instr.write("SCDP")
         file1.write(self._instr.read_raw())
         file1.close()
-
-#         # STORE AS USB DATA INSTEAD?
-#         self._instr.ask("STO C1,UDSK")
-#         # self._instr.ask("WFSU SP,0,NP,20000,FP,0")
-
-#         # RAW DATA WRITE TO FILE
-#         # file1 = open("MyFile.dat", "wb")
-#         # self._instr.write("C1:WF? ALL")
-#         # file1.write(self._instr.read_raw())
-#         # file1.close()
-
-#         file1 = open("MyFile.dat", "wb")
-#         self._instr.write("C2:WF? ALL")
-#         file1.write(self._instr.read_raw())
-#         file1.close()
-
                 
     def setCursors(self):
         '''
