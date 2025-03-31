@@ -111,7 +111,7 @@ if [ "$1" = "cont" ]; then
 elif [ "$1" = "wave" ]; then
 
 	shift
-	card=${1:-'ens2p0'}
+	card=${1:-'enp2s0'}
 	waveip=${2:-'192.168.105.128'}
 	
 	./vplc_cont.sh quiet start testio $card
