@@ -160,7 +160,7 @@ class Scope(object):
         self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
 
         # Store wave screenshot
-        file1 = open("wave.jpg", "wb")
+        file1 = open(self._fname + ".jpg", "wb")
         self._instr.write("SCDP")
         file1.write(self._instr.read_raw())
         file1.close()
