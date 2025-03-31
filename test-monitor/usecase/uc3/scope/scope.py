@@ -8,12 +8,11 @@ Created on Jun 12, 2024
 @license:    GPLv3
 
 @contact:    info@florianhofer.it
-@deffield    updated: 2025-03-27
+@deffield    updated: 2025-03-31
 '''
 
 import vxi11
 import re
-import time
 from time import sleep
 
 class Scope(object):
@@ -123,7 +122,7 @@ class Scope(object):
         self._sto_type=sto_type
         
         if sto_type ==  "USB":
-            PARAMETERS FOR USB STORE
+            # PARAMETERS FOR USB STORE
             self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
             print(self._instr.ask("ALST?"))
             self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
@@ -133,18 +132,18 @@ class Scope(object):
         
     def storeWaveform(self):
 
-        if self._sto_type = "CSV":       
+        if self._sto_type == "CSV":       
         # store CSV data points 10 times
             file1 = open(self._fname +  ".csv", "a")
             file1.write(self._instr.ask("GET_CSV? DD, DIS, SAVE, OFF"))
             file1.close()
 
-        elif self._sto_type = "USB":
+        elif self._sto_type == "USB":
             # STORE AS USB DATA INSTEAD?
             self._instr.ask("STO C1,UDSK")
             self._instr.ask("WFSU SP,0,NP,20000,FP,0")
 
-        elif self._sto_type="RAW":
+        elif self._sto_type == "RAW":
             # RAW DATA WRITE TO FILE
             file1 = open(self._fname + "-C1.dat", "ab")
             self._instr.write("C1:WF? ALL")
@@ -173,6 +172,7 @@ class Scope(object):
         
         self._instr.ask("C2:CRST HREF,{0},HDIF,{1}".format(7+0.25/self._prg_prd, 8+0.25/self._prg_prd))    # set cursor to 2 divs (+0.3) right of trigger
         
+        #FIXME: instrument call does nothing
         # self._instr.ask("MEAD FRR,C1-C2")   # set delay measurement first rising edge to first rising edge
         # self._instr.ask("MEAD LFF,C1-C2")   # set delay measurement last falling edge to last falling edge
         
@@ -181,6 +181,7 @@ class Scope(object):
         Ask the instrument to measure the delay between channels
         -> use FRR = difference time
         '''
+        #FIXME: instrument call causes exception
         #TODO: pass to func
         delayStr= self._instr.ask("C1-C2 MEAD? FRF").split(",", 1)[1]   # read value
         prs = re.compile('([0-9.]+)\\s*(\\w+)')
@@ -197,10 +198,3 @@ class Scope(object):
     
     def getperiod(self):
         pass
-        # manual readout is too slow
-        # file1 = open("MyFile.txt", "w")
-        # for _ in range(1,10):
-        #     file1.write(str(time.time_ns()) + self._instr.ask("C1:PAVA? CUST1") + "\n")    # enable peak read
-        # file1.close()  
-
-    
