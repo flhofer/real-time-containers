@@ -114,9 +114,11 @@ elif [ "$1" = "wave" ]; then
 	card=${1:-'ens2p0'}
 	waveip=${2:-'192.168.105.128'}
 	
-	./vplc_cont.sh quiet start runtime${j} $card
+	./vplc_cont.sh quiet start testio $card
 	
 	eval python3 main.py -v -t 180 $waveip
+	
+	./vplc_cont.sh quiet stop testio
 else
 	print_help 
 fi
