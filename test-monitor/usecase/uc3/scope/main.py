@@ -54,12 +54,12 @@ def testScope(ip_addr, prgtime, ttime, tnum, wnum):
     for tcnt in range(1,tnum):
     
         # prepare filename save
-        s.setFileName(tnum)
+        s.setFileName(tcnt)
     
         # Wait until almost end of test time
         sleep(max (ttime - 60, 0))
         while(True):
-            if time_ns() >= tstamp + (tnum * ttime - 10) * 1000:
+            if time_ns() >= tstamp + (tcnt * ttime - 10) * 1000000:
                 break
             sleep(0.5)
 
@@ -76,7 +76,7 @@ def testScope(ip_addr, prgtime, ttime, tnum, wnum):
         # repeat until interrupted or timeout
         while(tcnt < tnum):
             # wait until end of test
-            if time_ns() >= tstamp + tnum * ttime * 1000:
+            if time_ns() >= tstamp + tcnt * ttime * 1000000:
                 break
             sleep(0.5)
 
