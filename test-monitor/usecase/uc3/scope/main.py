@@ -51,6 +51,7 @@ def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
     
     s = startScope(ip_addr)
     s.setChannels(prgtime)
+    sleep(5) # wait before clearing parameters/screen
     
     for tnum in range(1,tcnt+1):
         if verbose > 0:
@@ -77,10 +78,11 @@ def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
             print("Storing waveform..")
 
         # save to file?
+        s.storeScreen()
+
+        # CSV saving makes the screen go crazy! (persistence.. losses trigger!)
         for _ in range(0,wcnt):
             s.storeWaveform()
-        
-        s.storeScreen()
 
         if verbose > 0:
             print("Sleeping until end of test..")
