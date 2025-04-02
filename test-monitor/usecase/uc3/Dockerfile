@@ -18,6 +18,11 @@ RUN wget --output-document=/tmp/codesys.package $URL && \
 
 RUN rm -rf /var/lib/apt/lists/*
 
+# Add the default startup script from CoDeSys
+WORKDIR /opt/codesys/scripts
+ADD startup_vplc.sh startup.sh
+#ADD https://github.com/flhofer/real-time-containers/tree/uc3-codesys/test-monitor/usecase/uc3/container/startup_vplc.sh startup.sh
+
 # Set these ports to be accessible by default
 EXPOSE 11740 11743
 
