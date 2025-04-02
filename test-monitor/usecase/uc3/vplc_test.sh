@@ -51,7 +51,7 @@ testc () {
 
 		j=1
 		while [ $j -le $i ]; do 
-				./vplc_cont.sh quiet start runtime${j} eth0 $2
+				./vplc_cont.sh quiet start runtime${j} -v eth0 $2
 				: $(( j+=1 ))                   # loop increase
 		done
 
