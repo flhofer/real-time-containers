@@ -6,9 +6,12 @@ RUN apt-get update && \
 		apt-get install -y wget sudo unzip libusb-1.0-0-dev procps tcpdump iproute2
 	
 # These specify the software versions to download
-ENV EDGE_VERSION "4.11.0.0"
+ENV EDGE_VERSION="4.11.0.0"
 
-# Dowmnlad Gateway package -- extract *.deb installer and install
+# Compose download url "CoDeSys Control Gateway for linux"
+ENV EDGE_URL="https://store-archive.codesys.com/ftp_download/3S/EdgeGatewayLinux/000120/$EDGE_VERSION/CODESYS%20Edge%20Gateway%20for%20Linux%20$EDGE_VERSION.package"
+
+# Download Gateway package -- extract *.deb installer and install
 RUN wget --output-document=/tmp/edge.package $EDGE_URL && \
 		unzip -p /tmp/edge.package '*amd64.deb' > /tmp/edge.deb && dpkg -i /tmp/edge.deb
 
