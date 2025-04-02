@@ -3,7 +3,7 @@ FROM ubuntu:jammy
 MAINTAINER Florian Hofer (info@florianhofer.it)
 
 RUN apt-get update && \
-		apt-get install -y wget sudo unzip libusb-1.0-0-dev procps
+		apt-get install -y wget sudo unzip libusb-1.0-0-dev procps tcpdump iproute2
 	
 # These specify the software versions to download
 ENV CDS_VERSION "4.11.0.0"
@@ -23,8 +23,11 @@ RUN wget --output-document=/tmp/codesys.package $URL && \
 RUN wget --output-document=/tmp/edge.package $EDGE_URL && \
 		unzip -p /tmp/edge.package '*amd64.deb' > /tmp/edge.deb && dpkg -i /tmp/edge.deb
 
+RUN rm -rf /var/lib/apt/lists/*
+
 # Set these ports to be accessible by default
 EXPOSE 11740 1217 11743
 
 # Entrypoint is service start
 ENTRYPOINT ["/bin/sh", "-c" , "/etc/init.d/codesyscontrol start && /etc/init.d/codesysedge start && tail -f /dev/null""]
+
