@@ -1,0 +1,30 @@
+FROM ubuntu:jammy
+
+LABEL maintainer="Florian Hofer (info@florianhofer.it)"
+
+RUN apt-get update && \
+		apt-get install -y wget sudo unzip libusb-1.0-0-dev procps tcpdump iproute2
+	
+# These specify the software versions to download
+ENV EDGE_VERSION="4.11.0.0"
+
+# Compose download url "CoDeSys Control Gateway for linux"
+ENV EDGE_URL="https://store-archive.codesys.com/ftp_download/3S/EdgeGatewayLinux/000120/$EDGE_VERSION/CODESYS%20Edge%20Gateway%20for%20Linux%20$EDGE_VERSION.package"
+
+# Download Gateway package -- extract *.deb installer and install
+RUN wget --output-document=/tmp/edge.package $EDGE_URL && \
+		unzip -p /tmp/edge.package '*amd64.deb' > /tmp/edge.deb && dpkg -i /tmp/edge.deb
+
+RUN rm -rf /var/lib/apt/lists/*
+
+# Add the default startup script from CoDeSys
+WORKDIR /opt/codesysedge/scripts
+ADD startup_gateway.sh startup.sh
+#ADD https://github.com/flhofer/real-time-containers/tree/uc3-codesys/test-monitor/usecase/uc3/container/startup_gateway.sh startup.sh
+
+# Set these ports to be accessible by default
+EXPOSE 1217
+
+# Entrypoint is service start
+ENTRYPOINT ["/opt/codesysedge/scripts/startup.sh"]
+

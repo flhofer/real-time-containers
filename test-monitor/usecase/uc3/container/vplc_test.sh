@@ -22,9 +22,21 @@ else
 	shift
 fi
 
-# by default does all tests
-tests=${1:-'10'}
-afty=${2:-''}
+print_help () {
+
+	cat<<-EOF
+	Usage: $0 cont [no-tests] [cpu-set]
+	       $0 wave [nic] [wave-ip]
+
+	to control container load test or wave scope test
+	
+	where:
+	cpu-set          Whether to apply a CPU-set pinning to the container and sub-tasks, i.e., a CPU-list
+	nic              The ethernet controller to pass as dedicated network card (can be internal-virtual)
+	wave-ip          IPv4 address of the scope
+	EOF
+	
+}
 
 testc () {
 	# agruments $1 test count $2 cpu affinity
@@ -39,7 +51,7 @@ testc () {
 
 		j=1
 		while [ $j -le $i ]; do 
-				./vplc_cont.sh quiet start runtime${j} eth0 $2
+				./vplc_cont.sh quiet start runtime${j} -v eth0 $2
 				: $(( j+=1 ))                   # loop increase
 		done
 
@@ -81,5 +93,32 @@ testc () {
 	done
 }
 
-testc $tests $afty
+if [ "$cmd" = "help" ]; then
+	print_help
+	exit 0
+fi
 
+if [ "$1" = "cont" ]; then
+
+	shift
+	
+	# by default does all tests
+	tests=${1:-'10'}
+	afty=${2:-''}
+
+	testc $tests $afty
+	
+elif [ "$1" = "wave" ]; then
+
+	shift
+	card=${1:-'enp2s0'}
+	waveip=${2:-'192.168.105.128'}
+	
+	./vplc_cont.sh quiet start testio $card
+	
+	eval python3 main.py -v -t 180 $waveip
+	
+	./vplc_cont.sh quiet stop testio
+else
+	print_help 
+fi

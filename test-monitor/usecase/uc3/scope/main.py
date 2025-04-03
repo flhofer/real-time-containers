@@ -18,14 +18,16 @@ main is a scope connector to program 'skippy' compatible oscilloscopes for jitte
 import sys
 import os
 import scope
+from time import time_ns, sleep
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
+from sympy.physics.units.definitions.unit_definitions import nanosecond
 
 __all__ = []
-__version__ = 0.1
+__version__ = 0.2
 __date__ = '2024-06-12'
-__updated__ = '2024-06-12'
+__updated__ = '2025-03-31'
 
 DEBUG = 1
 TESTRUN = 0
@@ -37,26 +39,63 @@ def startScope(ip_addr):
     
     s = scope.Scope(ip_addr)
 
-    # Preparation for aquisition
+    # Preparation for acquisition
     s.setScreen()
 
     return s 
 
-def testScope(ip_addr):
+def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
 
+    # take time-stamp right away, use as reference
+    tstamp=time_ns()
+    
     s = startScope(ip_addr)
-    s.setChannels(0.25)
+    s.setChannels(prgtime)
+    sleep(5) # wait before clearing parameters/screen
     
-    s.setFileName(1)
+    for tnum in range(1,tcnt+1):
+        if verbose > 0:
+            print("Next round, test no %{0}".format(tnum))
     
-    s.setCursors()
-    # print(s.measureJitter())
+        s.clearScreen()
+        
+        # prepare filename save
+        s.setFileName(tnum)
 
-    # save to file?
-    s.storeWaveform()
+        if verbose > 0:
+            print("Sleeping until final part of test..")
+        # Wait until almost end of test time
+        sleep(max (ttime - 60, 0))
+        while(True):
+            if time_ns() >= tstamp + (tnum * ttime - 10) * 1000000000:
+                break
+            sleep(0.5)
 
-    # repeat until interrupted
+        s.setCursors()
+        # print(s.measureJitter())
     
+        if verbose > 0:
+            print("Storing waveform..")
+
+        # save to file?
+        s.storeScreen()
+
+        # CSV saving makes the screen go crazy! (persistence.. losses trigger!)
+        for _ in range(0,wcnt):
+            s.storeWaveform()
+
+        if verbose > 0:
+            print("Sleeping until end of test..")
+
+        # repeat until interrupted or timeout
+        while(tnum < tcnt):
+            # wait until end of test
+            if time_ns() >= tstamp + tnum * ttime * 1000000000:
+                break
+            sleep(0.5)
+    
+    if verbose > 0:
+        print("Test done.")
 
 
 class CLIError(Exception):
@@ -100,23 +139,36 @@ USAGE
         # Setup argument parser
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         # parser.add_argument("-r", "--recursive", dest="recurse", action="store_true", help="recurse into subfolders [default: %(default)s]")
-        # parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         # parser.add_argument("-i", "--include", dest="include", help="only include paths matching this regex pattern. Note: exclude is given preference over include. [default: %(default)s]", metavar="RE" )
         # parser.add_argument("-e", "--exclude", dest="exclude", help="exclude paths matching this regex pattern. [default: %(default)s]", metavar="RE" )
-        # parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument(dest="ip_addr", help="IP-address of the VXI-11 compatible oscilloscope", metavar="ip_addr")
-
+        parser.add_argument(dest="ip_addr", help="IP-address of the VXI-11 compatible oscilloscope")
+        parser.add_argument("-n", "--tcnt", dest="tcnt", type=int, default = 10, help="set number of tests (repeat) [default: %(default)d]")
+        parser.add_argument("-p", "--prgtime", dest="prgtime", type=float, default=1, help="set the main program cycle duration for flank comparison [default: %(default).2fms]")
+        parser.add_argument("-t", "--ttime", dest="ttime", type=int, default = 100, help="set test duration for each test run [default: %(default)ds]")
+        parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
+        parser.add_argument('-V', '--version', action='version', version=program_version_message)
+        parser.add_argument("-w", "--wcnt", dest="wcnt", type=int, default = 10, help="set number scope waves to save within one file [default: %(default)d]")
+        
         # Process arguments
         args = parser.parse_args()
 
         ip_addr = args.ip_addr
-        # verbose = args.verbose
+        prgtime = args.prgtime
+        ttime = args.ttime
+        tcnt = args.tcnt
+        wcnt = args.wcnt
+        global verbose 
+        if args.verbose != None :
+            verbose = args.verbose
+        else:
+            verbose = 0
+        
         # recurse = args.recurse
         # inpat = args.include
         # expat = args.exclude
 
-        # if verbose > 0:
-        #     print("Verbose mode on")
+        if verbose > 0:
+            print("Verbose mode on")
         #     if recurse:
         #         print("Recursive mode on")
         #     else:
@@ -129,7 +181,7 @@ USAGE
         #     ### do something with inpath ###
         #     print(inpath)
             
-        testScope(ip_addr)
+        testScope(ip_addr, prgtime, ttime, tcnt, wcnt)
         return 0
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
@@ -144,7 +196,7 @@ USAGE
 
 if __name__ == "__main__":   
     # if DEBUG:
-    #     sys.argv.append("-h")
+        # sys.argv.append("-h")
         # sys.argv.append("-v")
         # sys.argv.append("-r")
     if TESTRUN:
