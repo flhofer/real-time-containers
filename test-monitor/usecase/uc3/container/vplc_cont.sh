@@ -101,7 +101,41 @@ elif [ "$cmd" = "net" ]; then
 	elif [ "$prof" = "bridge" ]; then
 		echo "Not implemented"
 	elif [ "$prof" = "macvlan" ]; then
-		echo "Not implemented"
+		echo "Not Tested !! - SHOULD allow single eth for all! purposes (control + macvlan)"
+		nic=${3:-"eth0"}
+		
+		echo "Using nic : ${nic}"
+		
+		# let's obtain the rest from settings - some problem with gw here -maybe needed for i dev
+		hostadd=$( ip -4 addr show ${nic} | grep -o "inet \([0-9]*\.\)*[0-9]*/[0-9]*" -m 1 )
+		base=${hostadd%.*/*}
+		mask=${hostadd#*/}
+		subnet=${base}.0/${mask}
+		clntadd=${5:-${base}.250} # note, need to find a free IP!!
+		macname="vplc0"
+
+		echo "Using nic : ${nic}, IP: ${hostadd} subnet: ${subnet}"
+		echo "Remove old network, if it exists, adding new"
+		
+		docker network rm ${macname}
+		
+		#create a macvlan bridge attached to eth0 (should this attach to br-${macname}?)
+		docker network create --driver=macvlan --subnet=${subnet} --gateway=${hostadd} -o parent=${nic} --attachable ${macname}
+		ip link add macv-${macname} link ${nic} type macvlan mode bridge
+		ip addr add ${clntadd}/32 dev macv-vplc0
+		ip link set macv-${macname} up
+		ip route add ${subnet} dev macv-${macname}
+		
+		#attach nic port to bridge as slave - find it and attach it
+		echo "attaching macvlan to interface"
+		brname=$( ip l | grep -o "br-[0-9a-f]*" -m 1 )
+		ip link set $brname name br-${macname}
+		ip addr del ${hostadd} dev ${nic}		# delete IP from nic
+		ip addr add ${hostadd} dev br-${macname}	# add ip to bridge	
+		ip link set dev ${nic} master br-${macname}	# set master of eth0 = bridge
+		ip link set dev br-${macname} up		# enable bridge
+		
+		echo "done."
 	else
 		echo "Unknown operation '$prof'"
 		print_help
