@@ -129,8 +129,7 @@ elif [ "$cmd" = "net" ]; then
 		ip link set dev br-${macname} up
 		ip route add ${subnet} dev br-${macname}
 		
-		#		#attach nic port to bridge as slave - find it and attach it
-#		echo "attaching macvlan to interface"
+#		echo "Stealing IP?"
 #		ip addr del ${hostadd} dev ${nic}		# delete IP from nic
 #		ip addr add ${hostadd} dev br-${macname}	# add ip to bridge	
 #		ip link set dev ${nic} master br-${macname}	# set master of eth0 = bridge
