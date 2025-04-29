@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Basic params
+CONTAINERNAME="codesyscontrol_virtuallinux"
+CONTAINERVER="4.11.0.0-b.trunk.170"
+
 if [ ! "$1" = "quiet" ]; then
 	cat <<-EOF
 
@@ -63,8 +67,8 @@ if [ "$cmd" = "start" ]; then
 	fi
 
 	# run codesys vControl with additional TMP mapping for log output
-	docker run --rm -td -v /tmp:/tmp -v /var/opt/codesysvcontrol/instances/${name}/conf/codesyscontrol:/conf/codesyscontrol/ -v /var/opt/codesysvcontrol/instances/${name}/data/codesyscontrol:/data/codesyscontrol/ --cap-add=IPC_LOCK --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=SETFCAP --cap-add=SYS_ADMIN --cap-add=SYS_MODULE --cap-add=SYS_NICE --cap-add=SYS_PTRACE --cap-add=SYS_RAWIO --cap-add=SYS_RESOURCE --cap-add=SYS_TIME ${affin} --hostname ${name} --name ${name} codesyscontrol_virtuallinux:4.11.0.0-b.trunk.170 -n ${card}
-	#FIXME: :latest?
+	docker run --rm -td -v /tmp:/tmp -v /var/opt/codesysvcontrol/instances/${name}/conf/codesyscontrol:/conf/codesyscontrol/ -v /var/opt/codesysvcontrol/instances/${name}/data/codesyscontrol:/data/codesyscontrol/ --cap-add=IPC_LOCK --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=SETFCAP --cap-add=SYS_ADMIN --cap-add=SYS_MODULE --cap-add=SYS_NICE --cap-add=SYS_PTRACE --cap-add=SYS_RAWIO --cap-add=SYS_RESOURCE --cap-add=SYS_TIME ${affin} --hostname ${name} --name ${name} ${CONTAINERNAME}:${CONTAINERVER} -n ${card}
+	
 	if [ vcard = 0 ];then
 		# Get container PID
 		conp=$( docker inspect -f '{{.State.Pid}}' $name )
