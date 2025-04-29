@@ -28,7 +28,6 @@ print_help () {
 	Usage: $0 start [runtime-name] [-v] [nic] [cpu-set]
 	       $0 stop  [runtime-name]
 	       $0 net   [profile] [nic] [sub-net]
-	       $0 macvn [operation] [nic] .. [vnic]
 
 	to control CoDeSys runtime container start and stop
 	
@@ -38,7 +37,6 @@ print_help () {
 	cpu-set          Whether to apply a CPU-set pinning to the container and sub-tasks, i.e., a CPU-list
 	profile          Reconfigure network 'default', 'bridge' with added internal brige, 'macvlan' 
 	                 with additional 1 macvlan, or 'print' configuration
-	operation        create, delete, add NIC or VNIC to MACVLAN network
 	sub-net          sub-net or portion of subnet to assign for profile/bridge, use all if empty
 	EOF
 	
@@ -98,14 +96,22 @@ elif [ "$cmd" = "net" ]; then
 		ip address
 		
 	elif [ "$prof" = "default" ]; then
-		echo "Not implemented"
+		echo "Remove manual networks, defer to docker0"
 		nic=${3:-"eth0"}
 		macname="vplc-${nic}"
 
+		echo "Remove old network, if it exists, adding new.."
+		docker network rm ${macname}
+
 	elif [ "$prof" = "bridge" ]; then
-		echo "Not implemented"
+		echo "Set network to basic bridge"
 		nic=${3:-"eth0"}
 		macname="vplc-${nic}"
+		
+		echo "Remove old network, if it exists, adding new.."
+		docker network rm ${macname}
+		
+		docker network create --driver=bridge --attachable ${macname}
 		
 	elif [ "$prof" = "macvlan" ]; then
 		echo "Set profile for mac-vlan driver on ethernet card."
@@ -142,20 +148,12 @@ elif [ "$cmd" = "net" ]; then
 		if [ -n "$subnet" ]; then
 			echo "User-defined sub-net set. You may to start containers with '--ip=${base}.x' to set an IP manually"
 		fi
-#		echo "Stealing IP?"
-#		ip addr del ${hostadd} dev ${nic}		# delete IP from nic
-#		ip addr add ${hostadd} dev br-${macname}	# add ip to bridge	
-#		ip link set dev ${nic} master br-${macname}	# set master of eth0 = bridge
-#		ip link set dev br-${macname} up		# enable bridge
 		echo "done."
 	else
 		echo "Unknown operation '$prof'"
 		print_help
 		exit 1
 	fi
-	
-elif [ "$cmd" = "macvn" ]; then
-	echo "Not implemented"
 else
 	echo "Unknown command '$1'"
 	print_help
