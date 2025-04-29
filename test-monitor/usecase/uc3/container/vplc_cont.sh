@@ -101,7 +101,7 @@ elif [ "$cmd" = "net" ]; then
 	elif [ "$prof" = "bridge" ]; then
 		echo "Not implemented"
 	elif [ "$prof" = "macvlan" ]; then
-		echo "Not Tested !! - SHOULD allow single eth for all! purposes (control + macvlan)"
+		echo "Set profile for mac-vlan driver on ethernet card."
 		nic=${3:-"eth0"}
 		
 		echo "Using nic : ${nic}"
@@ -114,7 +114,7 @@ elif [ "$cmd" = "net" ]; then
 		clntadd=${5:-${base}.250}	# TODO:, need to find a free IP!!
 		macname="vplc0"			# TODO: default name for first network, only one network per adapter possible
 
-		echo "Using nic : ${nic}, IP local for MACvLAN: ${clntadd} subnet: ${subnet}"
+		echo "Using nic: ${nic}, IP local for MACvLAN: ${clntadd}  and its sub-net: ${subnet}"
 
 		echo "Remove old network, if it exists, adding new.."
 		docker network rm ${macname}
@@ -128,6 +128,9 @@ elif [ "$cmd" = "net" ]; then
 		ip link set dev br-${macname} up
 		ip route add ${subnet} dev br-${macname}
 		
+		if [ -n "$subnet" ]; then
+			echo "User-defined sub-net set. Remember to start containers with '--ip=${base}.x' to set an IP manually"
+		fi
 #		echo "Stealing IP?"
 #		ip addr del ${hostadd} dev ${nic}		# delete IP from nic
 #		ip addr add ${hostadd} dev br-${macname}	# add ip to bridge	
