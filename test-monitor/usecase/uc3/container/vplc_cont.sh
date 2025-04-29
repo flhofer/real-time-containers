@@ -112,17 +112,16 @@ elif [ "$cmd" = "net" ]; then
 		mask=${hostadd#*/}
 		subnet=${base}.0/${mask}
 		clntadd=${5:-${base}.250}	# TODO:, need to find a free IP!!
-		macname="vplc0"			# TODO: default name for first network	
+		macname="vplc0"			# TODO: default name for first network, only one network per adapter possible
 
-		echo "Using nic : ${nic}, IP: ${hostadd} subnet: ${subnet}"
-		echo "Remove old network, if it exists, adding new"
-		
+		echo "Using nic : ${nic}, IP local for MACvLAN: ${clntadd} subnet: ${subnet}"
+
+		echo "Remove old network, if it exists, adding new.."
 		docker network rm ${macname}
 		
-		#create a macvlan bridge attached to eth0 (should this attach to br-${macname}?)
-		#TODO: if gw specified, add. otherwise forget.
-#		docker network create --driver=macvlan --subnet=${subnet} --gateway=${hostadd} -o parent=${nic} --attachable ${macname}
+		#create a macvlan bridge attached to eth0 - gateway is obtained auto from spec. If no subnet is given, 172.x.0.0 is used!
 		docker network create --driver=macvlan --subnet=${subnet} -o parent=${nic} --attachable ${macname}
+
 		# Add Host MAC-VLAN adapter to allow direct communication with containers -- not needed for external
 		ip link add br-${macname} link ${nic} type macvlan mode bridge
 		ip addr add ${clntadd}/32 dev br-vplc0
