@@ -27,7 +27,7 @@ print_help () {
 	cat<<-EOF
 	Usage: $0 start [runtime-name] [-v] [nic] [cpu-set]
 	       $0 stop  [runtime-name]
-	       $0 net   [profile] [nic]
+	       $0 net   [profile] [nic] [sub-net]
 	       $0 macvn [operation] [nic] .. [vnic]
 
 	to control CoDeSys runtime container start and stop
@@ -39,6 +39,7 @@ print_help () {
 	profile          Reconfigure network 'default', 'bridge' with added internal brige, 'macvlan' 
 	                 with additional 1 macvlan, or 'print' configuration
 	operation        create, delete, add NIC or VNIC to MACVLAN network
+	sub-net          sub-net or portion of subnet to assign for profile/bridge, use all if empty
 	EOF
 	
 }
@@ -98,23 +99,27 @@ elif [ "$cmd" = "net" ]; then
 		
 	elif [ "$prof" = "default" ]; then
 		echo "Not implemented"
+		nic=${3:-"eth0"}
+		macname="vplc-${nic}"
+
 	elif [ "$prof" = "bridge" ]; then
 		echo "Not implemented"
+		nic=${3:-"eth0"}
+		macname="vplc-${nic}"
+		
 	elif [ "$prof" = "macvlan" ]; then
 		echo "Set profile for mac-vlan driver on ethernet card."
 		nic=${3:-"eth0"}
-		
 		echo "Using nic : ${nic}"
 		
-		# let's obtain the rest from settings - some problem with gw here -maybe needed for i dev
+		# let's obtain the rest from settings 
 		hostadd=$( ip -4 addr show ${nic} | grep -o "\([0-9]*\.\)*[0-9]*/[0-9]*" -m 1 )
 		base=${hostadd%.*/*}
 		mask=${hostadd#*/}
-		subnet=${base}.0/${mask}
-		clntadd=${5:-${base}.250}	# TODO:, need to find a free IP!!
-		macname="vplc0"			# TODO: default name for first network, only one network per adapter possible
+		subnet=${4:-${base}.0/${mask}
+		macname="vplc-${nic}"
 
-		echo "Using nic: ${nic}, IP local for MACvLAN: ${clntadd}  and its sub-net: ${subnet}"
+		echo "Using nic: ${nic} and its sub-net: ${subnet}"
 
 		echo "Remove old network, if it exists, adding new.."
 		docker network rm ${macname}
@@ -124,12 +129,18 @@ elif [ "$cmd" = "net" ]; then
 
 		# Add Host MAC-VLAN adapter to allow direct communication with containers -- not needed for external
 		ip link add br-${macname} link ${nic} type macvlan mode bridge
-		ip addr add ${clntadd}/32 dev br-vplc0
+		
+		#try DHCP first
+		dhclient br-${macname}
+		if [ $? -ne 0 ]; then
+			clntadd=${5:-${base}.250}	# TODO:, need to find a free IP!!
+			ip addr add ${clntadd}/32 dev br-${macname}
+		fi
 		ip link set dev br-${macname} up
 		ip route add ${subnet} dev br-${macname}
 		
 		if [ -n "$subnet" ]; then
-			echo "User-defined sub-net set. Remember to start containers with '--ip=${base}.x' to set an IP manually"
+			echo "User-defined sub-net set. You may to start containers with '--ip=${base}.x' to set an IP manually"
 		fi
 #		echo "Stealing IP?"
 #		ip addr del ${hostadd} dev ${nic}		# delete IP from nic
