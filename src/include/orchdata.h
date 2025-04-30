@@ -3,11 +3,13 @@
 
 	#include <stdio.h>
 	#include <stdlib.h>
+	#include <stdint.h>
+	#include <sched.h>
 
 	// Custom includes
 	#include "runstats.h"	// statistics functions for curve fitting and prob estimation
 	#include "rt-sched.h"	// temporary as libc does not include new sched yet
-	#include "error.h"		// error and stderr print functions
+	#include "error.h"	// error and stderr print functions
 
 	#define CMD_LEN 255			// Size for PID command signatures and compositions, stack variables
 	#define MAXCMD_LEN 1024		// maximum command line signature buffer
