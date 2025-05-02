@@ -27,6 +27,9 @@
 
 #include "rt-sched.h"
 
+#if !defined(__GLIBC__) || !defined(__GLIBC_MINOR__) \
+  || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 41)
+
 int sched_setattr(pid_t pid,
 		  const struct sched_attr *attr,
 		  unsigned int flags)
@@ -41,3 +44,5 @@ int sched_getattr(pid_t pid,
 {
         return syscall(__NR_sched_getattr, pid, attr, size, flags);
 }
+
+#endif

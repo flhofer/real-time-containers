@@ -25,6 +25,14 @@
 #ifndef __RT_SCHED_H__
 #define __RT_SCHED_H__
 
+#include <stdio.h>
+#ifdef __GLIBC__
+#include <gnu/libc-version.h>
+#endif
+
+#if !defined(__GLIBC__) || !defined(__GLIBC_MINOR__) \
+  || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 41)
+
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -81,5 +89,5 @@ int sched_getattr(pid_t pid,
 		  struct sched_attr *attr,
 		  unsigned int size,
 		  unsigned int flags);
-
+#endif
 #endif /* __RT_SCHED_H__ */
