@@ -402,12 +402,12 @@ START_TEST(orchestrator_update_rscs)
 		struct sched_attr attr;
 		if (sched_getattr (pid1, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));
-		ck_assert(!memcmp(&attr, contparm->pids->next->attr, sizeof(struct sched_attr)));
+		ck_assert(!memcmp(&attr, contparm->pids->next->attr, 48 )); //sizeof(struct sched_attr))); // TODO: Globally fix epanded struct in glibc 2.41
 
 		if (sched_getattr (pid2, &(attr), sizeof(struct sched_attr), 0U) != 0) 
 			warn("Unable to read params for PID %d: %s", pid2, strerror(errno));		
 
-		ck_assert(!memcmp(&attr, contparm->pids->attr, sizeof(struct sched_attr)));
+		ck_assert(!memcmp(&attr, contparm->pids->attr, 48));// sizeof(struct sched_attr))); // TODO: Globally fix epanded struct in glibc 2.41
 
 	}
 	pclose2(fd1, pid1, SIGINT); // close pipe
