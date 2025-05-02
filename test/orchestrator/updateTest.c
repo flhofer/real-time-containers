@@ -324,8 +324,8 @@ START_TEST(orchestrator_update_rscs)
 	contparm->rscs->mem_dataw=100;
 	contparm->rscs->mem_data=-1;
 
-	contparm->attr = malloc (sizeof(struct sched_attr));
-	contparm->attr->size =48;
+	contparm->attr = calloc (1, sizeof(struct sched_attr));
+	contparm->attr->size =SCHED_ATTR_SIZE;
 	contparm->attr->sched_policy=SCHED_BATCH;
 	contparm->attr->sched_flags=SCHED_FLAG_RESET_ON_FORK;
 	contparm->attr->sched_nice=5;
@@ -401,7 +401,7 @@ START_TEST(orchestrator_update_rscs)
 	{
 		struct sched_attr attr;
 		if (sched_getattr (pid1, &(attr), sizeof(struct sched_attr), 0U) != 0) 
-			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));		
+			warn("Unable to read params for PID %d: %s", pid1, strerror(errno));
 		ck_assert(!memcmp(&attr, contparm->pids->next->attr, sizeof(struct sched_attr)));
 
 		if (sched_getattr (pid2, &(attr), sizeof(struct sched_attr), 0U) != 0) 

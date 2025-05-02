@@ -51,9 +51,9 @@ static void parse_resource_data(struct json_object *obj,
 static void parse_scheduling_data(struct json_object *obj,
 		  struct sched_attr **data){
 
-	*data = malloc(sizeof(struct sched_attr));
+	*data = calloc(1, sizeof(struct sched_attr));
 
-	(*data)->size = 48;
+	(*data)->size = SCHED_ATTR_SIZE;
 	{  // char policy block
 
 		char *policy;

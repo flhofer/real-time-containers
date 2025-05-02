@@ -963,7 +963,7 @@ checkPeriod_R(node_t * item, int include) {
 	if (SCHED_DEADLINE == item->attr.sched_policy)
 		ftrc = checkPeriod(&item->attr, affinity, item->mon.assigned);
 	else{
-		struct sched_attr attr = { 48 };
+		struct sched_attr attr = { SCHED_ATTR_SIZE };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
 		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
@@ -1068,7 +1068,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 		if (SCHED_DEADLINE == item->attr.sched_policy)
 			rv = MIN(checkUvalue(resNew, &item->attr, 1), rv);
 		else{
-			struct sched_attr attr = { 48 };
+			struct sched_attr attr = { SCHED_ATTR_SIZE };
 			attr.sched_policy = item->attr.sched_policy;
 			attr.sched_runtime = item->mon.cdf_runtime;
 			attr.sched_period = findPeriodMatch(item->mon.cdf_period);

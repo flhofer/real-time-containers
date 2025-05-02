@@ -33,7 +33,7 @@ START_TEST(checkValueTest)
 			NULL, NULL, 0, 0.0, MSK_STATHRMC, 0, 0
 	};
 	struct sched_attr par = {
-		48,
+		SCHED_ATTR_SIZE,
 		SCHED_DEADLINE,
 		0, 0, 0,
 		10000,
@@ -194,7 +194,7 @@ START_TEST(checkPeriodTest)
 	rHead->status = MSK_STATHRMC;
 
 	struct sched_attr par ={
-			48,
+			SCHED_ATTR_SIZE,
 			SCHED_DEADLINE,
 			0, 0, 0,
 			1000,
@@ -250,7 +250,7 @@ START_TEST(checkPeriod_RTest)
 	node_push(&item);
 	item->param = param;
 	struct sched_attr par ={
-			48,
+			SCHED_ATTR_SIZE,
 			SCHED_DEADLINE,
 			0, 0, 0,
 			1000,
@@ -306,7 +306,7 @@ START_TEST(recomputeTimesTest)
 {
 	createResTracer();
 
-	struct sched_attr attr = {48, SCHED_DEADLINE,
+	struct sched_attr attr = {SCHED_ATTR_SIZE, SCHED_DEADLINE,
 						0, 0, 0,
 						100000,
 						1000000,

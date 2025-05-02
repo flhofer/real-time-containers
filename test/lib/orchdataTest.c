@@ -32,7 +32,7 @@ START_TEST(orchdata_ndpush)
 	ck_assert_ptr_eq(nhead->psig, NULL);
 	ck_assert_ptr_eq(nhead->contid, NULL);
 	ck_assert_ptr_eq(nhead->imgid, NULL);
-	ck_assert_int_eq(nhead->attr.size, 48);
+	ck_assert_int_eq(nhead->attr.size, SCHED_ATTR_SIZE);
 	ck_assert_int_eq(nhead->attr.sched_policy, SCHED_NODATA);
 	ck_assert_int_eq(nhead->mon.rt_min, UINT64_MAX);
 	ck_assert_int_eq(nhead->mon.rt_avg, 0);

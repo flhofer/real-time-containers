@@ -616,7 +616,7 @@ setThreadParameters () {
 	if (SCHED_OTHER != prgset->policy && SCHED_IDLE != prgset->policy && SCHED_BATCH != prgset->policy) {
 		// set policy to thread
 		if (SCHED_DEADLINE == prgset->policy) {
-			struct sched_attr scheda  = { 48,
+			struct sched_attr scheda  = { SCHED_ATTR_SIZE,
 										SCHED_DEADLINE,
 										SCHED_FLAG_RESET_ON_FORK,
 										0,

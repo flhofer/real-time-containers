@@ -217,7 +217,7 @@ struct {
 	int offset;
 	int size;
 	int sign;
-} evenFields [][13] = {
+} eventFields [][13] = {
 		{
 			{ "common_type",trv_short,0,2,0 }, { "common_flags",trv_char,2,1,0}, { "common_preempt_count",trv_char,3,1,0}, { "common_pid",trv_int,4,4,1},
 			{ "prev_comm",trv_char,8,16,0},	{ "prev_pid",trv_pid_t,24,4,1}, { "prev_prio",trv_int,28,4,1}, { "prev_state",trv_long,32,8,1}, { "next_comm",trv_char,40,16,0},
@@ -257,13 +257,13 @@ START_TEST(orchestrator_manage_ftrc_cfgread)
 	parseEventFields (&elist_head->fields,buf);
 	free (buf);
 
-	while ((evenFields[_i][no].name)){
+	while ((eventFields[_i][no].name)){
 		ck_assert_ptr_nonnull(elist_head->fields );
-		ck_assert_str_eq( evenFields[_i][no].name, elist_head->fields->name );
-		ck_assert_int_eq( evenFields[_i][no].type, elist_head->fields->type );
-		ck_assert_int_eq( evenFields[_i][no].offset, elist_head->fields->offset );
-		ck_assert_int_eq( evenFields[_i][no].size, elist_head->fields->size );
-		ck_assert_int_eq( evenFields[_i][no].sign, elist_head->fields->sign );
+		ck_assert_str_eq( eventFields[_i][no].name, elist_head->fields->name );
+		ck_assert_int_eq( eventFields[_i][no].type, elist_head->fields->type );
+		ck_assert_int_eq( eventFields[_i][no].offset, elist_head->fields->offset );
+		ck_assert_int_eq( eventFields[_i][no].size, elist_head->fields->size );
+		ck_assert_int_eq( eventFields[_i][no].sign, elist_head->fields->sign );
 		free(elist_head->fields->name);
 		pop((void**)&elist_head->fields);
 		no++;

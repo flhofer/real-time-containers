@@ -17,7 +17,7 @@ static containers_t * conts;
 static FILE * pp;
 
 static struct sched_rscs _def_rscs = {INT_MIN, NULL, -1, -1, -1, -1};
-static struct sched_attr _def_attr = {48, SCHED_NODATA, 0, 0, 0, 0, 0, 0};
+static struct sched_attr _def_attr = {SCHED_ATTR_SIZE, SCHED_NODATA, 0, 0, 0, 0, 0, 0};
 
 
 static char * files [10] = {

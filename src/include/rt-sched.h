@@ -33,6 +33,8 @@
 #if !defined(__GLIBC__) || !defined(__GLIBC_MINOR__) \
   || __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 41)
 
+#define SCHED_ATTR_SIZE 48
+
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -89,5 +91,7 @@ int sched_getattr(pid_t pid,
 		  struct sched_attr *attr,
 		  unsigned int size,
 		  unsigned int flags);
+#else
+#define SCHED_ATTR_SIZE SCHED_ATTR_SIZE_VER1
 #endif
 #endif /* __RT_SCHED_H__ */

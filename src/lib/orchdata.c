@@ -155,7 +155,7 @@ copyResourceConfigC(cont_t * from, cont_t * to){
 	// duplicate resources if needed
 	to->status = from->status;
 	if (!(to->status & MSK_STATSHAT)){
-		to->attr = malloc(sizeof(struct sched_attr));
+		to->attr = calloc(1, sizeof(struct sched_attr));  // variable length!!
 		(void)memcpy(to->attr, from->attr, sizeof(struct sched_attr));
 	}
 	else
@@ -386,7 +386,7 @@ freeTracer(resTracer_t ** rHead){
 
 static const node_t _node_default = { NULL,				// *next, 
 						0, 0, NULL, NULL, NULL,			// PID, status, *psig, *contid, *contid
-						{ 48, SCHED_NODATA }, 			// init size and scheduler 
+						{ SCHED_ATTR_SIZE, SCHED_NODATA },	// init size and scheduler 
 						{ 								// statistics, max and min to min and max
 							0,							//		rt value
 							UINT64_MAX, 0, 0,			//		rt min/avg/max
