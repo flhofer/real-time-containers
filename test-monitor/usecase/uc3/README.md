@@ -70,7 +70,9 @@ To use MACvLAN in Docker, we first have to create a new Docker network configura
 docker network create --driver=macvlan -o parent=en2sp0 --attachable vplc-en2sp0
 ```
 
-Be sure to run vPLC containers with the `--network=<networkname>` parameter to attach the container to the created MACvLAN network. Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.17.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.17.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must create a `user-defined` network to manually define IPs, as shown below.
+Be sure to run vPLC containers with the `--network=<networkname>` parameter to attach the container to the created MACvLAN network. Each container will now be connected at the OSI level 2, obtaining a different MAC address, and consequently different level 3 adapters and IP addresses. The MAC addresses are accessible from the outside, and we are thus able to run multiple ProfiNET controllers and devices, as well as multiple EtherCAT masters as vPLC containers.
+
+Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.17.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.17.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must create a `user-defined` network to manually define IPs, as shown below.
 
 User-defined Docker networks require the subnet used for containers to be passed at creation. For example, if we would like to add subnet `192.168.32.0/24` as our new vPLC network, we can do so by typing the following.
 
