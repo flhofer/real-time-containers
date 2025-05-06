@@ -62,6 +62,17 @@ To release the card once the container is stopped, type `ip netns del vplc1_netn
 
 #### 2.1.2 Using the MACvLAN driver for Docker containers
 
+The MACvLAN driver allows multiple `L2 stacks` to be attached to a single physical layer. This means we can create various network cards, e.g., one per Container, using a single shared physical level.
+
+To use MACvLAN in Docker, we first have to create a new Docker network configuration with that driver. For example, using `en2sp0` as a physical card again, we can create a new network, e.g., `vplc-en2sp0,` (name is free choice) like this.
+
+```
+docker network create --driver=macvlan -o parent=en2sp0 --attachable vplc-en2sp0
+```
+
+Be sure to run vPLC containers with the `--network=<networkname>` parameter to attach the container to the created MACvLAN network. Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.17.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.17.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must create a `user-defined` network to manually define IPs, as shown below.
+
+
 ### 2.2 Building "custom" containers
 
 
