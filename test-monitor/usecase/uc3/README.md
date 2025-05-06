@@ -38,7 +38,7 @@ docker run --rm -td --name vplc1 -v /var/opt/codesysvcontrol/instances/vplc1/con
 ```
 
 This command will do the following:
-* Create a new container vplc1 (`--name vplc1`) that will automatically be removed after start (`--rm`)
+* Create a new container vplc1 (`--name vplc1`) that will automatically be removed after stop (`--rm`)
 * Attach an output terminal and run the container as a daemon in the background (`-td`)
 * Map the local configuration and data folders for the vPLC1 inside the container for access (`-v ...`) to keep settings and program persistent after removal of the container
 * Add the required capabilities (`--cap-add=...`) to interact with the system
@@ -47,7 +47,18 @@ This command will do the following:
 
 While this will run the container until it is stopped (or the demo time of 2h elapses), it has limitations. The Ethernet controller eth0 used for this run is a virtual card routed to the host's network. Thus, it will not allow the use of MAC-layer-based protocols such as EtherCat or ProfiNet. If we want to use those, we must create a pass-through configuration for a physical controller, assign the NIC exclusively, or share a controller via the MACvLAN driver. We will describe both approaches in the following sections. To run containers with different settings, please adapt the above parameters as needed.
 
-#### 2.1.1 Attaching a network namespace to a container
+#### 2.1.1 Attaching a network card to a container exclusively
+
+If we would like a vPLC to have exclusive access to a network card, we must follow the following steps **after** starting the container by passing the controller's name through `-n` :
+
+Do the following for a container named `vplc1` and card `en2sp0`:
+* Obtain the PID of the main process `docker inspect -f '{{.State.Pid}}' vplc1`
+* Attach a namespace to the process, `ip netns attach vplc1_netns_net <PID>`. The name can be anything-
+* Add our controller to this exclusive namespace `ip link set en2sp0 netns vplc1_netns_net`
+* Activate controller `ip netns exec vplc1_netns_net ip link set en2sp0 up`
+* Enable promiscuous mode `ip netns exec vplc1_netns_net ip link set en2sp0 promisc on`
+
+To release the card once the container is stopped, type `ip netns del vplc1_netns_net`. If you'd like to do these steps automatically, please take a look at the helper script section.
 
 #### 2.1.2 Using the MACvLAN driver for Docker containers
 
