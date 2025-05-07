@@ -31,7 +31,7 @@ docker images ls
 ```
 The images are listed as `codesyscontrol_virtuallinux` or `codesysedge_virtuallinux`, where the tag after the colon indicates the version. Multiple versions may be installed; you can choose which one to launch when issuing the run command. If you don't see any images, you either need to install them through the CoDeSys IDE, the deb package inside the installer (it is a zip), or build your `Control SL` runtime in a container to act as VirtualControl[^1]. Start a container, for example, for the vPLC `vplc1`, by typing the following.
 
-[^1]: It is still not clear what the real differences are. So give it a try and check out [Building Custom Containers](#22-building-custom-containers)
+[^1]: It is still not clear what the real differences are. So give it a try and check out [Building Custom images](#22-building-custom-images)
 
 ```
 docker run --rm -td --name vplc1 -v /var/opt/codesysvcontrol/instances/vplc1/conf/codesyscontrol:/conf/codesyscontrol/ -v /var/opt/codesysvcontrol/instances/vplc1/data/codesyscontrol:/data/codesyscontrol/ --cap-add=IPC_LOCK --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=SETFCAP --cap-add=SYS_ADMIN --cap-add=SYS_MODULE --cap-add=SYS_NICE --cap-add=SYS_PTRACE --cap-add=SYS_RAWIO --cap-add=SYS_RESOURCE --cap-add=SYS_TIME codesyscontrol_virtuallinux:4.14.0.0 -n eth0
@@ -134,8 +134,20 @@ You notice the pattern.
 > [!Note]
 > The MACvLAN network must be created using the Docker command line, as the IDE cannot perform such an operation.
 
-### 2.2 Building "custom" containers
+### 2.2 Building "custom" images
 
+To create a custom image, we can use a Dockerfile, as in the example in the `container` directory named `Dockerfile_Tools_vPLC`. This example takes the base image of CoDeSys and adds `iproute2` and `tcpdump` to it. This helps, for example, if we want to enter the container and capture traffic directly at the endpoint of a pass-thru network controller.
+
+We can build this new image with the `build` command.
+```
+docker build -f ./container/Dockerfile_Tools_vPLC -t codesyscontrol_virtuallinux:4.14.0.0-tools .
+```
+
+This will create a new image that follows the `codesyscontrol_virtuallinux` format, but with a new version tag. We added `-tools` to the original tag, and if you open the textfile, you can see that it is based on the `4.14.0.0` runtime container version.
+
+There are two other example files in the directory. They build a new image containing the `CoDeSys Control for Linux` package -- in short, it creates a container version of the SoftPLC runtime and the standard gateway. Edit the files to use different versions of the installers. It is unclear at this point, how much the `Virtual SL` differs from the SoftPLC version.
+
+For more examples on image build and further instructions, please take a look at [my tutorial](https://github.com/flhofer/docker_tutorial) and the [Docker official documentation](https://docs.docker.com/build/).
 
 ### 2.3 Using the helper scripts
 
