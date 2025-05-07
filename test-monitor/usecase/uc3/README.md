@@ -72,7 +72,7 @@ docker network create --driver=macvlan -o parent=en2sp0 --attachable vplc-en2sp0
 
 Be sure to run vPLC containers with the `--network=<networkname>` parameter to attach the container to the created MACvLAN network. Each container will now be connected at the OSI level 2, obtaining a different MAC address, and consequently different level 3 adapters and IP addresses. The MAC addresses are accessible from the outside, and we are thus able to run multiple ProfiNET controllers and devices, as well as multiple EtherCAT masters as vPLC containers.
 
-Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.17.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.17.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must create a `user-defined` network to manually define IPs, as shown below.
+Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.17.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.17.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must create a `user-defined` network to define IPs manually, as shown below.
 
 User-defined Docker networks require the subnet used for containers to be passed at creation. For example, if we would like to add subnet `192.168.32.0/24` as our new vPLC network, we can do so by typing the following.
 
@@ -80,9 +80,28 @@ User-defined Docker networks require the subnet used for containers to be passed
 docker network create --driver=macvlan --subnet=192.168.3.0/24 -o parent=en2sp0 --attachable vplc-en2sp0
 ```
 
-If no gateway is specified with `--gateway=x.x.x.x`, the containers will use the gateway of the parent controller, if available. Now that the network is user-defined, all containers must be started with the `--ip=` parameter and the `--network=` parameter above to specify the container's IP. If no ip is set, the IPs are given progressively like before. 
+If no gateway is specified with `--gateway=x.x.x.x`, the containers will use the gateway of the parent controller, if available. Now that the network is user-defined, all containers must be started with the `--ip=` parameter and the `--network=` parameter above to specify the container's IP. If no IP is set, the IPs are given progressively like before. 
 
-The subnet specified can be of many kinds. You can pass a portion of the parent card's subnet. For example, if the parent network is `192.168.5.0/24`, with the controller `192.168.5.2`, we could assign `192.168.5.128/26` to the new MACvLAN network, thus mapping the area 192.168.5.130..192.168.5.191 for use with Docker containers. (192.168.5.129 is reserved as "gateway").
+The subnet specified can be of many kinds. You can pass a portion of the parent card's subnet. For example, if the parent network is `192.168.5.0/24`, with the controller `192.168.5.2`, we could assign `192.168.5.128/26` to the new MACvLAN network, thus mapping the area 192.168.5.130...192.168.5.191 for use with Docker containers. (192.168.5.129 is reserved as "gateway"). This may also work if the network is served by a DHCP server and the range 128...192 is reserved as static (important to avoid double assignment of IP addresses). The range can also be something completely different. Remember, we are working on OSI level 2 here, so we can use different subnets for our vPLCs. We are, however, limited to one MACvLAN per physical device and can thus not create a second Docker network for vPLC on the same parent controller. If you would like two or more networks for vPLCs, you need to use multiple hardware cards.
+
+With the configuration steps above, you can now communicate freely with the outside world. However, the vPLCs are not reachable from within the host. This is due to how the MACvLAN driver works and how it is attached to the network stack. If we want to communicate with our containers, our host must be part of the pool of virtual network devices in the subnet above. Thus, we add a local link named `br-vplc-en2sp0` (arbitrary) on  our card `en2sp0`.
+
+```
+ip link add br-vplc-eth0 link eth0 type macvlan mode bridge
+```
+This new link also needs an IPv4 address to communicate. If we are in a DHCP served network, we can use `dhclient br-${macname}` to obtain one. Otherwise, we manually configure an IP 192.168.5.129 as follows.
+
+```
+ip addr add 192.168.5.129/32 dev br-vplc-eth0
+ip link set dev br-vplc-eth0 up
+ip route add 192.168.5.128/26 dev br-vplc-eth0
+```
+
+The last line is important; it tells our system that the vPLC subnet is now reachable through this link.
+
+#### 2.1.3 Configuring the IDE to use MACvLAN
+
+
 
 ### 2.2 Building "custom" containers
 
