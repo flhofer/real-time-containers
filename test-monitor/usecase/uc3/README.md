@@ -84,7 +84,7 @@ docker network create --driver=macvlan --subnet=192.168.3.0/24 -o parent=en2sp0 
 
 If no gateway is specified with `--gateway=x.x.x.x`, the containers will use the gateway of the parent controller, if available. Now that the network is user-defined, all containers must be started with the `--ip=` parameter and the `--network=` parameter above to specify the container's IP. If no IP is set, the IPs are given progressively like before. 
 
-The subnet specified can be of many kinds. You can pass a portion of the parent card's subnet. For example, if the parent network is `192.168.5.0/24`, with the controller `192.168.5.2`, we could assign `192.168.5.128/26` to the new MACvLAN network, thus mapping the area 192.168.5.130...192.168.5.191 for use with Docker containers. (192.168.5.129 is reserved as "gateway"). This may also work if the network is served by a DHCP server and the range 128...192 is reserved as static (important to avoid double assignment of IP addresses). The range can also be something completely different. Remember, we are working on OSI level 2 here, so we can use different subnets for our vPLCs. We are, however, limited to one MACvLAN per physical device and can thus not create a second Docker network for vPLC on the same parent controller. If you would like two or more networks for vPLCs, you need to use multiple hardware cards.
+The subnet specified can be of many kinds. You can pass a portion of the parent card's subnet. For example, if the parent network is `192.168.5.0/24`, with the controller `192.168.5.2`, we could assign `192.168.5.128/26` to the new MACvLAN network, thus mapping the area 192.168.5.130...192.168.5.191 for use with Docker containers. (192.168.5.129 is reserved as "gateway"). This may also work if the network is served by a DHCP server and the range 128...192 is reserved as static (important to avoid double assignment of IP addresses). An even better solution would be to pass the complete subnet, e.g., `--subnet=192.168.5.0/24`, and then set the container range to `--ip-range=192.168.5.128/26` to define that only that subnet-range is available for container allocation. The range can also be something completely different. Remember, we are working on OSI level 2 here, so we can use different subnets for our vPLCs. We are, however, limited to one MACvLAN per physical device and can thus not create a second Docker network for vPLC on the same parent controller. If you would like two or more networks for vPLCs, you need to use multiple hardware cards.
 
 With the configuration steps above, you can now communicate freely with the outside world. However, the vPLCs are not reachable from within the host. This is due to how the MACvLAN driver works and how it is attached to the network stack. If we want to communicate with our containers, our host must be part of the pool of virtual network devices in the subnet above. Thus, we add a local link named `br-vplc-en2sp0` (arbitrary) on  our card `en2sp0`.
 
@@ -96,13 +96,27 @@ This new link also needs an IPv4 address to communicate. If we are in a DHCP ser
 ```
 ip addr add 192.168.5.129/32 dev br-vplc-en2sp0
 ip link set dev br-vplc-en2sp0 up
-ip route add 192.168.5.128/26 dev br-vplc-en2sp0
+ip route add 192.168.5.0/24 dev br-vplc-en2sp0
 ```
 
 The last line is important; it tells our system that the vPLC subnet is now reachable through this link.
 
 #### 2.1.3 Using multiple networks in a container
 
+If you want to use multiple interfaces, e.g., for PN and EtherCAT, or a service connection in addition to the interface configured above, you must manually create further networks. This is as user-defined and automatic networks like `docker0` can not be mixed. To make a second MACvLAN network, redo the steps above. The passthrough option already adds a second interface to the existing `eth0`. Let's do a service network instead.
+
+CoDeSys offers multiple services, such as OPC-UA, for remote control and diagnosis. To add a network to funnel all this traffic, type the following.
+
+```
+docker network create --driver=bridge --attachable -o com.docker.network.bridge.name="vplc-service" vplc-service 
+```
+As we are not specifying subnet, this will create a new bridged subnet in the `172.x.0.0/16` range. To now run a container with both networks attached start the `docker run` command with the following parameters.
+
+
+* For our new service network `--network=vplc-service`
+* For the previous vPLC network `--network=name=vplc-en2sp0,ip=192.168.5.130` we now combine the name and IP in one, as Docker would not know what to set.
+
+The internal controller names are `eth0` and `eth1` respectively, given (apparently) based on the alphabetical order of the Docker network names. 
 
 #### 2.1.4 Configuring the IDE to use MACvLAN
 
