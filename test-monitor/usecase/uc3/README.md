@@ -45,7 +45,9 @@ This command will do the following:
 * Use the base image `codesyscontrol_virtuallinux` with version `4.14.0.0` for the PLC runtime
 * Attach eth0 as the main Ethernet controller (`-n eth0`)
 
-While this will run the container until it is stopped (or the demo time of 2h elapses), it has limitations. The Ethernet controller eth0 used for this run is a virtual card routed to the host's network. Thus, it will not allow the use of MAC-layer-based protocols such as EtherCat or ProfiNet. If we want to use those, we must create a pass-through configuration for a physical controller, assign the NIC exclusively, or share a controller via the MACvLAN driver. We will describe both approaches in the following sections. To run containers with different settings, please adapt the above parameters as needed.
+While this will run the container until it is stopped (or the demo time of 2h elapses), it has limitations. The Ethernet controller `eth0` used for this run is a virtual card routed to the host's network. Thus, it will not allow the use of MAC-layer-based protocols such as EtherCat or ProfiNet. If we want to use those, we must create a pass-through configuration for a physical controller, assign the NIC exclusively, or share a controller via the MACvLAN driver. We will describe both approaches in the following sections. To run containers with different settings, please adapt the above parameters as needed.
+
+If you would learn more about Docker containers and their use inside a shell, consult my [introductory tutorial on Docker](https://github.com/flhofer/docker_tutorial)
 
 #### 2.1.1 Attaching a network card to a container exclusively
 
@@ -64,7 +66,7 @@ To release the card once the container is stopped, type `ip netns del vplc1_netn
 
 The MACvLAN driver allows multiple `L2 stacks` to be attached to a single physical layer. This means we can create various network cards, e.g., one per Container, using a single shared physical level.
 
-To use MACvLAN in Docker, we first have to create a new Docker network configuration with that driver. For example, using `en2sp0` as a physical card again, we can create a new network, e.g., `vplc-en2sp0,` (name is free choice) like this.
+To use MACvLAN in Docker, we must create a new Docker network configuration with that driver. For example, using `en2sp0` as a physical card again, we can create a new network, e.g., `vplc-en2sp0,` (name is free choice) like this.
 
 ```
 docker network create --driver=macvlan -o parent=en2sp0 --attachable vplc-en2sp0
@@ -87,20 +89,22 @@ The subnet specified can be of many kinds. You can pass a portion of the parent 
 With the configuration steps above, you can now communicate freely with the outside world. However, the vPLCs are not reachable from within the host. This is due to how the MACvLAN driver works and how it is attached to the network stack. If we want to communicate with our containers, our host must be part of the pool of virtual network devices in the subnet above. Thus, we add a local link named `br-vplc-en2sp0` (arbitrary) on  our card `en2sp0`.
 
 ```
-ip link add br-vplc-eth0 link eth0 type macvlan mode bridge
+ip link add br-vplc-en2sp0 link en2sp0 type macvlan mode bridge
 ```
-This new link also needs an IPv4 address to communicate. If we are in a DHCP served network, we can use `dhclient br-${macname}` to obtain one. Otherwise, we manually configure an IP 192.168.5.129 as follows.
+This new link also needs an IPv4 address to communicate. If we are in a DHCP served network, we can use `dhclient br-vplc-en2sp0` to obtain one. Otherwise, we manually configure an IP 192.168.5.129 as follows.
 
 ```
-ip addr add 192.168.5.129/32 dev br-vplc-eth0
-ip link set dev br-vplc-eth0 up
-ip route add 192.168.5.128/26 dev br-vplc-eth0
+ip addr add 192.168.5.129/32 dev br-vplc-en2sp0
+ip link set dev br-vplc-en2sp0 up
+ip route add 192.168.5.128/26 dev br-vplc-en2sp0
 ```
 
 The last line is important; it tells our system that the vPLC subnet is now reachable through this link.
 
-#### 2.1.3 Configuring the IDE to use MACvLAN
+#### 2.1.3 Using multiple networks in a container
 
+
+#### 2.1.4 Configuring the IDE to use MACvLAN
 
 
 ### 2.2 Building "custom" containers
