@@ -143,14 +143,21 @@ We can build this new image with the `build` command.
 docker build -f ./container/Dockerfile_Tools_vPLC -t codesyscontrol_virtuallinux:4.14.0.0-tools .
 ```
 
-This will create a new image that follows the `codesyscontrol_virtuallinux` format, but with a new version tag. We added `-tools` to the original tag, and if you open the textfile, you can see that it is based on the `4.14.0.0` runtime container version.
+This will create a new image that follows the `codesyscontrol_virtuallinux` format, but with a new version tag. We added `-tools` to the original tag, and if you open the text file, you can see that it is based on the `4.14.0.0` runtime container version.
 
-Two other example files are in the directory. They build a new image containing the `CoDeSys Control for Linux` package—in short, it creates a container version of the SoftPLC runtime and the standard gateway. Edit the files to use different versions of the installers. At this point, it is unclear how much the `Virtual SL` differs from the SoftPLC version.
+Two other example files are in the directory. They build a new image containing the `CoDeSys Control for Linux` package—in short, it creates a container version of the SoftPLC runtime and the standard gateway. Edit the files to use different versions of the installers. It is unclear how much the `Virtual SL` differs from the SoftPLC version.
 
 For more examples on image build and further instructions, e.g., how to enter a running container and run `tcpdump`, please take a look at [my tutorial](https://github.com/flhofer/docker_tutorial) and the [Docker official documentation](https://docs.docker.com/build/).
 
 ### 2.3 Using the helper scripts
 
+The folder `container` contains a set of shell scripts that simplify and automate many of the steps above. Their function is as follows.
+
+* `vplc_cont.sh` for generic container control. It allows to start, stop, configure a network as a bridge or Mavclan and more
+* `vplc_duplicate.sh` is a little helper to duplicate a container for multiple identical instances, using `/tmp/` as a relay for temporary files to speed up file writes (see test descriptions)
+* `vplc_test.sh` is used to automate the test execution of one or more vPLCs and scope sampling.
+
+For more details, see the help description of the shell menu (`<command> help`).
 
 ## 3. Demo Projects
 
