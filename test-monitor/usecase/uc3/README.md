@@ -116,12 +116,23 @@ As we are not specifying subnet, this will create a new bridged subnet in the `1
 
 
 * For our new service network `--network=vplc-service`
-* For the previous vPLC network `--network=name=vplc-en2sp0,ip=192.168.5.130` we now combine the name and IP in one, as Docker would not know what to set.
+* For the previous vPLC network `--network=name=vplc-en2sp0,ip=192.168.5.130` we now combine the name and IP in one, as Docker would not know what to set. It may also be a good idea to set the service network IP manually, as we may use it for maintenance and lower-priority communication.
 
 The internal controller names are `eth0` and `eth1` respectively, given (apparently) based on the alphabetical order of the Docker network names. 
 
 #### 2.1.4 Configuring the IDE to use MACvLAN
 
+We have multiple options to configure a container to run with a network using MACvLAN. When connected with `Delpoy SL` to the host, edit the container configuration (click Config). The parameters that are of interest are `Network`, `NIC`, and `Generic parameters`. 
+
+The parameters can be set in multiple ways. In our example above, we have two networks and `en2sp0` as the network card.
+* Use `vplc-service` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-en2sp0`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
+* Use `name=vplc-en2sp0,ip=192.168.5.130` as `Network` and add the second network using the Generic field with `--network=name=vplc-service`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
+* Use `name=vplc-en2sp0,ip=192.168.5.130` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-service,ip=172.18.0.2`. The NIC is `eth0`.
+
+You notice the pattern. 
+
+> [!Note]
+> The MACvLAN network must be created using the Docker command line, as the IDE cannot perform such an operation.
 
 ### 2.2 Building "custom" containers
 
