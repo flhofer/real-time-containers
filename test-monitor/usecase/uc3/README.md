@@ -153,13 +153,25 @@ For more examples on image build and further instructions, e.g., how to enter a 
 
 The folder `container` contains a set of shell scripts that simplify and automate many of the steps above. Their function is as follows.
 
-* `vplc_cont.sh` for generic container control. It allows to start, stop, configure a network as a bridge or Mavclan and more
+* `vplc_cont.sh` for generic container control. It allows you to start, stop, configure a network as a bridge or Mavclan, and more
 * `vplc_duplicate.sh` is a little helper to duplicate a container for multiple identical instances, using `/tmp/` as a relay for temporary files to speed up file writes (see test descriptions)
 * `vplc_test.sh` is used to automate the test execution of one or more vPLCs and scope sampling.
 
 For more details, see the help description of the shell menu (`<command> help`).
 
 ## 3. Demo Projects
+
+The folder `PLCprj` contains three CoDeSys projects: `Task-Read`, which performs a CPU-load test and logs the results, `TestIO` used to do the same but with additional ProfiNET I/O, and finally, `TestIO_EC` which is a variant of the previous for EtherCat networks. I've shared a quick description of the projects below.
+
+### Task-Read
+
+This project generates pure, configurable CPU load using Fibonacci numbers, and logs runtime and period to a file. We use the `CmpLog` library to write to a file called `tasktimes.log`. For such logging to work, however, we must add the configuration lines for `CmpLog` in the file `CODESYSControl_User.cfg.inc` to the Runtime configuration, which means the vPLC container. The container configuration file can be found in `/var/opt/codesysvcontrol/instances/<instancename>/conf/codesyscontrol/`.
+
+A further, optional optimization we did for our performance tests is creating a symlink from the instance folders to `/tmp` and mapping `/tmp` inside the vPLC containers—this way, the logging is done to RAM and should introduce less I/O delay.
+
+### TaskIO and TaskIO_EC
+
+In addition to the above, this project adds a ProfiNET I/O or EtherCat coupler with digitalk I/Os. The idea is that a function generator is attached to an input, the signal inverted, and then the output is compared with the input in terms of delay and shift (jitter). With the help of the scope scripts (see below), we can automatically acquire the scope image of such tests.
 
 ## 4. Test and `scope`
 
