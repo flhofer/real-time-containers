@@ -126,7 +126,7 @@ elif [ "$cmd" = "net" ]; then
 		hostadd=$( ip -4 addr show ${nic} | grep -o "\([0-9]*\.\)*[0-9]*/[0-9]*" -m 1 )
 		base=${hostadd%.*/*}
 		mask=${hostadd#*/}
-		subnet=${4:-${base}.0/${mask}
+		subnet=${4:-${base}.0/${mask}}
 		macname="vplc-${nic}"
 
 		echo "Using nic: ${nic} and its sub-net: ${subnet}"
