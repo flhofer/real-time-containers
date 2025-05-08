@@ -169,10 +169,13 @@ This project generates pure, configurable CPU load using Fibonacci numbers, and 
 
 A further, optional optimization we did for our performance tests is creating a symlink from the instance folders to `/tmp` and mapping `/tmp` inside the vPLC containers—this way, the logging is done to RAM and should introduce less I/O delay.
 
-### TaskIO and TaskIO_EC
+### TestIO and TestIO_EC
 
 In addition to the above, this project adds a ProfiNET I/O or EtherCat coupler with digitalk I/Os. The idea is that a function generator is attached to an input, the signal inverted, and then the output is compared with the input in terms of delay and shift (jitter). With the help of the scope scripts (see below), we can automatically acquire the scope image of such tests.
 
+These tests now use Ethernet controllers, and if you want CoDeSys to be able to configure your Ethernet adapter, you need to set it in the runtime configuration. Some examples are in the `CODESYSControl_User.cfg.inc` mentioned above.
+
 ## 4. Test and `scope`
 
+The `TestIO` projects above use an external oscilloscope to monitor effective signal jitter after processing and output. Therefore, the folder `scope` contains Python code to programmatically set and acquire such data. The code uses the `VXI11` interface over Ethernet to send SCPY standard commands to the device. Even though many commands are vendor-specific, most Metrix, Siglent, or similar brand devices should understand the commands. The script `vplc_test.sh` integrates with this script and allows for automatically saving test results.
 
