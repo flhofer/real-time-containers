@@ -125,7 +125,7 @@ patchVersion () {
 	EOF
 
 	if [ "$pkgbuild" = "deb-pkg" ] && [ $linux_root -eq 6 ] && [ "${linux_base#?.}" -ge 3 ] ; then
-		# from 6.3 on, debuian based systems use new target "bindeb-pkg"
+		# from 6.3 on, Debian based systems use new target "bindeb-pkg"
 		pkgbuild="bin${pkgbuild}"
 	fi
 
@@ -186,8 +186,8 @@ installKernel () {
 	local linux_patch=$1
 
 	echo
-	echo "## Installing kernel" # TODO: make distribution independent 
-	$sudo dpkg -i linux-headers-${linux_patch}-${distname}.deb linux-image-${linux_patch}-${distname}.deb
+	echo "## Installing kernel"
+	$sudo $pgkmgmt -i linux-headers-${linux_patch}-${distname}.* linux-image-${linux_patch}-${distname}.*
 
 	echo
 	echo "## Configuring GRUB"
