@@ -598,18 +598,15 @@ patchVersion $linux_patch
 
 buildKernel $config_file
 
-echo "Interrupting install of kernel/container daemon - temp" 
-exit 1
+yes_no "Install build kernel to this system?" installKernel $linux_patch
 
-installKernel $linux_patch
-
-installContainerD
+yes_no "Install container daemon to this system?" installContainerD
 
 cat <<EOF
 
 ######################################
 
-Installation successful!
+Installation/build successful!
 ______     _                  
 | ___ \   | |                 
 | |_/ /__ | | ___ _ __   __ _ 
