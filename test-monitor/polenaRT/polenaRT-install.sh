@@ -30,7 +30,7 @@ select () {
 	# Manual imp. select (interop)
 	################################
 
-	# Creates a little numbered selection menu - replaces debian's select command
+	# Creates a little numbered selection menu - replaces Debian's select command
 	# $1  return value (variable name)
 	# $2:@ list items
 	local item=$1
@@ -55,6 +55,39 @@ select () {
 		fi
 	done
 	eval ${item}=${txt}
+}
+
+yes_no () {
+	################################
+	# Manual imp. select (interop)
+	################################
+	
+	# $1 function name
+	# $2:@ function with parameters to execute if successful
+	local name=$1
+	shift 1
+	
+	local i=0
+	for txt in ${items}; do 
+		i=$(( ${i}+1 )); 
+		echo "$i) $txt";
+	done
+	if [ ! "${*#exit}" = "$*" ] || [ -z "$allyes" ]; then
+		local sel=
+		until read -p "Execute '$name' (y/N) : " sel; 
+		[ "$sel" = "y" ] || [ "$sel" = "n" ] || [ "$sel" = "" ] ; 	
+		do
+		  echo "invalid selection!"
+		done
+	else
+		sel="y"
+	fi
+	
+	if [ "$sel" = "y" ] ; then
+		eval $@
+		return 0
+	fi
+	return 1
 }
 
 patchSource () {
@@ -270,7 +303,7 @@ installContainerD () {
 
 installDependencies () {
 	################################
-	# Install distro depenencies
+	# Install distro dependencies
 	################################
 
 	local distname=$1
