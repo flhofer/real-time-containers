@@ -191,18 +191,20 @@ installKernel () {
 
 	echo
 	echo "## Configuring GRUB"
-	#${sudo} sed -i -e 's/^/#/' /etc/default/grub # comment out previous GRUB config
+
 	$sudo cp /etc/default/grub /etc/default/grub.backup
-	#TODO: update instead of overwrite
-echo '
-GRUB_DEFAULT="Advanced options for Ubuntu>Ubuntu, with Linux '${linux_patch}'"
-GRUB_HIDDEN_TIMEOUT_QUIET="true"
-GRUB_TIMEOUT="10"
-GRUB_DISTRIBUTOR="`lsb_release -i -s 2> /dev/null || echo Debian`"
-GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
-GRUB_CMDLINE_LINUX=""
-' >> grub
-	$sudo mv grub /etc/default/grub
+	
+	# get the full name of the menu entry
+	submen=$(grep "submenu.*Advanced" /boot/grub/grub.cfg | cut -d \' -f 2)
+	if [ -n "$submen" ]; then
+		submen="${submen}>"
+	fi
+	entry=$(grep "menuentry.*${linux_patch}'" /boot/grub/grub.cfg | cut -d \' -f 2)
+	
+	# set new bootkernel
+	$sudo sh -c "sed -i '/#GRUB_DEFAULT=/s/#GRUB_DEFAULT=/GRUB_DEFAULT=/' /etc/default/grub"
+	$sudo sh -c "sed -i '/GRUB_DEFAULT/s/=.*/=\"${submen}${entry}\"/' /etc/default/grub"
+
 	$sudo update-grub2
 }
 
