@@ -2,7 +2,7 @@
 
 # Basic params
 CONTAINERNAME="codesyscontrol_virtuallinux"
-CONTAINERVER="4.11.0.0-b.trunk.170"
+CONTAINERVER="selected"
 
 if [ ! "$1" = "quiet" ]; then
 	cat <<-EOF
@@ -29,9 +29,10 @@ fi
 print_help () {
 
 	cat<<-EOF
-	Usage: $0 start [runtime-name] [-v] [nic] [cpu-set]
-	       $0 stop  [runtime-name]
-	       $0 net   [profile] [nic] [sub-net]
+	Usage: $0 start    [runtime-name] [-v] [nic] [cpu-set]
+	       $0 stop     [runtime-name]
+	       $0 net      [profile] [nic] [sub-net]
+	       $0 runtime  [operation] [name]
 
 	to control CoDeSys runtime container start and stop
 	
@@ -42,6 +43,8 @@ print_help () {
 	profile          Reconfigure network 'default', 'bridge' with added internal brige, 'macvlan' 
 	                 with additional 1 macvlan, or 'print' configuration
 	sub-net          sub-net or portion of subnet to assign for profile/bridge, use all if empty
+	operation        operation to manipiulate default runtime version name, 'list', 'use' or 'used'
+	name             runtime version name to set as default (docker tagging)
 	EOF
 	
 }
@@ -155,6 +158,23 @@ elif [ "$cmd" = "net" ]; then
 		echo "done."
 	else
 		echo "Unknown operation '$prof'"
+		print_help
+		exit 1
+	fi
+elif [ "$cmd" = "runtime" ]; then
+	subc=${2:-"list"}
+	if [ "$subc" = "list" ]; then
+		docker images ${CONTAINERNAME} --format table
+		
+	elif [ "$subc" = "use" ]; then
+		echo "Setting '${3}' as version to use (":${CONTAINERVER}")" 
+		docker image tag ${CONTAINERNAME}:${3} ${CONTAINERNAME}:${CONTAINERVER}
+	
+	elif [ "$subc" = "used" ]; then
+		tags=$( docker inspect --format '{{join .RepoTags ", "}}' )
+		echo "The image in use is known as ${tags}"
+	else
+		echo "Unknown operation '$subc'"
 		print_help
 		exit 1
 	fi
