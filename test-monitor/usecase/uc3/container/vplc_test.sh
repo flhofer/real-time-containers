@@ -27,7 +27,7 @@ print_help () {
 
 	cat<<-EOF
 	Usage: $0 cont [no-tests] [cpu-set]
-	       $0 wave [nic] [wave-ip] [test-time]
+	       $0 wave [nic] [wave-ip] [test-time] [prog-period]
 
 	to control container load test or wave scope test
 	
@@ -35,7 +35,8 @@ print_help () {
 	cpu-set          Whether to apply a CPU-set pinning to the container and sub-tasks, i.e., a CPU-list
 	nic              The ethernet controller to pass as dedicated network card (can be internal-virtual)
 	wave-ip          IPv4 address of the scope
-	test-time        The runtime of each single test in wave mode. Test number is computed to stay in 2h limit
+	test-time        The runtime of each single test in wave mode. Test number is computed to stay in 2h limit. Default 180s
+	prog-period      sample period to set scope to, to match program main cycle update. default 0.25ms
 	EOF
 	
 }
@@ -116,10 +117,11 @@ elif [ "$1" = "wave" ]; then
 	card=${1:-'enp2s0'}
 	waveip=${2:-'192.168.105.128'}
 	time=${3:-"180"}
+	progp=${4:-"0.25"}
 	
 	./vplc_cont.sh quiet start testio ${card}
 	
-	eval python3 main.py -n $(( ($MAXRUNTIME+${time}-1)/${time} )) -v -t ${time} ${waveip}
+	eval python3 main.py -n $(( ($MAXRUNTIME+${time}-1)/${time} )) -p ${progp} -v -t ${time} ${waveip}
 	
 	./vplc_cont.sh quiet stop testio
 else
