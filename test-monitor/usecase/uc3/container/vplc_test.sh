@@ -113,10 +113,11 @@ elif [ "$1" = "wave" ]; then
 	shift
 	card=${1:-'enp2s0'}
 	waveip=${2:-'192.168.105.128'}
+	time=${3:-"180"}
 	
-	./vplc_cont.sh quiet start testio $card
+	./vplc_cont.sh quiet start testio ${card}
 	
-	eval python3 main.py -v -t 180 $waveip
+	eval python3 main.py -v -t ${time} ${waveip}
 	
 	./vplc_cont.sh quiet stop testio
 else
