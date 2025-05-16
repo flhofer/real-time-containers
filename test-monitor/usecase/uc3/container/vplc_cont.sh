@@ -72,7 +72,7 @@ if [ "$cmd" = "start" ]; then
 	# run codesys vControl with additional TMP mapping for log output
 	docker run --rm -td -v /tmp:/tmp -v /var/opt/codesysvcontrol/instances/${name}/conf/codesyscontrol:/conf/codesyscontrol/ -v /var/opt/codesysvcontrol/instances/${name}/data/codesyscontrol:/data/codesyscontrol/ --cap-add=IPC_LOCK --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=SETFCAP --cap-add=SYS_ADMIN --cap-add=SYS_MODULE --cap-add=SYS_NICE --cap-add=SYS_PTRACE --cap-add=SYS_RAWIO --cap-add=SYS_RESOURCE --cap-add=SYS_TIME ${affin} --hostname ${name} --name ${name} ${CONTAINERNAME}:${CONTAINERVER} -n ${card}
 	
-	if [ vcard = 0 ];then
+	if [ $vcard = 0 ];then
 		# Get container PID
 		conp=$( docker inspect -f '{{.State.Pid}}' $name )
 		# add and create network namespace for container
