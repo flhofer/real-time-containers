@@ -67,8 +67,11 @@ if [ "$cmd" = "start" ]; then
 	affin=
 	if [ -n "$4" ]; then
 		affin="--cpuset-cpus=${4}"
+	else
+		# cache password -we need name-space access
+		sudo -v
 	fi
-
+	
 	# run codesys vControl with additional TMP mapping for log output
 	docker run --rm -td -v /tmp:/tmp -v /var/opt/codesysvcontrol/instances/${name}/conf/codesyscontrol:/conf/codesyscontrol/ -v /var/opt/codesysvcontrol/instances/${name}/data/codesyscontrol:/data/codesyscontrol/ --cap-add=IPC_LOCK --cap-add=NET_ADMIN --cap-add=NET_BROADCAST --cap-add=SETFCAP --cap-add=SYS_ADMIN --cap-add=SYS_MODULE --cap-add=SYS_NICE --cap-add=SYS_PTRACE --cap-add=SYS_RAWIO --cap-add=SYS_RESOURCE --cap-add=SYS_TIME ${affin} --hostname ${name} --name ${name} ${CONTAINERNAME}:${CONTAINERVER} -n ${card}
 	
@@ -90,6 +93,11 @@ if [ "$cmd" = "start" ]; then
 
 elif [ "$cmd" = "stop" ]; then
 	name=${2:-"runtime"}
+
+	# cache password
+	sudo -v
+
+	set +e	# continue to delete even on error
 	#stop container
 	docker stop ${name}
 	
@@ -125,6 +133,9 @@ elif [ "$cmd" = "net" ]; then
 		nic=${3:-"eth0"}
 		echo "Using nic : ${nic}"
 		
+		# cache password
+		sudo -v
+
 		# let's obtain the rest from settings 
 		hostadd=$( ip -4 addr show ${nic} | grep -o "\([0-9]*\.\)*[0-9]*/[0-9]*" -m 1 )
 		base=${hostadd%.*/*}
@@ -141,16 +152,16 @@ elif [ "$cmd" = "net" ]; then
 		docker network create --driver=macvlan --subnet=${subnet} -o parent=${nic} --attachable ${macname}
 
 		# Add Host MAC-VLAN adapter to allow direct communication with containers -- not needed for external
-		ip link add br-${macname} link ${nic} type macvlan mode bridge
+		sudo ip link add br-${macname} link ${nic} type macvlan mode bridge
 		
 		#try DHCP first
-		dhclient br-${macname}
+		sudo dhclient br-${macname}
 		if [ $? -ne 0 ]; then
 			clntadd=${5:-${base}.250}	# TODO:, need to find a free IP!!
-			ip addr add ${clntadd}/32 dev br-${macname}
+			sudo ip addr add ${clntadd}/32 dev br-${macname}
 		fi
-		ip link set dev br-${macname} up
-		ip route add ${subnet} dev br-${macname}
+		sudo ip link set dev br-${macname} up
+		sudo ip route add ${subnet} dev br-${macname}
 		
 		if [ -n "$subnet" ]; then
 			echo "User-defined sub-net set. You may to start containers with '--ip=${base}.x' to set an IP manually"
