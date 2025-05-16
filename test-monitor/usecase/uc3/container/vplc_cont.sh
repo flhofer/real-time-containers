@@ -94,15 +94,20 @@ if [ "$cmd" = "start" ]; then
 elif [ "$cmd" = "stop" ]; then
 	name=${2:-"runtime"}
 
-	# cache password
-	sudo -v
+	if [ -e /run/netns/codesys_virtuallinux_netns_${name} ]; then
+		# cache password
+		sudo -v
+		# continue to delete even on error
+		set +e	
+	fi
 
-	set +e	# continue to delete even on error
 	#stop container
 	docker stop ${name}
 	
-	#delete namespace and return cards to default
-	sudo ip netns del codesys_virtuallinux_netns_${name}
+	if [ -e /run/netns/codesys_virtuallinux_netns_${name} ]; then
+		#delete namespace and return cards to default
+		sudo ip netns del codesys_virtuallinux_netns_${name}
+	fi
 
 elif [ "$cmd" = "net" ]; then
 	prof=${2:-"print"}
