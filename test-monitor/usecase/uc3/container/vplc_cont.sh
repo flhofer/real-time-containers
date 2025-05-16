@@ -76,16 +76,16 @@ if [ "$cmd" = "start" ]; then
 		# Get container PID
 		conp=$( docker inspect -f '{{.State.Pid}}' $name )
 		# add and create network namespace for container
-		sudo ip netns attach ${name}_netns_net ${conp}
+		sudo ip netns attach codesys_virtuallinux_netns_${name} ${conp}
 		
 		# set namespace for nic
-		sudo ip link set $card netns ${name}_netns_net
+		sudo ip link set $card netns codesys_virtuallinux_netns_${name}
 		# set link up in new namespace 
-		sudo ip netns exec ${name}_netns_net ip link set $card up
-		sudo ip netns exec ${name}_netns_net ip link set $card promisc on
+		sudo ip netns exec codesys_virtuallinux_netns_${name} ip link set $card up
+		sudo ip netns exec codesys_virtuallinux_netns_${name} ip link set $card promisc on
 		
 		# set IP of card in namespace 
-		# sudo ip netns exec ${name}_netns_net ip address add $ip dev $card
+		# sudo ip netns exec codesys_virtuallinux_netns_${name} ip address add $ip dev $card
 	fi
 
 elif [ "$cmd" = "stop" ]; then
@@ -94,7 +94,7 @@ elif [ "$cmd" = "stop" ]; then
 	docker stop ${name}
 	
 	#delete namespace and return cards to default
-	ip netns del ${name}_netns_net
+	sudo ip netns del codesys_virtuallinux_netns_${name}
 
 elif [ "$cmd" = "net" ]; then
 	prof=${2:-"print"}
