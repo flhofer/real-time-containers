@@ -1,4 +1,5 @@
 #!/bin/bash 
+MAXRUNTIME=7200
 
 if [ ! "$1" = "quiet" ]; then
 	cat <<-EOF
@@ -26,7 +27,7 @@ print_help () {
 
 	cat<<-EOF
 	Usage: $0 cont [no-tests] [cpu-set]
-	       $0 wave [nic] [wave-ip]
+	       $0 wave [nic] [wave-ip] [test-time]
 
 	to control container load test or wave scope test
 	
@@ -34,6 +35,7 @@ print_help () {
 	cpu-set          Whether to apply a CPU-set pinning to the container and sub-tasks, i.e., a CPU-list
 	nic              The ethernet controller to pass as dedicated network card (can be internal-virtual)
 	wave-ip          IPv4 address of the scope
+	test-time        The runtime of each single test in wave mode. Test number is computed to stay in 2h limit
 	EOF
 	
 }
@@ -117,7 +119,7 @@ elif [ "$1" = "wave" ]; then
 	
 	./vplc_cont.sh quiet start testio ${card}
 	
-	eval python3 main.py -v -t ${time} ${waveip}
+	eval python3 main.py -n $(( ($MAXRUNTIME+${time}-1)/${time} )) -v -t ${time} ${waveip}
 	
 	./vplc_cont.sh quiet stop testio
 else
