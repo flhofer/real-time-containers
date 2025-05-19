@@ -22,7 +22,6 @@ from time import time_ns, sleep
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-from sympy.physics.units.definitions.unit_definitions import nanosecond
 
 __all__ = []
 __version__ = 0.2
@@ -143,9 +142,6 @@ USAGE
     try:
         # Setup argument parser
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
-        # parser.add_argument("-r", "--recursive", dest="recurse", action="store_true", help="recurse into subfolders [default: %(default)s]")
-        # parser.add_argument("-i", "--include", dest="include", help="only include paths matching this regex pattern. Note: exclude is given preference over include. [default: %(default)s]", metavar="RE" )
-        # parser.add_argument("-e", "--exclude", dest="exclude", help="exclude paths matching this regex pattern. [default: %(default)s]", metavar="RE" )
         parser.add_argument(dest="ip_addr", help="IP-address of the VXI-11 compatible oscilloscope")
         parser.add_argument("-n", "--tcnt", dest="tcnt", type=int, default = 10, help="set number of tests (repeat) [default: %(default)d]")
         parser.add_argument("-p", "--prgtime", dest="prgtime", type=float, default=1, help="set the main program cycle duration for flank comparison [default: %(default).2fms]")
@@ -164,23 +160,8 @@ USAGE
         else:
             verbose = 0
         
-        # recurse = args.recurse
-        # inpat = args.include
-        # expat = args.exclude
-
         if verbose > 0:
             print("Verbose mode on")
-        #     if recurse:
-        #         print("Recursive mode on")
-        #     else:
-        #         print("Recursive mode off")
-        #
-        # if inpat and expat and inpat == expat:
-        #     raise CLIError("include and exclude pattern are equal! Nothing will be processed.")
-
-        # for inpath in paths:
-        #     ### do something with inpath ###
-        #     print(inpath)
             
         testScope(args.ip_addr, args.prgtime, args.ttime, args.tcnt, args.wcnt, args.cexec)
         return 0
@@ -196,10 +177,8 @@ USAGE
         return 2
 
 if __name__ == "__main__":   
-    # if DEBUG:
-        # sys.argv.append("-h")
-        # sys.argv.append("-v")
-        # sys.argv.append("-r")
+    if DEBUG:
+        sys.argv.append("-v")
     if TESTRUN:
         import doctest
         doctest.testmod()
