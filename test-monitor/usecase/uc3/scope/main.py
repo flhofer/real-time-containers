@@ -12,7 +12,7 @@ main is a scope connector to program 'skippy' compatible oscilloscopes for jitte
 @license:    GPLv3
 
 @contact:    info@florianhofer.it
-@deffield    updated: 2024-06-12
+@deffield    updated: 2025-05-19
 '''
 
 import sys
@@ -27,7 +27,7 @@ from sympy.physics.units.definitions.unit_definitions import nanosecond
 __all__ = []
 __version__ = 0.2
 __date__ = '2024-06-12'
-__updated__ = '2025-03-31'
+__updated__ = '2025-05-19'
 
 DEBUG = 1
 TESTRUN = 0
@@ -44,7 +44,7 @@ def startScope(ip_addr):
 
     return s 
 
-def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
+def testScope(ip_addr, prgtime, ttime, tcnt, wcnt, cexec):
 
     # take time-stamp right away, use as reference
     tstamp=time_ns()
@@ -61,6 +61,11 @@ def testScope(ip_addr, prgtime, ttime, tcnt, wcnt):
         
         # prepare filename save
         s.setFileName(tnum)
+
+        if exec != None :
+            if verbose > 0:
+                print("Running external command..")
+            os.system(cexec)
 
         if verbose > 0:
             print("Sleeping until final part of test..")
@@ -148,15 +153,11 @@ USAGE
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument("-w", "--wcnt", dest="wcnt", type=int, default = 10, help="set number scope waves to save within one file [default: %(default)d]")
+        parser.add_argument("-x", "--exec", dest="cexec", type=string, help="execute following command at every test start [default: none]")
         
         # Process arguments
         args = parser.parse_args()
 
-        ip_addr = args.ip_addr
-        prgtime = args.prgtime
-        ttime = args.ttime
-        tcnt = args.tcnt
-        wcnt = args.wcnt
         global verbose 
         if args.verbose != None :
             verbose = args.verbose
@@ -181,7 +182,7 @@ USAGE
         #     ### do something with inpath ###
         #     print(inpath)
             
-        testScope(ip_addr, prgtime, ttime, tcnt, wcnt)
+        testScope(args.ip_addr, args.prgtime, args.ttime, args.tcnt, args.wcnt, args.cexec)
         return 0
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
