@@ -149,7 +149,7 @@ USAGE
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument("-w", "--wcnt", dest="wcnt", type=int, default = 10, help="set number scope waves to save within one file [default: %(default)d]")
-        parser.add_argument("-x", "--exec", dest="cexec", type=string, help="execute following command at every test start [default: none]")
+        parser.add_argument("-x", "--exec", dest="cexec", default=None, help="execute following command at every test start [default: none]")
         
         # Process arguments
         args = parser.parse_args()
