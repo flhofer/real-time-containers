@@ -150,6 +150,10 @@ CONFIG_LOCK_DEBUGGING_SUPPORT=y
 
 Here is more info on [dynamic debuging](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html)
 
+### New, untested settings
+
+Introduced in 6.x, we can now find a new, functional scheduling configuration: core scheduling. Developed to mitigate SMT side-channel attacks, this feature restricts the kernel from scheduling threads other than sibling threads on the same core. This means that only other threads from the same process(family) can be expected to run at the same time on a CPU core's hardware threads. A core scheduler would also be beneficial for RT-threads, reducing task interference and accelerating the execution of real-time processes. However, it remains to be tested what the effect on RT determinism is. You can add this function at compile time with `CONFIG_SCHED_CORE=y`.
+
 ## Kernel boot parameters
 
 Kernel boot parameters are parameters that are passed at system boot to the process reading the kernel image. Such parameters are typically specified in the `grub` boot configuration and can be changed as follows[^2].
