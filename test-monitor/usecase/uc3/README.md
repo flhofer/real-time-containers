@@ -53,12 +53,12 @@ If you would like to learn more about Docker containers and their use inside a s
 
 If we would like a vPLC to have exclusive access to a network card, we must follow the following steps **after** starting the container by passing the controller's name through `-n` :
 
-Do the following for a container named `vplc1` and card `en2sp0`:
+Do the following for a container named `vplc1` and card `enp2s0`:
 * Obtain the PID of the main process `docker inspect -f '{{.State.Pid}}' vplc1`
 * Attach a namespace to the process, `ip netns attach vplc1_netns_net <PID>`. The name can be anything-
-* Add our controller to this exclusive namespace `ip link set en2sp0 netns vplc1_netns_net`
-* Activate controller `ip netns exec vplc1_netns_net ip link set en2sp0 up`
-* Enable promiscuous mode `ip netns exec vplc1_netns_net ip link set en2sp0 promisc on`
+* Add our controller to this exclusive namespace `ip link set enp2s0 netns vplc1_netns_net`
+* Activate controller `ip netns exec vplc1_netns_net ip link set enp2s0 up`
+* Enable promiscuous mode `ip netns exec vplc1_netns_net ip link set enp2s0 promisc on`
 
 To release the card once the container is stopped, type `ip netns del vplc1_netns_net`. If you'd like to do these steps automatically, please take a look at the helper script section.
 
@@ -66,39 +66,39 @@ To release the card once the container is stopped, type `ip netns del vplc1_netn
 
 The MACvLAN driver also allows the passthrough of a network controller. In addition, it allows multiple L2s to be attached to a single physical layer. This means we can create various network cards, e.g., one per Container, using a single shared physical level.
 
-To use MACvLAN in Docker, we must create a new Docker network configuration with that driver. For example, using `en2sp0` as a physical card again, we can create a new network, e.g., `vplc-en2sp0,` (name is free choice) like this.
+To use MACvLAN in Docker, we must create a new Docker network configuration with that driver. For example, using `enp2s0` as a physical card again, we can create a new network, e.g., `vplc-enp2s0,` (name is free choice) like this.
 
 ```
-docker network create --driver=macvlan -o parent=en2sp0 --attachable vplc-en2sp0
+docker network create --driver=macvlan -o parent=enp2s0 --attachable vplc-enp2s0
 ```
 > [!Note]
-> Replace `en2sp0` with your card name as found with `ip link` throughout the rest of this section to make it work for your system.
+> Replace `enp2s0` with your card name as found with `ip link` throughout the rest of this section to make it work for your system.
 
 The new network will be created in `bridge` mode by default, permitting multiple containers to share the parent network card. If you would like another operating mode, e.g., passthrough, specify this with `-o macvlan_mode=passthru`. To use this new network, run vPLC containers with the `--network=<networkname>` parameter to attach the container to the created MACvLAN network. Each container will now be connected at the OSI level 2, obtaining a different MAC address, and consequently different level 3 adapters and IP addresses. The MAC addresses are accessible from the outside, and we are thus able to run multiple ProfiNET controllers and devices, as well as multiple EtherCAT masters as vPLC containers.
 
-Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.18.0.0/24` as the new network (you can check with `docker inspect vplc-en2sp0`), the first container will be `172.18.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must define an IP for a `user-defined` network starting with the `--ip=` parameter.
+Without additional parameters, this command will add a new `172.X.0.0/16` network and Docker will progressively assign container IPs. For example, with `172.18.0.0/24` as the new network (you can check with `docker inspect vplc-enp2s0`), the first container will be `172.18.0.2`. This, however, is not a desired behavior when working with EtherCAT or ProfiNET, as the IPs of the containers depend on the start order, not the configuration. We must define an IP for a `user-defined` network starting with the `--ip=` parameter.
 
 User-defined Docker networks may also define a subnet for containers. For example, if we would like to add subnet `192.168.32.0/24` as our new vPLC network, we can do so by typing the following.
 
 ```
-docker network create --driver=macvlan --subnet=192.168.3.0/24 -o parent=en2sp0 --attachable vplc-en2sp0
+docker network create --driver=macvlan --subnet=192.168.3.0/24 -o parent=enp2s0 --attachable vplc-enp2s0
 ```
 
 If no gateway is specified with `--gateway=x.x.x.x`, the containers will use the gateway of the parent controller, if available. If no IP is set, the IPs are given progressively like before. 
 
 The subnet specified can be of many kinds. You can pass a portion of the parent card's subnet. For example, if the parent network is `192.168.5.0/24`, with the controller `192.168.5.2`, we could assign `192.168.5.128/26` to the new MACvLAN network, thus mapping the area 192.168.5.130...192.168.5.191 for use with Docker containers. (192.168.5.129 is reserved as "gateway"). This may also work if the network is served by a DHCP server and the range 128...192 is reserved as static (essential to avoid double assignment of IP addresses). An even better solution would be to pass the complete subnet, e.g., `--subnet=192.168.5.0/24`, and then set the container range to `--ip-range=192.168.5.128/26` to define that only that subnet range is available for container allocation. The range can also be something completely different. Remember, we are working on OSI level 2 here, so we can use different subnets for our vPLCs. We are, however, limited to one MACvLAN per physical device and can thus not create a second Docker network for vPLC on the same parent controller. If you would like two or more networks for vPLCs, you need to use multiple hardware cards.
 
-With the configuration steps above, you can now communicate freely with the outside world. However, the vPLCs are not reachable from within the host. This is due to how the MACvLAN driver works and how it is attached to the network stack. If we want to communicate with our containers, our host must be part of the pool of virtual network devices in the subnet above. Thus, we add a local link named `br-vplc-en2sp0` (arbitrary) on  our card `en2sp0`.
+With the configuration steps above, you can now communicate freely with the outside world. However, the vPLCs are not reachable from within the host. This is due to how the MACvLAN driver works and how it is attached to the network stack. If we want to communicate with our containers, our host must be part of the pool of virtual network devices in the subnet above. Thus, we add a local link named `br-vplc-enp2s0` (arbitrary) on  our card `enp2s0`.
 
 ```
-ip link add br-vplc-en2sp0 link en2sp0 type macvlan mode bridge
+ip link add br-vplc-enp2s0 link enp2s0 type macvlan mode bridge
 ```
-This new link also needs an IPv4 address to communicate. If we are in a DHCP-served network, we can use `dhclient br-vplc-en2sp0` to obtain one. Otherwise, we manually configure an IP 192.168.5.129 as follows.
+This new link also needs an IPv4 address to communicate. If we are in a DHCP-served network, we can use `dhclient br-vplc-enp2s0` to obtain one. Otherwise, we manually configure an IP 192.168.5.129 as follows.
 
 ```
-ip addr add 192.168.5.129/32 dev br-vplc-en2sp0
-ip link set dev br-vplc-en2sp0 up
-ip route add 192.168.5.0/24 dev br-vplc-en2sp0
+ip addr add 192.168.5.129/32 dev br-vplc-enp2s0
+ip link set dev br-vplc-enp2s0 up
+ip route add 192.168.5.0/24 dev br-vplc-enp2s0
 ```
 
 The last line is important; it tells our system that the vPLC subnet is now reachable through this link.
@@ -116,7 +116,7 @@ As we are not specifying subnet, this will create a new bridged subnet in the `1
 
 
 * For our new service network `--network=vplc-service`
-* For the previous vPLC network `--network=name=vplc-en2sp0,ip=192.168.5.130` we now combine the name and IP in one, as Docker would not know what to set. It may also be a good idea to set the service network IP manually, as we may use it for maintenance and lower-priority communication.
+* For the previous vPLC network `--network=name=vplc-enp2s0,ip=192.168.5.130` we now combine the name and IP in one, as Docker would not know what to set. It may also be a good idea to set the service network IP manually, as we may use it for maintenance and lower-priority communication.
 
 The internal controller names are `eth0` and `eth1` respectively, given (apparently) based on the alphabetical order of the Docker network names. 
 
@@ -124,10 +124,10 @@ The internal controller names are `eth0` and `eth1` respectively, given (apparen
 
 We have multiple options to configure a container to run with a network using MACvLAN. When connected with `Delpoy SL` to the host, edit the container configuration (click Config). The parameters that are of interest are `Network`, `NIC`, and `Generic parameters`. 
 
-The parameters can be set in multiple ways. In our example above, we have two networks and `en2sp0` as the network card.
-* Use `vplc-service` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-en2sp0`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
-* Use `name=vplc-en2sp0,ip=192.168.5.130` as `Network` and add the second network using the Generic field with `--network=name=vplc-service`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
-* Use `name=vplc-en2sp0,ip=192.168.5.130` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-service,ip=172.18.0.2`. The NIC is `eth0`.
+The parameters can be set in multiple ways. In our example above, we have two networks and `enp2s0` as the network card.
+* Use `vplc-service` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-enp2s0`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
+* Use `name=vplc-enp2s0,ip=192.168.5.130` as `Network` and add the second network using the Generic field with `--network=name=vplc-service`. Here, the service network has an IP in sequence, and the NIC is `eth0`.
+* Use `name=vplc-enp2s0,ip=192.168.5.130` as `Network` and add the IP and the second network using the Generic field with `--network=name=vplc-service,ip=172.18.0.2`. The NIC is `eth0`.
 
 You notice the pattern. 
 
