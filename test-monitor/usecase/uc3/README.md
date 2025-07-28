@@ -120,6 +120,9 @@ As we are not specifying subnet, this will create a new bridged subnet in the `1
 
 The internal controller names are `eth0` and `eth1` respectively, given (apparently) based on the alphabetical order of the Docker network names. 
 
+> [!Note]
+> Older Docker engine versions do not let you specify multiple networks at startup. In such a case, add only the main (MACvLAN) network and then use `docker network attach <network> <container> [..<container>]`
+
 #### 2.1.4 Configuring the IDE to use MACvLAN
 
 We have multiple options to configure a container to run with a network using MACvLAN. When connected with `Delpoy SL` to the host, edit the container configuration (click Config). The parameters that are of interest are `Network`, `NIC`, and `Generic parameters`. 
