@@ -1,0 +1,37 @@
+{
+        "tasks" : {
+                "thread1" : {
+                        "policy" : "SCHED_DEADLINE",
+                        "dl-runtime" : 900,
+                        "dl-period" : 10000,
+                        "dl-deadline" : 10000,
+                        "phases" : {
+                                "phase1" : {
+                                        "run" : 900,
+                                        "yield": "",
+                                }
+                        }
+                },
+		"thread0": {
+		    "policy" : "SCHED_FIFO",
+		    "instance": 1,
+		    "loop": -1,
+		    "priority": 90,
+		    "timer": {
+		        "ref": "unique_net",
+		        "period": 1000
+		    },
+		    "net": 1
+		}
+        },
+
+        "global" : {
+                "duration" : 1000,
+                "calibration" : 31.5,
+                "default_policy" : "SCHED_DEADLINE",
+                "pi_enabled" : false,
+                "lock_pages" : true,
+                "logdir" : "./log",
+                "log_size" : 40,
+                "log_basename" : "log",
+}
