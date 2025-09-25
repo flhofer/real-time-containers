@@ -37,11 +37,16 @@ class Scope(object):
             self.setScreen=self._setScreen_tektronix
             self.clearScreen=self._clearScreen_tektronix
             self.setChannels=self._setChannels_tektronix
+            self.storeScreen=self._storeScreen_tektronix
+            self.setCursors=self._setCursors_tektronix
 
         elif self._model[0] == 'METRIX' and self._model[1][0:4] == 'DOB1':
             self.setScreen=self._setScreen_metrix
             self.clearScreen=self._clearScreen_metrix
             self.setChannels=self._setChannels_metrix
+            self.storeScreen=self._storeScreen_metrix
+            self.storeWaveform=self._storeWaveform_metrix
+            self.setCursors=self._setCursors_metrix
 
         else:
             raise (e, NotImplementedError) 
@@ -197,7 +202,7 @@ class Scope(object):
 
         self._fname = basename + str(number)
         
-    def storeWaveform(self):
+    def _storeWaveform_metrix(self):
 
         if self._sto_type == "CSV":       
         # store CSV data points 10 times
@@ -222,7 +227,11 @@ class Scope(object):
             file1.write(self._instr.read_raw())
             file1.close()
 
-    def storeScreen_metrix(self):
+    def _storeWaveform_tektronix(self):
+
+        pass
+
+    def _storeScreen_metrix(self):
         '''
         Store screen (screenshot) of scope
         '''
