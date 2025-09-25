@@ -222,7 +222,10 @@ class Scope(object):
             file1.write(self._instr.read_raw())
             file1.close()
 
-    def storeScreen(self):
+    def storeScreen_metrix(self):
+        '''
+        Store screen (screenshot) of scope
+        '''
 
         self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
         sleep(0.5)
@@ -232,8 +235,15 @@ class Scope(object):
         self._instr.write("SCDP")
         file1.write(self._instr.read_raw())
         file1.close()
-                
-    def setCursors(self):
+
+    def _storeScreen_tektronix(self):
+        '''
+        Store screen (screenshot) of scope
+        '''
+
+        pass
+
+    def _setCursors_metrix(self):
         '''
         Set cursors and/or measurements to perform on the input signal
         '''
@@ -243,7 +253,14 @@ class Scope(object):
         #FIXME: instrument call does nothing
         # self._instr.ask("MEAD FRR,C1-C2")   # set delay measurement first rising edge to first rising edge
         # self._instr.ask("MEAD LFF,C1-C2")   # set delay measurement last falling edge to last falling edge
-        
+
+    def _setCursors_tektronix(self):
+        '''
+        Set cursors and/or measurements to perform on the input signal
+        '''
+
+        pass
+
     def measureJitter(self):
         ''' 
         Ask the instrument to measure the delay between channels
