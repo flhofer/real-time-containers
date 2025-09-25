@@ -28,18 +28,31 @@ class Scope(object):
         try:
             self._instr =  vxi11.Instrument(ip_addr)
             self._instr.timeout = 10    # set timeout to 10 seconds (default)
-            print("Connected to :  ", self._instr.ask("*IDN?"))
-            print("Status : ", self._instr.ask("ALST?"))
+            self._model = self._instr.ask("*IDN?").split(',')
+            print("Connected to :  ", self._model)
         except Exception as e:
             raise (e) 
         
-        
-    def setScreen(self):
+        if self._model[0] == 'TEKTRONIX' and self._model[1][0:4] == 'MDO4' : 
+            self.setScreen=self._setScreen_tektronix
+            self.clearScreen=self._clearScreen_tektronix
+            self.setChannels=self._setChannels_tektronix
+
+        elif self._model[0] == 'METRIX' and self._model[1][0:4] == 'DOB1':
+            self.setScreen=self._setScreen_metrix
+            self.clearScreen=self._clearScreen_metrix
+            self.setChannels=self._setChannels_metrix
+
+        else:
+            raise (e, NotImplementedError) 
+
+    def _setScreen_metrix(self):
         '''
         Set screen and channel values to match our display area
         24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
 
+        print("Status : ", self._instr.ask("ALST?"))
         self._instr.ask("PESU 1")       # set persistence to 1sec
         self._instr.ask("PERS OFF")     # disable persistence
         self._instr.ask("C2:TRA ON")    # enable channel 2
@@ -56,14 +69,43 @@ class Scope(object):
 
         self._instr.ask("TRMD AUTO")    # Start acquisition
 
-    def clearScreen(self):
+    def _setScreen_tektronix(self):
+        '''
+        Set screen and channel values to match our display area
+        24V pulsing singal at ~1KHz - Default values for 2chn same screen
+        '''
+
+        print("Status : ", self._instr.ask("*STB?"))
+        self._instr.write("DIS:PERS CLEAR") # clear persistence
+        self._instr.write("DIS:PERS OFF")   # disable persistence
+        #self._instr.write("CH2:TRA ON")    # enable channel 2
+
+        self._instr.write("TRIG:A:EDGE RISE")  # Positive trigger
+        self._instr.write("TRIG:A:EDGE:SOU CH1")  # on channel 1
+
+        self._instr.write("TRIG:A")       # Set trigger level to 50% pp 
+        
+        self._instr.write("CH1:GAIN 1")   # Set probe attenuation to 1x
+        self._instr.write("CH2:GAIN 1")   # Set probe attenuation to 1x       
+        
+        self._instr.write("ACQ:STATE RUN")# Start acquisition
+
+
+    def _clearScreen_metrix(self):
         '''
         Clear screen 
         '''
 
         self._instr.ask("PACL")         # reset all custom parameters/screen/persistence
-        
-    def setChannels(self, prg_prd=1):
+
+    def _clearScreen_tektronix(self):
+        '''
+        Clear screen 
+        '''
+
+        pass
+
+    def _setChannels_metrix(self, prg_prd=1):
         '''
         Set screen and channel values to match our display area
         24V pulsing Singal at 5Hz
@@ -90,6 +132,28 @@ class Scope(object):
         
         self._instr.ask("PESU Infinite")  # set infinite persistence
         self._instr.ask("PERS ON")        # set persistence on
+
+    def _setChannels_tektronix(self, prg_prd=1):
+        '''
+        Set screen and channel values to match our display area
+        24V pulsing Singal at 5Hz
+        prg_prd: program period defines PLC main cycle update in ms
+        '''
+        
+        self._prg_prd=prg_prd
+        
+        self._instr.write("CH1:SCA 10")  # set to upper half
+        self._instr.write("CH1:OFFS 10")  # Offset vertical
+
+        self._instr.write("HOR:SCA {0}-6".format(prg_prd *1000))     # Time division horizontal 5 ms
+        self._instr.write("HOR:DEL:TIM {0}-6".format(prg_prd * 3000))    # set h offset to 350 to allow right slack..
+
+        self._instr.write("CH1:TRLV 12V")  # Trigger half, voltage
+        self._instr.write("CH2:SCA 10")  # set to lower half
+        self._instr.write("CH2:OFFS -30") # Offset vertical
+
+        self._instr.write("DIS:PERS Infinite")  # set infinite persistence
+        self._instr.write("DIS:PERS Infinite")  # set infinite persistence
 
     def checkSampleRate(self):
         '''
