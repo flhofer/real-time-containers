@@ -39,6 +39,7 @@ class Scope(object):
             self.setChannels=self._setChannels_tektronix
             self.storeScreen=self._storeScreen_tektronix
             self.setCursors=self._setCursors_tektronix
+            self.setFileName=self._setFileName_tektronix
 
         elif self._model[0] == 'METRIX' and self._model[1][0:4] == 'DOB1':
             self.setScreen=self._setScreen_metrix
@@ -47,9 +48,10 @@ class Scope(object):
             self.storeScreen=self._storeScreen_metrix
             self.storeWaveform=self._storeWaveform_metrix
             self.setCursors=self._setCursors_metrix
+            self.setFileName=self._setFileName_metrix
 
         else:
-            raise (e, NotImplementedError) 
+            raise (NotImplementedError) 
 
     def _setScreen_metrix(self):
         '''
@@ -150,8 +152,8 @@ class Scope(object):
         self._instr.write("CH1:SCA 10")  # set to upper half
         self._instr.write("CH1:OFFS 10")  # Offset vertical
 
-        self._instr.write("HOR:SCA {0}-6".format(prg_prd *1000))     # Time division horizontal 5 ms
-        self._instr.write("HOR:DEL:TIM {0}-6".format(prg_prd * 3000))    # set h offset to 350 to allow right slack..
+        self._instr.write("HOR:SCA {0}E-6".format(prg_prd *1000))     # Time division horizontal to program period (us)
+        self._instr.write("HOR:DEL:TIM {0}E-6".format(prg_prd * 3000))    # set h offset to 350 to allow right slack..
 
         self._instr.write("CH1:TRLV 12V")  # Trigger half, voltage
         self._instr.write("CH2:SCA 10")  # set to lower half
@@ -189,20 +191,65 @@ class Scope(object):
         if rate > 5000 * freq:
             raise 
 
-    def setFileName(self, number, basename="Wave", sto_type="CSV"):
+    def _setFileName_metrix(self, number, basename="Wave", sto_type="CSV"):
+        '''
+        Set filename and prepare drive if set (type)
+        '''
 
         self._sto_type=sto_type
-        
-        if sto_type ==  "USB":
+
+        if self._sto_type == "CSV":
+            pass
+        elif sto_type ==  "USB":
             # PARAMETERS FOR USB STORE
             self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
             print(self._instr.ask("ALST?"))
             self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
             self._instr.ask("STST C1,UDSK")
+        elif self._sto_type == "RAW":
+            pass
+        else:
+            raise NotImplementedError("Store format not managed")
 
         self._fname = basename + str(number)
+
+    def _bind_network_tektronix(self, address="10.127.128.130"):
+        '''
+        detect network settings and try to setup a backchannel NFS drive
+        '''
+
+        bindings = self._instr.ask("FILES:MOUNT:LIST?")
+
+        if address not in bindings:
+            if self._instr.ask("FILES:MOUNT:DRI \"I:;{0};plots;;\"".format(address)) != 1:
+                raise IOError("Could not mount drive")
         
+        self._instr.write("FILES:CWD I:/")
+
+    def _setFileName_tektronix(self, number, basename="Wave", sto_type="NET"):
+        '''
+        Set filename and prepare drive if set (type)
+        '''
+
+        self._sto_type=sto_type
+        
+        if self._sto_type == "NET":
+
+            # setup network drive if not done
+            try:
+                self._bind_network_tektronix()
+            except Exception as e:
+                raise e
+            
+        else:
+            raise NotImplementedError("Store format not managed")
+
+        self._fname = basename + str(number)
+
     def _storeWaveform_metrix(self):
+        '''
+        Store waveform data of last 10 samples
+        '''
 
         if self._sto_type == "CSV":       
         # store CSV data points 10 times
@@ -228,8 +275,12 @@ class Scope(object):
             file1.close()
 
     def _storeWaveform_tektronix(self):
+        '''
+        Store waveform data of last samples (Usb,memory,network)
+        '''
 
-        pass
+        self._instr.write("SAV:WAVE:FILEF SPREAD")
+        self._instr.write("SAV:WAVE ALL,{0}.{1}".format(self._fname, "csv"))
 
     def _storeScreen_metrix(self):
         '''
@@ -247,10 +298,14 @@ class Scope(object):
 
     def _storeScreen_tektronix(self):
         '''
-        Store screen (screenshot) of scope
+        Stores a screenshot on specified support (Usb,memory,network)
         '''
 
-        pass
+        self._instr.write("CLEARM")    # Hide Menu for Screenshot
+        sleep(0.5)
+
+        self._instr.write("SAV:IMAG:FILE PNG")
+        self._instr.write("SAV:IMAG {0}.{1}".format(self._fname, "png"))
 
     def _setCursors_metrix(self):
         '''
@@ -268,7 +323,9 @@ class Scope(object):
         Set cursors and/or measurements to perform on the input signal
         '''
 
-        pass
+        self._instr.write("CURS:SOU CH2")
+        self._instr.write("CURS:VBA:POSITION1 {0}E-6".format(7.25 * self._prg_prd)) # set cursor to 7 divs (+0.3) right of trigger
+        self._instr.write("CURS:VBA:POSITION2 {0}E-6".format(8.25 * self._prg_prd)) # set cursor to 8 divs (+0.3) right of trigger
 
     def measureJitter(self):
         ''' 
