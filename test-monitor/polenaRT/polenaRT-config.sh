@@ -306,7 +306,7 @@ set_boot_parameter () {
 	# If set irqaffinity, check if matches
 	if [ -n "$cpu_iso" ] && [ -n "$irqaffinity" ]; then
 
-		local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))s
+		local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))
 		
 		irq_map=
 		compute_masks "$irqaffinity" irq_map
@@ -369,11 +369,11 @@ set_boot_parameter () {
 	fi
 	
 	if [ -n "$kthread_cpus" ]; then
-		info "Using ktheads cpu setting, not supported by all systems!"
+		info_msg "Using ktheads cpu setting, not supported by all systems!"
 	
 		if [ -n "$cpu_iso" ]; then
 
-			local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))s
+			local sys_map=$(( ~$cpu_map & (1<<$prcs)-1 ))
 			
 			kthread_map=
 			compute_masks "$kthread_cpus" kthread_map
@@ -395,7 +395,7 @@ set_boot_parameter () {
 
 	# write
 	echo "new Grub config"
-	$sudo sh -c "sed -i.rt_old '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${parameters}\"/' ${grubfile}" 
+	$sudo sh -c "sed -i.rt_old '/^GRUB_CMDLINE_LINUX_DEFAULT/s/=\".*\"/=\"${cmdline}\"/' ${grubfile}" 
 
 	return 0
 }
@@ -632,7 +632,7 @@ irqbalance_off () {
 	local cpu_iso=$1
 	local cpu_map=$2
 	
-	local conf="/etc/default/irqalance"
+	local conf="/etc/default/irqbalance"
 	if [ -e "$conf" ]; then
 		
 		if [ -z "$cpu_iso" ]; then
@@ -731,7 +731,7 @@ timer_migration_off () {
 	################################
 	# We can stop timer migration between sockets at runtime with
 
-	sudo sh -c "echo 0 > $syskern/timer_migration"
+	$sudo sh -c "echo 0 > $syskern/timer_migration"
 	return 0
 }
 
@@ -739,7 +739,7 @@ cg_move_tasks () {
 	################################
 	# move pid from root to subgrp
 	################################
-	$sudo sh -c "mkdir -P $syscg/system"
+	$sudo sh -c "mkdir -p $syscg/system"
 	$sudo sh -c "cat $syscg/tasks $syscg/system/tasks"
 }
 
@@ -898,7 +898,7 @@ yes_no "Restart CPU-cores to shift tasks" restartCores
 
 #skip irq affinity if boot parameter is set
 if [ -z "$irqaffinity" ]; then
-	yes_no "Disable IRQ-balance" irqbalance_off $cpu_isp $cpu_mask
+	yes_no "Disable IRQ-balance" irqbalance_off $cpu_iso $cpu_mask
 fi
 # skip pstate setting if driver is disabled
 if [ "${intel_pstate#disabled}" = "${intel_pstate}" ]; then
@@ -910,7 +910,7 @@ if [ -z "$timer_migration" ]; then
 	yes_no "Disable timer migration" timer_migration_off
 fi
 
-if [ detect_cgroup ]; then
+if detect_cgroup; then
 	# Cgroup v2
 	yes_no "Setup CGroup for Docker" config_docker
 	yes_no "Isolate Docker CGroup" cg_set_cpus2 $cpu_iso
@@ -919,4 +919,3 @@ else
 	yes_no "Move System tasks into new CGroup" cg_move_tasks
 	yes_no "Isolate Docker CPUs" cg_set_cpus $cpu_iso
 fi
-
