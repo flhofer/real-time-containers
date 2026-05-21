@@ -862,10 +862,10 @@ fi
 
 ############# Compute CPU masks and lists #############
 
-compute_masks $cpu_iso cpu_map cpu_sys
+compute_masks $cpu_iso cpu_mask cpu_sys
 info_msg $(printf "Using real-time cpu list: %s" $cpu_iso)
 info_msg $(printf "Using system cpu list: %s" $cpu_sys)
-info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_map)
+info_msg $(printf "Using real-time cpu map: 0x%x" $cpu_mask)
 
 ############# Get boot parameters of system #############
 parse_boot_parameter
