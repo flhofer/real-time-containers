@@ -28,18 +28,38 @@ class Scope(object):
         try:
             self._instr =  vxi11.Instrument(ip_addr)
             self._instr.timeout = 10    # set timeout to 10 seconds (default)
-            print("Connected to :  ", self._instr.ask("*IDN?"))
-            print("Status : ", self._instr.ask("ALST?"))
+            self._model = self._instr.ask("*IDN?").split(',')
+            print("Connected to :  ", self._model)
         except Exception as e:
             raise (e) 
         
-        
-    def setScreen(self):
+        if self._model[0] == 'TEKTRONIX' and self._model[1][0:4] == 'MDO4' : 
+            self.setScreen=self._setScreen_tektronix
+            self.clearScreen=self._clearScreen_tektronix
+            self.setChannels=self._setChannels_tektronix
+            self.storeScreen=self._storeScreen_tektronix
+            self.setCursors=self._setCursors_tektronix
+            self.setFileName=self._setFileName_tektronix
+
+        elif self._model[0] == 'METRIX' and self._model[1][0:4] == 'DOB1':
+            self.setScreen=self._setScreen_metrix
+            self.clearScreen=self._clearScreen_metrix
+            self.setChannels=self._setChannels_metrix
+            self.storeScreen=self._storeScreen_metrix
+            self.storeWaveform=self._storeWaveform_metrix
+            self.setCursors=self._setCursors_metrix
+            self.setFileName=self._setFileName_metrix
+
+        else:
+            raise (NotImplementedError) 
+
+    def _setScreen_metrix(self):
         '''
         Set screen and channel values to match our display area
         24V pulsing singal at ~1KHz - Default values for 2chn same screen
         '''
 
+        print("Status : ", self._instr.ask("ALST?"))
         self._instr.ask("PESU 1")       # set persistence to 1sec
         self._instr.ask("PERS OFF")     # disable persistence
         self._instr.ask("C2:TRA ON")    # enable channel 2
@@ -56,14 +76,43 @@ class Scope(object):
 
         self._instr.ask("TRMD AUTO")    # Start acquisition
 
-    def clearScreen(self):
+    def _setScreen_tektronix(self):
+        '''
+        Set screen and channel values to match our display area
+        24V pulsing singal at ~1KHz - Default values for 2chn same screen
+        '''
+
+        print("Status : ", self._instr.ask("*STB?"))
+        self._instr.write("DIS:PERS CLEAR") # clear persistence
+        self._instr.write("DIS:PERS OFF")   # disable persistence
+        #self._instr.write("CH2:TRA ON")    # enable channel 2
+
+        self._instr.write("TRIG:A:EDGE RISE")  # Positive trigger
+        self._instr.write("TRIG:A:EDGE:SOU CH1")  # on channel 1
+
+        self._instr.write("TRIG:A")       # Set trigger level to 50% pp 
+        
+        self._instr.write("CH1:GAIN 1")   # Set probe attenuation to 1x
+        self._instr.write("CH2:GAIN 1")   # Set probe attenuation to 1x       
+        
+        self._instr.write("ACQ:STATE RUN")# Start acquisition
+
+
+    def _clearScreen_metrix(self):
         '''
         Clear screen 
         '''
 
         self._instr.ask("PACL")         # reset all custom parameters/screen/persistence
-        
-    def setChannels(self, prg_prd=1):
+
+    def _clearScreen_tektronix(self):
+        '''
+        Clear screen 
+        '''
+
+        pass
+
+    def _setChannels_metrix(self, prg_prd=1):
         '''
         Set screen and channel values to match our display area
         24V pulsing Singal at 5Hz
@@ -90,6 +139,28 @@ class Scope(object):
         
         self._instr.ask("PESU Infinite")  # set infinite persistence
         self._instr.ask("PERS ON")        # set persistence on
+
+    def _setChannels_tektronix(self, prg_prd=1):
+        '''
+        Set screen and channel values to match our display area
+        24V pulsing Singal at 5Hz
+        prg_prd: program period defines PLC main cycle update in ms
+        '''
+        
+        self._prg_prd=prg_prd
+        
+        self._instr.write("CH1:SCA 10")  # set to upper half
+        self._instr.write("CH1:OFFS 10")  # Offset vertical
+
+        self._instr.write("HOR:SCA {0}E-6".format(prg_prd *1000))     # Time division horizontal to program period (us)
+        self._instr.write("HOR:DEL:TIM {0}E-6".format(prg_prd * 3000))    # set h offset to 350 to allow right slack..
+
+        self._instr.write("CH1:TRLV 12V")  # Trigger half, voltage
+        self._instr.write("CH2:SCA 10")  # set to lower half
+        self._instr.write("CH2:OFFS -30") # Offset vertical
+
+        self._instr.write("DIS:PERS Infinite")  # set infinite persistence
+        self._instr.write("DIS:PERS Infinite")  # set infinite persistence
 
     def checkSampleRate(self):
         '''
@@ -120,20 +191,65 @@ class Scope(object):
         if rate > 5000 * freq:
             raise 
 
-    def setFileName(self, number, basename="Wave", sto_type="CSV"):
+    def _setFileName_metrix(self, number, basename="Wave", sto_type="CSV"):
+        '''
+        Set filename and prepare drive if set (type)
+        '''
 
         self._sto_type=sto_type
-        
-        if sto_type ==  "USB":
+
+        if self._sto_type == "CSV":
+            pass
+        elif sto_type ==  "USB":
             # PARAMETERS FOR USB STORE
             self._instr.ask("DIR DISK,UDSK,CREATE,'/vplctest/'")
             print(self._instr.ask("ALST?"))
             self._instr.ask("FLNM TYPE,C1,FILE,'settest"+str(number)+"'")
             self._instr.ask("STST C1,UDSK")
+        elif self._sto_type == "RAW":
+            pass
+        else:
+            raise NotImplementedError("Store format not managed")
 
         self._fname = basename + str(number)
+
+    def _bind_network_tektronix(self, address="10.127.128.130"):
+        '''
+        detect network settings and try to setup a backchannel NFS drive
+        '''
+
+        bindings = self._instr.ask("FILES:MOUNT:LIST?")
+
+        if address not in bindings:
+            if self._instr.ask("FILES:MOUNT:DRI \"I:;{0};plots;;\"".format(address)) != 1:
+                raise IOError("Could not mount drive")
         
-    def storeWaveform(self):
+        self._instr.write("FILES:CWD I:/")
+
+    def _setFileName_tektronix(self, number, basename="Wave", sto_type="NET"):
+        '''
+        Set filename and prepare drive if set (type)
+        '''
+
+        self._sto_type=sto_type
+        
+        if self._sto_type == "NET":
+
+            # setup network drive if not done
+            try:
+                self._bind_network_tektronix()
+            except Exception as e:
+                raise e
+            
+        else:
+            raise NotImplementedError("Store format not managed")
+
+        self._fname = basename + str(number)
+
+    def _storeWaveform_metrix(self):
+        '''
+        Store waveform data of last 10 samples
+        '''
 
         if self._sto_type == "CSV":       
         # store CSV data points 10 times
@@ -158,7 +274,18 @@ class Scope(object):
             file1.write(self._instr.read_raw())
             file1.close()
 
-    def storeScreen(self):
+    def _storeWaveform_tektronix(self):
+        '''
+        Store waveform data of last samples (Usb,memory,network)
+        '''
+
+        self._instr.write("SAV:WAVE:FILEF SPREAD")
+        self._instr.write("SAV:WAVE ALL,{0}.{1}".format(self._fname, "csv"))
+
+    def _storeScreen_metrix(self):
+        '''
+        Store screen (screenshot) of scope
+        '''
 
         self._instr.ask("MENU OFF")    # Hide Menu for Screenshot
         sleep(0.5)
@@ -168,8 +295,19 @@ class Scope(object):
         self._instr.write("SCDP")
         file1.write(self._instr.read_raw())
         file1.close()
-                
-    def setCursors(self):
+
+    def _storeScreen_tektronix(self):
+        '''
+        Stores a screenshot on specified support (Usb,memory,network)
+        '''
+
+        self._instr.write("CLEARM")    # Hide Menu for Screenshot
+        sleep(0.5)
+
+        self._instr.write("SAV:IMAG:FILE PNG")
+        self._instr.write("SAV:IMAG {0}.{1}".format(self._fname, "png"))
+
+    def _setCursors_metrix(self):
         '''
         Set cursors and/or measurements to perform on the input signal
         '''
@@ -179,7 +317,16 @@ class Scope(object):
         #FIXME: instrument call does nothing
         # self._instr.ask("MEAD FRR,C1-C2")   # set delay measurement first rising edge to first rising edge
         # self._instr.ask("MEAD LFF,C1-C2")   # set delay measurement last falling edge to last falling edge
-        
+
+    def _setCursors_tektronix(self):
+        '''
+        Set cursors and/or measurements to perform on the input signal
+        '''
+
+        self._instr.write("CURS:SOU CH2")
+        self._instr.write("CURS:VBA:POSITION1 {0}E-6".format(7.25 * self._prg_prd)) # set cursor to 7 divs (+0.3) right of trigger
+        self._instr.write("CURS:VBA:POSITION2 {0}E-6".format(8.25 * self._prg_prd)) # set cursor to 8 divs (+0.3) right of trigger
+
     def measureJitter(self):
         ''' 
         Ask the instrument to measure the delay between channels
