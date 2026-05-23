@@ -59,7 +59,7 @@ yes_no () {
 	done
 	if [ ! "${*#exit}" = "$*" ] || [ -z "$allyes" ]; then
 		local sel=
-		until read -p "Execute '$name' (y/N) : " sel; 
+		until printf "Execute '%s' (y/N) : " "$name"; read sel; 
 		[ "$sel" = "y" ] || [ "$sel" = "n" ] || [ "$sel" = "" ] ; 	
 		do
 		  echo "invalid selection!"
