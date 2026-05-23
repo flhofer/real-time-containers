@@ -517,14 +517,12 @@ restartCores () {
 	if false; then
 	if [ $numanr -ge 2 ]; then
 
-		#get cpus assigned to numa nodes / split there for better performance
-		for i in 0..$numanr; do 
-			numa[$i]=$(lscpu | grep NUMA | grep 'node'$i'' -m 1 | awk '{print $4}')
-		done
+		#get cpus assigned to first numa node / split there for better performance
+		numa0=$(lscpu | grep 'NUMA node0' -m 1 | awk '{print $4}')
 
 	else
 		echo "Single NUMA node detected, selecting all excepet cpu0 for isolation.."
-		numa[0]='1-'$((prcs-1)) # string
+		numa0='1-'$((prcs-1)) # string
 	fi	
 	fi
 
@@ -556,25 +554,59 @@ restartCores () {
 		#NAN
 
 		#shut down cores
-		for i in ${numa[0]//,/ }
-		do 
-			if [ $i -ne 0 ]; then
-				echo "Setting CPU"$i" offline..."
-				$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu$i/online"
-				sleep 1
-			fi
+		for item in $(printf '%s\n' "$numa0" | tr ',' ' ')
+		do
+			case $item in
+				*-*)
+					start=${item%-*}
+					end=${item#*-}
+					for i in `seq $start $end`
+					do
+						if [ $i -ne 0 ]; then
+							echo "Setting CPU"$i" offline..."
+							$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu$i/online"
+							sleep 1
+						fi
+					done
+					;;
+				*)
+					i=$item
+					if [ $i -ne 0 ]; then
+						echo "Setting CPU"$i" offline..."
+						$sudo sh -c "echo 0 > /sys/devices/system/cpu/cpu$i/online"
+						sleep 1
+					fi
+					;;
+			esac
 		done
 
 		sleep 1
 
 		# put them back online
-		for i in ${numa[0]//,/ }
+		for item in $(printf '%s\n' "$numa0" | tr ',' ' ')
 		do
-			if [ $i -ne 0 ]; then
-				echo "Putting CPU"$i" back online..."
-				$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu$i/online"
-				sleep 1
-			fi
+			case $item in
+				*-*)
+					start=${item%-*}
+					end=${item#*-}
+					for i in `seq $start $end`
+					do
+						if [ $i -ne 0 ]; then
+							echo "Putting CPU"$i" back online..."
+							$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu$i/online"
+							sleep 1
+						fi
+					done
+					;;
+				*)
+					i=$item
+					if [ $i -ne 0 ]; then
+						echo "Putting CPU"$i" back online..."
+						$sudo sh -c "echo 1 > /sys/devices/system/cpu/cpu$i/online"
+						sleep 1
+					fi
+					;;
+			esac
 		done
 	fi
 }
