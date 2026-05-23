@@ -694,12 +694,12 @@ config_docker () {
 			snap=1
 		else
 			# write new daemon config
-			$sudo sh -c "cat > $cfile <<-EOF
+			$sudo sh -c 'cat > $cfile <<-EOF
 			{
 			    "cgroup-parent":    "docker.slice",
 			    "log-level":        "error"
 			}
-			EOF"
+			EOF'
 		fi
 	fi
 	
