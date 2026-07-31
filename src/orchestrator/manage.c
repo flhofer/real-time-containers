@@ -563,6 +563,45 @@ stopTraceRead() {
 // #################################### THREAD specific ############################################
 
 /*
+ *  pidSiblingsFit(): check if all container PIDs fit on a resource
+ *
+ *  Arguments: - candidate resource
+ *             - PID node identifying the container
+ *
+ *  Return value: -1 failed, 0 = success
+ */
+static int
+pidSiblingsFit(resTracer_t * candidate, node_t * node){
+	if (!candidate || !candidate->affinity || !node
+			|| !node->param || !node->param->cont)
+		return -1;
+
+	resTracer_t test = *candidate;
+
+	for (node_t * item = nhead; ((item)); item=item->next){
+		if (0 >= item->pid || !item->param
+				|| item->param->cont != node->param->cont)
+			continue;
+
+		if (item->param->rscs && 0 <= item->param->rscs->affinity
+				&& !numa_bitmask_isbitset(candidate->affinity,
+						item->param->rscs->affinity))
+			return -1;
+
+		struct sched_attr attr = item->attr;
+		if (SCHED_DEADLINE != attr.sched_policy){
+			attr.sched_runtime = item->mon.cdf_runtime;
+			attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+		}
+
+		if (0 > checkUvalue(&test, &attr, 1))
+			return -1;
+	}
+
+	return 0;
+}
+
+/*
  *  pidReallocAndTest(): try to reallocate a PID to a new fit
  *
  *  Arguments: - resource tracer
@@ -576,6 +615,11 @@ pidReallocAndTest(resTracer_t * ntrc, resTracer_t * trc, node_t * node){
 
 	if (ntrc && ntrc != trc){
 		// better fit found
+		if (pidSiblingsFit(ntrc, node)){
+			printDbg(PIN "Candidate CPU %d does not fit PID %d and its siblings\n",
+					getTracerMainCPU(ntrc), node->pid);
+			return -1;
+		}
 
 		// move all threads of same container
 		if (node->param)

@@ -531,6 +531,59 @@ START_TEST(orchestrator_manage_ppckbuf_dlperiod)
 }
 END_TEST
 
+/// TEST CASE -> candidate admission must include all container siblings
+/// EXPECTED -> main alone fits, aggregate container load does not
+START_TEST(orchestrator_manage_siblingsfit)
+{
+	cont_t * cont = calloc(1, sizeof(cont_t));
+	pidc_t * mainParam = calloc(1, sizeof(pidc_t));
+	pidc_t * helperParam = calloc(1, sizeof(pidc_t));
+	mainParam->cont = cont;
+	helperParam->cont = cont;
+
+	// Main RT task: U=0.4, which fits with the candidate load.
+	node_push(&nhead);
+	node_t * main = nhead;
+	main->pid = 1;
+	main->param = mainParam;
+	main->mon.assigned = 0;
+	main->attr.sched_policy = SCHED_DEADLINE;
+	main->attr.sched_runtime = 40;
+	main->attr.sched_period = 100;
+
+	// Connected non-RT helper: measured U=0.4 makes aggregate load U=1.1.
+	node_push(&nhead);
+	node_t * helper = nhead;
+	helper->pid = 2;
+	helper->param = helperParam;
+	helper->mon.assigned = 0;
+	helper->attr.sched_policy = SCHED_OTHER;
+	helper->mon.cdf_runtime = 40;
+	helper->mon.cdf_period = 100;
+
+	resTracer_t candidate = { 0 };
+	candidate.affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(candidate.affinity, 1);
+	candidate.status = MSK_STATHRMC;
+	candidate.usedPeriod = 30;
+	candidate.basePeriod = 100;
+	candidate.U = 0.3;
+
+	ck_assert_int_eq(0, pidSiblingsFit(&candidate, main));
+
+	// Reducing the helper to U=0.2 makes the whole group fit at U=0.9.
+	helper->mon.cdf_runtime = 20;
+	ck_assert_int_eq(1, pidSiblingsFit(&candidate, main));
+
+	numa_free_cpumask(candidate.affinity);
+	main->param = NULL;
+	helper->param = NULL;
+	free(mainParam);
+	free(helperParam);
+	free(cont);
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -566,6 +619,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppconsrt);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
+	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	suite_add_tcase(s, tc5);
 
 	return;
