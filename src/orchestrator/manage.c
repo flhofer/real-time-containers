@@ -1045,10 +1045,43 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// find PID that triggered wake-up
 		if (item->pid == *frame.pid){
+			/*
+			 * SCHED_DEADLINE periods are consolidated from sched_switch and
+			 * the scheduler's absolute deadline. Counting wakeups here as well
+			 * double-counts periods and can replace that deadline with an
+			 * estimate based on the wakeup timestamp.
+			 */
+			if (SCHED_DEADLINE == item->attr.sched_policy)
+				break;
 
 			if (item->mon.last_tsP){
+				/* Per-CPU trace readers do not provide global event ordering. */
+				if (ts <= item->mon.last_tsP){
+					printDbg(PFX "Ignoring out-of-order wakeup for PID %d '%s'\n",
+							item->pid, (item->psig) ? item->psig : "");
+					break;
+				}
 
-				double period = (double)(ts - item->mon.last_tsP)/(double)NSEC_PER_SEC;
+				uint64_t elapsed = ts - item->mon.last_tsP;
+				uint64_t expected = item->mon.cdf_period;
+
+				/* Prefer a configured period until enough samples exist. - here 1/2 of expected period */
+				if (!expected && item->param && item->param->attr)
+					expected = item->param->attr->sched_period;
+
+				/*
+				 * A task can wake several times inside one application cycle for
+				 * I/O or synchronization. Do not move the period anchor for such
+				 * early wakeups; a later wakeup can still complete the cycle.
+				 */
+				if (expected && elapsed < expected / 2){
+					printDbg(PFX "Ignoring early wakeup for PID %d '%s': %luus < %luus\n",
+							item->pid, (item->psig) ? item->psig : "",
+							elapsed / 1000, expected / 2000);
+					break;
+				}
+
+				double period = (double)elapsed/(double)NSEC_PER_SEC;
 
 				if (!(item->mon.pdf_phist)){
 					if ((runstats_histInit(&(item->mon.pdf_phist), period)))
@@ -1813,4 +1846,3 @@ void *thread_manage (void *arg)
 	// Start using return value
 	return NULL;
 }
-
