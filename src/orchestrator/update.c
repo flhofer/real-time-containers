@@ -292,9 +292,27 @@ getParentPids (node_t **pidlst)
 	pclose(fp);
 }
 
+/*
+ *  freeContainerEvent(): clear unassigned event strings from memory
+ *
+ *  Arguments: container event structure pointer
+ *
+ *  Return value: 
+ */
 static contevent_t * lstevent;
 pthread_t thread_dlink;
 int  iret_dlink; // Timeout is set to 4 seconds by default
+
+static void
+freeContainerEvent(contevent_t * event) {
+	if (!event)
+		return;
+
+	free(event->name);
+	free(event->id);
+	free(event->image);
+	free(event);
+}
 
 /*
  *  startDockerThread(): start docker verification thread
@@ -349,7 +367,7 @@ stopDockerThread(){
 static void
 updateDocker() {
 	int received = 0;
-	
+
 	while (1) {
 		/* Transfer ownership while holding the same lock as the producer. */
 		(void)pthread_mutex_lock(&containerMutex);
@@ -410,20 +428,24 @@ updateDocker() {
 					}
 					curr=curr->next;
 				}
+				nhead = dummy.next;
 				(void)pthread_mutex_unlock(&dataMutex);
+				freeContainerEvent(lstevent);
+				lstevent = NULL;
 				break;
 
 			default:
 			case cnt_pending:
 				// clear last event, do nothing
-				free(lstevent);
+				freeContainerEvent(lstevent);
+				lstevent = NULL;
 				break;
 		}
 	}
 
 	// scan for PID updates
 	if (received)
-	scanNew(); 
+		scanNew();
 }
 
 /*
