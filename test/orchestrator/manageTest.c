@@ -503,6 +503,34 @@ START_TEST(orchestrator_manage_ppckbuf)
 }
 END_TEST
 
+/// TEST CASE -> configured DL period must not be added to a stale CDF period
+/// EXPECTED -> buffer accounting uses the DL scheduler period exactly once
+START_TEST(orchestrator_manage_ppckbuf_dlperiod)
+{
+	// Task whose remaining buffer is being checked.
+	node_push(&nhead);
+	node_t * item = nhead;
+	item->pid = 1;
+	item->mon.assigned = 0;
+	item->attr.sched_policy = SCHED_DEADLINE;
+	item->mon.deadline = 50000;
+	item->attr.sched_period = 50000;
+	item->attr.sched_runtime = 100;
+
+	// Competing DL task: cdf_period must be ignored for this policy.
+	node_push(&nhead);
+	nhead->pid = 2;
+	nhead->mon.assigned = 0;
+	nhead->attr.sched_policy = SCHED_DEADLINE;
+	nhead->mon.deadline = 10000;
+	nhead->attr.sched_period = 10000;
+	nhead->attr.sched_runtime = 1000;
+	nhead->mon.cdf_period = 10000;
+
+	ck_assert_int_eq(1, pickPidCheckBuffer(item, 45500, 1000));
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -537,6 +565,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_checked_fixture(tc5, orchestrator_manage_setup, orchestrator_manage_teardown);
 	tcase_add_test(tc5, orchestrator_manage_ppconsrt);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
+	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	suite_add_tcase(s, tc5);
 
 	return;

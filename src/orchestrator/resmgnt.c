@@ -311,7 +311,9 @@ setPidResources_u(node_t * node) {
 
 			// put start values as dist initial values
 			if (node->param && node->param->attr){
-				if (node->param->attr->sched_period)
+				/* cdf_period represents an estimated period for non-DL tasks. */
+				if (SCHED_DEADLINE != node->param->attr->sched_policy
+						&& node->param->attr->sched_period)
 					node->mon.cdf_period = node->param->attr->sched_period;
 				if (node->param->attr->sched_runtime)
 					node->mon.cdf_runtime = node->param->attr->sched_runtime;

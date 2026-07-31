@@ -655,8 +655,14 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
 			continue;
 
+		uint64_t period = (SCHED_DEADLINE == citem->attr.sched_policy)
+				? citem->attr.sched_period
+				: ((citem->mon.cdf_period)
+						? findPeriodMatch(citem->mon.cdf_period)
+						: citem->attr.sched_period);
+
 		if (citem->mon.deadline
-				&& (citem->attr.sched_period || citem->mon.cdf_period)
+				&& period
 				&& citem->mon.deadline <= item->mon.deadline){
 			// dl present and smaller than next dl of item
 
@@ -664,7 +670,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 
 			// check how often period fits, add time
 			while (stdl < item->mon.deadline){
-				stdl += citem->attr.sched_period + citem->mon.cdf_period; 		// one of them is empty
+				stdl += period;
 				usedtime += (citem->mon.cdf_runtime) ? 							// if estimation OK, use that value (ptresh!) instead of WCET for DL
 						citem->mon.cdf_runtime : citem->attr.sched_runtime;
 			}
