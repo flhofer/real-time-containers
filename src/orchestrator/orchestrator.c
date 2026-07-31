@@ -37,12 +37,12 @@ prgset_t * prgset; 			// program settings structure
 #endif
 
 // mutex to avoid read while updater fills or empties existing threads
-pthread_mutex_t dataMutex;
+pthread_mutex_t dataMutex = PTHREAD_MUTEX_INITIALIZER;
 // head of pidlist - PID runtime and configuration details
 node_t * nhead = NULL;
 
 // mutex to avoid read while updater fills or empties existing threads
-pthread_mutex_t resMutex; // UNUSED for now
+pthread_mutex_t resMutex = PTHREAD_MUTEX_INITIALIZER; // UNUSED for now
 // heads of resource allocations for CPU and Tasks
 resTracer_t * rHead = NULL;
 

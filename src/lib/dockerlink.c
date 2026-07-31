@@ -35,7 +35,7 @@ static void dlink_inthand (int sig, siginfo_t *siginfo, void *context){
 }
 
 FILE * inpipe;
-pthread_mutex_t containerMutex; // data access mutex
+pthread_mutex_t containerMutex = PTHREAD_MUTEX_INITIALIZER; // data access mutex
 contevent_t * containerEvent; // data
 	
 struct eventData {
@@ -303,4 +303,3 @@ void *dlink_thread_watch(void *arg) {
 		}
 	}
 }
-
