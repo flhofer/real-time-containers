@@ -537,8 +537,10 @@ START_TEST(orchestrator_manage_siblingsfit)
 {
 	cont_t * cont = calloc(1, sizeof(cont_t));
 	pidc_t * mainParam = calloc(1, sizeof(pidc_t));
+	pidc_t * rtParam = calloc(1, sizeof(pidc_t));
 	pidc_t * helperParam = calloc(1, sizeof(pidc_t));
 	mainParam->cont = cont;
+	rtParam->cont = cont;
 	helperParam->cont = cont;
 
 	// Main RT task: U=0.4, which fits with the candidate load.
@@ -550,6 +552,16 @@ START_TEST(orchestrator_manage_siblingsfit)
 	main->attr.sched_policy = SCHED_DEADLINE;
 	main->attr.sched_runtime = 40;
 	main->attr.sched_period = 100;
+
+	// A second RT task is always included: U=0.2.
+	node_push(&nhead);
+	node_t * rtSibling = nhead;
+	rtSibling->pid = 3;
+	rtSibling->param = rtParam;
+	rtSibling->mon.assigned = 0;
+	rtSibling->attr.sched_policy = SCHED_FIFO;
+	rtSibling->mon.cdf_runtime = 20;
+	rtSibling->mon.cdf_period = 100;
 
 	// Connected non-RT helper: measured U=0.4 makes aggregate load U=1.1.
 	node_push(&nhead);
@@ -569,16 +581,24 @@ START_TEST(orchestrator_manage_siblingsfit)
 	candidate.basePeriod = 100;
 	candidate.U = 0.3;
 
+	// Without affother, both RT tasks are included and candidate U=0.9.
+	prgset->affother = 0;
 	ck_assert_int_eq(0, pidSiblingsFit(&candidate, main));
 
-	// Reducing the helper to U=0.2 makes the whole group fit at U=0.9.
-	helper->mon.cdf_runtime = 20;
-	ck_assert_int_eq(1, pidSiblingsFit(&candidate, main));
+	// With affother, the measured helper raises candidate U to 1.3.
+	prgset->affother = 1;
+	ck_assert_int_eq(-1, pidSiblingsFit(&candidate, main));
+
+	// Reducing the helper to U=0.1 makes the enabled group fit at U=1.0.
+	helper->mon.cdf_runtime = 10;
+	ck_assert_int_eq(0, pidSiblingsFit(&candidate, main));
 
 	numa_free_cpumask(candidate.affinity);
 	main->param = NULL;
+	rtSibling->param = NULL;
 	helper->param = NULL;
 	free(mainParam);
+	free(rtParam);
 	free(helperParam);
 	free(cont);
 }
