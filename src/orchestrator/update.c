@@ -348,14 +348,19 @@ stopDockerThread(){
  */
 static void
 updateDocker() {
+	int received = 0;
 	
-	// NOTE: pointers are atomic
-	if (!containerEvent)
-		return;
-	
-	while (containerEvent) {	
+	while (1) {
+		/* Transfer ownership while holding the same lock as the producer. */
+		(void)pthread_mutex_lock(&containerMutex);
 		lstevent = containerEvent;
 		containerEvent = NULL;
+		(void)pthread_mutex_unlock(&containerMutex);
+
+		if (!lstevent)
+			break;
+
+		received = 1;
 		// process data, find PID entry
 
 		switch (lstevent->event) {
@@ -371,6 +376,7 @@ updateDocker() {
 				linked->contid = lstevent->id;
 				linked->imgid = lstevent->image;
 
+				/* The strings are now owned by linked (or its configuration). */
 				free(lstevent);
 				lstevent = NULL;
 
@@ -393,7 +399,8 @@ updateDocker() {
 
 				// drop matching PIDs of this container
 				while (((curr->next))){
-					if (curr->next->contid == lstevent->id){
+					if (curr->next->contid && lstevent->id
+							&& !strcmp(curr->next->contid, lstevent->id)){
 						if (prgset->trackpids)		// deactivate only
 							curr->next->pid = abs(curr->next->pid) * -1;
 						else {
@@ -415,6 +422,7 @@ updateDocker() {
 	}
 
 	// scan for PID updates
+	if (received)
 	scanNew(); 
 }
 
