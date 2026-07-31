@@ -77,6 +77,51 @@ START_TEST(checkValueTest)
 }
 END_TEST
 
+/// TEST CASE -> unknown runtimes reserve a fixed utilization per task
+/// EXPECTED -> reservations accumulate independently from existing CPU load
+START_TEST(checkUnknownValueTest)
+{
+	resTracer_t res = {
+			NULL, NULL, 0, 0.0, MSK_STATHRMC, 0, 0
+	};
+	struct sched_attr unknown = {
+		SCHED_ATTR_SIZE,
+		SCHED_OTHER,
+		0, 0, 0,
+		0,
+		100,
+		100
+	};
+	struct sched_attr known = {
+		SCHED_ATTR_SIZE,
+		SCHED_DEADLINE,
+		0, 0, 0,
+		30,
+		100,
+		100
+	};
+
+	ck_assert_int_eq(INT_MAX, checkUvalue(&res, &unknown, 1));
+	ck_assert_uint_eq(10, res.usedPeriod);
+	ck_assert_double_eq_tol(res.U, 0.1, 0.001);
+
+	ck_assert_int_eq(INT_MAX, checkUvalue(&res, &unknown, 1));
+	ck_assert_uint_eq(20, res.usedPeriod);
+	ck_assert_double_eq_tol(res.U, 0.2, 0.001);
+
+	ck_assert_int_ge(checkUvalue(&res, &known, 1), 0);
+	ck_assert_uint_eq(50, res.usedPeriod);
+	ck_assert_double_eq_tol(res.U, 0.5, 0.001);
+
+	for (int i=0; i<5; i++)
+		ck_assert_int_eq(INT_MAX, checkUvalue(&res, &unknown, 1));
+	ck_assert_double_eq_tol(res.U, 1.0, 0.001);
+
+	ck_assert_int_eq(-1, checkUvalue(&res, &unknown, 0));
+	ck_assert_uint_eq(100, res.usedPeriod);
+}
+END_TEST
+
 static void
 setup() {
 	prgset = calloc (1, sizeof(prgset_t));
@@ -743,6 +788,7 @@ END_TEST
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
 	tcase_add_test(tc1, checkValueTest);
+	tcase_add_test(tc1, checkUnknownValueTest);
 
     suite_add_tcase(s, tc1);
 

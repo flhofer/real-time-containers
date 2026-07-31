@@ -806,6 +806,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
 	int hm = res->status & MSK_STATHRMC;	// harmonic?
 	int rv = 0; // return value, perfect periods, best fit
+	int unknown = 0;
 
 	// review task parameters by scheduling type
 	switch (par->sched_policy) {
@@ -827,8 +828,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 
 			if (0 == par->sched_runtime){
 				// can't do anything about computation
-				rv = INT_MAX;
-				used += used*SCHED_UKNLOAD/100; // add 10% to load, as a dummy value
+				unknown = 1;
 				break;
 			}
 	}
@@ -871,7 +871,12 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		base = hyperP;
 	}
 
-	used += par->sched_runtime * base/baset;
+	if (unknown){
+		used += base*SCHED_UKNLOAD/100;
+		rv = INT_MAX;
+	}
+	else
+		used += par->sched_runtime * base/baset;
 
 	// calculate and verify utilization rate
 	float U = (double)used/(double)base;
