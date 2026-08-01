@@ -392,7 +392,8 @@ setPidResources(node_t * node) {
 		return;
 
 	// check siblings in container and update them
-	int hasSiblings = node->status & MSK_STATSIBL;
+	int hasSiblings = 0;
+	node->status &= ~MSK_STATSIBL; // reset first
 
 	for (node_t * item = nhead; (item); item=item->next)
 		if (node != item && item->param && item->param->cont && node->param
