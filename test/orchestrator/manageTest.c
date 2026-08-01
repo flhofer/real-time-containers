@@ -581,12 +581,6 @@ START_TEST(orchestrator_manage_siblingsfit)
 	candidate.basePeriod = 100;
 	candidate.U = 0.3;
 
-	// Without affother, both RT tasks are included and candidate U=0.9.
-	prgset->affother = 0;
-	ck_assert_int_eq(0, pidSiblingsFit(&candidate, main));
-
-	// With affother, the measured helper raises candidate U to 1.3.
-	prgset->affother = 1;
 	ck_assert_int_eq(-1, pidSiblingsFit(&candidate, main));
 
 	// Reducing the helper to U=0.1 makes the enabled group fit at U=1.0.

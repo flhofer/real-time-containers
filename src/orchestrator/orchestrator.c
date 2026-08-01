@@ -168,7 +168,6 @@ static void display_help(int error)
 	       "-A [NR] --adaptive[=NR]    activate Adaptive Static Schedule (ASS)\n"
 	       "                           0 = Adaptive schedule \n"
 		   "                           1 = Probabilistic adaptive schedule (default)\n"
-	       "-b       --bind            bind non-RT PIDs of container to same affinity\n"
 #ifdef DEBUG
 	       "-B       --blind           blind run (ignore environment preparation fails)\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
@@ -230,7 +229,7 @@ static void display_help(int error)
 }
 
 enum option_values {
-	OPT_AFFINITY=1, OPT_ADAPTIVE, OPT_BIND, OPT_BLIND, OPT_CLOCK,
+	OPT_AFFINITY=1, OPT_ADAPTIVE, OPT_BLIND, OPT_CLOCK,
 	OPT_DFLAG, OPT_DRYMASK, OPT_FTRACE, OPT_INTERVAL, OPT_LOOPS,
 	OPT_MLOCKALL, OPT_NSECS, OPT_NUMA, OPT_PRIORITY, OPT_QUIET,
 	OPT_RRTIME, OPT_RTIME, OPT_SYSTEM, OPT_SMI, OPT_VERBOSE,
@@ -266,7 +265,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		static struct option long_options[] = {
 			{"affinity",         optional_argument, NULL, OPT_AFFINITY},
 			{"adaptive",         optional_argument, NULL, OPT_ADAPTIVE },
-			{"bind",     		 no_argument,       NULL, OPT_BIND },
 			{"blind",     		 no_argument,       NULL, OPT_BLIND },
 			{"clock",            required_argument, NULL, OPT_CLOCK },
 			{"dflag",            no_argument,		NULL, OPT_DFLAG },
@@ -322,9 +320,6 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 				optargs++;
 			}
 			break;
-		case 'b':
-		case OPT_BIND:
-			set->affother = 1; break;
 #ifdef DEBUG
 		case 'B':
 		case OPT_BLIND:

@@ -268,7 +268,6 @@
 		int clocksel;				// selected clock 
 		uint32_t policy;			// default policy if not specified
 		int quiet;					// quiet enabled
-		int affother;				// set affinity of parent as well
 		int setdflag;				// set deadline overrun flag
 		int interval;				// scan interval
 		int update_wcet;			// WCET for sched deadline

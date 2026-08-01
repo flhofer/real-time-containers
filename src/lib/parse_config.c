@@ -533,7 +533,6 @@ static void parse_global(struct json_object *global, prgset_t *set)
 		} // END policy block
 
 	set->quiet = get_bool_value_from(global, "quiet", TRUE, set->quiet);
-	set->affother = get_bool_value_from(global, "affother", TRUE, set->affother);
 	set->setdflag = get_bool_value_from(global, "setdflag", TRUE, set->setdflag);
 	set->interval = get_int_value_from(global, "interval", TRUE, set->interval);
 	set->update_wcet = get_int_value_from(global, "dl_wcet", TRUE, set->update_wcet);
@@ -601,7 +600,6 @@ void parse_config_set_default(prgset_t *set) {
 	set->clocksel = 0;
 	set->policy = SCHED_OTHER;
 	set->quiet = 0;
-	set->affother = 0;
 	set->setdflag = 0;
 	set->interval = TSCAN;
 	set->update_wcet = TWCET;
