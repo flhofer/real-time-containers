@@ -168,6 +168,7 @@ static void display_help(int error)
 	       "-A [NR] --adaptive[=NR]    activate Adaptive Static Schedule (ASS)\n"
 	       "                           0 = Adaptive schedule \n"
 		   "                           1 = Probabilistic adaptive schedule (default)\n"
+		   "						       with period based reallocation\n"
 #ifdef DEBUG
 	       "-B       --blind           blind run (ignore environment preparation fails)\n"
 	       "-c CLOCK --clock=CLOCK     select clock for measurement statistics\n"
@@ -222,7 +223,7 @@ static void display_help(int error)
 	display_dryrun_help(0);
 
 	(void)
-	printf("Report bugs to: info@florianhofer.it\n"
+	printf("Report bugs to: f.hofer.phd@gmail.com\n"
 	       "Project home page: <https://www.github.com/flhofer/real-time-containers/>\n");
 
 	exit(EXIT_SUCCESS);

@@ -110,8 +110,8 @@
 	enum sched_mode {
 		SM_STATIC = 0,	// use static allocation only (NO RESCHEDULING)
 		SM_ADAPTIVE,	// use adaptive slot allocation at startup (NO RESCHEDULING)
-		SM_PADAPTIVE,	// use progressive adaptive slot allocation (NO RESCHEDULING)
-		SM_DYNSIMPLE,	// use the simple affinity based dynamic scheduling (like adaptive)
+		SM_PADAPTIVE,	// use probabilistic adaptive slot allocation (ONLY PERIOD-BASED RESCHEDULING)
+		SM_DYNSIMPLE,	// use the simple affinity based probabilistic dynamic scheduling (like adaptive)
 		SM_DYNMCBIN		// use Monte-Carlo bin allocation style algorithm
 	};
 
