@@ -1325,8 +1325,7 @@ thread_ftrace(void *arg){
 
 
 /*
- *  updateSiblings(): check if the item is - has - the primary sibling
- *  				  update all and siblings if there is a better fit
+ *  updateSiblings(): select the container placement anchor and update all siblings
  *
  *  Arguments: - item that triggered update request
  *
@@ -1335,39 +1334,37 @@ thread_ftrace(void *arg){
 static int
 updateSiblings(node_t * node){
 
-	node_t * mainp = node;
+	node_t * mainp = NULL;
+	uint64_t smp = UINT64_MAX;
 
 	if ((node->status & MSK_STATSIBL)
 			&& (node->param)
 			&& (node->param->cont)){
 
-		uint64_t smp = NSEC_PER_SEC;
 		for (node_t * item = nhead; ((item)); item=item->next ){
 			if (0 < item->pid && item->param && item->param->cont
-					&& item->param->cont == node->param->cont){
-				if (SCHED_DEADLINE == item->attr.sched_policy){
-					if (item->attr.sched_period < smp){
-						mainp = item;
-						smp = item->attr.sched_period;
-					}
+					&& item->param->cont == node->param->cont
+					&& policy_is_realtime(item->attr.sched_policy)){
+				uint64_t period = (SCHED_DEADLINE == item->attr.sched_policy)
+						? item->attr.sched_period : item->mon.cdf_period;
+				period = period ? period : UINT64_MAX;
+
+				if (!mainp || period < smp
+						|| (period == smp && item->pid < mainp->pid)){
+					mainp = item;
+					smp = period;
 				}
-				else
-					if (policy_is_realtime(item->attr.sched_policy)
-							&& (item->mon.cdf_period)	// the "periodic" task is fastest, and 0 siblings are to ignore
-							&& item->mon.cdf_period < smp){
-						mainp = item;
-						smp = item->mon.cdf_period;
-					}
 			}
 		}
 	}
+	else if (policy_is_realtime(node->attr.sched_policy))
+		mainp = node;
 
-	if (mainp != node)  // we are not the main task
-		return 1;		// assumed period of sibling changed, let's ignore it
+	if (!mainp)
+		return 1;	// no change => no real-time task present, or  node is not part of a container (configuration error)
 
-	// ELSE update all TIDs
-	return pidReallocAndTest(checkPeriod_R(node, 0),
-			getTracer(node->mon.assigned), node);
+	return pidReallocAndTest(checkPeriod_R(mainp, 0),
+			getTracer(mainp->mon.assigned), mainp);
 }
 
 /*
@@ -1617,8 +1614,8 @@ manageSched(){
 						item->mon.resample++;
 
 						item->mon.cdf_period = newPeriod;
-						// check if there is a better fit for the period, and if it is main
-						if (-1 == updateSiblings(item))
+						// check if the container has a better fit using its RT anchor
+						if (0 > updateSiblings(item))
 							warn("PID %d '%s' Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 					}
 					else
