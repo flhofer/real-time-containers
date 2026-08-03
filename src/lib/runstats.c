@@ -605,17 +605,17 @@ runstats_histResample(stat_hist **h, stat_scope * scope, double percentile){
 	if (scope->samples < SAMP_MINCNT)
 		return -GSL_CONTINUE;
 
-	double outside = (double)(scope->underflows + scope->overflows)
-			/(double)scope->samples;
-	double upper = (double)scope->overflows/(double)scope->samples;
-	int percentileOutside = 0.0 <= percentile && percentile <= 1.0
-			&& upper > 1.0 - percentile;
+	double outside = (double)(scope->underflows + scope->overflows) / (double)scope->samples;	// percentage of samples outside the histogram range
+	double upper = (double)scope->overflows/(double)scope->samples;								// percentage of samples above the histogram range
 
-	if (outside <= BIN_OUTMAX && !percentileOutside)
+	if (outside <= BIN_OUTMAX 																	// not too many samples outside the histogram range
+		&& (0.0 > percentile || upper <= 1.0 - percentile)										// upper side overflows not exceeding percentage tolerated					
 		return -GSL_CONTINUE;
 
 	double bin_min = gsl_histogram_min(*h);
 	double bin_max = gsl_histogram_max(*h);
+
+	// resample to new range, if underflows or overflows exist, use average of those values to extend the range
 	if (scope->underflows){
 		double avg = scope->underflow_sum/(double)scope->underflows;
 		bin_min = MIN(bin_min, MAX(0.0, avg * (1.0 - BIN_NEWMARGIN)));
@@ -627,6 +627,7 @@ runstats_histResample(stat_hist **h, stat_scope * scope, double percentile){
 	if (bin_min >= bin_max)
 		return -GSL_EINVAL;
 
+	// resize and replace histogram, reset scope
 	stat_hist * resized = gsl_histogram_alloc(gsl_histogram_bins(*h));
 	if (!resized)
 		return -GSL_ENOMEM;
