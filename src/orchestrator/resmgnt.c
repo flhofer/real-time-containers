@@ -805,6 +805,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
 	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
+	uint64_t baset2 = baset;
 	int hm = res->status & MSK_STATHRMC;	// harmonic?
 	int rv = 0; // return value, perfect periods, best fit
 	int unknown = 0;
@@ -877,7 +878,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
 		rv = INT_MAX;
 	}
 	else
-		used += par->sched_runtime * base/baset;
+		used += par->sched_runtime * base/baset2;
 
 	// calculate and verify utilization rate
 	float U = (double)used/(double)base;
