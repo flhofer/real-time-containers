@@ -75,7 +75,7 @@ START_TEST(orchestrator_update_getpids)
 
 	// create pids
 	fd1 = popen2("sleep 4", "r", &pid1);
-	fd2 = popen2("sleep 2", "r", &pid2);
+	fd2 = popen2("sleep 3", "r", &pid2);
 	fd3 = popen2("sleep 5", "r", &pid3);
 	// set detect mode to pid
 	free (prgset->cont_pidc);
@@ -97,10 +97,27 @@ START_TEST(orchestrator_update_getpids)
 	ck_assert(nhead->next->next);
 	ck_assert(!nhead->next->next->next);
 
-	// verify pids
+	// verify pids, no container assigned
 	ck_assert_int_eq(nhead->next->next->pid, pid1);
 	ck_assert_int_eq(nhead->next->pid, pid2);
 	ck_assert_int_eq(nhead->pid, pid3);
+	ck_assert_ptr_null(nhead->contid);
+	ck_assert_ptr_null(nhead->next->contid);
+	ck_assert_ptr_null(nhead->next->next->contid);
+
+	while (nhead)
+		node_pop(&nhead);
+
+	// retry with the actual parent PID, should be stored as container ID
+	char ppid[10];
+	(void)sprintf(ppid, "%d", getpid());
+	getPids(&nhead, pid, ppid);
+	int count = 0;
+	for (node_t * item = nhead; item; item=item->next){
+		ck_assert_str_eq(item->contid, ppid);
+		count++;
+	}
+	ck_assert_int_eq(count, 3);
 
 	pclose2(fd1, pid1, SIGINT); // close pipe
 	pclose2(fd2, pid2, SIGINT); // close pipe
