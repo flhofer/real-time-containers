@@ -471,6 +471,54 @@ START_TEST(orchestrator_manage_ftrc_ppswitch_migration)
 }
 END_TEST
 
+/// TEST CASE -> invalidate runtime state after a CPU reports lost trace events
+/// EXPECTED -> affected samples are dropped without touching another CPU's interval
+START_TEST(orchestrator_manage_ftrc_loss)
+{
+	node_push(&nhead);
+	node_t * active = nhead;
+	active->pid = 1;
+	active->mon.assigned = 1;
+	active->mon.last_cpu = 1;
+	active->mon.last_ts = 100;
+	active->mon.rt = 30;
+
+	node_push(&nhead);
+	node_t * sleeping = nhead;
+	sleeping->pid = 2;
+	sleeping->mon.assigned = 1;
+	sleeping->mon.rt = 20;
+
+	node_push(&nhead);
+	node_t * otherCPU = nhead;
+	otherCPU->pid = 3;
+	otherCPU->mon.assigned = 2;
+	otherCPU->mon.last_cpu = 2;
+	otherCPU->mon.last_ts = 120;
+	otherCPU->mon.rt = 10;
+
+	ck_assert_int_eq(2, invalidateCPURuntime(1));
+	ck_assert_uint_eq(0, active->mon.rt);
+	ck_assert_uint_eq(0, active->mon.last_ts);
+	ck_assert_int_eq(-1, active->mon.last_cpu);
+	ck_assert(active->status & MSK_STATRTINV);
+	ck_assert_uint_eq(0, sleeping->mon.rt);
+	ck_assert(sleeping->status & MSK_STATRTINV);
+	ck_assert_uint_eq(10, otherCPU->mon.rt);
+	ck_assert_uint_eq(120, otherCPU->mon.last_ts);
+	ck_assert_int_eq(2, otherCPU->mon.last_cpu);
+	ck_assert(!(otherCPU->status & MSK_STATRTINV));
+
+	sleeping->attr.sched_policy = SCHED_OTHER;
+	sleeping->mon.last_ts = 200;
+	sleeping->mon.rt = 10;
+	pickPidConsolidatePeriod(sleeping, 250);
+	ck_assert_uint_eq(0, sleeping->mon.rt);
+	ck_assert_ptr_null(sleeping->mon.pdf_hist);
+	ck_assert(!(sleeping->status & MSK_STATRTINV));
+}
+END_TEST
+
 /// TEST CASE -> pass a node information and check rt data update
 /// EXPECTED -> data reflects runtime values, even if we miss a scan
 START_TEST(orchestrator_manage_ppconsrt)
@@ -679,6 +727,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
+	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
 	suite_add_tcase(s, tc5);
 
 	return;
