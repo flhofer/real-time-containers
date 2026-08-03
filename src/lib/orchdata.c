@@ -397,7 +397,9 @@ static const node_t _node_default = { NULL,				// *next,
 
 							0, 0,						//		computed values histogram
 							NULL, NULL,					// 		*pointer to fitting data for runtime
+							{ 0 },						//		runtime histogram scope
 							NULL, NULL,					// 		*pointer to fitting data for period (NON_RT)
+							{ 0 },						//		period histogram scope
 							-1, NULL,					//		assignment CPU, *assignment mask runtime
 							0, 0						//		reschedule-, resample count
 						},

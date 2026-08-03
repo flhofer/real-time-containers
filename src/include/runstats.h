@@ -16,6 +16,17 @@ typedef gsl_histogram stat_hist;
 typedef gsl_vector stat_param;
 typedef gsl_histogram_pdf stat_cdf;
 
+typedef struct stat_scope {
+	uint64_t samples;
+	uint64_t underflows;
+	uint64_t overflows;
+	double sum;
+	double underflow_sum;
+	double overflow_sum;
+	double min;
+	double max;
+} stat_scope;
+
 struct stat_data
 	{
 		double *t;

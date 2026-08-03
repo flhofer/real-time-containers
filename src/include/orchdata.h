@@ -224,9 +224,11 @@
 
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF
 		stat_cdf *  pdf_cdf;	// CDF data collection
+		stat_scope  pdf_scope;	// runtime histogram sample scope
 
 		stat_hist *	pdf_phist;	// histogram data to estimate the PDF of the period
 		stat_cdf *  pdf_pcdf;	// CDF data collection for the period
+		stat_scope  pdf_pscope;	// period histogram sample scope
 
 		// Runtime allocation
 		int32_t assigned; 		// actually running CPU, -1 = unassigned
