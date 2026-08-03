@@ -547,7 +547,7 @@ runstats_histCheck(stat_hist * h, const stat_scope * scope){
  * Return value: - double- mean value
  */
 double
-runstats_histMean(const stat_hist * h, const stat_scope * scope){
+runstats_histMean(const stat_hist * h, const stat_scope * scope){	// could be computed from histogram, but scope is more accurate
 	if (!h || !scope || !scope->samples)
 		return 0.0;
 
@@ -594,7 +594,7 @@ runstats_histFit(stat_hist **h, const stat_scope * scope)
 		return GSL_EINVAL;
 
 	double N = gsl_histogram_sum(*h);
-	if (SAMP_MINCNT > N)
+	if (SAMP_MINCNT > scope->samples || 1.0 > N)
 		return GSL_EDOM; // small input count
 
 	// get parameters of bins
@@ -739,7 +739,7 @@ runstats_histSolve(stat_hist * h, stat_param * x)
  * Return value: time value for six sigma
  */
 double
-runstats_histSixSigma(const stat_hist * h, const stat_scope * scope){
+runstats_histSixSigma(const stat_hist * h, const stat_scope * scope){	// using histogram mean and stdev, not scope yet.
 	if (!h || !scope || !scope->samples)
 		return 0.0;
 	return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);
