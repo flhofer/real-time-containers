@@ -783,7 +783,7 @@ pickPidAddRuntimeHist(node_t *item){
 	double b = (double)item->mon.rt/(double)NSEC_PER_SEC; // transform to sec
 	int ret;
 	printDbg(PFX "Runtime for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", b);
-	if ((ret = runstats_histAdd(item->mon.pdf_hist, b)))
+	if ((ret = runstats_histAdd(item->mon.pdf_hist, &item->mon.pdf_scope, b)))
 		if (ret != 1) // GSL_EDOM
 			warn("Histogram increment error for PID %d '%s' runtime", item->pid, (item->psig) ? item->psig : "");
 
@@ -1186,7 +1186,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 
 				printDbg(PFX "Period for PID %d '%s' %f\n", item->pid, (item->psig) ? item->psig : "", period);
-				if ((runstats_histAdd(item->mon.pdf_phist, period)))
+				if ((runstats_histAdd(item->mon.pdf_phist, &item->mon.pdf_pscope, period)))
 					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 
 				if (item->mon.cdf_period){
@@ -1644,10 +1644,12 @@ manageSched(){
 				if ((SCHED_DEADLINE != item->attr.sched_policy)){
 
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
-							runstats_histMean(item->mon.pdf_phist)); // use simple mean as periodicity depends on other tasks
+							runstats_histMean(item->mon.pdf_phist,
+									&item->mon.pdf_pscope)); // use simple mean as periodicity depends on other tasks
 
-					if (runstats_histFit(&item->mon.pdf_phist))
+					if (runstats_histFit(&item->mon.pdf_phist, &item->mon.pdf_pscope))
 						info("Happened for period in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
+					runstats_scopeReset(&item->mon.pdf_pscope);
 
 					// period changed enough for a different time-slot?
 					if ( (findPeriodMatch(item->mon.cdf_period) != findPeriodMatch(newPeriod))
@@ -1670,7 +1672,7 @@ manageSched(){
 				}
 			}
 
-			if (!(runstats_histCheck(item->mon.pdf_hist))){
+			if (!(runstats_histCheck(item->mon.pdf_hist, &item->mon.pdf_scope))){
 				// if histogram is set and count is ok, update and fit curve
 
 				uint64_t newWCET = 0;
@@ -1683,7 +1685,8 @@ manageSched(){
 					// ADAPTIVE KEEP SIX-SIGMA for Deadline tasks
 					if (SCHED_DEADLINE == item->attr.sched_policy){
 						newWCET = (uint64_t)(NSEC_PER_SEC *
-										runstats_histSixSigma(item->mon.pdf_hist));
+									runstats_histSixSigma(item->mon.pdf_hist,
+											&item->mon.pdf_scope));
 						if (item->param && item->param->attr &&
 								(item->param->attr->sched_runtime)) // max double initial WCET
 							newWCET = MIN (item->param->attr->sched_runtime * 2, newWCET);
@@ -1691,7 +1694,8 @@ manageSched(){
 					else
 						// Otherwise, fifo ecc
 						newWCET = (uint64_t)(NSEC_PER_SEC *
-									runstats_histMean(item->mon.pdf_hist));
+									runstats_histMean(item->mon.pdf_hist,
+											&item->mon.pdf_scope));
 					break;
 
 				case SM_DYNSIMPLE:
@@ -1701,11 +1705,13 @@ manageSched(){
 
 						if (SCHED_DEADLINE == item->attr.sched_policy)
 							newWCET = (uint64_t)(NSEC_PER_SEC *
-										runstats_cdfSample(item->mon.pdf_cdf, prgset->ptresh));
+										runstats_cdfSample(item->mon.pdf_cdf,
+												&item->mon.pdf_scope, prgset->ptresh));
 						else
 							// Otherwise, fifo ecc
 							newWCET = (uint64_t)(NSEC_PER_SEC *
-										runstats_histMean(item->mon.pdf_hist));
+										runstats_histMean(item->mon.pdf_hist,
+												&item->mon.pdf_scope));
 					}
 					else
 						if (ret != 0)
@@ -1735,8 +1741,9 @@ manageSched(){
 				else
 					warn ("Estimation error, can not update WCET");
 
-				if (runstats_histFit(&item->mon.pdf_hist))
+				if (runstats_histFit(&item->mon.pdf_hist, &item->mon.pdf_scope))
 					info("Happened for runtime in PID %d '%s'", item->pid, (item->psig) ? item->psig: "");
+				runstats_scopeReset(&item->mon.pdf_scope);
 			}
 		}
     }
