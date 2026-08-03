@@ -30,7 +30,7 @@ static long ticksps = 1; // get clock ticks per second (Hz)-> for stat readout
 #undef PFX
 #define PFX "[update] "
 
-// GLocal vars
+// Local vars
 char * pidSignature;
 
 // declarations 
@@ -181,10 +181,11 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 		
 		// prepare literal and open pipe request, request spid (thread) ids
 		// spid and pid coincide for main process
+		// generates a list with three parameters: PIDs and PPIDs, then command string
 #ifdef BUSYBOX
 		(void)sprintf (req,  "ps -o pid,ppid,comm %s", tag);
 #else
-		(void)sprintf (req,  "ps h -o spid,command %s", tag);
+		(void)sprintf (req,  "ps h -o spid,ppid,command %s", tag);
 #endif
 		if(!(fp = popen(req,"r")))
 			return;
@@ -193,31 +194,29 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 	char pidline[BUFRD];
 	char *pid, *pid_ptr;
 	int count = 0;
-	// Scan through string and put in array
+	// Scan through string list and put in array
 	while(fgets(pidline,BUFRD,fp)) {
 		printDbg(PIN "Pid string return %s", pidline); // needs no \n -> fgets
 		pid = strtok_r (pidline," ", &pid_ptr);
 
 		node_push(pidlst);
+		// first is PID or thread ID
         (*pidlst)->pid = atoi(pid);
+
+		// second is PPID (parent), if parent-based discovery is set, store as container ID
+        pid = strtok_r (NULL, " ", &pid_ptr); // ppid here	
 		if (ppid){
 			(*pidlst)->status |= MSK_STATSIBL;
-			(*pidlst)->contid=strdup(ppid);		// string containing the list of parent PIDs
+			(*pidlst)->contid=strdup(pid);
 		}
 
-#ifdef BUSYBOX
-		// if busybox, second is ppid
-        pid = strtok_r (NULL, " ", &pid_ptr); // ppid here	
-#endif
-		// find command string and copy to new allocation
+		// last is command string, store as signature
         pid = strtok_r (NULL, "\n", &pid_ptr); // end of line?
         printDbg(PIN "processing->%d cmd: %s\n",(*pidlst)->pid, pid);
 
-		// add command string to pidlist
 		if (!((*pidlst)->psig = strdup(pid))) // alloc memory for string
 			// FATAL, exit and execute atExit
 			err_exit("Could not allocate memory!");
-		(*pidlst)->contid = NULL;
 		count++;
     }
 	if (1 == count) // only 1 found, reset sibling flag
@@ -265,7 +264,7 @@ getParentPids (node_t **pidlst)
 		return;
 
 	// read list of PPIDs
-	if (fgets(pidline,BUFRD-18,fp)) { // len -10 (+\n), limit maximum (see below)
+	if (fgets(pidline,BUFRD-18,fp)) { // len -10/17 (+\n), limit maximum (see below)
 		int i=0;
 		// replace space with, for PID list
 		while (pidline[i] && i<BUFRD) {
@@ -279,7 +278,7 @@ getParentPids (node_t **pidlst)
 		}
 
 #ifdef BUSYBOX
-		char pids[BUFRD];
+			char pids[BUFRD];
 		(void)sprintf(pids, "-T | grep -E '%s'", pidline); // len = 17, sum = total buffer
 #else
 		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
@@ -855,4 +854,3 @@ thread_update (void *arg)
 	// Start using return value
 	return NULL;
 }
-
