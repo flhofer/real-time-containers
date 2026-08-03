@@ -1640,8 +1640,16 @@ manageSched(){
 
 		if (SM_PADAPTIVE <= prgset->sched_mode){
 
-			if (!(runstats_histCheck(item->mon.pdf_phist))){
-				if ((SCHED_DEADLINE != item->attr.sched_policy)){
+			if (!(runstats_histCheck(item->mon.pdf_phist, &item->mon.pdf_pscope))){
+				int range = runstats_histResample(&item->mon.pdf_phist,
+						&item->mon.pdf_pscope, -1.0);
+				if (0 > range)
+					warn("Unable to resample period histogram for PID %d '%s'",
+							item->pid, (item->psig) ? item->psig : "");
+				else if (!range)
+					info("Resampled period range for PID %d '%s'",
+							item->pid, (item->psig) ? item->psig : "");
+				else if ((SCHED_DEADLINE != item->attr.sched_policy)){
 
 					uint64_t newPeriod = (uint64_t)(NSEC_PER_SEC *
 							runstats_histMean(item->mon.pdf_phist,
@@ -1677,6 +1685,22 @@ manageSched(){
 
 				uint64_t newWCET = 0;
 				int ret;
+				double percentile = ((SM_DYNSIMPLE <= prgset->sched_mode)
+						&& SCHED_DEADLINE == item->attr.sched_policy)
+						? prgset->ptresh : -1.0;
+				int range = runstats_histResample(&item->mon.pdf_hist,
+						&item->mon.pdf_scope, percentile);
+
+				if (0 > range){
+					warn("Unable to resample runtime histogram for PID %d '%s'",
+							item->pid, (item->psig) ? item->psig : "");
+					continue;
+				}
+				if (!range){
+					info("Resampled runtime range for PID %d '%s'",
+							item->pid, (item->psig) ? item->psig : "");
+					continue;
+				}
 
 				switch (prgset->sched_mode) {
 
