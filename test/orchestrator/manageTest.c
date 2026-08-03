@@ -519,6 +519,40 @@ START_TEST(orchestrator_manage_ftrc_loss)
 }
 END_TEST
 
+/// TEST CASE -> keep a percentile-allowed overflow outside the precision bins
+/// EXPECTED -> one 2% overflow is retained, a second one resamples the range
+START_TEST(orchestrator_manage_hist_scope)
+{
+	stat_hist * hist = NULL;
+	stat_scope scope = { 0 };
+	ck_assert_int_eq(0, runstats_histInit(&hist, 1.0));
+
+	for (int i = 0; i < 49; i++)
+		ck_assert_int_eq(0, runstats_histAdd(hist, &scope, 1.0));
+	ck_assert_int_eq(0, runstats_histAdd(hist, &scope, 2.0));
+
+	ck_assert_int_eq(0, runstats_histCheck(hist, &scope));
+	ck_assert_uint_eq(50, scope.samples);
+	ck_assert_uint_eq(1, scope.overflows);
+	ck_assert_double_eq_tol(49.0, gsl_histogram_sum(hist), 0.000001);
+	ck_assert_double_eq_tol(1.02, runstats_histMean(hist, &scope), 0.000001);
+	ck_assert_double_eq_tol(1.86, runstats_histSixSigma(hist, &scope), 0.000001);
+	ck_assert_int_gt(0, runstats_histResample(&hist, &scope, 0.98));
+	stat_cdf * cdf = NULL;
+	ck_assert_int_eq(0, runstats_cdfCreate(&hist, &cdf));
+	double percentile = runstats_cdfSample(cdf, &scope, 0.98);
+	ck_assert(percentile >= 0.98 && percentile < 1.021);
+	runstats_cdfFree(&cdf);
+
+	ck_assert_int_eq(0, runstats_histAdd(hist, &scope, 2.0));
+	ck_assert_int_eq(0, runstats_histResample(&hist, &scope, 0.98));
+	ck_assert_uint_eq(0, scope.samples);
+	ck_assert_double_ge(gsl_histogram_max(hist), 2.1);
+
+	runstats_histFree(hist);
+}
+END_TEST
+
 /// TEST CASE -> pass a node information and check rt data update
 /// EXPECTED -> data reflects runtime values, even if we miss a scan
 START_TEST(orchestrator_manage_ppconsrt)
@@ -728,6 +762,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
+	tcase_add_test(tc5, orchestrator_manage_hist_scope);
 	suite_add_tcase(s, tc5);
 
 	return;
