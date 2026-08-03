@@ -427,6 +427,50 @@ START_TEST(orchestrator_manage_ftrc_ppswitch)
 }
 END_TEST
 
+/// TEST CASE -> process a migrated task's per-CPU events out of order
+/// EXPECTED -> stale switch-out is ignored and the newer interval is preserved
+START_TEST(orchestrator_manage_ftrc_ppswitch_migration)
+{
+	const struct tr_common tc_common_default = { (void *)0, (void *)2, (void *)3, (void *)4 };
+	tr_common = tc_common_default;
+	const struct tr_switch tc_switch_default = { (void *)0x8, (void *)0x18, (void *)0x1C, (void *)0x20, (void*)0x28, (void*)0x38, (void*)0x3C };
+	tr_switch = tc_switch_default;
+
+	node_push(&nhead);
+	nhead->pid = 42;
+	nhead->psig = strdup("PID 42");
+	nhead->mon.assigned = 2;
+
+	struct ftrace_thread oldCPU = { .cpuno = 1 };
+	struct ftrace_thread newCPU = { .cpuno = 2 };
+	unsigned char switchIn[64] = { 0 };
+	unsigned char switchOut[64] = { 0 };
+	pid_t pid = nhead->pid;
+	int64_t preempted = 0x0100;
+
+	memcpy(&switchIn[0x28], nhead->psig, strlen(nhead->psig));
+	memcpy(&switchIn[0x38], &pid, sizeof(pid));
+	ck_assert_int_eq(0, pickPidInfoS(switchIn, &newCPU, 200));
+	ck_assert_int_eq(2, nhead->mon.last_cpu);
+	ck_assert_uint_eq(200, nhead->mon.last_ts);
+	ck_assert_int_eq(2, nhead->mon.assigned);
+
+	memcpy(&switchOut[0x8], nhead->psig, strlen(nhead->psig));
+	memcpy(&switchOut[0x18], &pid, sizeof(pid));
+	memcpy(&switchOut[0x20], &preempted, sizeof(preempted));
+	ck_assert_int_eq(0, pickPidInfoS(switchOut, &oldCPU, 100));
+	ck_assert_uint_eq(0, nhead->mon.rt);
+	ck_assert_int_eq(2, nhead->mon.last_cpu);
+	ck_assert_uint_eq(200, nhead->mon.last_ts);
+	ck_assert_int_eq(2, nhead->mon.assigned);
+
+	ck_assert_int_eq(0, pickPidInfoS(switchOut, &newCPU, 250));
+	ck_assert_uint_eq(50, nhead->mon.rt);
+	ck_assert_int_eq(-1, nhead->mon.last_cpu);
+	ck_assert_int_eq(2, nhead->mon.assigned);
+}
+END_TEST
+
 /// TEST CASE -> pass a node information and check rt data update
 /// EXPECTED -> data reflects runtime values, even if we miss a scan
 START_TEST(orchestrator_manage_ppconsrt)
@@ -626,6 +670,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_checked_fixture(tc4, orchestrator_manage_setup, orchestrator_manage_teardown);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch);
+	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch_migration);
 	suite_add_tcase(s, tc4);
 
 	TCase *tc5 = tcase_create("manage_ftrace_pickpid_acc");

@@ -390,7 +390,7 @@ static const node_t _node_default = { NULL,				// *next,
 						{ 								// statistics, max and min to min and max
 							0,							//		rt value
 							UINT64_MAX, 0, 0,			//		rt min/avg/max
-							0, 0, 0,					//		last ts, last ts period. deadline
+							0, -1, 0, 0,				//		last ts, CPU, last ts period. deadline
 							0, 0, 0,					//		scan counters, fail, overrun
 							0, 							//		dl diff
 							INT64_MAX, 0, INT64_MIN,	// 		dl diff min/avg/max

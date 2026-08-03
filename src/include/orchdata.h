@@ -204,6 +204,7 @@
 
 		// Time stamps and check counts
 		uint64_t last_ts;		// last time stamp for this task
+		int32_t  last_cpu;		// CPU associated with the last runtime timestamp
 		uint64_t last_tsP;		// last time stamp for this task's period
 		uint64_t deadline;		// DL: deadline last read absolute value (may approximate next iter)
 								// FIFO/RR?.. WakeUp+cdf_period

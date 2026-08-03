@@ -967,9 +967,11 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next ){
 
-		// previous or next pid in list, update data
-		if ((item->pid == *frame.prev_pid)
-				|| (item->pid == *frame.next_pid)){
+		// update on switch-in, or on switch-out if no newer CPU owns the interval
+		if ((item->pid == *frame.next_pid)
+				|| (item->pid == *frame.prev_pid
+						&& (0 > item->mon.last_cpu
+								|| item->mon.last_cpu == fthread->cpuno))){
 
 			// check if CPU changed, exiting
 			if (item->mon.assigned != fthread->cpuno){
@@ -995,6 +997,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 		// find next PID and put timeStamp last started running
 		if (item->pid == *frame.next_pid){
 			item->mon.last_ts = ts;
+			item->mon.last_cpu = fthread->cpuno;
 
 			if (item->status & MSK_STATNPRD){
 				// time between DL switches should tell jitter (technically perfect..)
@@ -1017,6 +1020,14 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	for (node_t * item = nhead; ((item)); item=item->next )
 		// previous PID in list, exiting, update runtime data
 		if (item->pid == *frame.prev_pid){
+			// a newer switch-in from another CPU owns this task now
+			if (0 <= item->mon.last_cpu
+					&& (item->mon.last_cpu != fthread->cpuno
+							|| ts < item->mon.last_ts)){
+				printDbg(PFX "Ignoring out-of-order switch-out for PID %d '%s' on CPU%d\n",
+						item->pid, (item->psig) ? item->psig : "", fthread->cpuno);
+				break;
+			}
 
 			// unassigned CPU was not part of adaptive table
 
@@ -1040,9 +1051,11 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 			}
 
-			// update real-time statistics and consolidate other values on period end
-			if (item->mon.last_ts)
+			// update runtime only if this CPU owns the active interval
+			if (0 <= item->mon.last_cpu){
 				item->mon.rt += ts - item->mon.last_ts;
+				item->mon.last_cpu = -1;
+			}
 
 			if (((SCHED_DEADLINE != item->attr.sched_policy)	// not deadline
 					|| (*frame.prev_state & 0x0100)				// set preemption
