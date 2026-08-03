@@ -569,8 +569,77 @@ runstats_histAdd(stat_hist * h, stat_scope * scope, double b){
 	if (!h || !scope)
 		return GSL_FAILURE;
 
-	return gsl_histogram_increment(h,
-			runstats_histShape(h, b));
+	scope->min = MIN(scope->min, b);
+	scope->max = MAX(scope->max, b);
+	scope->samples++;
+	scope->sum += b;
+	scope->sum_squared += b * b;
+
+	if (b < gsl_histogram_min(h)){
+		scope->underflows++;
+		scope->underflow_sum += b;
+		return GSL_SUCCESS;
+	}
+	if (b >= gsl_histogram_max(h)){
+		scope->overflows++;
+		scope->overflow_sum += b;
+		return GSL_SUCCESS;
+	}
+
+	return gsl_histogram_increment(h, b);
+}
+
+/*
+ * runstats_histResample: move a fixed-bin histogram when its scope is insufficient
+ *
+ * Arguments: - pointer holding the histogram pointer
+ *            - accumulated sample scope
+ *            - requested percentile, negative if no percentile is used
+ *
+ * Return value: negative on error, > 0 unchanged, 0 resampled
+ */
+int
+runstats_histResample(stat_hist **h, stat_scope * scope, double percentile){
+	if (!h || !*h || !scope)
+		return -GSL_EINVAL;
+	if (scope->samples < SAMP_MINCNT)
+		return -GSL_CONTINUE;
+
+	double outside = (double)(scope->underflows + scope->overflows)
+			/(double)scope->samples;
+	double upper = (double)scope->overflows/(double)scope->samples;
+	int percentileOutside = 0.0 <= percentile && percentile <= 1.0
+			&& upper > 1.0 - percentile;
+
+	if (outside <= BIN_OUTMAX && !percentileOutside)
+		return -GSL_CONTINUE;
+
+	double bin_min = gsl_histogram_min(*h);
+	double bin_max = gsl_histogram_max(*h);
+	if (scope->underflows){
+		double avg = scope->underflow_sum/(double)scope->underflows;
+		bin_min = MIN(bin_min, MAX(0.0, avg * (1.0 - BIN_NEWMARGIN)));
+	}
+	if (scope->overflows){
+		double avg = scope->overflow_sum/(double)scope->overflows;
+		bin_max = MAX(bin_max, avg * (1.0 + BIN_NEWMARGIN));
+	}
+	if (bin_min >= bin_max)
+		return -GSL_EINVAL;
+
+	stat_hist * resized = gsl_histogram_alloc(gsl_histogram_bins(*h));
+	if (!resized)
+		return -GSL_ENOMEM;
+	int ret = gsl_histogram_set_ranges_uniform(resized, bin_min, bin_max);
+	if (ret){
+		gsl_histogram_free(resized);
+		return -ret;
+	}
+
+	gsl_histogram_free(*h);
+	*h = resized;
+	runstats_scopeReset(scope);
+	return GSL_SUCCESS;
 }
 
 /*
@@ -734,7 +803,7 @@ runstats_histSolve(stat_hist * h, stat_param * x)
  * runstats_histSixSigma() : return six-sigma probability value of histogram = mean + 6 stdev
  *
  * Arguments: - histogram addr pointer
-  *            - accumulated sample scope
+ *            - accumulated sample scope
  *
  * Return value: time value for six sigma
  */
