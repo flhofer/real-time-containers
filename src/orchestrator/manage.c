@@ -726,6 +726,35 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 }
 
 /*
+ *  invalidateCPURuntime(): discard incomplete runtime samples after trace loss
+ *
+ *  Arguments: - CPU whose trace reported lost events
+ *
+ *  Return value: number of invalidated PID samples
+ */
+static int
+invalidateCPURuntime(int32_t CPUno){
+	int count = 0;
+
+	(void)pthread_mutex_lock(&dataMutex);
+	for (node_t * item = nhead; item; item=item->next){
+		if (0 >= item->pid
+				|| (0 <= item->mon.last_cpu && item->mon.last_cpu != CPUno)
+				|| (0 > item->mon.last_cpu && item->mon.assigned != CPUno))
+			continue;
+
+		item->mon.rt = 0;
+		item->mon.last_ts = 0;
+		item->mon.last_cpu = -1;
+		item->status |= MSK_STATRTINV;
+		count++;
+	}
+	(void)pthread_mutex_unlock(&dataMutex);
+
+	return count;
+}
+
+/*
  *  pickPidAddRuntimeHist(): Add runtime to histogram, init if needed
  *
  *  Arguments: - item with data for runtime
@@ -792,6 +821,10 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
 	// failed period increment counter
 	int64_t fail_count = 0;
+	int runtimeValid = !(item->status & MSK_STATRTINV);
+
+	if (!runtimeValid)
+		item->mon.rt = 0;
 
 	if (SCHED_DEADLINE == item->attr.sched_policy){
 
@@ -866,9 +899,10 @@ pickPidConsolidatePeriod(node_t *item, uint64_t ts){
 
 	}
 
-	if (item->mon.rt && item->mon.last_ts)
+	if (runtimeValid && item->mon.rt && item->mon.last_ts)
 		// statistics about variability
 		pickPidAddRuntimeHist(item);
+	item->status &= ~MSK_STATRTINV;
 
 	// remove preemptively after statistics as we will have 1 period off
 	while (fail_count){
@@ -1288,11 +1322,11 @@ thread_ftrace(void *arg){
 
 			if ((ret = kbuffer_load_subbuffer(kbuf, buffer)))
 				warn ("Unable to parse ring-buffer page!");
-
-#ifdef DEBUG
-			if ((ret = kbuffer_missed_events(kbuf)))
-				printDbg (PFX "Missed %d events on CPU%d!\n", ret, fthread->cpuno );
-#endif
+			else if ((ret = kbuffer_missed_events(kbuf))){
+				int invalid = invalidateCPURuntime(fthread->cpuno);
+				warn ("Trace events lost on CPU%d (%d reported), invalidated %d runtime samples",
+						fthread->cpuno, ret, invalid);
+			}
 
 			// read first element
 			pEvent = kbuffer_read_event(kbuf, &timestamp);

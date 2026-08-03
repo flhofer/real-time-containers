@@ -25,6 +25,7 @@
 	#define MSK_STATHERR		0x20 // HIST CDF initialization error
 	#define MSK_STATNRSCH		0x40 // Running task has requested reschedule
 	#define MSK_STATNPRD		0x80 // Running task has ended a Period
+	#define MSK_STATRTINV		0x100 // Runtime sample invalidated by trace loss
 
 	// masks for the status of configurations, PID/CNT/IMG
 	#define MSK_STATCFIX		0x1	// CPU affinity configuration is fixed
