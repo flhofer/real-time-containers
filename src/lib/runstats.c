@@ -23,6 +23,8 @@
 #endif
 
 #include <errno.h>			// system error management (LIBC)
+#include <float.h>
+#include <math.h>
 #include <string.h>			// strerror print
 
 #include "error.h"		// error print definitions
@@ -49,6 +51,8 @@
 #define STARTBINS 30		// default bin number
 #define BIN_DEFMIN 0.70		// default range: - offset * x
 #define BIN_DEFMAX 1.30 	// default range: + offset * x
+#define BIN_OUTMAX 0.10		// maximum fraction outside the precision range
+#define BIN_NEWMARGIN 0.05	// margin around resampled outside values
 
 #define MODEL_DEFAMP 1/(sqrt(2*M_PI)*b*MODEL_DEFSTD)	// default model amplitude
 #define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
@@ -475,24 +479,20 @@ runstats_histInit(stat_hist ** h, double b){
 }
 
 /*
- * runstats_histShape: adjust the value to stay in histogram range
+ * runstats_scopeReset: reset histogram sample range information
  *
- * Arguments: - pointer to the histogram
- * 			  - value to check
+ * Arguments: - pointer to histogram scope information
  *
- * Return value: returns the adjusted value
+ * Return value: -
  */
-double
-runstats_histShape(stat_hist * h, double b){
+void
+runstats_scopeReset(stat_scope * scope){
+	if (!scope)
+		return;
 
-	// reshape into LIMIT
-	if (b >= gsl_histogram_max(h)){
-		double dummy;
-		(void)gsl_histogram_get_range(h, h->n-1, &b, &dummy);
-	}
-	if (b < gsl_histogram_min(h))
-		b = gsl_histogram_min(h);
-	return b;
+	(void)memset(scope, 0, sizeof(*scope));
+	scope->min = DBL_MAX;
+	scope->max = -DBL_MAX;
 }
 
 /*
@@ -524,46 +524,49 @@ runstats_paramVerify(stat_hist * h, stat_param * x){
 /*
  * runstats_histCheck: check if minimum amount for bin fitting is met
  *
- * Arguments: - pointer to the memory location for storage
+ * Arguments: - pointer to the histogram memory location for storage
+ * 			  - accumulated sample scope
  *
  * Return value: success or error code
  */
 int
-runstats_histCheck(stat_hist * h){
-	if (!h)
+runstats_histCheck(stat_hist * h, const stat_scope * scope){
+	if (!h || !scope)
 		return GSL_FAILURE;
 
-	return (gsl_histogram_sum(h) < SAMP_MINCNT)
+	return (scope->samples < SAMP_MINCNT)
 		?  GSL_FAILURE : GSL_SUCCESS;
 }
 
 /*
  * runstats_histMean: returns the mean value of the histogram
  *
- * Arguments: - pointer to the memory location for storage
+  * Arguments: - pointer to the histogram memory location for storage
+ * 			  - accumulated sample scope
  *
  * Return value: - double- mean value
  */
 double
-runstats_histMean(stat_hist * h){
-	if (!h)
+runstats_histMean(const stat_hist * h, const stat_scope * scope){
+	if (!h || !scope || !scope->samples)
 		return 0.0;
 
-	return gsl_histogram_mean(h);
+	return scope->sum/(double)scope->samples;
 
 }
 
 /*
  * runstats_histAdd: increases the count of an occurrence value
  *
- * Arguments: - pointer to the memory location for storage
- * 			  - occurrence value
+ * Arguments: - pointer to the histogram memory location for storage
+ * 			  - accumulated sample scope
+ *            - occurrence value
  *
  * Return value: success or error code
  */
 int
-runstats_histAdd(stat_hist * h, double b){
-	if (!h)
+runstats_histAdd(stat_hist * h, stat_scope * scope, double b){
+	if (!h || !scope)
 		return GSL_FAILURE;
 
 	return gsl_histogram_increment(h,
@@ -578,7 +581,7 @@ runstats_histAdd(stat_hist * h, double b){
  * Return value: success or error code
  */
 int
-runstats_histFit(stat_hist **h)
+runstats_histFit(stat_hist **h, const stat_scope * scope)
 /*
  * Scott, D. 1979.
  * On optimal and data-based histograms.
@@ -587,7 +590,7 @@ runstats_histFit(stat_hist **h)
  *
  */
 {
-	if (!h || !*h)
+	if (!h || !*h || !scope)
 		return GSL_EINVAL;
 
 	double N = gsl_histogram_sum(*h);
@@ -731,12 +734,13 @@ runstats_histSolve(stat_hist * h, stat_param * x)
  * runstats_histSixSigma() : return six-sigma probability value of histogram = mean + 6 stdev
  *
  * Arguments: - histogram addr pointer
+  *            - accumulated sample scope
  *
  * Return value: time value for six sigma
  */
 double
-runstats_histSixSigma(const stat_hist * h){
-	if (!h)
+runstats_histSixSigma(const stat_hist * h, const stat_scope * scope){
+	if (!h || !scope || !scope->samples)
 		return 0.0;
 	return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);
 }
@@ -935,15 +939,22 @@ runstats_cdfCreate(stat_hist **h, stat_cdf **c){
  * runstats_cdfsample() : CDF sample
  *
  * Arguments: - histogram CDF pointer
- * 			  - probability value to look for
+ *            - accumulated sample scope
+ *            - probability value to look for
  *
- * Return value: time value
+ * Return value: time value, return 0 for error
  */
 double
-runstats_cdfSample(const stat_cdf * c, double r){
-	if (!c)
+runstats_cdfSample(const stat_cdf * c, const stat_scope * scope, double r){
+	if (!c || !scope || !scope->samples)
 		return 0.0;
-	return gsl_histogram_pdf_sample(c, r);
+
+	uint64_t inside = scope->samples - scope->underflows - scope->overflows;
+	if (0 == inside)
+		return 0.0;
+	double adjusted = (r * (double)scope->samples - (double)scope->underflows) / (double)inside; // recompute probability for inside range
+	adjusted = MIN(nextafter(1.0, 0.0), MAX(0.0, adjusted));	// limit to [0,1) range
+	return gsl_histogram_pdf_sample(c, adjusted);
 }
 
 /*

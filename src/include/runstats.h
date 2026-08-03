@@ -8,6 +8,7 @@
 #ifndef RUNSTATS_H_
 #define RUNSTATS_H_
 
+#include <stdint.h>
 #include <gsl/gsl_histogram.h>
 #include <gsl/gsl_vector.h>
 
@@ -17,14 +18,14 @@ typedef gsl_vector stat_param;
 typedef gsl_histogram_pdf stat_cdf;
 
 typedef struct stat_scope {
-	uint64_t samples;
+	uint64_t samples;			// total amout of samples
 	uint64_t underflows;
 	uint64_t overflows;
-	double sum;
+	double sum;					// total value sum of all samples
 	double underflow_sum;
 	double overflow_sum;
-	double min;
-	double max;
+	double min;					// minimum value of all samples
+	double max;					// maximum value of all samples
 } stat_scope;
 
 struct stat_data
@@ -45,12 +46,19 @@ void runstats_paramFree(stat_param * x);			// free parameter vector
 int runstats_histInit(stat_hist ** h, double b);	// init histogram data structure
 int runstats_histSolve(stat_hist * h, stat_param * x);
 													// fit model (gaussian) to histogram
-double runstats_histShape(stat_hist * h, double b);	// shape value to histogram borders
-int runstats_histAdd(stat_hist * h, double b);		// add value to histogram
-int runstats_histCheck(stat_hist * h);				// check prepared for fitting
-double runstats_histMean(stat_hist * h);			// get the mean of the PD
-int runstats_histFit(stat_hist **h);				// fit histogram bins
-double runstats_histSixSigma(const stat_hist * h);	// compute six-sigma probability time value (LSS 99.996% on normal dist)
+int runstats_histAdd(stat_hist * h, stat_scope * scope, double b);	
+													// shape value to histogram borders
+int runstats_histCheck(stat_hist * h, const stat_scope * scope);
+													// check prepared for fitting
+double runstats_histMean(const stat_hist * h, const stat_scope * scope);
+													// get the mean of the PD
+int runstats_histFit(stat_hist **h, const stat_scope * scope);
+													// fit histogram bins
+int runstats_histResample(stat_hist **h, stat_scope * scope, double percentile);
+													// resample histogram if scope is insufficient
+double runstats_histSixSigma(const stat_hist * h, const stat_scope * scope);
+													// compute six-sigma probability time value (LSS 99.996% on normal dist)
+void runstats_scopeReset(stat_scope * scope);		// reset scope information of pdf
 void runstats_histFree(stat_hist * h);				// free histrogram structure
 
 int runstats_mdlpdf(stat_param * x, double a,		// compute integral from a to b, to get probability p
@@ -61,7 +69,7 @@ int runstats_mdlUpb(stat_param * x, double a,		// compute upper bound b that obt
 
 int runstats_cdfCreate(stat_hist **h, stat_cdf **c);// transfer histogram data to CDF and resort histogram
 double runstats_cdfSample(const stat_cdf * c,
-		double r);									// compute time from CDF value
+		const stat_scope * scope, double r);		// compute time from CDF value
 void runstats_cdfFree(stat_cdf ** c);				// CDF free
 
 double runstats_gaussian(const double a, const double b,
