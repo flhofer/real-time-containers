@@ -309,15 +309,6 @@ setPidResources_u(node_t * node) {
 			if (setPidAffinityAssinged(node))
 				warn("Can not assign startup allocation for PID %d", node->pid);
 
-			// put start values as dist initial values
-			if (node->param && node->param->attr){
-				/* cdf_period represents an estimated period for non-DL tasks. */
-				if (SCHED_DEADLINE != node->param->attr->sched_policy
-						&& node->param->attr->sched_period)
-					node->mon.cdf_period = node->param->attr->sched_period;
-				if (node->param->attr->sched_runtime)
-					node->mon.cdf_runtime = node->param->attr->sched_runtime;
-			}
 		}
 	}
 	else{
@@ -336,6 +327,13 @@ setPidResources_u(node_t * node) {
 		return;
 	}
 
+	// put start values as dist initial values
+	// cdf times represents an estimated period/runtime for tasks.
+	node->mon.cdf_period = getPidPeriod(node);
+	if ((node->param && node->param->attr)
+		&& (node->param->attr->sched_runtime))
+			node->mon.cdf_runtime = node->param->attr->sched_runtime;
+	
 	// only do if different than -1, <- not set values = keep default
 	if (SCHED_NODATA != node->param->attr->sched_policy) {
 		cont("Setting Scheduler of PID %d to '%s'", node->pid,
