@@ -416,7 +416,7 @@ setPidResources(node_t * node) {
  * Return value: -
  */
 static void
-getPidSchedAttr(const node_t * node){
+getPidSchedAttr(node_t * const node){
 	if (!node)
 		return;
 
@@ -446,7 +446,7 @@ getPidSchedAttr(const node_t * node){
  * Return value: -
  */
 void
-updatePidAttr(const node_t * node){
+updatePidAttr(node_t * const node){
 
 	getPidSchedAttr(node);
 	
