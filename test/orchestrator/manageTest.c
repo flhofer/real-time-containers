@@ -707,9 +707,13 @@ START_TEST(orchestrator_manage_siblingsfit)
 	candidate.basePeriod = 100;
 	candidate.U = 0.3;
 
-	ck_assert_int_eq(-1, pidSiblingsFit(&candidate, main));
+	ck_assert_int_eq(-1, pidSiblingsFit(&candidate, main)); // fails due to overload, U=1.1
+	helperParam->rscs = calloc(1, sizeof(rscs_t));
+
+	ck_assert_int_eq(-1, pidSiblingsFit(&candidate, main)); // fails because hard affinity does not allow rescheduling to CPU 1
 
 	// Reducing the helper to U=0.1 makes the enabled group fit at U=1.0.
+	helperParam->rscs->affinity = -1;
 	helper->mon.cdf_runtime = 10;
 	ck_assert_int_eq(0, pidSiblingsFit(&candidate, main));
 
