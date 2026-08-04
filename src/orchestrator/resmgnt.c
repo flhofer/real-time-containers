@@ -383,6 +383,9 @@ setPidResources(node_t * node) {
 	else
 		warn("SetPidResources: Container not specified");
 
+	if (node->attr.sched_policy == SCHED_NODATA)
+		getpidSchedAttr(node);
+
 	if (!findPidParameters(node, contparm))  // parameter set found in list -> assign and update
 		setPidResources_u(node);
 	else
@@ -405,17 +408,12 @@ setPidResources(node_t * node) {
 	node->status |= hasSiblings;
 }
 
-/*
- * updatePidAttr : update PID scheduling attributes and check for flags (update)
- *
- * Arguments: - node_t item
- *
- * Return value: -
- */
-void
-updatePidAttr(node_t * node){
+static void
+getPidSchedAttr(const node_t * node){
+	if (!node)
+		return;
 
-	// storage for actual attributes
+		// storage for actual attributes
 	struct sched_attr attr_act = { sizeof(struct sched_attr) };
 
 	// try reading
@@ -430,6 +428,20 @@ updatePidAttr(node_t * node){
 			info("Scheduling attributes changed for pid %d", node->pid);
 		node->attr = attr_act;
 	}
+}
+
+
+/*
+ * updatePidAttr : update PID scheduling attributes and check for flags (update)
+ *
+ * Arguments: - node_t item
+ *
+ * Return value: -
+ */
+void
+updatePidAttr(const node_t * node){
+
+	getpidSchedAttr(node);
 	
 	// parameters still to upload? Do it now with updated kernel attributes
 	if ((node->param) && !(node->status & MSK_STATUPD)){
