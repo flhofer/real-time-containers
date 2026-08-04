@@ -809,10 +809,12 @@ runstats_histSolve(stat_hist * h, stat_param * x)
  * Return value: time value for six sigma
  */
 double
-runstats_histSixSigma(const stat_hist * h, const stat_scope * scope){	// using histogram mean and stdev, not scope yet.
+runstats_histSixSigma(const stat_hist * h, const stat_scope * scope){
 	if (!h || !scope || !scope->samples)
 		return 0.0;
-	return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);
+	// return gsl_histogram_mean(h) + 6 * gsl_histogram_sigma(h);	// in case we want to use histogram mean and stdev, not scope
+	return runstats_histMean(h, scope) + 6 * sqrt(scope->sum_squared/(double)scope->samples
+		 - pow(scope->sum/(double)scope->samples, 2));
 }
 
 /*
