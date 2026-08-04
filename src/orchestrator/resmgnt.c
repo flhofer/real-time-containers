@@ -1055,7 +1055,7 @@ checkPeriod_R(node_t * item, int include) {
 		struct sched_attr attr = { SCHED_ATTR_SIZE };
 		attr.sched_policy = item->attr.sched_policy;
 		attr.sched_runtime = item->mon.cdf_runtime;
-		attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+		attr.sched_period = getPidPeriodMatch(item);
 		ftrc = checkPeriod(&attr, affinity, item->mon.assigned);
 	}
 
@@ -1160,7 +1160,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
 			struct sched_attr attr = { SCHED_ATTR_SIZE };
 			attr.sched_policy = item->attr.sched_policy;
 			attr.sched_runtime = item->mon.cdf_runtime;
-			attr.sched_period = findPeriodMatch(item->mon.cdf_period);
+			attr.sched_period = getPidPeriodMatch(item);
 			rv = MIN(checkUvalue(resNew, &attr, 1), rv);
 		}
 	}
