@@ -49,6 +49,9 @@
 	int	setPidAffinityAssinged (node_t * node);	// update PID affinity in run-time
 	int	getPidAffinityAssingedNr(node_t * node);// get the number of CPUs that have an affinity with the PID
 
+	uint64_t getPidPeriod(const node_t * node);	// get configured period, or raw observed period as fallback
+	uint64_t getPidPeriodMatch(const node_t * node);
+												// as above, match observed periods to standard values
 	uint64_t findPeriodMatch(uint64_t cdf_Period);	// find matching period in 1/40ths
 
 	// runtime manipulation of configuration and PID nodes - MUTEX must be acquired
