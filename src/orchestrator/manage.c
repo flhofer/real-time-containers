@@ -589,7 +589,7 @@ pidSiblingsFit(resTracer_t * candidate, node_t * node){
 			return -1;
 
 		struct sched_attr attr = item->attr;
-		attr.sched_runtime = item->mon.cdf_runtime;
+		attr.sched_runtime = (item->mon.cdf_runtime) ? item->mon.cdf_runtime : item->attr.sched_runtime;
 		attr.sched_period = getPidPeriodMatch(item);
 		if (0 > checkUvalue(&test, &attr, 1))
 			return -1;
