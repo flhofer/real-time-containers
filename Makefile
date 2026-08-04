@@ -19,7 +19,7 @@ testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
 		   kernutilTest.o orchdataTest.o parse_configTest.o errorTest.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
-LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas
+LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas -lnuma
 ifdef USELIBTRACE
 	LIBS += -ltraceevent
 endif

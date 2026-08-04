@@ -2,6 +2,7 @@
 #include "cmnutil.h"	// general definitions
 #include <numa.h>		// for numa free cpu-mask
 #include <time.h>		// time management and constants
+#include <float.h>		// float constants and operations
 
 /* -------------------- COMMON, SHARED functions ----------------------*/
 

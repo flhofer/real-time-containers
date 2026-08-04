@@ -609,7 +609,7 @@ runstats_histResample(stat_hist **h, stat_scope * scope, double percentile){
 	double upper = (double)scope->overflows/(double)scope->samples;								// percentage of samples above the histogram range
 
 	if (outside <= BIN_OUTMAX 																	// not too many samples outside the histogram range
-		&& (0.0 > percentile || upper <= 1.0 - percentile)										// upper side overflows not exceeding percentage tolerated					
+		&& (0.0 > percentile || upper <= 1.0 - percentile))										// upper side overflows not exceeding percentage tolerated					
 		return -GSL_CONTINUE;
 
 	double bin_min = gsl_histogram_min(*h);
