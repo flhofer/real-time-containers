@@ -384,7 +384,7 @@ setPidResources(node_t * node) {
 		warn("SetPidResources: Container not specified");
 
 	if (node->attr.sched_policy == SCHED_NODATA)
-		getpidSchedAttr(node);
+		getPidSchedAttr(node);
 
 	if (!findPidParameters(node, contparm))  // parameter set found in list -> assign and update
 		setPidResources_u(node);
@@ -408,6 +408,13 @@ setPidResources(node_t * node) {
 	node->status |= hasSiblings;
 }
 
+/*
+ * getPidSchedAttr : update PID scheduling attributes by reading kernel scheduler entry
+ *
+ * Arguments: - node_t item
+ *
+ * Return value: -
+ */
 static void
 getPidSchedAttr(const node_t * node){
 	if (!node)
@@ -441,7 +448,7 @@ getPidSchedAttr(const node_t * node){
 void
 updatePidAttr(const node_t * node){
 
-	getpidSchedAttr(node);
+	getPidSchedAttr(node);
 	
 	// parameters still to upload? Do it now with updated kernel attributes
 	if ((node->param) && !(node->status & MSK_STATUPD)){
@@ -782,6 +789,67 @@ createResTracer(){
 //			rHead->Uavg = 0.0;
 //			rHead->basePeriod = 0;
 	}
+}
+
+/*
+ *  getPidNominalPeriod(): return a period that was not inferred at runtime
+ *
+ *  Arguments: - PID node
+ *
+ *  Return value: configured period, kernel DL period, or zero
+ */
+static inline uint64_t
+getPidNominalPeriod(const node_t * node){
+	if (!node)
+		return 0;
+
+	if (node->param && node->param->attr
+			&& node->param->attr->sched_period)
+		return node->param->attr->sched_period;
+
+	// if config is missing, fallback to kernel value if deadline scheduling is used
+	if (SCHED_DEADLINE == node->attr.sched_policy)
+		return node->attr.sched_period;
+
+	return 0;
+}
+
+/*
+ *  getPidPeriod(): return the preferred raw period
+ *
+ *  Arguments: - PID node
+ *
+ *  Return value: observed period, or configured nominal period as fallback
+ */
+uint64_t
+getPidPeriod(const node_t * node){
+	if (!node)
+		return 0;
+
+	if ((SCHED_DEADLINE != node->attr.sched_policy)
+		&& (node->mon.cdf_period))
+		return node->mon.cdf_period;
+
+	return getPidNominalPeriod(node);;
+}
+
+/*
+ *  getPidPeriodMatch(): return the period used for resource accounting
+ *
+ *  Arguments: - PID node
+ *
+ *  Return value: matchedobserved period, or configured nominal period
+ */
+uint64_t
+getPidPeriodMatch(const node_t * node){
+	if (!node)
+		return 0;
+
+	if ((SCHED_DEADLINE != node->attr.sched_policy)
+		&& (node->mon.cdf_period))
+		return findPeriodMatch(node->mon.cdf_period);
+
+	return getPidNominalPeriod(node);;
 }
 
 /*
