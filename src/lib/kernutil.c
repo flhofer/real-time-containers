@@ -23,7 +23,10 @@
 #include <unistd.h> // used for POSIX and XOPEN constants
 #include <fcntl.h>	// file control, new open/close functions
 #include <errno.h>	// error numbers and strings
-#include <cpuid.h>	// cpu information
+#if (defined(__i386__) || defined(__x86_64__))
+	#include <cpuid.h>	// cpu information
+	#define ARCH_HAS_SMI_COUNTER
+#endif	
 #include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
 #include <wordexp.h>		// for POSIX word expansion
@@ -42,18 +45,13 @@
 #undef PFX
 #define PFX "[rt-utils] "
 
-#if (defined(__i386__) || defined(__x86_64__))
-	#define ARCH_HAS_SMI_COUNTER
-#endif
-
 #define MSR_SMI_COUNT		0x00000034
 #define MSR_SMI_COUNT_MASK	0xFFFFFFFF
-
-#ifdef ARCH_HAS_SMI_COUNTER
 
 // Debug prefix allocated first time, used for all further calls
 static char debugfileprefix[_POSIX_PATH_MAX];
 
+#ifdef ARCH_HAS_SMI_COUNTER
 /*
  * open_msr_file: open file descriptor of MSR counters
  *
@@ -198,16 +196,19 @@ has_smi_counter(void)
 }
 #else
 // Dummy functions
-static int open_msr_file(int cpu)
+int 
+open_msr_file(int cpu)
 {
 	return -1;
 }
 
-static int get_smi_counter(int fd, unsigned long *counter)
+int 
+get_smi_counter(int fd, unsigned long *counter)
 {
 	return 1;
 }
-static int has_smi_counter(void)
+int 
+has_smi_counter(void)
 {
 	return 0;
 }

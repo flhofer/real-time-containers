@@ -38,6 +38,7 @@
 #define SCHED_UHARMONIC	3				// offset for non-harmonic scores in checkUvalue (MIN)
 
 static int recomputeCPUTimes_u(int32_t CPUno, node_t * skip);
+static void getPidSchedAttr(node_t * const node);
 
 /*
  * --------------------- FROM HERE WE ASSUME RW LOCK ON NHEAD ------------------------
@@ -801,6 +802,7 @@ getPidNominalPeriod(const node_t * node){
 	if (!node)
 		return 0;
 
+	// TODO: should config be used insead of kernel value?
 	if (node->param && node->param->attr
 			&& node->param->attr->sched_period)
 		return node->param->attr->sched_period;
