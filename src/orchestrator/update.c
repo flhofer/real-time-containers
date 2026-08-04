@@ -176,7 +176,7 @@ getPids (node_t **pidlst, char * tag, char * ppid)
 		if (!tag) 
 			err_exit("Process signature tag is a null pointer!");
 
-		int tlen = strlen (tag) + 22;
+		int tlen = strlen (tag) + 27;
 		char req[tlen];
 		
 		// prepare literal and open pipe request, request spid (thread) ids
