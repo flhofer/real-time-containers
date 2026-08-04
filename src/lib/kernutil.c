@@ -23,7 +23,9 @@
 #include <unistd.h> // used for POSIX and XOPEN constants
 #include <fcntl.h>	// file control, new open/close functions
 #include <errno.h>	// error numbers and strings
-#include <cpuid.h>	// cpu information
+#if !defined(__x86_64__) && !defined(__i386__)
+	#include <cpuid.h>	// cpu information
+#endif	
 #include <sys/wait.h>		// for waitpid in pipe operations
 #include <sys/utsname.h>	// kernel info
 #include <wordexp.h>		// for POSIX word expansion

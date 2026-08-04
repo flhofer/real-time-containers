@@ -801,6 +801,7 @@ getPidNominalPeriod(const node_t * node){
 	if (!node)
 		return 0;
 
+	// TODO: should config be used insead of kernel value?
 	if (node->param && node->param->attr
 			&& node->param->attr->sched_period)
 		return node->param->attr->sched_period;
