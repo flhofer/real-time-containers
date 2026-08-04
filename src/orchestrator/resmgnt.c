@@ -415,12 +415,6 @@ setPidResources(node_t * node) {
 void
 updatePidAttr(node_t * node){
 
-	// parameters still to upload?
-	if ((node->param) && !(node->status & MSK_STATUPD)){
-		setPidResources_u(node);
-		return;
-	}
-
 	// storage for actual attributes
 	struct sched_attr attr_act = { sizeof(struct sched_attr) };
 
@@ -435,6 +429,12 @@ updatePidAttr(node_t * node){
 		if (SCHED_NODATA != node->attr.sched_policy)
 			info("Scheduling attributes changed for pid %d", node->pid);
 		node->attr = attr_act;
+	}
+	
+	// parameters still to upload? Do it now with updated kernel attributes
+	if ((node->param) && !(node->status & MSK_STATUPD)){
+		setPidResources_u(node);
+		return;
 	}
 
 	// With Throttle active, doesn't work
