@@ -22,6 +22,7 @@ typedef struct stat_scope {
 	uint64_t underflows;
 	uint64_t overflows;
 	double sum;					// total value sum of all samples
+	double sum_squared;			// total squared value sum of all samples
 	double underflow_sum;
 	double overflow_sum;
 	double min;					// minimum value of all samples
