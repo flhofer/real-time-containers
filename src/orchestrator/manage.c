@@ -696,11 +696,7 @@ pickPidCheckBuffer(node_t * item, uint64_t ts, uint64_t extra_rt){
 		if (citem->mon.assigned != item->mon.assigned || 0 > citem->pid)
 			continue;
 
-		uint64_t period = (SCHED_DEADLINE == citem->attr.sched_policy)
-				? citem->attr.sched_period
-				: ((citem->mon.cdf_period)
-						? findPeriodMatch(citem->mon.cdf_period)
-						: citem->attr.sched_period);
+		uint64_t period = getPidPeriodMatch(citem);
 
 		if (citem->mon.deadline
 				&& period
@@ -1157,11 +1153,7 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				}
 
 				uint64_t elapsed = ts - item->mon.last_tsP;
-				uint64_t expected = item->mon.cdf_period;
-
-				/* Prefer a configured period until enough samples exist. - here 1/2 of expected period */
-				if (!expected && item->param && item->param->attr)
-					expected = item->param->attr->sched_period;
+				uint64_t expected = getPidPeriod(item);
 
 				/*
 				 * A task can wake several times inside one application cycle for
@@ -1186,11 +1178,12 @@ pickPidInfoW(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 				if ((runstats_histAdd(item->mon.pdf_phist, &item->mon.pdf_pscope, period)))
 					warn("Histogram increment error for PID %d '%s' period", item->pid, (item->psig) ? item->psig : "");
 
+				// we only uppdate those statistics if we have a valid observed period, otherwise we can not compute a meaningful difference
 				if (item->mon.cdf_period){
 					item->mon.dl_diff += (int64_t)ts - (int64_t)item->mon.last_tsP - (int64_t)findPeriodMatch((uint64_t)item->mon.cdf_period);
 					if (TSCHS < item->mon.dl_diff)						// count only positive overruns based on period match
 						item->mon.dl_overrun++;							// count number of times period deviates from ideal CDF
-					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on average period
+					item->mon.deadline = ts + item->mon.cdf_period;		// estimate deadline based on raw nominal or observed period
 				}
 				else
 					item->mon.deadline = 0;								// Reset to avoid for deadline boundary check
@@ -1389,8 +1382,7 @@ updateSiblings(node_t * node){
 			if (0 < item->pid && item->param && item->param->cont
 					&& item->param->cont == node->param->cont
 					&& policy_is_realtime(item->attr.sched_policy)){
-				uint64_t period = (SCHED_DEADLINE == item->attr.sched_policy)
-						? item->attr.sched_period : item->mon.cdf_period;
+				uint64_t period = getPidPeriod(item);
 				period = period ? period : UINT64_MAX;
 
 				if (!mainp || period < smp
