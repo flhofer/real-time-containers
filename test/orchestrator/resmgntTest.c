@@ -77,6 +77,37 @@ START_TEST(checkValueTest)
 }
 END_TEST
 
+/// TEST CASE -> select the period used for resource accounting
+/// EXPECTED -> configured period is preferred, observed period is the fallback
+START_TEST(getPidPeriodTest)
+{
+	node_t item = { 0 };
+	pidc_t param = { 0 };
+	struct sched_attr configured = { SCHED_ATTR_SIZE };
+
+	item.param = &param;
+	item.param->attr = &configured;
+	item.attr.sched_policy = SCHED_FIFO;
+	item.attr.sched_period = 63234114;
+	item.mon.cdf_period = 198402123;
+	configured.sched_period = 121212343;
+	ck_assert_uint_eq(198402123, getPidPeriod(&item));
+	ck_assert_uint_eq(200000000, getPidPeriodMatch(&item));
+
+	item.mon.cdf_period = 0;
+	ck_assert_uint_eq(121212343, getPidPeriod(&item));
+	ck_assert_uint_eq(121212343, getPidPeriodMatch(&item));
+
+	configured.sched_period = 0;
+	ck_assert_uint_eq(0, getPidPeriod(&item));
+	ck_assert_uint_eq(0, getPidPeriodMatch(&item));
+
+	item.attr.sched_policy = SCHED_DEADLINE;
+	ck_assert_uint_eq(63234114, getPidPeriod(&item));
+	ck_assert_uint_eq(63234114, getPidPeriodMatch(&item));
+}
+END_TEST
+
 /// TEST CASE -> unknown runtimes reserve a fixed utilization per task
 /// EXPECTED -> reservations accumulate independently from existing CPU load
 START_TEST(checkUnknownValueTest)
@@ -804,6 +835,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_checked_fixture(tc3, setup, teardown);
 	tcase_add_test(tc3, checkPeriodTest);
 	tcase_add_test(tc3, checkPeriod_RTest);
+	tcase_add_test(tc3, getPidPeriodTest);
 	tcase_add_loop_test(tc3, findPeriodTest, 0, 6);
 	tcase_add_test(tc3, recomputeTimesTest);
 
