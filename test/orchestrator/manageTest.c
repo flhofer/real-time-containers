@@ -524,7 +524,7 @@ END_TEST
 START_TEST(orchestrator_manage_hist_scope)
 {
 	stat_hist * hist = NULL;
-	stat_scope scope = { 0 };
+	stat_scope scope = { 0, 0, 0, 0.0, 0.0, 0.0, 0.0, DBL_MAX , -DBL_MAX};
 	ck_assert_int_eq(0, runstats_histInit(&hist, 1.0));
 
 	for (int i = 0; i < 49; i++)
@@ -537,7 +537,7 @@ START_TEST(orchestrator_manage_hist_scope)
 	ck_assert_double_eq_tol(49.0, gsl_histogram_sum(hist), 0.000001);
 	ck_assert_double_eq_tol(1.02, runstats_histMean(hist, &scope), 0.000001);
 	ck_assert_double_eq_tol(1.86, runstats_histSixSigma(hist, &scope), 0.000001);
-	ck_assert_int_gt(0, runstats_histResample(&hist, &scope, 0.98));
+	ck_assert_int_lt(0, runstats_histResample(&hist, &scope, 0.98));	// returns -GSL_CONTINUE should not resample, only 1 overflow, within 2% tolerance
 	stat_cdf * cdf = NULL;
 	ck_assert_int_eq(0, runstats_cdfCreate(&hist, &cdf));
 	double percentile = runstats_cdfSample(cdf, &scope, 0.98);
@@ -545,7 +545,7 @@ START_TEST(orchestrator_manage_hist_scope)
 	runstats_cdfFree(&cdf);
 
 	ck_assert_int_eq(0, runstats_histAdd(hist, &scope, 2.0));
-	ck_assert_int_eq(0, runstats_histResample(&hist, &scope, 0.98));
+	ck_assert_int_eq(0, runstats_histResample(&hist, &scope, 0.98));	// resample, 2nd overflow, outside 2% tolerance
 	ck_assert_uint_eq(0, scope.samples);
 	ck_assert_double_ge(gsl_histogram_max(hist), 2.1);
 
