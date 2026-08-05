@@ -517,6 +517,21 @@ START_TEST(orchestrator_manage_ftrc_loss)
 	ck_assert_ptr_null(sleeping->mon.pdf_hist);
 	ck_assert(!(sleeping->status & MSK_STATRTINV));
 }
+/// TEST CASE -> parse a per-CPU /proc/stat record
+/// EXPECTED -> total excludes guest fields and idle includes I/O wait
+START_TEST(orchestrator_manage_cpustat)
+{
+	int CPUno = -1;
+	uint64_t total = 0;
+	uint64_t idle = 0;
+	const char * line = "cpu7 100 20 30 400 50 6 7 8 9 10";
+
+	ck_assert_int_eq(0, parseCPUStat(line, &CPUno, &total, &idle));
+	ck_assert_int_eq(7, CPUno);
+	ck_assert_uint_eq(621, total);
+	ck_assert_uint_eq(450, idle);
+	ck_assert_int_eq(-1, parseCPUStat("cpu 100 20 30 400", &CPUno, &total, &idle));
+}
 END_TEST
 
 /// TEST CASE -> keep a percentile-allowed overflow outside the precision bins
@@ -766,6 +781,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
+	tcase_add_test(tc5, orchestrator_manage_cpustat);
 	tcase_add_test(tc5, orchestrator_manage_hist_scope);
 	suite_add_tcase(s, tc5);
 
