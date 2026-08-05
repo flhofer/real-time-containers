@@ -409,6 +409,7 @@ START_TEST(orchestrator_manage_ftrc_ppswitch)
 	// Generate ftrace thread info
 	push((void**)&elist_thead, sizeof(struct ftrace_thread));
 	elist_thead->cpuno = 2;
+	elist_thead->tracer = malloc(sizeof(struct resTracer));
 
 	// Test frame  - kernel 6.5 (size = last pointer + size
 	unsigned char frame [64] = {0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00 };	// base frame from test above
@@ -424,6 +425,8 @@ START_TEST(orchestrator_manage_ftrc_ppswitch)
 	ck_assert(!(nhead->status & MSK_STATNRSCH));
 	ck_assert(nhead->next->status & MSK_STATNRSCH);
 	ck_assert(!(nhead->next->next->status & MSK_STATNRSCH));
+
+	free(elist_thead->tracer);
 }
 END_TEST
 
@@ -443,6 +446,9 @@ START_TEST(orchestrator_manage_ftrc_ppswitch_migration)
 
 	struct ftrace_thread oldCPU = { .cpuno = 1 };
 	struct ftrace_thread newCPU = { .cpuno = 2 };
+	oldCPU.tracer = malloc(sizeof(struct resTracer));
+	newCPU.tracer = malloc(sizeof(struct resTracer));
+
 	unsigned char switchIn[64] = { 0 };
 	unsigned char switchOut[64] = { 0 };
 	pid_t pid = nhead->pid;
@@ -468,6 +474,9 @@ START_TEST(orchestrator_manage_ftrc_ppswitch_migration)
 	ck_assert_uint_eq(50, nhead->mon.rt);
 	ck_assert_int_eq(-1, nhead->mon.last_cpu);
 	ck_assert_int_eq(2, nhead->mon.assigned);
+
+	free(oldCPU.tracer);
+	free(newCPU.tracer);
 }
 END_TEST
 
