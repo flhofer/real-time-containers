@@ -1088,7 +1088,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 	(void)pthread_mutex_lock(&dataMutex);
 
 	// update observed end time for this CPU's tracer
-	if ((fthread->tracer->observedEnd && ts >= fthread->tracer->observedEnd)){
+	if ((!fthread->tracer->observedEnd || ts >= fthread->tracer->observedEnd)){
 		if (!fthread->tracer->observedTimestamp)
 			fthread->tracer->observedTimestamp = ts;
 		fthread->tracer->observedEnd = ts;
