@@ -832,6 +832,18 @@ updateCPUUtilization(uint64_t now){
 }
 
 /*
+ *  updateResourceUtilization(): close resource utilization observation windows
+ *
+ *  Arguments: - current CLOCK_MONOTONIC time in nanoseconds
+ *
+ *  Return value: -
+ */
+static void
+updateResourceUtilization(uint64_t now){
+	(void)updateCPUUtilization(now);
+}
+
+/*
  *  pickPidAddRuntimeHist(): Add runtime to histogram, init if needed
  *
  *  Arguments: - item with data for runtime
