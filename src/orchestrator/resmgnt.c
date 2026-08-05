@@ -785,6 +785,7 @@ createResTracer(){
 //			rHead->U = 0.0;
 //			rHead->Umax = 0.0;
 			rHead->Umin = 1.0;
+			rHead->UobsMin = 1.0;
 //			rHead->Uavg = 0.0;
 //			rHead->basePeriod = 0;
 	}
