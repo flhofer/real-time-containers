@@ -512,6 +512,8 @@ startTraceRead() {
 			elist_thead->cpuno = i;
 			elist_thead->dbgfile = NULL;
 			elist_thead->tracer = getTracer(i);
+			if (!elist_thead->tracer)
+				err_exit(PFX "FATAL! No tracer found for CPU %d", i);	// Something is wrong, we should have a tracer for each CPU
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, elist_thead);
 #ifdef DEBUG
 			char tname [17]; // 16 char length restriction
@@ -997,6 +999,7 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
+	updateObservedClock(fthread->tracer, ts);
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next ){
@@ -1087,7 +1090,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 			// update runtime only if this CPU owns the active interval
 			if (0 <= item->mon.last_cpu){
-				item->mon.rt += ts - item->mon.last_ts;
+				uint64_t runtime = ts - item->mon.last_ts;
+				item->mon.rt += runtime;
+				addObservedRuntime(fthread->tracer, runtime);
 				item->mon.last_cpu = -1;
 			}
 
