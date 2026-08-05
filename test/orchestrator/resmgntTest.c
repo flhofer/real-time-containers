@@ -108,6 +108,24 @@ START_TEST(getPidPeriodTest)
 }
 END_TEST
 
+/// TEST CASE -> combine planned, managed and external observed utilization
+/// EXPECTED -> observed values only affect load after both measurements are ready
+START_TEST(observedLoadTest)
+{
+	resTracer_t res = { 0 };
+	res.U = 0.4;
+	res.Uobserved = 0.2;
+	res.Ucpu = 0.7;
+	ck_assert_double_eq_tol(0.4, getResourceLoad(&res), 0.000001);
+
+	res.status = MSK_STATROBSRDY | MSK_STATCPURDY;
+	ck_assert_double_eq_tol(0.9, getResourceLoad(&res), 0.000001);
+
+	res.Uobserved = 0.6;
+	ck_assert_double_eq_tol(0.7, getResourceLoad(&res), 0.000001);
+}
+END_TEST
+
 /// TEST CASE -> unknown runtimes reserve a fixed utilization per task
 /// EXPECTED -> reservations accumulate independently from existing CPU load
 START_TEST(checkUnknownValueTest)
@@ -819,6 +837,7 @@ END_TEST
 void orchestrator_resmgnt (Suite * s) {
 	TCase *tc1 = tcase_create("resmgnt_periodFitting");
 	tcase_add_test(tc1, checkValueTest);
+	tcase_add_test(tc1, observedLoadTest);
 	tcase_add_test(tc1, checkUnknownValueTest);
 
     suite_add_tcase(s, tc1);
