@@ -977,6 +977,23 @@ checkUvalue(struct resTracer * const res, struct sched_attr * const par, int add
 }
 
 /*
+ *  getResourceLoad(): return load used to distinguish equivalent resources
+ *
+ *  Arguments: - resource entry
+ *
+ *  Return value: planned load combined with observed managed and external load
+ */
+static float
+getResourceLoad(const resTracer_t * const res){
+	if (!res || (MSK_STATROBSRDY | MSK_STATCPURDY)
+			!= (res->status & (MSK_STATROBSRDY | MSK_STATCPURDY)))
+		return res ? res->U : 0.0;
+
+	// return the maximum of the observed and planned load, plus any excess CPU load
+	return MAX(res->U, res->Uobserved) + MAX(0.0, res->Ucpu - res->Uobserved);
+}
+
+/*
  *  checkPeriod(): find a resource that fits period
  *
  *  Arguments: - the attr structure of the task
