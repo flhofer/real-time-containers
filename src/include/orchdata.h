@@ -40,6 +40,10 @@
 
 	// masks fot the status of a resource (resTracer_t)
 	#define MSK_STATHRMC		0x1	// resource allocation periods are harmonic
+	#define MSK_STATROBSINV		0x2	// observed utilization window invalid after trace loss
+	#define MSK_STATROBSRDY		0x4	// observed managed utilization is available
+	#define MSK_STATCPURDY		0x8	// total CPU utilization is available
+	#define MSK_STATROBSHST		0x10// observed utilization history is initialized
 
 	// masks for dry-run selective environment preparation
 	#define MSK_DRYNOSMTOFF		0x1 // Do not disable SMT
@@ -183,16 +187,30 @@
 
 	typedef struct resTracer { // resource tracers
 		struct resTracer * next;
+		// Resource planning and allocation
 		struct bitmask * affinity; 	// exclusive CPU-num / or SMT sibling
 		int 	 numa;			// NUMA node for this CPU / siblings
-		float	 U;				// utilization factor
+		float	 U;				// planned/reserved utilization factor
 		int 	 status;		// generic status info
 		uint64_t usedPeriod;	// amount of CPU-time left..
 		uint64_t basePeriod;	// if a common period is set, or least common multiplier
 		// used during runtime for stats
-		float	 Umin;			// utilization factor
-		float	 Uavg;			// utilization factor
-		float	 Umax;			// utilization factor
+		float	 Umin;			// minimum planned utilization factor
+		float	 Uavg;			// moving average planned utilization factor
+		float	 Umax;			// maximum planned utilization factor
+		// used during runtime for observed allocation and statistics
+		float	 Ucpu;			// total observed CPU utilization
+		float	 Uobserved;		// observed utilization of monitored tasks
+		float	 UobsMin;		// minimum observed monitored utilization
+		float	 UobsAvg;		// moving average observed monitored utilization
+		float	 UobsMax;		// maximum observed monitored utilization
+		// observed runtime statistics store values for the current window
+		uint64_t observedRuntime;	// monitored runtime accumulated in current window
+		uint64_t observedTimestamp;	// first ftrace timestamp in current window
+		uint64_t observedEnd;		// latest ftrace timestamp in current window
+		uint64_t statisticsTimestamp;// last utilization statistics update
+		uint64_t cpuTotal;		// previous /proc/stat total CPU time
+		uint64_t cpuIdle;		// previous /proc/stat idle CPU time
 	} resTracer_t;
 
 	typedef struct sched_mon { // actual values for monitoring
