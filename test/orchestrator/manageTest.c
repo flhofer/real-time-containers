@@ -526,6 +526,40 @@ START_TEST(orchestrator_manage_ftrc_loss)
 	ck_assert_ptr_null(sleeping->mon.pdf_hist);
 	ck_assert(!(sleeping->status & MSK_STATRTINV));
 }
+END_TEST
+
+/// TEST CASE -> collect managed runtime and close an observation window
+/// EXPECTED -> utilization uses elapsed time and trace loss discards the window
+START_TEST(orchestrator_manage_resource_usage)
+{
+	push((void**)&rHead, sizeof(resTracer_t));
+	rHead->affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(rHead->affinity, 2);
+	rHead->UobsMin = 1.0;
+
+	rHead->observedTimestamp = 100;
+	rHead->observedEnd = 200;
+	rHead->observedRuntime = 25;
+
+	prgset->ftrace = 1;
+	rHead->statisticsTimestamp = 100;
+	updateResourceUtilization(200);
+	ck_assert(rHead->status & MSK_STATROBSRDY);
+	ck_assert_double_eq_tol(0.25, rHead->Uobserved, 0.000001);
+	ck_assert_double_eq_tol(0.25, rHead->UobsAvg, 0.000001);
+
+	rHead->observedRuntime = 50;
+	rHead->status |= MSK_STATROBSINV;
+	rHead->observedEnd = 300;
+	updateResourceUtilization(300);
+	ck_assert(!(rHead->status & MSK_STATROBSRDY));
+	ck_assert_uint_eq(0, rHead->observedRuntime);
+	ck_assert_double_eq_tol(0.0, rHead->Uobserved, 0.000001);
+
+	freeTracer(&rHead);
+}
+END_TEST
+
 /// TEST CASE -> parse a per-CPU /proc/stat record
 /// EXPECTED -> total excludes guest fields and idle includes I/O wait
 START_TEST(orchestrator_manage_cpustat)
@@ -790,6 +824,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
+	tcase_add_test(tc5, orchestrator_manage_resource_usage);
 	tcase_add_test(tc5, orchestrator_manage_cpustat);
 	tcase_add_test(tc5, orchestrator_manage_hist_scope);
 	suite_add_tcase(s, tc5);
