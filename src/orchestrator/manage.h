@@ -3,13 +3,16 @@
 
 #include <sys/types.h>
 
+struct resTracer;
+
 // Linked list of CPU threads, public to allow external calls
 struct ftrace_thread {
 	struct ftrace_thread * next;
-	pthread_t thread;	// thread information
-	int iret;			// return value of thread launch
-	int cpuno;			// CPU number monitored
-	char * dbgfile;		// file pointer to the debug file. NULL == use default
+	pthread_t thread;			// thread information
+	int iret;					// return value of thread launch
+	int cpuno;					// CPU number monitored
+	char * dbgfile;				// file pointer to the debug file. NULL == use default
+	struct resTracer * tracer;	// resource associated with cpuno
 };
 void *thread_ftrace(void *arg);
 
