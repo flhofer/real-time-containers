@@ -999,7 +999,13 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 
 	// lock data to avoid inconsistency
 	(void)pthread_mutex_lock(&dataMutex);
-	updateObservedClock(fthread->tracer, ts);
+
+	// update observed end time for this CPU's tracer
+	if ((fthread->tracer->observedEnd && ts >= fthread->tracer->observedEnd)){
+		if (!fthread->tracer->observedTimestamp)
+			fthread->tracer->observedTimestamp = ts;
+		fthread->tracer->observedEnd = ts;
+	}
 
 	// find PID switching from
 	for (node_t * item = nhead; ((item)); item=item->next ){
@@ -1092,7 +1098,9 @@ pickPidInfoS(const void * addr, const struct ftrace_thread * fthread, uint64_t t
 			if (0 <= item->mon.last_cpu){
 				uint64_t runtime = ts - item->mon.last_ts;
 				item->mon.rt += runtime;
-				addObservedRuntime(fthread->tracer, runtime);
+				if (!(fthread->tracer->status & MSK_STATROBSINV)
+					&& fthread->tracer->observedEnd > fthread->tracer->observedTimestamp)
+						fthread->tracer->observedRuntime += runtime;
 				item->mon.last_cpu = -1;
 			}
 
