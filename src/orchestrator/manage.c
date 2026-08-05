@@ -841,6 +841,54 @@ updateCPUUtilization(uint64_t now){
 static void
 updateResourceUtilization(uint64_t now){
 	(void)updateCPUUtilization(now);
+
+	// timestamp per tracer needed?
+	for (resTracer_t * trc = rHead; trc; trc=trc->next){
+		if (!trc->statisticsTimestamp || now <= trc->statisticsTimestamp){
+			trc->statisticsTimestamp = now;
+			continue;
+		}
+
+		uint64_t elapsed = now - trc->statisticsTimestamp;
+		double alpha = exp(-(double)elapsed/(double)NSEC_PER_SEC/ALPHAAVG_SECONDS);
+
+		if (0.0 != trc->U)
+			trc->Umin = MIN(trc->Umin, trc->U);
+		trc->Umax = MAX(trc->Umax, trc->U);
+		trc->Uavg = (0.0 == trc->Uavg)
+				? trc->U : trc->Uavg * alpha + trc->U * (1.0 - alpha);
+
+		if (prgset->ftrace && !(trc->status & MSK_STATROBSINV)
+				&& trc->observedEnd > trc->observedTimestamp){
+			uint64_t traceElapsed = trc->observedEnd - trc->observedTimestamp;
+			trc->Uobserved = MIN(1.0,
+					(double)trc->observedRuntime/(double)traceElapsed);
+			if (!(trc->status & MSK_STATROBSHST)){
+				trc->UobsMin = trc->Uobserved;
+				trc->UobsAvg = trc->Uobserved;
+				trc->UobsMax = trc->Uobserved;
+				trc->status |= MSK_STATROBSHST;
+			}
+			else{
+				trc->UobsMin = MIN(trc->UobsMin, trc->Uobserved);
+				trc->UobsMax = MAX(trc->UobsMax, trc->Uobserved);
+				trc->UobsAvg = trc->UobsAvg * alpha
+						+ trc->Uobserved * (1.0 - alpha);
+			}
+			trc->status |= MSK_STATROBSRDY;
+			trc->observedRuntime = 0;
+			trc->observedTimestamp = trc->observedEnd;
+		}
+		else if (!prgset->ftrace || (trc->status & MSK_STATROBSINV)){
+			trc->Uobserved = 0.0;
+			trc->status &= ~MSK_STATROBSRDY;
+			trc->observedRuntime = 0;
+			trc->observedTimestamp = trc->observedEnd;
+		}
+
+		trc->statisticsTimestamp = now;
+		trc->status &= ~MSK_STATROBSINV;
+	}
 }
 
 /*
