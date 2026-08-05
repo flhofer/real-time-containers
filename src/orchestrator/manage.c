@@ -757,6 +757,81 @@ invalidateCPURuntime(int32_t CPUno){
 }
 
 /*
+ *  parseCPUStat(): parse a per-CPU line from /proc/stat
+ *
+ *  Arguments: - input line
+ *             - CPU number output
+ *             - total CPU ticks output
+ *             - idle CPU ticks output
+ *
+ *  Return value: 0 on success, -1 if the line is not a per-CPU record
+ */
+static int
+parseCPUStat(const char * line, int * CPUno, uint64_t * total, uint64_t * idle){
+	if (!line || !CPUno || !total || !idle)
+		return -1;
+
+	unsigned long long user = 0, nice = 0, system = 0, idleTime = 0;
+	unsigned long long iowait = 0, irq = 0, softirq = 0, steal = 0;
+	
+	if (5 > sscanf(line, "cpu%d %llu %llu %llu %llu %llu %llu %llu %llu",
+			CPUno, &user, &nice, &system, &idleTime, &iowait,
+			&irq, &softirq, &steal))
+		return -1;
+
+	*idle = idleTime + iowait;
+	*total = user + nice + system + idleTime + iowait + irq + softirq + steal;
+	return 0;
+}
+
+/*
+ *  updateCPUUtilization(): update total per-CPU utilization from /proc/stat
+ *
+ *  Arguments: - current CLOCK_MONOTONIC time in nanoseconds
+ *
+ *  Return value: 0 on success, -1 if /proc/stat is unavailable
+ */
+static int
+updateCPUUtilization(uint64_t now){
+	if (cpuStatTimestamp && now > cpuStatTimestamp
+			&& now - cpuStatTimestamp < CPUSTAT_INTERVAL)
+		return 0;
+	cpuStatTimestamp = now;
+
+	for (resTracer_t * trc = rHead; trc; trc=trc->next)
+		trc->status &= ~MSK_STATCPURDY;
+
+	FILE * fp = fopen("/proc/stat", "r");
+	if (!fp)
+		return -1;
+
+	char line[PIPE_BUFFER];
+	while (fgets(line, sizeof(line), fp)){
+		int CPUno;
+		uint64_t total;
+		uint64_t idle;
+		if (parseCPUStat(line, &CPUno, &total, &idle))
+			continue;
+
+		resTracer_t * trc = getTracer(CPUno);
+		if (!trc)
+			continue;
+
+		if (trc->cpuTotal && total > trc->cpuTotal && idle >= trc->cpuIdle){
+			uint64_t totalDelta = total - trc->cpuTotal;
+			uint64_t idleDelta = idle - trc->cpuIdle;
+			trc->Ucpu = 1.0 - MIN(1.0, (double)idleDelta/(double)totalDelta);
+			trc->status |= MSK_STATCPURDY;
+		}
+		trc->cpuTotal = total;
+		trc->cpuIdle = idle;
+	}
+
+	(void)fclose(fp);
+	return 0;
+}
+
+/*
  *  pickPidAddRuntimeHist(): Add runtime to histogram, init if needed
  *
  *  Arguments: - item with data for runtime
