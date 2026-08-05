@@ -37,7 +37,7 @@
 #define SCHED_PDEFAULT	NSEC_PER_SEC	// default starting period if none is specified
 #define SCHED_UHARMONIC	3				// offset for non-harmonic scores in checkUvalue (MIN)
 
-static int recomputeCPUTimes_u(int32_t CPUno, node_t * skip);
+static int recomputeCPUTimes_u(int32_t CPUno, node_t * const skip);
 static void getPidSchedAttr(node_t * const node);
 
 /*
@@ -86,7 +86,7 @@ setPidRlimit(pid_t pid, int32_t rls, int32_t rlh, int32_t type, char* name ) {
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setPidAffinity(pid_t pid, struct bitmask * mask) {
+setPidAffinity(pid_t pid, struct bitmask * const mask) {
 	int ret = 0;
 
 	struct bitmask * bmold = numa_allocate_cpumask();
@@ -131,7 +131,7 @@ setPidAffinity(pid_t pid, struct bitmask * mask) {
  *	Return value: 0 on success, -1 or -2 otherwise
  */
 static int
-setPidAffinityNode (node_t * node){
+setPidAffinityNode (node_t * const node){
 
 	int ret = 0;
 
@@ -167,7 +167,7 @@ setPidAffinityNode (node_t * node){
  *	Return value: 0 on success, -1 otherwise
  */
 int
-setPidAffinityAssinged (node_t * node){
+setPidAffinityAssinged (node_t * const node){
 	if (node->mon.assigned_mask)
 		numa_bitmask_clearall(node->mon.assigned_mask);
 	else
@@ -193,7 +193,7 @@ setPidAffinityAssinged (node_t * node){
  *	Return value: CPU-count, -1 otherwise
  */
 int
-getPidAffinityAssingedNr(node_t * node){
+getPidAffinityAssingedNr(node_t * const node){
 	if (node->mon.assigned_mask)
 		numa_bitmask_clearall(node->mon.assigned_mask);
 	else
@@ -217,7 +217,7 @@ getPidAffinityAssingedNr(node_t * node){
  *	Return value: 0 on success, -1 otherwise
  */
 static int
-setContainerAffinity(node_t * node){
+setContainerAffinity(node_t * const node){
 
 	if (!(node->param) || !(node->param->cont)){
 		err_msg("Trying to set Container affinity without container configuration!");
@@ -286,7 +286,7 @@ setContainerAffinity(node_t * node){
  * Return value: --
  */
 static void
-setPidResources_u(node_t * node) {
+setPidResources_u(node_t * const node) {
 
 	if (!node->psig)
 		node->psig = node->param->psig;
@@ -372,7 +372,7 @@ setPidResources_u(node_t * node) {
  * Return value: --
  */
 void
-setPidResources(node_t * node) {
+setPidResources(node_t * const node) {
 
 	// parameters unassigned
 	if (node->pid)
@@ -481,7 +481,7 @@ updatePidAttr(node_t * const node){
  * Return value: -
  */
 void
-updatePidWCET(node_t * node, uint64_t wcet){
+updatePidWCET(node_t * const node, uint64_t wcet){
 
 	node->attr.sched_runtime = wcet;
 
@@ -499,7 +499,7 @@ updatePidWCET(node_t * node, uint64_t wcet){
  * Return value: -
  */
 void
-updatePidCmdline(node_t * node){
+updatePidCmdline(node_t * const node){
 	char * cmdline;
 	char kparam[20]; // pid{x}/cmdline read string
 
@@ -549,7 +549,7 @@ updatePidCmdline(node_t * node){
  * Return value: -
  */
 void
-resetContCGroups(prgset_t *set, char * constr, char * numastr) {
+resetContCGroups(prgset_t * const set, char * const constr, char * const numastr) {
 
 	DIR *d;
 	struct dirent *dir;
@@ -629,7 +629,7 @@ resetContCGroups(prgset_t *set, char * constr, char * numastr) {
  * Return value: -
  */
 void
-setContCGroups(prgset_t *set, int setCont) {
+setContCGroups(prgset_t * const set, int setCont) {
 
 	int count = 0;		// counter, see below, to avoid docker reset and block of container start
 	if (setCont){
@@ -711,7 +711,7 @@ setContCGroups(prgset_t *set, int setCont) {
  * Return value: returns 0 on success, -1 on failure
  */
 int
-resetRTthrottle (prgset_t *set, int percent){
+resetRTthrottle (prgset_t * const set, int percent){
 	char * value;	// pointer to value to write
 	char buf[20];	// temporary stack buffer
 
@@ -798,7 +798,7 @@ createResTracer(){
  *  Return value: configured period, kernel DL period, or zero
  */
 static inline uint64_t
-getPidNominalPeriod(const node_t * node){
+getPidNominalPeriod(const node_t * const node){
 	if (!node)
 		return 0;
 
@@ -822,7 +822,7 @@ getPidNominalPeriod(const node_t * node){
  *  Return value: observed period, or configured nominal period as fallback
  */
 uint64_t
-getPidPeriod(const node_t * node){
+getPidPeriod(const node_t * const node){
 	if (!node)
 		return 0;
 
@@ -841,7 +841,7 @@ getPidPeriod(const node_t * node){
  *  Return value: matchedobserved period, or configured nominal period
  */
 uint64_t
-getPidPeriodMatch(const node_t * node){
+getPidPeriodMatch(const node_t * const node){
 	if (!node)
 		return 0;
 
@@ -881,7 +881,7 @@ findPeriodMatch(uint64_t cdf_Period){
  *  Return value: a matching score, lower is better, -1 = error / over-utilizzation
  */
 int
-checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
+checkUvalue(struct resTracer * const res, struct sched_attr * const par, int add) {
 	uint64_t base = res->basePeriod;
 	uint64_t used = res->usedPeriod;
 	uint64_t baset = par->sched_period == 0 ? SCHED_PDEFAULT : par->sched_period;
@@ -986,7 +986,7 @@ checkUvalue(struct resTracer * res, struct sched_attr * par, int add) {
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
+checkPeriod(struct sched_attr * const attr, int affinity, int CPU) {
 	resTracer_t * ftrc = NULL;
 	int last = INT_MAX;	// last checked tracer's score, max value by default
 	float Ulast = 10.0;	// last checked traces's utilization rate
@@ -1033,7 +1033,7 @@ checkPeriod(struct sched_attr * attr, int affinity, int CPU) {
  * 					returns null if nothing is found
  */
 resTracer_t *
-checkPeriod_R(node_t * item, int include) {
+checkPeriod_R(node_t * const item, int include) {
 
 	if (0 > item->mon.assigned)
 		return NULL;
@@ -1121,7 +1121,7 @@ grepTracer() {
  *					returns -1 if none is set
  */
 int
-getTracerMainCPU(resTracer_t * res) {
+getTracerMainCPU(resTracer_t * const res) {
 	if (!res || !res->affinity)
 		return -1;
 
@@ -1143,7 +1143,7 @@ getTracerMainCPU(resTracer_t * res) {
  *  Return value: Negative values return error; -1 = error / over-utilizzation
  */
 static int
-recomputeTimes_u(struct resTracer * res, node_t * skip) {
+recomputeTimes_u(struct resTracer * const res, node_t * const skip) {
 
 	struct resTracer * resNew = calloc (1, sizeof(struct resTracer));
 	int rv = 0;
@@ -1181,7 +1181,7 @@ recomputeTimes_u(struct resTracer * res, node_t * skip) {
  *  Return value: Negative values return error; -1 = error / over-utilizzation
  */
 int
-recomputeTimes(struct resTracer * res) {
+recomputeTimes(struct resTracer * const res) {
 
 	return recomputeTimes_u(res, NULL);
 }
@@ -1197,7 +1197,7 @@ recomputeTimes(struct resTracer * res) {
  *  		-2 = tracer not found
  */
 static int
-recomputeCPUTimes_u(int32_t CPUno, node_t * skip) {
+recomputeCPUTimes_u(int32_t CPUno, node_t * const skip) {
 	if (0 > CPUno)	// default, not assigned
 		return 0;
 
@@ -1347,7 +1347,7 @@ checkContainerMatch(cont_t ** cont, node_t * node, containers_t * configuration)
  *  Return value: 0 if successful, -1 if unsuccessful
  */
 int
-findPidParameters(node_t* node, containers_t * configuration){
+findPidParameters(node_t* const node, containers_t * const configuration){
 
 	struct img_parm * img = configuration->img;
 	struct cont_parm * cont = NULL;
