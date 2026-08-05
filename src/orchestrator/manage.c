@@ -13,6 +13,7 @@
 #include <fcntl.h>			// file control, new open/close functions
 #include <dirent.h>			// directory entry structure and exploration
 #include <errno.h>			// error numbers and strings
+#include <math.h>			// exponential moving average
 #ifdef USELIBTRACE
 	#include <>kbuffer.h>	// ring-buffer management, use libtrace-event
 #endif
@@ -39,12 +40,11 @@
 #define GET_VARIABLE_NAME(Variable) (#Variable)
 
 #define ALPHAAVG_SECONDS	300	// how many seconds we want to "go back"
+#define CPUSTAT_INTERVAL	NSEC_PER_SEC	// minimum interval between /proc/stat reads
 
 // total scan counter for update-stats
 static uint64_t scount = 0; // total scan count
-// alpha for averaging
-static float alphaAVG = 0.99998;
-
+static uint64_t cpuStatTimestamp = 0;
 // #################################### THREAD configuration specific ############################################
 
 // linked list of event configuration fields
@@ -511,6 +511,7 @@ startTraceRead() {
 			push((void**)&elist_thead, sizeof(struct ftrace_thread));
 			elist_thead->cpuno = i;
 			elist_thead->dbgfile = NULL;
+			elist_thead->tracer = getTracer(i);
 			elist_thead->iret = pthread_create( &elist_thead->thread, NULL, thread_ftrace, elist_thead);
 #ifdef DEBUG
 			char tname [17]; // 16 char length restriction
@@ -730,6 +731,12 @@ invalidateCPURuntime(int32_t CPUno){
 	int count = 0;
 
 	(void)pthread_mutex_lock(&dataMutex);
+	resTracer_t * trc = getTracer(CPUno);
+	if (trc){
+		trc->observedRuntime = 0;
+		trc->status |= MSK_STATROBSINV;
+	}
+
 	for (node_t * item = nhead; item; item=item->next){
 		if (0 >= item->pid
 				|| (0 <= item->mon.last_cpu && item->mon.last_cpu != CPUno)
@@ -1761,16 +1768,10 @@ manageSched(){
 		}
     }
 
-	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (0.0 != trc->U) // ignore 0 min CPU
-			trc->Umin = MIN (trc->Umin, trc->U);
-		trc->Umax = MAX (trc->Umax, trc->U);
-
-		if (0.0 == trc->Uavg)
-			trc->Uavg = trc->U;
-		else
-			trc->Uavg = trc->Uavg * alphaAVG + trc->U * (1.0 - alphaAVG);
-	}
+	struct timespec utilizationTime;
+	if (!clock_gettime(CLOCK_MONOTONIC, &utilizationTime))
+		updateResourceUtilization((uint64_t)utilizationTime.tv_sec * NSEC_PER_SEC
+				+ (uint64_t)utilizationTime.tv_nsec);
 
 	(void)pthread_mutex_unlock(&dataMutex);
 
@@ -1833,14 +1834,25 @@ dumpStats (){
 		}
 
 	if (SM_PADAPTIVE <= prgset->sched_mode) {
-		(void)printf( "\nStatistics on resource usage:\n"
-						"CPU : AVG - 5min (MIN/MAX)\n"
+		(void)printf( "\nStatistics on resource utilization:\n"
+						"CPU : PLANNED AVG (MIN/MAX) - MANAGED AVG (MIN/MAX) - TOTAL\n"
 						"----------------------------------------------------------------------------------\n");
 
 		for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
 			(void)recomputeTimes(trc);
-			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%)\n", getTracerMainCPU(trc),
-					trc->Uavg * 100, MIN(trc->Umin, trc->Umax) * 100, trc->Umax * 100 );
+			(void)printf( "CPU %d: %3.2f%% (%3.2f%%/%3.2f%%) - ",
+					getTracerMainCPU(trc), trc->Uavg * 100,
+					MIN(trc->Umin, trc->Umax) * 100, trc->Umax * 100);
+			if (trc->status & MSK_STATROBSRDY)
+				(void)printf("%3.2f%% (%3.2f%%/%3.2f%%) - ",
+						trc->UobsAvg * 100, trc->UobsMin * 100,
+						trc->UobsMax * 100);
+			else
+				(void)printf("n/a - ");
+			if (trc->status & MSK_STATCPURDY)
+				(void)printf("%3.2f%%\n", trc->Ucpu * 100);
+			else
+				(void)printf("n/a\n");
 		}
 	}
 
@@ -1872,9 +1884,6 @@ void *thread_manage (void *arg)
 			warn("clock_gettime() failed: %s", strerror(errno));
 		*pthread_state=-1;
 	}
-
-	// calculate alpha for 5 min (default) based on interval
-	alphaAVG = 1.0 - (float)prgset->interval / (float)USEC_PER_SEC / ALPHAAVG_SECONDS;
 
 	// initialize the thread locals
 	while(1)
