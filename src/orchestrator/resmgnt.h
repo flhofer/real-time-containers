@@ -37,7 +37,7 @@
 	// resTracer functions for simple and adaptive schedule
 	void createResTracer(); 					// create linked list elements for all CPU's
 	int checkUvalue(struct resTracer * const res,
-		struct sched_attr * const par, int add);		// check utilization value, does task fit?
+		struct sched_attr * const par, int add);// check utilization value, does task fit?
 	resTracer_t * checkPeriod(struct sched_attr	* const attr,
 					int affinity, int CPU);		// find a resTracer that fits best
 	resTracer_t * checkPeriod_R(node_t * const item, int include);
