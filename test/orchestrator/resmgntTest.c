@@ -444,6 +444,9 @@ START_TEST(recomputeTimesTest)
 	nhead->next->mon.cdf_period = 10302100;
 	ck_assert_int_eq(0, recomputeTimes_u(ftrc, nhead));
 	ck_assert_double_eq_tol(ftrc->U, 0.8, 0.001);
+
+	ck_assert_int_eq(0, recomputeCPUTimes(-1));
+	ck_assert_int_eq(-2, recomputeCPUTimes(99));
 }
 END_TEST
 
