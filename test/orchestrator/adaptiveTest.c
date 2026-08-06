@@ -164,6 +164,40 @@ START_TEST(orchestrator_adaptive_recompute)
 }
 END_TEST
 
+/// TEST CASE -> reassign a flexible task away from an overloaded resource
+/// EXPECTED -> the new tracer gains the load and the old tracer is recomputed
+START_TEST(orchestrator_adaptive_scramble)
+{
+	prgset->affinity_mask = parse_cpumask("0-1");
+	createResTracer();
+	resTracer_t * old = getTracer(0);
+	resTracer_t * replacement = getTracer(1);
+	old->basePeriod = 1000;
+	old->usedPeriod = 800;
+	old->U = 0.8;
+
+	struct sched_attr attr = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	attr.sched_runtime = 600;
+	attr.sched_deadline = attr.sched_period = 1000;
+	rscs_t resources = { .affinity = -1 };
+	resources.affinity_mask = parse_cpumask("0-1");
+	cont_t item = { .attr = &attr, .rscs = &resources };
+	push((void**)&aHead, sizeof(*aHead));
+	aHead->item = &item;
+	aHead->assigned = old;
+
+	adaptScramble();
+	ck_assert_ptr_eq(replacement, aHead->assigned);
+	ck_assert_float_eq_tol(0.0, old->U, 0.0001);
+	ck_assert_uint_eq(0, old->usedPeriod);
+	ck_assert_float_eq_tol(0.6, replacement->U, 0.0001);
+
+	adaptExecute();
+	ck_assert_int_eq(1, resources.affinity);
+	numa_free_cpumask(resources.affinity_mask);
+}
+END_TEST
+
 /// TEST CASE -> allocate tasks without timing information by scheduler class
 /// EXPECTED -> every class is assigned and tasks in the same class stay together
 START_TEST(orchestrator_adaptive_policy_fallback)
@@ -273,8 +307,6 @@ START_TEST(orchestrator_adaptive_schedule2)
 	// apply to resources
 	adaptExecute();
 
-	adaptScramble();	// TODO: nothing to scramble...
-
 	// verify memory result in parameters
 
 	// image 1, -3 -> 1 for cpu assigned to RR w/o period
@@ -289,7 +321,7 @@ START_TEST(orchestrator_adaptive_schedule2)
 	ck_assert_int_eq(0, cont->rscs->affinity);
 
 	cont=cont->next;
-	// container -2, but one of it's pids 2, the other 1 -> 1+2, no preferemnce, helper assignment stays -2 for now => 0
+	// container -2, but one of it's pids 2, the other 1 -> 1+2, no preferemnce, helper assignmetn stays -2 for now => 0
 	ck_assert_int_eq(0, cont->rscs->affinity);
 	// second (first in list) pid in container on -2 -> gets 1 for period match
 	ck_assert_int_eq(1, cont->pids->pid->rscs->affinity);
@@ -346,6 +378,7 @@ void orchestrator_adaptive (Suite * s) {
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 	tcase_add_test(tc1, orchestrator_adaptive_compare);
 	tcase_add_test(tc1, orchestrator_adaptive_recompute);
+	tcase_add_test(tc1, orchestrator_adaptive_scramble);
 	tcase_add_test(tc1, orchestrator_adaptive_policy_fallback);
 
 	suite_add_tcase(s, tc1);
