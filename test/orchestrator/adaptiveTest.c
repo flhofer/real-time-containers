@@ -164,6 +164,36 @@ START_TEST(orchestrator_adaptive_recompute)
 }
 END_TEST
 
+/// TEST CASE -> retain shared configuration and execute a private assignment
+/// EXPECTED -> shared affinity is untouched while private affinity is updated
+START_TEST(orchestrator_adaptive_shared)
+{
+	struct sched_attr attr = { SCHED_ATTR_SIZE, SCHED_OTHER };
+	rscs_t resources = { .affinity = -7 };
+	resources.affinity_mask = numa_allocate_cpumask();
+	cont_t item = {
+		.status = MSK_STATSHRC,
+		.attr = &attr,
+		.rscs = &resources
+	};
+	resTracer_t tracer = { 0 };
+	tracer.affinity = parse_cpumask("1");
+
+	resAlloc_t * allocation = pushResource(&item, NULL);
+	ck_assert_ptr_eq(resources.affinity_mask, item.rscs->affinity_mask);
+	allocation->assigned = &tracer;
+	adaptExecute();
+	ck_assert_int_eq(-7, resources.affinity);
+
+	item.status &= ~MSK_STATSHRC;
+	adaptExecute();
+	ck_assert_int_eq(1, resources.affinity);
+
+	numa_free_cpumask(tracer.affinity);
+	numa_free_cpumask(resources.affinity_mask);
+}
+END_TEST
+
 /// TEST CASE -> reassign a flexible task away from an overloaded resource
 /// EXPECTED -> the new tracer gains the load and the old tracer is recomputed
 START_TEST(orchestrator_adaptive_scramble)
@@ -378,6 +408,7 @@ void orchestrator_adaptive (Suite * s) {
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 	tcase_add_test(tc1, orchestrator_adaptive_compare);
 	tcase_add_test(tc1, orchestrator_adaptive_recompute);
+	tcase_add_test(tc1, orchestrator_adaptive_shared);
 	tcase_add_test(tc1, orchestrator_adaptive_scramble);
 	tcase_add_test(tc1, orchestrator_adaptive_policy_fallback);
 
