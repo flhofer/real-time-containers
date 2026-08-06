@@ -233,6 +233,38 @@ END_TEST
 START_TEST(orchestrator_adaptive_policy_fallback)
 {
 	prgset->affinity_mask = parse_cpumask("0-2");
+	createResTracer();
+	uint32_t policies[] = { SCHED_FIFO, SCHED_FIFO, SCHED_RR, SCHED_BATCH, SCHED_OTHER };
+	struct sched_attr attrs[5] = { 0 };
+	rscs_t resources[5] = { 0 };
+	cont_t items[5] = { 0 };
+	resAlloc_t * allocations[5];
+
+	for (int i=0; i<5; i++){
+		attrs[i].size = SCHED_ATTR_SIZE;
+		attrs[i].sched_policy = policies[i];
+		resources[i].affinity = -1;
+		items[i].attr = &attrs[i];
+		items[i].rscs = &resources[i];
+		allocations[i] = pushResource(&items[i], NULL);
+	}
+
+	adaptPlanSchedule();
+	for (int i=0; i<5; i++)
+		ck_assert_ptr_nonnull(allocations[i]->assigned);
+	ck_assert_ptr_eq(allocations[0]->assigned, allocations[1]->assigned);
+	ck_assert_ptr_ne(allocations[0]->assigned, allocations[2]->assigned);
+
+	float totalU = 0.0;
+	for (resTracer_t * tracer=rHead; tracer; tracer=tracer->next)
+		totalU += tracer->U;
+	ck_assert_float_eq_tol(0.5, totalU, 0.0001);
+
+	adaptExecute();
+	for (int i=0; i<5; i++){
+		ck_assert_int_ge(resources[i].affinity, 0);
+		numa_free_cpumask(resources[i].affinity_mask);
+	}
 }
 END_TEST
 
