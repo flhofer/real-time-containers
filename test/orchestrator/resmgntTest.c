@@ -18,12 +18,36 @@
 
 #include <limits.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <linux/sched.h>	// linux specific scheduling
 
 // for MUSL based systems
 #ifndef RLIMIT_RTTIME
 	#define RLIMIT_RTTIME 15
 #endif
+
+static void
+resmgntTestWriteFile(const char * path, const char * value){
+	FILE * file = fopen(path, "w");
+	ck_assert_msg(file, "Could not create test file %s", path);
+	ck_assert_int_eq((int)strlen(value), (int)fwrite(value, 1, strlen(value), file));
+	ck_assert_int_eq(0, fclose(file));
+}
+
+static void
+resmgntTestReadFile(const char * path, char * value, size_t size){
+	FILE * file = fopen(path, "r");
+	ck_assert_msg(file, "Could not read test file %s", path);
+	size_t bytes = fread(value, 1, size - 1, file);
+	value[bytes] = '\0';
+	ck_assert_int_eq(0, fclose(file));
+}
+
+static void
+resmgntTestPath(char * path, size_t size, const char * directory, const char * name){
+	ck_assert_int_lt(snprintf(path, size, "%s/%s", directory, name), (int)size);
+}
 
 /// TEST CASE -> check return value with different resources & schedules
 /// EXPECTED -> comparison value OK
@@ -550,6 +574,49 @@ START_TEST(pidRefreshTest)
 	free(missing.psig);
 }
 END_TEST
+
+/// TEST CASE -> calculate and write real-time throttle values
+/// EXPECTED -> percentages are bounded and write failures are reported
+START_TEST(resetRTthrottleTest)
+{
+	char directory[] = "/tmp/resmgnt-throttle-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+
+	char periodPath[PATH_MAX];
+	char runtimePath[PATH_MAX];
+	resmgntTestPath(periodPath, sizeof(periodPath), directory, "sched_rt_period_us");
+	resmgntTestPath(runtimePath, sizeof(runtimePath), directory, "sched_rt_runtime_us");
+	resmgntTestWriteFile(periodPath, "1000\n");
+	resmgntTestWriteFile(runtimePath, "xxx");
+
+	char prefix[PATH_MAX];
+	ck_assert_int_lt(snprintf(prefix, sizeof(prefix), "%s/", directory), (int)sizeof(prefix));
+	prgset->procfileprefix = strdup(prefix);
+	ck_assert_int_eq(0, resetRTthrottle(prgset, 50));
+	ck_assert_int_ne(0, prgset->status & MSK_STATTRTL);
+
+	char value[20];
+	resmgntTestReadFile(runtimePath, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("500", value, 3));
+
+	resmgntTestWriteFile(runtimePath, "xxx");
+	ck_assert_int_eq(0, resetRTthrottle(prgset, 1));
+	resmgntTestReadFile(runtimePath, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("100", value, 3));
+
+	resmgntTestWriteFile(runtimePath, "xx");
+	ck_assert_int_eq(0, resetRTthrottle(prgset, -1));
+	resmgntTestReadFile(runtimePath, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("-1", value, 2));
+
+	ck_assert_int_eq(0, unlink(periodPath));
+	ck_assert_int_eq(0, unlink(runtimePath));
+	ck_assert_int_eq(0, rmdir(directory));
+	prgset->status &= ~MSK_STATTRTL;
+	ck_assert_int_eq(-1, resetRTthrottle(prgset, -1));
+	ck_assert_int_eq(0, prgset->status & MSK_STATTRTL);
+}
+END_TEST
 }
 END_TEST
 
@@ -981,6 +1048,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_test(tc4, updatePidWCETTest);
 	tcase_add_test(tc4, pidAffinityTest);
 	tcase_add_test(tc4, pidRefreshTest);
+	tcase_add_test(tc4, resetRTthrottleTest);
 
     suite_add_tcase(s, tc4);
 
