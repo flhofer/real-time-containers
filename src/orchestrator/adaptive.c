@@ -89,7 +89,8 @@ cmpPidItemU (const void * a, const void * b) {
 
 /*
  *  cmpPidItemS(): compares two resource allocation attributes for Qsort,
- *  			   descending by scheduler type, then period then U
+ *  			   descending by utilization when timing is known, otherwise
+ *  			   grouped by scheduler type
  *
  *  Arguments: pointers to the items to check
  *
@@ -97,7 +98,7 @@ cmpPidItemU (const void * a, const void * b) {
  */
 static int
 cmpPidItemS (const void * a, const void * b) {
-	// order by period first-utilization
+	// use utilization whenever runtime or period information is available
 	if (((resAlloc_t *)a)->item->attr->sched_period
 		|| ((resAlloc_t *)b)->item->attr->sched_period
 		|| ((resAlloc_t *)a)->item->attr->sched_runtime
@@ -149,14 +150,16 @@ recomputeTimes_S(struct resTracer * res) {
 static int
 addTracer(resAlloc_t * res, int cpu){
 	for (resTracer_t * trc = rHead; ((trc)); trc=trc->next){
-		if (((-1 == cpu)
-			&& (numa_bitmask_isbitset(res->item->rscs->affinity_mask, getTracerMainCPU(trc)))) // TEMP: use main CPU for check only!
-			|| (numa_bitmask_isbitset(trc->affinity, cpu))){
+		int tracerCPU = getTracerMainCPU(trc);
+		int defaultMatch = (-1 == cpu) && (0 <= tracerCPU)
+			&& numa_bitmask_isbitset(res->item->rscs->affinity_mask, tracerCPU);
+		int cpuMatch = (0 <= cpu) && numa_bitmask_isbitset(trc->affinity, cpu);
+		if (defaultMatch || cpuMatch){
 
 			// check first. add and return check value
 			int ret = checkUvalue(trc, res->item->attr, 1);
 			if (0 > ret)
-				warn(PFX "Utilization limit reached for CPU%d", trc->affinity);
+				warn(PFX "Utilization limit reached for CPU%d", tracerCPU);
 			res->assigned = trc;
 			return ret;
 		}
