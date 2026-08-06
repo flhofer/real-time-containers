@@ -478,6 +478,48 @@ START_TEST(updatePidWCETTest)
 	ck_assert_int_eq(-EINVAL, updatePidWCET(NULL, 20000));
 }
 END_TEST
+
+/// TEST CASE -> set and query task affinity through resmgnt helpers
+/// EXPECTED -> affinity is reduced to the assigned CPU and can be restored
+START_TEST(pidAffinityTest)
+{
+	struct bitmask * original = numa_allocate_cpumask();
+	struct bitmask * selected = numa_allocate_cpumask();
+	struct bitmask * actual = numa_allocate_cpumask();
+	ck_assert_ptr_nonnull(original);
+	ck_assert_ptr_nonnull(selected);
+	ck_assert_ptr_nonnull(actual);
+	ck_assert_int_ge(numa_sched_getaffinity(getpid(), original), 0); // should be more than 1 CPU
+
+	// select first CPU from original mask
+	int CPU = -1;
+	for (unsigned int i = 0; i < original->size; i++)
+		if (numa_bitmask_isbitset(original, i)){
+			CPU = i;
+			break;
+		}
+	ck_assert_int_ge(CPU, 0);
+	numa_bitmask_setbit(selected, CPU);
+
+	ck_assert_int_eq(0, setPidAffinity(getpid(), selected));
+	ck_assert_int_ge(numa_sched_getaffinity(getpid(), actual), 0);
+	ck_assert(numa_bitmask_equal(selected, actual));
+
+	node_t item = { 0 };
+	item.pid = getpid();
+	item.status = MSK_STATNAFF;
+	item.mon.assigned = CPU;
+	ck_assert_int_eq(1, getPidAffinityAssingedNr(&item));
+	ck_assert_int_eq(0, setPidAffinityAssinged(&item));
+	ck_assert_int_eq(0, item.status & MSK_STATNAFF);
+
+	ck_assert_int_eq(0, numa_sched_setaffinity(getpid(), original));
+	numa_bitmask_free(item.mon.assigned_mask);
+	numa_bitmask_free(actual);
+	numa_bitmask_free(selected);
+	numa_bitmask_free(original);
+}
+END_TEST
 }
 END_TEST
 
@@ -907,6 +949,7 @@ void orchestrator_resmgnt (Suite * s) {
     TCase *tc4 = tcase_create("resmgnt_pidupdate");
 	tcase_add_checked_fixture(tc4, setup, teardown);
 	tcase_add_test(tc4, updatePidWCETTest);
+	tcase_add_test(tc4, pidAffinityTest);
 
     suite_add_tcase(s, tc4);
 
