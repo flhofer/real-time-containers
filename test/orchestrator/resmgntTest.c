@@ -520,6 +520,36 @@ START_TEST(pidAffinityTest)
 	numa_bitmask_free(original);
 }
 END_TEST
+
+/// TEST CASE -> refresh scheduling attributes and command line from procfs
+/// EXPECTED -> live process data replaces stale node data and failures preserve it
+START_TEST(pidRefreshTest)
+{
+	node_t item = { 0 };
+	item.pid = getpid();
+	item.attr.size = SCHED_ATTR_SIZE;
+	item.attr.sched_policy = SCHED_NODATA;
+	updatePidAttr(&item);
+	ck_assert_int_ne(SCHED_NODATA, item.attr.sched_policy);
+
+	item.psig = strdup("stale command");
+	updatePidCmdline(&item);
+	ck_assert_ptr_nonnull(item.psig);
+	ck_assert_str_ne("stale command", item.psig);
+	char * command = item.psig;
+	updatePidCmdline(&item);
+	ck_assert_ptr_eq(command, item.psig);
+	free(item.psig);
+
+	getPidSchedAttr(NULL);
+	node_t missing = { 0 };
+	missing.pid = INT_MAX;
+	missing.psig = strdup("keep command");
+	updatePidCmdline(&missing);
+	ck_assert_str_eq("keep command", missing.psig);
+	free(missing.psig);
+}
+END_TEST
 }
 END_TEST
 
@@ -950,6 +980,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_checked_fixture(tc4, setup, teardown);
 	tcase_add_test(tc4, updatePidWCETTest);
 	tcase_add_test(tc4, pidAffinityTest);
+	tcase_add_test(tc4, pidRefreshTest);
 
     suite_add_tcase(s, tc4);
 
