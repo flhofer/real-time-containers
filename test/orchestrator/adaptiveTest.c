@@ -164,6 +164,32 @@ START_TEST(orchestrator_adaptive_recompute)
 }
 END_TEST
 
+/// TEST CASE -> add an allocation through a default affinity mask
+/// EXPECTED -> a matching tracer is selected and an empty mask is rejected
+START_TEST(orchestrator_adaptive_addTracer)
+{
+	prgset->affinity_mask = parse_cpumask("0-2");
+	createResTracer();
+	struct sched_attr attr = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	attr.sched_runtime = 100;
+	attr.sched_deadline = attr.sched_period = 1000;
+	rscs_t resources = { .affinity = 2 };
+	resources.affinity_mask = parse_cpumask("2");
+	cont_t item = { .attr = &attr, .rscs = &resources };
+	resAlloc_t allocation = { .item = &item };
+
+	ck_assert_int_ge(addTracer(&allocation, -1), 0);
+	ck_assert_ptr_eq(getTracer(2), allocation.assigned);
+	ck_assert_float_eq_tol(0.1, allocation.assigned->U, 0.0001);
+
+	allocation.assigned = NULL;
+	numa_bitmask_clearall(resources.affinity_mask);
+	ck_assert_int_eq(-1, addTracer(&allocation, -1));
+	ck_assert_ptr_null(allocation.assigned);
+	numa_free_cpumask(resources.affinity_mask);
+}
+END_TEST
+
 /// TEST CASE -> retain shared configuration and execute a private assignment
 /// EXPECTED -> shared affinity is untouched while private affinity is updated
 START_TEST(orchestrator_adaptive_shared)
@@ -440,6 +466,7 @@ void orchestrator_adaptive (Suite * s) {
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 	tcase_add_test(tc1, orchestrator_adaptive_compare);
 	tcase_add_test(tc1, orchestrator_adaptive_recompute);
+	tcase_add_test(tc1, orchestrator_adaptive_addTracer);
 	tcase_add_test(tc1, orchestrator_adaptive_shared);
 	tcase_add_test(tc1, orchestrator_adaptive_scramble);
 	tcase_add_test(tc1, orchestrator_adaptive_policy_fallback);
