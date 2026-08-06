@@ -34,67 +34,13 @@ typedef struct resAlloc { 		// resource allocations mapping
 resAlloc_t * aHead = NULL;
 
 /*
- *  cmpPidItemP(): compares two resource allocation attributes for Qsort, descending
- *  				Criterion by period
- *
- *  Arguments: pointers to the items to check
- *
- *  Return value: difference
- */
-static int
-cmpPidItemP (const void * a, const void * b) {
-	int64_t diff = ((int64_t)((resAlloc_t *)b)->item->attr->sched_period
-			- (int64_t)((resAlloc_t *)a)->item->attr->sched_period);
-	if (!diff)
-		return (int)((int64_t)(((resAlloc_t *)b)->item->attr->sched_runtime
-				- (int64_t)((resAlloc_t *)a)->item->attr->sched_runtime)  % INT32_MAX);
-	return (int)(diff % INT32_MAX); // reduce but keep sign
-}
-
-/*
- *  cmpPidItemU(): compares two resource allocation attributes for Qsort,
- *  			   descending by period first then Utilization
- *
- *  Arguments: pointers to the items to check
- *
- *  Return value: difference
- */
-static int
-cmpPidItemU (const void * a, const void * b) {
-	// order by period first
-	if ((((resAlloc_t *)a)->item->attr->sched_period) !=
-		 (((resAlloc_t *)b)->item->attr->sched_period))
-		return cmpPidItemP (a, b);
-
-
-	// if both are 0, return bigger runtime item
-	if (!((resAlloc_t *)a)->item->attr->sched_period
-			&& !((resAlloc_t *)b)->item->attr->sched_period)
-		return ((resAlloc_t *)b)->item->attr->sched_runtime
-		- ((resAlloc_t *)a)->item->attr->sched_runtime;
-
-	// if one period 0, return other as bigger
-	if (!((resAlloc_t *)a)->item->attr->sched_period)
-			return 1;
-	if (!((resAlloc_t *)b)->item->attr->sched_period)
-			return -1;
-
-	// both periods are present, use Utilization value
-	double U1 = ((double)((resAlloc_t *)a)->item->attr->sched_runtime /
-			(double)((resAlloc_t *)a)->item->attr->sched_period);
-	double U2 = ((double)((resAlloc_t *)b)->item->attr->sched_runtime /
-			(double)((resAlloc_t *)b)->item->attr->sched_period);
-	return (U2-U1)*10000;
-}
-
-/*
  *  cmpPidItemS(): compares two resource allocation attributes for Qsort,
  *  			   descending by utilization when timing is known, otherwise
  *  			   grouped by scheduler type
  *
  *  Arguments: pointers to the items to check
  *
- *  Return value: difference
+ *  Return value: positive if a>b, negative if a<b, 0 if equal
  */
 static int
 cmpPidItemS (const void * a, const void * b) {
@@ -102,12 +48,23 @@ cmpPidItemS (const void * a, const void * b) {
 	if (((resAlloc_t *)a)->item->attr->sched_period
 		|| ((resAlloc_t *)b)->item->attr->sched_period
 		|| ((resAlloc_t *)a)->item->attr->sched_runtime
-		|| ((resAlloc_t *)b)->item->attr->sched_runtime)
-		return cmpPidItemU (a, b);
+		|| ((resAlloc_t *)b)->item->attr->sched_runtime){
+
+		// order by period first
+		if ((((resAlloc_t *)a)->item->attr->sched_period) !=
+			(((resAlloc_t *)b)->item->attr->sched_period))
+			return (int)(((int64_t)((resAlloc_t *)b)->item->attr->sched_period
+				- (int64_t)((resAlloc_t *)a)->item->attr->sched_period) % INT_MAX); // reduce but keep sign
+
+		// if periods are equal (or 0), return smaller runtime item (smaller U)
+		return (int)(((int64_t)((resAlloc_t *)b)->item->attr->sched_runtime
+			- (int64_t)((resAlloc_t *)a)->item->attr->sched_runtime) % INT_MAX);
+
+		}
 
 	// no parameters known, group by scheduler (order not important)
-	return ((resAlloc_t *)a)->item->attr->sched_policy
-		-  ((resAlloc_t *)b)->item->attr->sched_policy;
+	return (int)((((resAlloc_t *)a)->item->attr->sched_policy
+		-  ((resAlloc_t *)b)->item->attr->sched_policy) % INT_MAX);
 }
 
 /*
