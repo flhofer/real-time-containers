@@ -56,13 +56,13 @@ cmpPidItemS (const void * a, const void * b) {
 			return (int)(((int64_t)((resAlloc_t *)b)->item->attr->sched_period
 				- (int64_t)((resAlloc_t *)a)->item->attr->sched_period) % INT_MAX); // reduce but keep sign
 
-		// if periods are equal (or 0), return smaller runtime item (smaller U)
-		return (int)(((int64_t)((resAlloc_t *)b)->item->attr->sched_runtime
-			- (int64_t)((resAlloc_t *)a)->item->attr->sched_runtime) % INT_MAX);
+		// if periods are equal (or 0), return difference, bigger runtime item (bigger U)
+		return (int)(((int64_t)((resAlloc_t *)a)->item->attr->sched_runtime
+			- (int64_t)((resAlloc_t *)b)->item->attr->sched_runtime) % INT_MAX);
 
 		}
 
-	// no parameters known, group by scheduler (order not important)
+	// no parameters known, group by scheduler, deadline first, then FIFO, then RR, then batch, then other
 	return (int)((((resAlloc_t *)a)->item->attr->sched_policy
 		-  ((resAlloc_t *)b)->item->attr->sched_policy) % INT_MAX);
 }

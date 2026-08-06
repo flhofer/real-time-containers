@@ -112,7 +112,7 @@ START_TEST(orchestrator_adaptive_compare)
 	attrA.sched_period = 2000;
 	ck_assert_int_eq(0, cmpPidItemS(&allocA, &allocB));
 	attrA.sched_runtime = 200;
-	ck_assert_int_eq(300, cmpPidItemS(&allocA, &allocB));
+	ck_assert_int_eq(-300, cmpPidItemS(&allocA, &allocB));
 
 	// test period comparison with extreme values
 	attrA.sched_period = UINT64_MAX;
@@ -125,7 +125,7 @@ START_TEST(orchestrator_adaptive_compare)
 	attrA.sched_runtime = attrB.sched_runtime = 0;
 	attrA.sched_policy = SCHED_FIFO;
 	attrB.sched_policy = SCHED_RR;
-	ck_assert_int_gt(0, cmpPidItemS(&allocA, &allocB));
+	ck_assert_int_lt(0, cmpPidItemS(&allocA, &allocB));
 	ck_assert_int_eq(0, cmpPidItemS(&allocA, &allocA));
 }
 END_TEST
