@@ -99,7 +99,7 @@ setPidAffinity(pid_t pid, struct bitmask * const mask) {
 	if ((0 > numa_sched_getaffinity(pid, bmold)))
 		err_msg_n(errno,"getting affinity for PID %d", pid);
 
-	if (numa_bitmask_equal(mask, bmold)){
+	if (!numa_bitmask_equal(mask, bmold)){
 
 		// get textual representation for log
 		char affinity[CPUSTRLEN];
