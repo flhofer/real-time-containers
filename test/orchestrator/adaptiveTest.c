@@ -129,6 +129,34 @@ START_TEST(orchestrator_adaptive_compare)
 	ck_assert_int_eq(0, cmpPidItemS(&allocA, &allocA));
 }
 END_TEST
+
+/// TEST CASE -> rebuild a tracer from all allocations assigned to it
+/// EXPECTED -> base period, used period and utilization contain the complete load
+START_TEST(orchestrator_adaptive_recompute)
+{
+	struct sched_attr attrA = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	struct sched_attr attrB = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	attrA.sched_runtime = 200;
+	attrA.sched_deadline = attrA.sched_period = 1000;
+	attrB.sched_runtime = 300;
+	attrB.sched_deadline = attrB.sched_period = 1000;
+	cont_t itemA = { .attr = &attrA };
+	cont_t itemB = { .attr = &attrB };
+	resTracer_t tracer = { .status = MSK_STATHRMC };
+
+	push((void**)&aHead, sizeof(*aHead));
+	aHead->item = &itemA;
+	aHead->assigned = &tracer;
+	push((void**)&aHead, sizeof(*aHead));
+	aHead->item = &itemB;
+	aHead->assigned = &tracer;
+
+	ck_assert_int_eq(0, recomputeTimes_S(&tracer));
+	ck_assert_uint_eq(1000, tracer.basePeriod);
+	ck_assert_uint_eq(500, tracer.usedPeriod);
+	ck_assert_float_eq_tol(0.5, tracer.U, 0.0001);
+}
+END_TEST
 END_TEST
 
 /// TEST CASE -> create resources for the adaptive schedule
@@ -308,6 +336,7 @@ void orchestrator_adaptive (Suite * s) {
 	tcase_add_checked_fixture(tc1, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 	tcase_add_test(tc1, orchestrator_adaptive_compare);
+	tcase_add_test(tc1, orchestrator_adaptive_recompute);
 
 	suite_add_tcase(s, tc1);
 
