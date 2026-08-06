@@ -478,17 +478,36 @@ updatePidAttr(node_t * const node){
  * Arguments: - node_t item
  * 			  - wcet to set
  *
- * Return value: -
+ * Return value: 0 on success, negative error code otherwise
  */
-void
+//TODO: verify and simplify
+int
 updatePidWCET(node_t * const node, uint64_t wcet){
+	// Validate candidate WCET
+	if (!node || SCHED_DEADLINE != node->attr.sched_policy
+			|| wcet < TSCHS || !node->attr.sched_deadline
+			|| !node->attr.sched_period
+			|| wcet > node->attr.sched_deadline
+			|| node->attr.sched_deadline > node->attr.sched_period){
+		warn("Invalid Deadline runtime update for PID %d: runtime %lu, deadline %lu, period %lu",
+				node ? node->pid : -1, wcet,
+				node ? node->attr.sched_deadline : 0,
+				node ? node->attr.sched_period : 0);
+		return -EINVAL;
+	}
 
-	node->attr.sched_runtime = wcet;
+	struct sched_attr candidate = node->attr;
+	candidate.sched_runtime = wcet;
 
-	if (sched_setattr (node->pid, &(node->attr), 0U))	// Custom function!
-		err_msg_n(errno, "Can not set new WCET");
-	else
-		node->status |= MSK_STATWCUD;
+	if (sched_setattr (node->pid, &candidate, 0U)){	// Custom function!
+		int error = errno;
+		err_msg_n(error, "Can not set new WCET");
+		return error ? -error : -1;
+	}
+
+	node->attr = candidate;
+	node->status |= MSK_STATWCUD;
+	return 0;
 }
 
 /*

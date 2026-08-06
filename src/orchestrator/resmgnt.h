@@ -30,7 +30,7 @@
 	// WARN! node is assumed to be already locked!
 	void setPidResources(node_t * const node);	// set resources of PID in memory (new or update)
 	void updatePidAttr(node_t * const node);	// update PID scheduling attributes and set flags if needed
-	void updatePidWCET(node_t * const node,
+	int updatePidWCET(node_t * const node,
 								uint64_t wcet); // update WCET value to computed result
 	void updatePidCmdline(node_t * const node);	// update PID command line
 
