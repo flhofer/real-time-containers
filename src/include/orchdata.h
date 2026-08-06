@@ -237,7 +237,7 @@
 		int64_t  dl_diffmax;	// overrun-GRUB handling : diff max peak, filtered
 
 		// CDF and distribution values
-		uint64_t cdf_runtime;	// CDF p-thresh max runtime, trigger level
+		uint64_t cdf_runtime;	// estimated runtime used for resource accounting
 		uint64_t cdf_period;	// CDF computed periodic distance for non DL tasks
 
 		stat_hist *	pdf_hist;	// histogram data to estimate the PDF

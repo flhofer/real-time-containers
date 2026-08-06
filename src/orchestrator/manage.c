@@ -1752,6 +1752,34 @@ updateStats()
 }
 
 /*
+ *  pickPidUseRuntimePercentile(): check if runtime protects an RT allocation
+ *
+ *  Arguments: - PID node
+ *
+ *  Return value: 1 if percentile runtime is required, otherwise 0
+ */
+// TODO: change to status flag signaling sibling of RT
+static int
+pickPidUseRuntimePercentile(const node_t * const node){
+	if (!node || SM_DYNSIMPLE > prgset->sched_mode)
+		return 0;
+
+	if (policy_is_realtime(node->attr.sched_policy))
+		return 1;
+
+	if (!node->param || !node->param->cont)
+		return 0;
+
+	for (node_t * item = nhead; item; item=item->next)
+		if (0 < item->pid && item != node && item->param
+				&& item->param->cont == node->param->cont
+				&& policy_is_realtime(item->attr.sched_policy))
+			return 1;
+
+	return 0;
+}
+
+/*
  * manageSched(): main function called to update resources
  * 					called once out of 10* loops (less often..)
  *
@@ -1829,9 +1857,8 @@ manageSched(){
 
 				uint64_t newWCET = 0;
 				int ret;
-				double percentile = ((SM_DYNSIMPLE <= prgset->sched_mode)
-						&& SCHED_DEADLINE == item->attr.sched_policy)
-						? prgset->ptresh : -1.0;
+				int usePercentile = pickPidUseRuntimePercentile(item);
+				double percentile = usePercentile ? prgset->ptresh : -1.0;
 				int range = runstats_histResample(&item->mon.pdf_hist,
 						&item->mon.pdf_scope, percentile);
 
@@ -1871,7 +1898,7 @@ manageSched(){
 					// DYNAMIC, USE PROBABILISTIC WCET VALUE
 					if (!(ret = runstats_cdfCreate(&item->mon.pdf_hist, &item->mon.pdf_cdf))){
 
-						if (SCHED_DEADLINE == item->attr.sched_policy)
+						if (usePercentile)
 							newWCET = (uint64_t)(NSEC_PER_SEC *
 										runstats_cdfSample(item->mon.pdf_cdf,
 												&item->mon.pdf_scope, prgset->ptresh));
@@ -1894,17 +1921,23 @@ manageSched(){
 				}
 
 				if (0 < newWCET){
+					int runtimeChanged = item->mon.cdf_runtime * MINCHNGL > newWCET * 100
+							|| item->mon.cdf_runtime * MINCHNGH < newWCET * 100;
+
 					if (SCHED_DEADLINE == item->attr.sched_policy){
 						updatePidWCET(item, newWCET);
 					}
-					if ( item->mon.cdf_runtime * MINCHNGL > newWCET * 100
-							|| item->mon.cdf_runtime * MINCHNGH < newWCET * 100){
+					if (runtimeChanged){
 						// meaningful change?
 						info("Update PID %d '%s' runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 						item->mon.resample++;
 					}
 					item->mon.cdf_runtime = newWCET;
 					item->status &= ~MSK_STATHERR;
+
+					if (runtimeChanged && usePercentile)
+						if (0 > updateSiblings(item))
+							warn("PID %d '%s' Sibling update not possible!", item->pid, (item->psig) ? item->psig : "");
 				}
 				else
 					warn ("Estimation error, can not update WCET");
