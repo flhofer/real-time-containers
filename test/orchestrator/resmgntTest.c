@@ -437,6 +437,31 @@ START_TEST(recomputeTimesTest)
 }
 END_TEST
 
+/// TEST CASE -> reject invalid or unsuccessful Deadline runtime updates
+/// EXPECTED -> stored kernel attributes remain unchanged
+START_TEST(updatePidWCETTest)
+{
+	node_t item = { 0 };
+	item.pid = -1;
+	item.attr.size = SCHED_ATTR_SIZE;
+	item.attr.sched_policy = SCHED_DEADLINE;
+	item.attr.sched_runtime = 10000;
+	item.attr.sched_deadline = 50000;
+	item.attr.sched_period = 100000;
+	struct sched_attr original = item.attr;
+
+	ck_assert_int_eq(-EINVAL, updatePidWCET(&item, TSCHS - 1));
+	ck_assert_int_eq(0, memcmp(&original, &item.attr, sizeof(original)));
+
+	ck_assert_int_eq(-EINVAL, updatePidWCET(&item, 60000));
+	ck_assert_int_eq(0, memcmp(&original, &item.attr, sizeof(original)));
+
+	ck_assert_int_lt(updatePidWCET(&item, 20000), 0);
+	ck_assert_int_eq(0, memcmp(&original, &item.attr, sizeof(original)));
+	ck_assert_int_eq(0, item.status & MSK_STATWCUD);
+}
+END_TEST
+
 static void tc5_setupUnchecked() {
 	contparm = malloc (sizeof(containers_t));
 	contparm->img = NULL; // locals are not initialized
@@ -862,6 +887,7 @@ void orchestrator_resmgnt (Suite * s) {
 
     TCase *tc4 = tcase_create("resmgnt_pidupdate");
 	tcase_add_checked_fixture(tc4, setup, teardown);
+	tcase_add_test(tc4, updatePidWCETTest);
 
     suite_add_tcase(s, tc4);
 
