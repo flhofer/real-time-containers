@@ -324,7 +324,12 @@ START_TEST(checkPeriodTest)
 	rHead->U = 0.7;
 	ck_assert_ptr_eq(checkPeriod(&par, -99, -1), rHead->next->next);// par, prefer lower U
 
-	// TODO: all full returns NULL
+	for (resTracer_t * tracer = rHead; tracer; tracer=tracer->next){
+		tracer->basePeriod = par.sched_period;
+		tracer->usedPeriod = par.sched_period;
+		tracer->U = 1.0;
+	}
+	ck_assert_ptr_null(checkPeriod(&par, -99, -1));
 }
 END_TEST
 
