@@ -58,6 +58,7 @@ START_TEST(orchestrator_adaptive_createAffinity)
 	struct sched_rscs rscs = { 2 };
 	struct bitmask * bDep = numa_allocate_cpumask();
 
+	// set dependency mask to 1,3,5,7, including cpus outside allocated mask
 	numa_bitmask_setbit(bDep, 1);
 	numa_bitmask_setbit(bDep, 3);
 	numa_bitmask_setbit(bDep, 5);
@@ -65,16 +66,18 @@ START_TEST(orchestrator_adaptive_createAffinity)
 
 	createAffinityMask(&rscs, bDep);
 
+	// assert we used the specific affinity and not the dependency mask
 	ck_assert_int_eq(1, numa_bitmask_weight(rscs.affinity_mask));
 	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 2));
 
 	numa_free_cpumask(rscs.affinity_mask);
 
-	// no mask set
+	// reset to default, and check AND- mapping with dependency mask
 	rscs.affinity = -1;
 
 	createAffinityMask(&rscs, bDep);
 
+	// test that the resulting mask does not contain any invalid or masked cpus
 	ck_assert_int_eq(2, numa_bitmask_weight(rscs.affinity_mask));
 	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 1));
 	ck_assert(numa_bitmask_isbitset(rscs.affinity_mask, 3));
