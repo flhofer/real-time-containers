@@ -416,7 +416,7 @@ adaptPlanSchedule(){
 		resTracer_t * BTtrc = NULL;
 		resTracer_t * NTtrc = NULL;
 		for (resAlloc_t * res = aHead; ((res)); res=res->next){
-			if (!res->assigned)
+			if (!res->assigned){
 				switch (res->item->attr->sched_policy) {
 
 					case SCHED_FIFO:
@@ -452,7 +452,10 @@ adaptPlanSchedule(){
 						res-> assigned = NTtrc;
 						break;
 				}
+				if (res->assigned && 0 > checkUvalue(res->assigned, res->item->attr, 1))
+					warn("Could not account undefined task's utilization!");
 			}
+		}
 	} // END dedicated resources
 }
 
