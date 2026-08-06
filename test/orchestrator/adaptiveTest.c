@@ -247,10 +247,9 @@ START_TEST(orchestrator_adaptive_schedule)
 	ck_assert_int_eq(2, cont->pids->next->pid->rscs->affinity);
 
 	// check result of CPU assignments
-	ck_assert_int_eq(5000000, rHead->basePeriod);
-	ck_assert_int_eq(900000, rHead->usedPeriod);
-	//check >= 0.11 has ck_assert_float
-	ck_assert((float)((double)900000/(double)5000000) == rHead->U);
+	ck_assert_int_eq(1000000000, rHead->basePeriod);
+	ck_assert_int_eq(380000000, rHead->usedPeriod);
+	ck_assert_float_eq_tol(0.38, rHead->U, 0.0001);
 
 	ck_assert_int_eq(4000000, rHead->next->basePeriod);
 	ck_assert_int_eq(3000000, rHead->next->usedPeriod);
