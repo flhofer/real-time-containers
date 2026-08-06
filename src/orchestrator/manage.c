@@ -1925,11 +1925,13 @@ manageSched(){
 							|| item->mon.cdf_runtime * MINCHNGH < newWCET * 100;
 
 					if (SCHED_DEADLINE == item->attr.sched_policy){
-						updatePidWCET(item, newWCET);
+						if (updatePidWCET(item, newWCET))
+							warn("Keeping previous Deadline reservation for PID %d '%s'",
+									item->pid, (item->psig) ? item->psig : "");
 					}
 					if (runtimeChanged){
 						// meaningful change?
-						info("Update PID %d '%s' runtime: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
+						info("Update PID %d '%s' runtime estimate: %luus", item->pid, (item->psig) ? item->psig : "", newWCET/1000);
 						item->mon.resample++;
 					}
 					item->mon.cdf_runtime = newWCET;
