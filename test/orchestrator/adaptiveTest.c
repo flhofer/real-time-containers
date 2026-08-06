@@ -155,8 +155,21 @@ START_TEST(orchestrator_adaptive_recompute)
 	ck_assert_uint_eq(1000, tracer.basePeriod);
 	ck_assert_uint_eq(500, tracer.usedPeriod);
 	ck_assert_float_eq_tol(0.5, tracer.U, 0.0001);
+
+	attrB.sched_deadline = attrB.sched_period = 1500;
+	ck_assert_int_eq(0, recomputeTimes_S(&tracer));
+	ck_assert_uint_eq(3000, tracer.basePeriod);
+	ck_assert_uint_eq(1200, tracer.usedPeriod);
+	ck_assert_float_eq_tol(0.4, tracer.U, 0.0001);
 }
 END_TEST
+
+/// TEST CASE -> allocate tasks without timing information by scheduler class
+/// EXPECTED -> every class is assigned and tasks in the same class stay together
+START_TEST(orchestrator_adaptive_policy_fallback)
+{
+	prgset->affinity_mask = parse_cpumask("0-2");
+}
 END_TEST
 
 /// TEST CASE -> create resources for the adaptive schedule
@@ -337,6 +350,7 @@ void orchestrator_adaptive (Suite * s) {
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
 	tcase_add_test(tc1, orchestrator_adaptive_compare);
 	tcase_add_test(tc1, orchestrator_adaptive_recompute);
+	tcase_add_test(tc1, orchestrator_adaptive_policy_fallback);
 
 	suite_add_tcase(s, tc1);
 

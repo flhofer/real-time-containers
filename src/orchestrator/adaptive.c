@@ -50,7 +50,7 @@ cmpPidItemS (const void * a, const void * b) {
 		|| ((resAlloc_t *)a)->item->attr->sched_runtime
 		|| ((resAlloc_t *)b)->item->attr->sched_runtime){
 
-		// order by period first
+		// order by period first, smaller period, then bigger utilization (bigger runtime)
 		if ((((resAlloc_t *)a)->item->attr->sched_period) !=
 			(((resAlloc_t *)b)->item->attr->sched_period))
 			return (int)(((int64_t)((resAlloc_t *)b)->item->attr->sched_period
