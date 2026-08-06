@@ -11,6 +11,8 @@
 
 #include "adaptiveTest.h"
 #include "manageTest.h"
+#include "orchestratorTest.h"
+#include "prepareTest.h"
 #include "resmgntTest.h"
 #include "updateTest.h"
 
@@ -31,6 +33,8 @@ Suite * orchestrator_suite(void) {
 	orchestrator_manage(s);
 	orchestrator_adaptive(s);
 	orchestrator_resmgnt(s);
+	orchestrator_prepare(s);
+	orchestrator_orchestrator(s);
 
 	return s;
 }

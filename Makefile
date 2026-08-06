@@ -15,7 +15,8 @@ OBJDIR = build
 sources = orchestrator.c test.c
 orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
 testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
-		   adaptiveTest.o manageTest.o updateTest.o dockerlinkTest.o\
+		   adaptiveTest.o manageTest.o updateTest.o prepareTest.o \
+		   orchestratorTest.o dockerlinkTest.o\
 		   kernutilTest.o orchdataTest.o parse_configTest.o errorTest.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
@@ -185,4 +186,3 @@ help:
 .PHONY: tags
 tags:
 	ctags -R --extra=+f --c-kinds=+p --exclude=tmp --exclude=BUILD *
-
