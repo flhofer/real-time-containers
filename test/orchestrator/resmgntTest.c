@@ -194,6 +194,7 @@ teardown() {
 /// EXPECTED -> one resource matching the selected CPU
 START_TEST(createTracerTest)
 {
+	ck_assert_int_eq(-1, getTracerMainCPU(NULL));
 
 	// test filling CPU0
 	createResTracer();
@@ -241,6 +242,10 @@ START_TEST(grepTracerTest)
 	push((void**)&rHead, sizeof(struct resTracer));
 
 	ck_assert_ptr_eq(grepTracer(), rHead);
+
+	rHead->U = 1.0;
+	rHead->next->U = 1.0;
+	ck_assert_ptr_null(grepTracer());
 }
 END_TEST
 
