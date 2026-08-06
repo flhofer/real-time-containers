@@ -618,6 +618,119 @@ START_TEST(resetRTthrottleTest)
 }
 END_TEST
 
+/// TEST CASE -> set, initialize and reset temporary container cgroups
+/// EXPECTED -> root/container values and PID accounting state are updated
+START_TEST(containerResourcesTest)
+{
+	char directory[] = "/tmp/resmgnt-cgroup-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+	const char * id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+	char containerName[96];
+#ifdef CGROUP2
+	ck_assert_int_lt(snprintf(containerName, sizeof(containerName), "docker-%s.scope", id), (int)sizeof(containerName));
+#else
+	ck_assert_int_lt(snprintf(containerName, sizeof(containerName), "%s", id), (int)sizeof(containerName));
+#endif
+	char containerPath[PATH_MAX];
+	resmgntTestPath(containerPath, sizeof(containerPath), directory, containerName);
+	ck_assert_int_eq(0, mkdir(containerPath, 0700));
+
+	char rootCPU[PATH_MAX], rootMem[PATH_MAX], rootPartition[PATH_MAX];
+	char contCPU[PATH_MAX], contMem[PATH_MAX], contPartition[PATH_MAX], contEffective[PATH_MAX];
+	resmgntTestPath(rootCPU, sizeof(rootCPU), directory, "cpuset.cpus");
+	resmgntTestPath(rootMem, sizeof(rootMem), directory, "cpuset.mems");
+	resmgntTestPath(contCPU, sizeof(contCPU), containerPath, "cpuset.cpus");
+	resmgntTestPath(contMem, sizeof(contMem), containerPath, "cpuset.mems");
+#ifdef CGROUP2
+	resmgntTestPath(rootPartition, sizeof(rootPartition), directory, "cpuset.cpus.partition");
+	resmgntTestPath(contPartition, sizeof(contPartition), containerPath, "cpuset.cpus.partition");
+	resmgntTestPath(contEffective, sizeof(contEffective), containerPath, "cpuset.cpus.effective");
+#else
+	resmgntTestPath(rootPartition, sizeof(rootPartition), directory, "cpuset.cpu_exclusive");
+	resmgntTestPath(contPartition, sizeof(contPartition), containerPath, "cpuset.cpu_exclusive");
+	resmgntTestPath(contEffective, sizeof(contEffective), containerPath, "cpuset.cpus");
+#endif
+	resmgntTestWriteFile(rootCPU, "xxx");
+	resmgntTestWriteFile(rootMem, "x");
+	resmgntTestWriteFile(rootPartition, "xxxxxx");
+	resmgntTestWriteFile(contCPU, "xxx");
+	resmgntTestWriteFile(contMem, "x");
+	resmgntTestWriteFile(contPartition, "xxxxxx");
+#ifdef CGROUP2
+	resmgntTestWriteFile(contEffective, "0\n");
+#endif
+
+	char prefix[PATH_MAX];
+	ck_assert_int_lt(snprintf(prefix, sizeof(prefix), "%s/", directory), (int)sizeof(prefix));
+	prgset->cpusetdfileprefix = strdup(prefix);
+	prgset->numa = strdup("0");
+	free(prgset->affinity);
+	prgset->affinity = strdup("0");
+	prgset->setaffinity = AFFINITY_USERSPECIFIED;
+	setContCGroups(prgset, 1);
+
+	char value[20];
+	resmgntTestReadFile(rootCPU, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("0", value, 1));
+	resmgntTestReadFile(contMem, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("0", value, 1));
+#ifdef CGROUP2
+	resmgntTestReadFile(rootPartition, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("root", value, 4));
+#endif
+
+	struct sched_attr configured = { SCHED_ATTR_SIZE, SCHED_NODATA };
+	configured.sched_runtime = 2000;
+	configured.sched_period = 10000;
+	rscs_t resources = { 0 };
+	resources.affinity = -1;
+	resources.affinity_mask = numa_allocate_cpumask();
+	resources.rt_timew = resources.rt_time = -1;
+	resources.mem_dataw = resources.mem_data = -1;
+	numa_bitmask_setbit(resources.affinity_mask, 0);
+	cont_t container = { 0 };
+	container.contid = (char *)id;
+	container.rscs = &resources;
+	pidc_t parameters = { 0 };
+	parameters.psig = "configured command";
+	parameters.attr = &configured;
+	parameters.rscs = &resources;
+	parameters.cont = &container;
+	node_t item = { 0 };
+	item.pid = getpid();
+	item.attr.sched_policy = SCHED_OTHER;
+	item.param = &parameters;
+	setPidResources_u(&item);
+	ck_assert_ptr_eq(parameters.psig, item.psig);
+	ck_assert_ptr_eq(container.contid, item.contid);
+	ck_assert_uint_eq(2000, item.mon.cdf_runtime);
+	ck_assert_uint_eq(10000, item.mon.cdf_period);
+	ck_assert_int_ne(0, item.status & MSK_STATUPD);
+	numa_bitmask_free(resources.affinity_mask);
+
+	resetContCGroups(prgset, "0-3", "0");
+	resmgntTestReadFile(rootCPU, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("0-3", value, 3));
+#ifdef CGROUP2
+	resmgntTestReadFile(contPartition, value, sizeof(value));
+	ck_assert_int_eq(0, strncmp("member", value, 6));
+#endif
+
+	ck_assert_int_eq(0, unlink(rootCPU));
+	ck_assert_int_eq(0, unlink(rootMem));
+	ck_assert_int_eq(0, unlink(rootPartition));
+	ck_assert_int_eq(0, unlink(contCPU));
+	ck_assert_int_eq(0, unlink(contMem));
+	ck_assert_int_eq(0, unlink(contPartition));
+#ifdef CGROUP2
+	ck_assert_int_eq(0, unlink(contEffective));
+#endif
+	ck_assert_int_eq(0, rmdir(containerPath));
+	ck_assert_int_eq(0, rmdir(directory));
+}
+END_TEST
+
 /// TEST CASE -> public resource setup handles an unmatched PID
 /// EXPECTED -> the PID is marked updated and unmatched without kernel changes
 START_TEST(setPidResourcesMissingTest)
@@ -1063,6 +1176,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_test(tc4, pidAffinityTest);
 	tcase_add_test(tc4, pidRefreshTest);
 	tcase_add_test(tc4, resetRTthrottleTest);
+	tcase_add_test(tc4, containerResourcesTest);
 	tcase_add_test(tc4, setPidResourcesMissingTest);
 
     suite_add_tcase(s, tc4);
