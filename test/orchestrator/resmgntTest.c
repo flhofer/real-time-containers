@@ -472,6 +472,12 @@ START_TEST(updatePidWCETTest)
 	ck_assert_int_lt(updatePidWCET(&item, 20000), 0);
 	ck_assert_int_eq(0, memcmp(&original, &item.attr, sizeof(original)));
 	ck_assert_int_eq(0, item.status & MSK_STATWCUD);
+
+	item.attr.sched_policy = SCHED_OTHER;
+	ck_assert_int_eq(-EINVAL, updatePidWCET(&item, 20000));
+	ck_assert_int_eq(-EINVAL, updatePidWCET(NULL, 20000));
+}
+END_TEST
 }
 END_TEST
 
