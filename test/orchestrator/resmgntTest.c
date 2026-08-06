@@ -617,6 +617,20 @@ START_TEST(resetRTthrottleTest)
 	ck_assert_int_eq(0, prgset->status & MSK_STATTRTL);
 }
 END_TEST
+
+/// TEST CASE -> public resource setup handles an unmatched PID
+/// EXPECTED -> the PID is marked updated and unmatched without kernel changes
+START_TEST(setPidResourcesMissingTest)
+{
+	containers_t configuration = { 0 };
+	contparm = &configuration;
+	node_t item = { 0 };
+	item.pid = getpid();
+	item.attr.sched_policy = SCHED_OTHER;
+	setPidResources(&item);
+	ck_assert_int_ne(0, item.status & MSK_STATUPD);
+	ck_assert_int_ne(0, item.status & MSK_STATNMTCH);
+	contparm = NULL;
 }
 END_TEST
 
@@ -1049,6 +1063,7 @@ void orchestrator_resmgnt (Suite * s) {
 	tcase_add_test(tc4, pidAffinityTest);
 	tcase_add_test(tc4, pidRefreshTest);
 	tcase_add_test(tc4, resetRTthrottleTest);
+	tcase_add_test(tc4, setPidResourcesMissingTest);
 
     suite_add_tcase(s, tc4);
 
