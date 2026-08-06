@@ -84,6 +84,50 @@ START_TEST(orchestrator_adaptive_createAffinity)
 }
 END_TEST
 
+/// TEST CASE -> compare allocations by period, runtime and scheduler
+/// EXPECTED -> ordering remains exact for small utilization differences and large values
+START_TEST(orchestrator_adaptive_compare)
+{
+	struct sched_attr attrA = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	struct sched_attr attrB = { SCHED_ATTR_SIZE, SCHED_DEADLINE };
+	cont_t itemA = { 0 };
+	cont_t itemB = { 0 };
+	resAlloc_t allocA = { 0 };
+	resAlloc_t allocB = { 0 };
+	itemA.attr = &attrA;
+	itemB.attr = &attrB;
+	allocA.item = &itemA;
+	allocB.item = &itemB;
+
+	// test period and runtime comparison
+	attrA.sched_period = 1000;
+	attrA.sched_runtime = 500;
+	attrB.sched_period = 2000;
+	attrB.sched_runtime = 500;
+	ck_assert_int_eq(1000, cmpPidItemS(&allocA, &allocB));
+	ck_assert_int_eq(-1000, cmpPidItemS(&allocB, &allocA));
+	attrA.sched_period = 2000;
+	ck_assert_int_eq(0, cmpPidItemS(&allocA, &allocB));
+	attrA.sched_runtime = 200;
+	ck_assert_int_eq(300, cmpPidItemS(&allocA, &allocB));
+
+	// test period comparison with extreme values
+	attrA.sched_period = UINT64_MAX;
+	attrB.sched_period = 1;
+	ck_assert_int_eq(2, cmpPidItemS(&allocA, &allocB));
+	ck_assert_int_eq(-2, cmpPidItemS(&allocB, &allocA));
+
+	// test scheduler comparison
+	attrA.sched_period = attrB.sched_period = 0;
+	attrA.sched_runtime = attrB.sched_runtime = 0;
+	attrA.sched_policy = SCHED_FIFO;
+	attrB.sched_policy = SCHED_RR;
+	ck_assert_int_gt(0, cmpPidItemS(&allocA, &allocB));
+	ck_assert_int_eq(0, cmpPidItemS(&allocA, &allocA));
+}
+END_TEST
+END_TEST
+
 /// TEST CASE -> create resources for the adaptive schedule
 /// EXPECTED -> exit with no error and created resources
 START_TEST(orchestrator_adaptive_resources)
@@ -260,6 +304,7 @@ void orchestrator_adaptive (Suite * s) {
 	TCase *tc1 = tcase_create("adaptive_helper");
 	tcase_add_checked_fixture(tc1, orchestrator_adaptive_setup, orchestrator_adaptive_teardown);
 	tcase_add_test(tc1, orchestrator_adaptive_createAffinity);
+	tcase_add_test(tc1, orchestrator_adaptive_compare);
 
 	suite_add_tcase(s, tc1);
 
