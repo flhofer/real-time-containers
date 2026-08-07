@@ -272,6 +272,42 @@ START_TEST(parse_config_affinity_fallback)
 	ck_assert_str_eq(set->affinity, "1,3");
 }
 END_TEST
+
+/// TEST CASE -> preserve values supplied before configuration parsing
+/// EXPECTED -> pointer settings, scheduler policy and affinity selection keep CLI values
+START_TEST(parse_config_precedence)
+{
+	set->logdir = strdup("cli-log");
+	set->logbasename = strdup("cli-name");
+	set->cont_ppidc = strdup("cli-parent");
+	set->cont_pidc = strdup("cli-init");
+	set->cont_cgrp = strdup("cli-group/");
+	set->procfileprefix = strdup("cli-proc");
+	set->cpusystemfileprefix = strdup("cli-cpu");
+	set->policy = SCHED_RR;
+	set->setaffinity = AFFINITY_USEALL;
+	set->affinity = strdup("cli-affinity");
+
+	parse_config_json(
+		"{\"global\":{\"logdir\":\"file-log\","
+		"\"log_basename\":\"file-name\",\"cont_ppidc\":\"file-parent\","
+		"\"cont_pidc\":\"file-init\",\"cont_cgrp\":\"file-group/\","
+		"\"prc_kernel\":\"file-proc\",\"sys_cpu\":\"file-cpu\","
+		"\"default_policy\":\"deadline\",\"setaffinity\":\"numa-balanced\","
+		"\"affinity\":\"file-affinity\"}}"
+	);
+
+	ck_assert_str_eq(set->logdir, "cli-log");
+	ck_assert_str_eq(set->logbasename, "cli-name");
+	ck_assert_str_eq(set->cont_ppidc, "cli-parent");
+	ck_assert_str_eq(set->cont_pidc, "cli-init");
+	ck_assert_str_eq(set->cont_cgrp, "cli-group/");
+	ck_assert_str_eq(set->procfileprefix, "cli-proc");
+	ck_assert_str_eq(set->cpusystemfileprefix, "cli-cpu");
+	ck_assert_uint_eq(set->policy, SCHED_RR);
+	ck_assert_int_eq(set->setaffinity, AFFINITY_USEALL);
+	ck_assert_str_eq(set->affinity, "cli-affinity");
+}
 END_TEST
 
 void library_parse_config (Suite * s) {
@@ -293,6 +329,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_dockerprefix);
 	tcase_add_test(tc2, parse_config_global);
 	tcase_add_test(tc2, parse_config_affinity_fallback);
+	tcase_add_test(tc2, parse_config_precedence);
 
 	suite_add_tcase(s, tc2);
 
