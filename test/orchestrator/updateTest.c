@@ -92,6 +92,49 @@ static void orchestrator_update_teardown() {
 	freeContParm(contparm);
 }
 
+/// TEST CASE -> compare PID items and select each supported discovery mode
+/// EXPECTED -> PID difference and update callback/signature match the selected mode
+START_TEST(orchestrator_update_select)
+{
+	node_t low = { .pid = 10 };
+	node_t high = { .pid = 35 };
+	ck_assert_int_eq(25, cmpPidItem(&low, &high));
+	ck_assert_int_eq(-25, cmpPidItem(&high, &low));
+	ck_assert_int_eq(0, cmpPidItem(&low, &low));
+
+	prgset->use_cgroup = DM_CGRP;
+	selectUpdate();
+	ck_assert_ptr_eq(pidUpdate, getContPids);
+
+	prgset->use_cgroup = DM_CNTPID;
+	selectUpdate();
+	ck_assert_ptr_eq(pidUpdate, getParentPids);
+
+	prgset->use_cgroup = DM_CMDLINE;
+	free(prgset->cont_pidc);
+	prgset->cont_pidc = strdup("sleep");
+	selectUpdate();
+	ck_assert_ptr_eq(pidUpdate, getCmdLinePids);
+	// check generated signature
+#ifdef BUSYBOX
+	ck_assert_str_eq(pidSignature, "| grep -E 'sleep'");
+#else
+	ck_assert_str_eq(pidSignature, "-C sleep");
+#endif
+
+	free(pidSignature);
+	pidSignature = NULL;
+	prgset->psigscan = 1;
+	selectUpdate();
+	// check generated signature with threads
+#ifdef BUSYBOX
+	ck_assert_str_eq(pidSignature, "-T | grep -E 'sleep'");
+#else
+	ck_assert_str_eq(pidSignature, "-TC sleep");
+#endif
+}
+END_TEST
+
 /// TEST CASE -> test detected pid list using pid signture and ps
 /// EXPECTED -> 3 elements detectes (and no leaks!)
 START_TEST(orchestrator_update_getpids)
@@ -472,6 +515,7 @@ END_TEST
 void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_newread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
+	tcase_add_test(tc1, orchestrator_update_select);
 	tcase_add_test(tc1, orchestrator_update_getpids);
 	tcase_add_test(tc1, orchestrator_update_scannew);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
