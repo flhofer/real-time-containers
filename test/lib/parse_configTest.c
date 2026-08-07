@@ -443,6 +443,28 @@ START_TEST(parse_config_missing_file)
 }
 END_TEST
 
+/// TEST CASE -> load configuration through the stdin wrapper
+/// EXPECTED -> redirected stdin contents are parsed normally
+START_TEST(parse_config_from_stdin)
+{
+	int stdin_copy = dup(STDIN_FILENO);
+	FILE * input = tmpfile();
+	ck_assert_int_ge(stdin_copy, 0);
+	ck_assert_ptr_ne(input, NULL);
+	ck_assert_int_gt(fputs("{\"pids\":[{\"cmd\":\"stdin-task\"}]}", input), 0);
+	rewind(input);
+	ck_assert_int_ge(dup2(fileno(input), STDIN_FILENO), 0);
+	clearerr(stdin);
+
+	parse_config_stdin(set, conts);
+	ck_assert_ptr_ne(find_pid("stdin-task"), NULL);
+
+	ck_assert_int_ge(dup2(stdin_copy, STDIN_FILENO), 0);
+	close(stdin_copy);
+	fclose(input);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -469,6 +491,7 @@ void library_parse_config (Suite * s) {
 		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
 	tcase_add_test(tc2, parse_config_from_file);
 	tcase_add_exit_test(tc2, parse_config_missing_file, EXIT_INV_CONFIG);
+	tcase_add_test(tc2, parse_config_from_stdin);
 
 	suite_add_tcase(s, tc2);
 
