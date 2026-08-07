@@ -961,6 +961,29 @@ START_TEST(orchestrator_manage_realloc_reject)
 }
 END_TEST
 
+/// TEST CASE -> update scheduler statistics at the configured scan cadence
+/// EXPECTED -> new scheduling data is read immediately and management is requested every tenth interval
+START_TEST(orchestrator_manage_updatestats)
+{
+	prgset->loops = 2;
+	prgset->ftrace = 1;
+	node_push(&nhead);
+	nhead->pid = getpid();
+	nhead->psig = strdup("manage-test");
+	ck_assert_int_eq(SCHED_NODATA, nhead->attr.sched_policy);
+
+	for (int i=1; i<20; i++)
+		ck_assert_int_eq(0, updateStats());
+	ck_assert_int_eq(1, updateStats());
+	ck_assert_uint_eq(20, scount);
+	ck_assert_int_ne(SCHED_NODATA, nhead->attr.sched_policy);
+
+	node_t missing = { .pid = INT_MAX };
+	ck_assert_int_eq(-1, get_sched_info(&missing));
+}
+END_TEST
+END_TEST
+
 /// TEST CASE -> percentile runtime follows the task's role in an RT allocation
 /// EXPECTED -> RT tasks and their non-RT container helpers use the percentile
 START_TEST(orchestrator_manage_runtime_percentile)
@@ -1037,6 +1060,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_realloc_reject);
+	tcase_add_test(tc5, orchestrator_manage_updatestats);
 	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_missingpipe);
