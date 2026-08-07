@@ -60,8 +60,15 @@ ifndef DEBUG
 else
 	CFLAGS	+= -O0 -g -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
 	ifdef COVERAGE
-		CFLAGS += -coverage -fprofile-exclude-files=".*Test\.[ch];.*_suite\.[ch];kbuffer\.[ch];numa\.h;cpuid\.h"
-		DIRDEPTH=$(shell var=${PWD//[!\/]}; echo ${#var} )
+		# Force coverage profiling across all compiled files
+		CFLAGS += -coverage
+
+#		to activate once we have a separate test binary, we need to exclude the following files from coverage		
+# 		# Always apply the exclusion pattern if COVERAGE is enabled
+# 		CFLAGS += -fprofile-exclude-files="test\.[ch]|.*Test\.[ch]|.*_suite\.[ch]|kbuffer\.[ch]|numa\.h|cpuid\.h"
+		
+		# Set DIRDEPTH dynamically for GCOV_PREFIX_STRIP in the check target
+		DIRDEPTH=$(shell pwd | tr -cd '/' | wc -c)
 	endif
 endif
 
