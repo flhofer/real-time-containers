@@ -104,6 +104,39 @@ START_TEST(dockerlink_err_json)
 
 	exit(*th_return);
 }
+END_TEST
+
+/// TEST CASE -> parse a complete event directly from the Docker event stream
+/// EXPECTED -> all supported JSON fields are copied into the event data
+START_TEST(dockerlink_read_pipe)
+{
+	struct eventData event = {0};
+	inpipe = tmpfile();
+	ck_assert_ptr_ne(inpipe, NULL);
+	ck_assert_int_gt(fputs(dockerlink_events[5], inpipe), 0);
+	rewind(inpipe);
+	dlink_stop = 0;
+
+	ck_assert_int_eq(read_pipe(&event), 1);
+	ck_assert_str_eq(event.type, "container");
+	ck_assert_str_eq(event.status, "start");
+	ck_assert_str_eq(event.name, "rt-app-tst-10");
+	ck_assert_str_eq(event.id, cntexpected[5].id);
+	ck_assert_str_eq(event.from, "testcnt");
+	ck_assert_str_eq(event.scope, "local");
+	ck_assert_uint_eq(event.timenano, cntexpected[5].timenano);
+
+	free(event.type);
+	free(event.status);
+	free(event.name);
+	free(event.id);
+	free(event.from);
+	free(event.scope);
+	fclose(inpipe);
+	inpipe = NULL;
+}
+END_TEST
+
 /// TEST CASE -> parse supported and ignored events without the watcher thread
 /// EXPECTED -> start/kill map to container events and other event types are ignored
 START_TEST(dockerlink_check_event)
@@ -268,6 +301,7 @@ void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");
  
 	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
+	tcase_add_test(tc1, dockerlink_read_pipe);
 	tcase_add_loop_test(tc1, dockerlink_check_event, 0, 4);
 	tcase_add_test(tc1, dockerlink_read_stop);
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
