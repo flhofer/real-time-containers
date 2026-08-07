@@ -9,8 +9,8 @@
 #include "prepareTest.h"
 #include "../test.h"
 
-#include "../../src/include/parse_config.h"
-#include "../../src/include/kernutil.h"
+#include "parse_config.h"
+#include "kernutil.h"
 
 // tested
 #include "../../src/orchestrator/prepare.c"

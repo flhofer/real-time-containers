@@ -10,10 +10,10 @@
 #include "../test.h"
 
 // Includes from orchestrator library
-#include "../../src/include/orchdata.h"
-#include "../../src/include/parse_config.h"
-#include "../../src/include/kernutil.h"
-#include "../../src/include/rt-sched.h"
+#include "orchdata.h"
+#include "parse_config.h"
+#include "kernutil.h"
+#include "rt-sched.h"
 
 // tested
 #include "../../src/orchestrator/adaptive.c"

@@ -9,7 +9,7 @@
 #include "orchestratorTest.h"
 #include "../test.h"
 
-#include "../../src/include/parse_config.h"
+#include "parse_config.h"
 
 /* Keep the program entry point and globals separate from the test runner. */
 #define main orchestrator_program_main
