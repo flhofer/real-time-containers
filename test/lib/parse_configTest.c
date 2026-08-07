@@ -435,6 +435,14 @@ START_TEST(parse_config_from_file)
 }
 END_TEST
 
+/// TEST CASE -> reject an unavailable configuration file
+/// EXPECTED -> parser exits with the configuration error code
+START_TEST(parse_config_missing_file)
+{
+	parse_config_file("/tmp/parse-config-file-does-not-exist", set, conts);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -460,6 +468,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_loop_exit_test(tc2, parse_config_invalid_values,
 		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
 	tcase_add_test(tc2, parse_config_from_file);
+	tcase_add_exit_test(tc2, parse_config_missing_file, EXIT_INV_CONFIG);
 
 	suite_add_tcase(s, tc2);
 
