@@ -684,7 +684,9 @@ START_TEST(orchestrator_manage_resource_usage)
 {
 	push((void**)&rHead, sizeof(resTracer_t));
 	rHead->affinity = numa_allocate_cpumask();
-	numa_bitmask_setbit(rHead->affinity, 2);
+	numa_bitmask_setbit(rHead->affinity, 0);
+	rHead->U = 0.4;
+	rHead->Umin = 1.0;
 	rHead->UobsMin = 1.0;
 
 	rHead->observedTimestamp = 100;
@@ -694,6 +696,9 @@ START_TEST(orchestrator_manage_resource_usage)
 	prgset->ftrace = 1;
 	rHead->statisticsTimestamp = 100;
 	updateResourceUtilization(200);
+	ck_assert_double_eq_tol(0.4, rHead->Umin, 0.000001);
+	ck_assert_double_eq_tol(0.4, rHead->Umax, 0.000001);
+	ck_assert_double_eq_tol(0.4, rHead->Uavg, 0.000001);
 	ck_assert(rHead->status & MSK_STATROBSRDY);
 	ck_assert_double_eq_tol(0.25, rHead->Uobserved, 0.000001);
 	ck_assert_double_eq_tol(0.25, rHead->UobsAvg, 0.000001);
@@ -705,6 +710,15 @@ START_TEST(orchestrator_manage_resource_usage)
 	ck_assert(!(rHead->status & MSK_STATROBSRDY));
 	ck_assert_uint_eq(0, rHead->observedRuntime);
 	ck_assert_double_eq_tol(0.0, rHead->Uobserved, 0.000001);
+
+	cpuStatTimestamp = 0;
+	rHead->cpuTotal = 1;
+	rHead->cpuIdle = 0;
+	ck_assert_int_eq(0, updateCPUUtilization(NSEC_PER_SEC));
+	ck_assert(rHead->status & MSK_STATCPURDY);
+	ck_assert_uint_gt(rHead->cpuTotal, 1);
+	ck_assert_double_ge(rHead->Ucpu, 0.0);
+	ck_assert_double_le(rHead->Ucpu, 1.0);
 
 	freeTracer(&rHead);
 }
