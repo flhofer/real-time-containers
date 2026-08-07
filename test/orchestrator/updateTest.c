@@ -481,6 +481,27 @@ START_TEST(orchestrator_update_dlinkpending)
 }
 END_TEST
 
+/// TEST CASE -> reject invalid real-time update-thread scheduler parameters
+/// EXPECTED -> failed FIFO and Deadline requests fall back to SCHED_OTHER
+START_TEST(orchestrator_update_threadparams)
+{
+	prgset->policy = SCHED_FIFO;
+	prgset->priority = 0;
+	setThreadParameters();
+	ck_assert_int_eq(SCHED_OTHER, prgset->policy);
+
+	prgset->policy = SCHED_DEADLINE;
+	prgset->update_wcet = 0;
+	setThreadParameters();
+	ck_assert_int_eq(SCHED_OTHER, prgset->policy);
+
+	prgset->policy = SCHED_BATCH;
+	prgset->priority = 10;
+	setThreadParameters();
+	ck_assert_int_eq(SCHED_BATCH, prgset->policy);
+}
+END_TEST
+
 
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
@@ -725,6 +746,7 @@ void orchestrator_update (Suite * s) {
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
 	tcase_add_test(tc1, orchestrator_update_dlinkremove);
 	tcase_add_test(tc1, orchestrator_update_dlinkpending);
+	tcase_add_test(tc1, orchestrator_update_threadparams);
 
 	suite_add_tcase(s, tc1);
 
