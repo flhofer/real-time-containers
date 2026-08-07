@@ -272,6 +272,20 @@ START_TEST(kernutil_scheduler_policy)
 	ck_assert_uint_eq(policy, scheduler_var[_i].policy);
 }
 END_TEST
+
+/// TEST CASE -> convert default and invalid scheduler identifiers
+/// EXPECTED -> default maps to no-data and invalid values are rejected
+START_TEST(kernutil_scheduler_invalid)
+{
+	uint32_t policy = SCHED_OTHER;
+
+	ck_assert_int_eq(string_to_policy("default", &policy), 0);
+	ck_assert_uint_eq(policy, SCHED_NODATA);
+	ck_assert_int_eq(string_to_policy("invalid", &policy), -1);
+	ck_assert_str_eq(policy_to_string(-1), "-UNKNOWN-");
+	ck_assert_int_eq(policy_is_realtime(-1), 0);
+}
+END_TEST
 END_TEST
 
 void library_kernutil (Suite * s) {
@@ -287,6 +301,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_test(tc1, kernutil_get_status_flags);
 	tcase_add_loop_test(tc1, kernutil_scheduler_policy, 0,
 		sizeof(scheduler_var) / sizeof(scheduler_var[0]));
+	tcase_add_test(tc1, kernutil_scheduler_invalid);
 
     suite_add_tcase(s, tc1);
 
