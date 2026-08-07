@@ -180,6 +180,48 @@ START_TEST(orchdata_free_settings)
 }
 END_TEST
 
+/// TEST CASE -> release a fully linked configuration hierarchy
+/// EXPECTED -> link nodes and owned configuration data are all accepted
+START_TEST(orchdata_free_containers)
+{
+	containers_t * containers = calloc(1, sizeof(*containers));
+	ck_assert_ptr_ne(containers, NULL);
+	containers->attr = calloc(1, sizeof(*containers->attr));
+	containers->rscs = calloc(1, sizeof(*containers->rscs));
+	containers->rscs->affinity_mask = numa_allocate_cpumask();
+
+	push((void **)&containers->img, sizeof(*containers->img));
+	containers->img->imgid = strdup("image");
+	containers->img->attr = calloc(1, sizeof(*containers->img->attr));
+	containers->img->rscs = calloc(1, sizeof(*containers->img->rscs));
+	containers->img->rscs->affinity_mask = numa_allocate_cpumask();
+
+	push((void **)&containers->cont, sizeof(*containers->cont));
+	containers->cont->contid = strdup("container");
+	containers->cont->attr = calloc(1, sizeof(*containers->cont->attr));
+	containers->cont->rscs = calloc(1, sizeof(*containers->cont->rscs));
+	containers->cont->rscs->affinity_mask = numa_allocate_cpumask();
+	containers->cont->img = containers->img;
+
+	push((void **)&containers->pids, sizeof(*containers->pids));
+	containers->pids->psig = strdup("task");
+	containers->pids->attr = calloc(1, sizeof(*containers->pids->attr));
+	containers->pids->rscs = calloc(1, sizeof(*containers->pids->rscs));
+	containers->pids->rscs->affinity_mask = numa_allocate_cpumask();
+	containers->pids->cont = containers->cont;
+	containers->pids->img = containers->img;
+
+	push((void **)&containers->img->conts, sizeof(*containers->img->conts));
+	containers->img->conts->cont = containers->cont;
+	push((void **)&containers->img->pids, sizeof(*containers->img->pids));
+	containers->img->pids->pid = containers->pids;
+	push((void **)&containers->cont->pids, sizeof(*containers->cont->pids));
+	containers->cont->pids->pid = containers->pids;
+
+	freeContParm(containers);
+}
+END_TEST
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
@@ -438,6 +480,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_copyresources);
 	tcase_add_test(tc0, orchdata_copyresources_shared);
 	tcase_add_test(tc0, orchdata_free_settings);
+	tcase_add_test(tc0, orchdata_free_containers);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
