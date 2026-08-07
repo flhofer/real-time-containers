@@ -661,6 +661,23 @@ START_TEST(orchestrator_manage_ftrc_loss)
 }
 END_TEST
 
+/// TEST CASE -> start an ftrace reader with an unavailable trace pipe
+/// EXPECTED -> reader exits cleanly and reports the file access error
+START_TEST(orchestrator_manage_ftrc_missingpipe)
+{
+	struct ftrace_thread thread = { 0 };
+	thread.cpuno = 0;
+	thread.dbgfile = strdup("/tmp/manage-trace-pipe-does-not-exist");
+	pthread_t reader;
+	ck_assert_int_eq(0, pthread_create(&reader, NULL, thread_ftrace, &thread));
+	void * result = NULL;
+	ck_assert_int_eq(0, pthread_join(reader, &result));
+	ck_assert_ptr_nonnull(result);
+	ck_assert_int_eq(ENOENT, *(int *)result);
+	free(result);
+}
+END_TEST
+
 /// TEST CASE -> collect managed runtime and close an observation window
 /// EXPECTED -> utilization uses elapsed time and trace loss discards the window
 START_TEST(orchestrator_manage_resource_usage)
@@ -996,6 +1013,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
+	tcase_add_test(tc5, orchestrator_manage_ftrc_missingpipe);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_append);
 	tcase_add_test(tc5, orchestrator_manage_resource_usage);
 	tcase_add_test(tc5, orchestrator_manage_cpustat);
