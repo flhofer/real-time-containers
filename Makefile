@@ -64,10 +64,10 @@ else
 		CFLAGS += -coverage
 
  		# Exclude test files and some other files from coverage profiling
-		# orchestrator main files are included in coverage through the test files
+		# check_dockerRT is excluded because it is a ichinga2 test module and not part of the orchestrator code
 		# kbuffer is excluded because it is a library and not part of the orchestrator code
 		# rt-sched.h is excluded because it is a header file and not part of the orchestrator code
- 		CFLAGS += -fprofile-exclude-files="test\.[ch]|test/lib.*Test\.[ch]|.*_suite\.[ch]|src/orchestrator/.*\.[ch]|kbuffer\.[ch]|rt-sched\.h"
+ 		CFLAGS += -fprofile-exclude-files="test\.[ch];.*Test\.[ch];.*_suite\.[ch];kbuffer\.[ch];rt-sched\.h;numa\.h"
 		
 		# Set DIRDEPTH dynamically for GCOV_PREFIX_STRIP in the check target
 		DIRDEPTH=$(shell pwd | tr -cd '/' | wc -c)

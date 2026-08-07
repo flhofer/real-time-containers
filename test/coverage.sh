@@ -1,6 +1,6 @@
 #!/bin/sh 
 echo "Generate coverage badge - (run from project root!)"
-perc=$(gcov -no build */*/*.[hc] 2>&1 | tail -n 1 | grep -o '[0-9]*' | head -n1)
+perc=$(gcov -no build test/orchestrator/*.c src/lib/* src/include/* 2>&1 | tail -n 1 | grep -o '[0-9]*' | head -n1)
 echo Coverage is $perc
 
 # replace text and text shadow
