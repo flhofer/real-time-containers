@@ -239,6 +239,41 @@ START_TEST(kernutil_get_status_flags)
 }
 END_TEST
 
+struct scheduler_test {
+	int policy;
+	const char * name;
+	const char * alias;
+	int realtime;
+};
+
+static const struct scheduler_test scheduler_var[] = {
+	{SCHED_OTHER, "SCHED_OTHER", "other", 0},
+	{SCHED_FIFO, "SCHED_FIFO", "fifo", 1},
+	{SCHED_RR, "SCHED_RR", "rr", 1},
+	{SCHED_BATCH, "SCHED_BATCH", "batch", 0},
+	{SCHED_IDLE, "SCHED_IDLE", "idle", 0},
+	{SCHED_DEADLINE, "SCHED_DEADLINE", "deadline", 1},
+};
+
+/// TEST CASE -> convert scheduler identifiers in both directions
+/// EXPECTED -> symbolic and short names map to the same policy and RT classification
+START_TEST(kernutil_scheduler_policy)
+{
+	uint32_t policy = SCHED_NODATA;
+
+	ck_assert_str_eq(policy_to_string(scheduler_var[_i].policy),
+		scheduler_var[_i].name);
+	ck_assert_int_eq(policy_is_realtime(scheduler_var[_i].policy),
+		scheduler_var[_i].realtime);
+	ck_assert_int_eq(string_to_policy(scheduler_var[_i].name, &policy), 0);
+	ck_assert_uint_eq(policy, scheduler_var[_i].policy);
+	policy = SCHED_NODATA;
+	ck_assert_int_eq(string_to_policy(scheduler_var[_i].alias, &policy), 0);
+	ck_assert_uint_eq(policy, scheduler_var[_i].policy);
+}
+END_TEST
+END_TEST
+
 void library_kernutil (Suite * s) {
 
 	TCase *tc1 = tcase_create("kernutil");
@@ -250,6 +285,8 @@ void library_kernutil (Suite * s) {
 	tcase_add_test(tc1, kernutil_parse_bitmask_hex);
 	tcase_add_test(tc1, kernutil_parse_cpumask);
 	tcase_add_test(tc1, kernutil_get_status_flags);
+	tcase_add_loop_test(tc1, kernutil_scheduler_policy, 0,
+		sizeof(scheduler_var) / sizeof(scheduler_var[0]));
 
     suite_add_tcase(s, tc1);
 
