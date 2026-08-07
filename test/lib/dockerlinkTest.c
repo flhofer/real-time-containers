@@ -104,6 +104,28 @@ START_TEST(dockerlink_err_json)
 
 	exit(*th_return);
 }
+
+/// TEST CASE -> interrupt or exhaust the event stream
+/// EXPECTED -> no event is read after either condition
+START_TEST(dockerlink_read_stop)
+{
+	struct eventData event = {0};
+	inpipe = tmpfile();
+	ck_assert_ptr_ne(inpipe, NULL);
+
+	dlink_stop = 0;
+	ck_assert_int_eq(read_pipe(&event), 0);
+	rewind(inpipe);
+	ck_assert_int_gt(fputs(dockerlink_events[0], inpipe), 0);
+	rewind(inpipe);
+	dlink_inthand(SIGHUP, NULL, NULL);
+	ck_assert_int_eq(dlink_stop, 1);
+	ck_assert_int_eq(read_pipe(&event), 0);
+
+	fclose(inpipe);
+	inpipe = NULL;
+	dlink_stop = 0;
+}
 END_TEST
 
 /// TEST CASE -> cycle through events
@@ -220,6 +242,7 @@ void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");
  
 	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
+	tcase_add_test(tc1, dockerlink_read_stop);
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
