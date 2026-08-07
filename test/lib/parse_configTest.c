@@ -336,6 +336,71 @@ START_TEST(parse_config_resources)
 	ck_assert_int_eq(conts->rscs->mem_data, 40);
 }
 END_TEST
+
+/// TEST CASE -> parse nested image, container and PID configurations
+/// EXPECTED -> counts, ownership links and inherited resource pointers are consistent
+START_TEST(parse_config_hierarchy)
+{
+	parse_config_json(
+		"{\"scheduling\":{\"policy\":\"other\",\"runtime\":10,"
+		"\"deadline\":20,\"period\":30},\"resources\":{\"affinity\":0},"
+		"\"images\":[{\"imgid\":\"image\","
+		"\"params\":{\"policy\":\"rr\",\"runtime\":100},"
+		"\"res\":{\"affinity\":1,\"rt-hard\":70},"
+		"\"pids\":[{\"cmd\":\"image-task\"}],"
+		"\"cont\":[{\"contid\":\"image-container\","
+		"\"pids\":[{\"cmd\":\"image-container-task\"}]}]}],"
+		"\"containers\":[{\"contid\":\"root-container\","
+		"\"params\":{\"policy\":\"fifo\",\"prio\":20},"
+		"\"res\":{\"affinity\":2},\"pids\":[{\"cmd\":\"root-task\","
+		"\"params\":{\"policy\":\"fifo\",\"prio\":30}}]}],"
+		"\"pids\":[{\"cmd\":\"global-task\"}]}"
+	);
+
+	ck_assert_uint_eq(conts->nthreads, 3);
+	ck_assert_uint_eq(conts->num_cont, 3);
+	ck_assert_ptr_ne(conts->img, NULL);
+	ck_assert_str_eq(conts->img->imgid, "image");
+	ck_assert_uint_eq(conts->img->attr->sched_policy, SCHED_RR);
+	ck_assert_uint_eq(conts->img->attr->sched_runtime, 100);
+	ck_assert_uint_eq(conts->img->attr->sched_deadline, 100);
+	ck_assert_uint_eq(conts->img->attr->sched_period, 100);
+	ck_assert_int_eq(conts->img->rscs->affinity, 1);
+
+	cont_t * image_container = find_container("image-container");
+	cont_t * root_container = find_container("root-container");
+	pidc_t * image_pid = find_pid("image-task");
+	pidc_t * image_container_pid = find_pid("image-container-task");
+	pidc_t * root_pid = find_pid("root-task");
+	pidc_t * global_pid = find_pid("global-task");
+	ck_assert_ptr_ne(image_container, NULL);
+	ck_assert_ptr_ne(root_container, NULL);
+	ck_assert_ptr_ne(image_pid, NULL);
+	ck_assert_ptr_ne(image_container_pid, NULL);
+	ck_assert_ptr_ne(root_pid, NULL);
+	ck_assert_ptr_ne(global_pid, NULL);
+
+	ck_assert_ptr_eq(image_container->img, conts->img);
+	ck_assert_ptr_eq(image_container->attr, conts->img->attr);
+	ck_assert_ptr_eq(image_container->rscs, conts->img->rscs);
+	ck_assert_int_eq(image_container->status & (MSK_STATSHAT | MSK_STATSHRC),
+		MSK_STATSHAT | MSK_STATSHRC);
+	ck_assert_ptr_eq(image_pid->img, conts->img);
+	ck_assert_ptr_eq(image_pid->attr, conts->img->attr);
+	ck_assert_ptr_eq(image_pid->rscs, conts->img->rscs);
+	ck_assert_ptr_eq(image_container_pid->cont, image_container);
+	ck_assert_ptr_eq(image_container_pid->img, conts->img);
+	ck_assert_ptr_eq(image_container_pid->attr, image_container->attr);
+	ck_assert_ptr_eq(root_pid->cont, root_container);
+	ck_assert_ptr_ne(root_pid->attr, root_container->attr);
+	ck_assert_ptr_eq(root_pid->rscs, root_container->rscs);
+	ck_assert_int_eq(root_pid->status & MSK_STATSHAT, 0);
+	ck_assert_int_eq(root_pid->status & MSK_STATSHRC, MSK_STATSHRC);
+	ck_assert_ptr_eq(global_pid->attr, conts->attr);
+	ck_assert_ptr_eq(global_pid->rscs, conts->rscs);
+	ck_assert_ptr_eq(global_pid->cont, NULL);
+	ck_assert_ptr_eq(global_pid->img, NULL);
+}
 END_TEST
 
 void library_parse_config (Suite * s) {
@@ -359,6 +424,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_affinity_fallback);
 	tcase_add_test(tc2, parse_config_precedence);
 	tcase_add_test(tc2, parse_config_resources);
+	tcase_add_test(tc2, parse_config_hierarchy);
 
 	suite_add_tcase(s, tc2);
 
