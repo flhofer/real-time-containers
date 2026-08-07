@@ -42,6 +42,15 @@ static contevent_t cntexpected[6] = {
 	{ cnt_add, "rt-app-tst-10", "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572501557282644},
 	};
 
+static void freeContainerEvent(contevent_t * event) {
+	if (!event)
+		return;
+	free(event->name);
+	free(event->id);
+	free(event->image);
+	free(event);
+}
+
 static void checkContainer(contevent_t * cntevent) {
 
 	usleep(1000);
@@ -72,10 +81,7 @@ static void checkContainer(contevent_t * cntevent) {
 	ck_assert_int_eq(cntevent->timenano, containerEvent->timenano);
 
 	// cleanup
-	free(containerEvent->name);
-	free(containerEvent->id);
-	free(containerEvent->image);
-	free(containerEvent);
+	freeContainerEvent(containerEvent);
 	containerEvent = NULL;
 	(void)pthread_mutex_unlock(&containerMutex);
 
