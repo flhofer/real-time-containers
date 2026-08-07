@@ -286,6 +286,33 @@ START_TEST(kernutil_scheduler_invalid)
 	ck_assert_int_eq(policy_is_realtime(-1), 0);
 }
 END_TEST
+
+struct affinity_test {
+	const char * name;
+	uint32_t affinity;
+};
+
+static const struct affinity_test affinity_var[] = {
+	{"unspecified", AFFINITY_UNSPECIFIED},
+	{"user-specified", AFFINITY_USERSPECIFIED},
+	{"numa-separated", AFFINITY_NUMASEPARATED},
+	{"numa-balanced", AFFINITY_NUMABALANCED},
+	{"useall", AFFINITY_USEALL},
+};
+
+/// TEST CASE -> convert affinity policy strings
+/// EXPECTED -> known values map to their modes and unknown values use the default
+START_TEST(kernutil_affinity_policy)
+{
+	ck_assert_uint_eq(string_to_affinity(affinity_var[_i].name),
+		affinity_var[_i].affinity);
+}
+END_TEST
+
+START_TEST(kernutil_affinity_invalid)
+{
+	ck_assert_uint_eq(string_to_affinity("invalid"), AFFINITY_UNSPECIFIED);
+}
 END_TEST
 
 void library_kernutil (Suite * s) {
@@ -302,6 +329,9 @@ void library_kernutil (Suite * s) {
 	tcase_add_loop_test(tc1, kernutil_scheduler_policy, 0,
 		sizeof(scheduler_var) / sizeof(scheduler_var[0]));
 	tcase_add_test(tc1, kernutil_scheduler_invalid);
+	tcase_add_loop_test(tc1, kernutil_affinity_policy, 0,
+		sizeof(affinity_var) / sizeof(affinity_var[0]));
+	tcase_add_test(tc1, kernutil_affinity_invalid);
 
     suite_add_tcase(s, tc1);
 
