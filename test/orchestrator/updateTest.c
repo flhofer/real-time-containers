@@ -432,6 +432,55 @@ START_TEST(orchestrator_update_dlinkread)
 }
 END_TEST
 
+/// TEST CASE -> process Docker removal events with and without PID tracking
+/// EXPECTED -> matching PIDs are deleted or retained as inactive respectively
+START_TEST(orchestrator_update_dlinkremove)
+{
+	pidUpdate = updateTestGetPids;
+	updateTestPids[0] = 10;
+	updateTestPidCount = 1;
+
+	node_push(&nhead);
+	nhead->pid = 10;
+	nhead->contid = strdup("keep");
+	node_push(&nhead);
+	nhead->pid = 20;
+	nhead->contid = strdup("remove");
+	updateTestSetEvent(cnt_remove, "remove");
+	updateDocker();
+	ck_assert_int_eq(10, nhead->pid);
+	ck_assert_ptr_null(nhead->next);
+
+	while (nhead)
+		node_pop(&nhead);
+	prgset->trackpids = 1;
+	node_push(&nhead);
+	nhead->pid = 10;
+	nhead->contid = strdup("keep");
+	node_push(&nhead);
+	nhead->pid = 20;
+	nhead->contid = strdup("remove");
+	updateTestSetEvent(cnt_remove, "remove");
+	updateDocker();
+	ck_assert_int_eq(-20, nhead->pid);
+	ck_assert_int_eq(10, nhead->next->pid);
+	ck_assert_ptr_null(nhead->next->next);
+}
+END_TEST
+
+/// TEST CASE -> discard a pending Docker event
+/// EXPECTED -> event ownership is released without creating PID entries
+START_TEST(orchestrator_update_dlinkpending)
+{
+	pidUpdate = updateTestGetPids;
+	updateTestSetEvent(cnt_pending, "pending");
+	updateDocker();
+	ck_assert_ptr_null(containerEvent);
+	ck_assert_ptr_null(lstevent);
+	ck_assert_ptr_null(nhead);
+}
+END_TEST
+
 
 /// TEST CASE -> Stop update thread when setting status to -1
 /// EXPECTED -> exit after 2 seconds, no error
@@ -674,6 +723,8 @@ void orchestrator_update (Suite * s) {
 	tcase_add_test(tc1, orchestrator_update_scannew);
 	tcase_add_test(tc1, orchestrator_update_scantracked);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
+	tcase_add_test(tc1, orchestrator_update_dlinkremove);
+	tcase_add_test(tc1, orchestrator_update_dlinkpending);
 
 	suite_add_tcase(s, tc1);
 
