@@ -58,6 +58,15 @@ updateTestWriteExecutable(const char * path, const char * value){
 	ck_assert_int_eq(0, chmod(path, S_IRWXU));
 }
 
+static void
+updateTestSetEvent(enum cont_events event, const char * id){
+	containerEvent = calloc(1, sizeof(*containerEvent));
+	ck_assert_ptr_nonnull(containerEvent);
+	containerEvent->event = event;
+	containerEvent->id = strdup(id);
+	containerEvent->name = strdup("test-container");
+	containerEvent->image = strdup("test-image");
+}
 
 static void orchestrator_update_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
@@ -413,16 +422,12 @@ END_TEST
 /// EXPECTED ->  resources set and all freed
 START_TEST(orchestrator_update_dlinkread)
 {
-	containerEvent = malloc (sizeof (struct cont_event));
-	containerEvent->event = cnt_add;
-	containerEvent->id = strdup("1232144314");
-	containerEvent->name = strdup("testcont");
-	containerEvent->image = strdup("testimg");
-
-	selectUpdate();
+	updateTestSetEvent(cnt_add, "1232144314");
+	pidUpdate = updateTestGetPids;
 	updateDocker();
 
-    // TODO: expand -- use existing id
+	ck_assert_ptr_null(containerEvent);
+	ck_assert_ptr_null(lstevent);
 	ck_assert_ptr_null(contparm->cont);
 }
 END_TEST
