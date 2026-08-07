@@ -33,6 +33,17 @@
 
 static pid_t updateTestPids[8];
 static size_t updateTestPidCount;
+
+static void
+updateTestGetPids(node_t ** pidlst){
+	for (size_t i=0; i<updateTestPidCount; i++){
+		node_push(pidlst);
+		(*pidlst)->pid = updateTestPids[i];
+		(*pidlst)->attr.sched_policy = SCHED_OTHER;
+		(*pidlst)->psig = strdup("update-test");
+	}
+}
+
 static void
 updateTestWriteFile(const char * path, const char * value){
 	FILE * file = fopen(path, "w");
@@ -359,6 +370,45 @@ START_TEST(orchestrator_update_scannew)
 }
 END_TEST
 
+/// TEST CASE -> retain missing PIDs and reactivate them when tracking is enabled
+/// EXPECTED -> missing entries become negative and return as fresh positive entries
+START_TEST(orchestrator_update_scantracked)
+{
+	prgset->trackpids = 1;
+	pidUpdate = updateTestGetPids;
+	pid_t initial[] = { 10, 20, 30 };
+	for (size_t i=0; i<sizeof(initial)/sizeof(initial[0]); i++){
+		node_push(&nhead);
+		nhead->pid = initial[i];
+		nhead->attr.sched_policy = SCHED_OTHER;
+		nhead->psig = strdup("update-test");
+	}
+
+	updateTestPids[0] = 30;
+	updateTestPids[1] = 10;
+	updateTestPidCount = 2;
+	scanNew();
+	ck_assert_int_eq(30, nhead->pid);
+	ck_assert_int_eq(-20, nhead->next->pid);
+	ck_assert_int_eq(10, nhead->next->next->pid);
+
+	updateTestPids[0] = 30;
+	updateTestPids[1] = 20;
+	updateTestPids[2] = 10;
+	updateTestPidCount = 3;
+	scanNew();
+	ck_assert_int_eq(30, nhead->pid);
+	ck_assert_int_eq(20, nhead->next->pid);
+	ck_assert_int_eq(10, nhead->next->next->pid);
+
+	updateTestPidCount = 0;
+	scanNew();
+	ck_assert_int_eq(-30, nhead->pid);
+	ck_assert_int_eq(-20, nhead->next->pid);
+	ck_assert_int_eq(-10, nhead->next->next->pid);
+}
+END_TEST
+
 /// TEST CASE -> fill link event structure and test passing/parameters
 /// EXPECTED ->  resources set and all freed
 START_TEST(orchestrator_update_dlinkread)
@@ -617,6 +667,7 @@ void orchestrator_update (Suite * s) {
 	tcase_add_test(tc1, orchestrator_update_getparentpids);
 	tcase_add_test(tc1, orchestrator_update_getpids);
 	tcase_add_test(tc1, orchestrator_update_scannew);
+	tcase_add_test(tc1, orchestrator_update_scantracked);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
 
 	suite_add_tcase(s, tc1);
