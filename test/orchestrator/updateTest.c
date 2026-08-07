@@ -23,6 +23,7 @@
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <limits.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <linux/sched.h>	// linux specific scheduling
 
 // for MUSL based systems
@@ -30,9 +31,30 @@
 	#define RLIMIT_RTTIME 15
 #endif
 
+static pid_t updateTestPids[8];
+static size_t updateTestPidCount;
+static void
+updateTestWriteFile(const char * path, const char * value){
+	FILE * file = fopen(path, "w");
+	ck_assert_msg(file, "Could not create test file %s", path);
+	ck_assert_int_eq((int)strlen(value), (int)fwrite(value, 1, strlen(value), file));
+	ck_assert_int_eq(0, fclose(file));
+}
+
+static void
+updateTestWriteExecutable(const char * path, const char * value){
+	updateTestWriteFile(path, value);
+	ck_assert_int_eq(0, chmod(path, S_IRWXU));
+}
+
+
 static void orchestrator_update_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
+	pidSignature = NULL;
+	pidUpdate = getCmdLinePids;
+	lstevent = NULL;
+	updateTestPidCount = 0;
 
 	prgset->affinity = strdup("0");
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
@@ -58,6 +80,13 @@ static void orchestrator_update_teardown() {
 	// free memory
 	while (nhead)
 		node_pop(&nhead);
+
+	freeContainerEvent(containerEvent);
+	containerEvent = NULL;
+	freeContainerEvent(lstevent);
+	lstevent = NULL;
+	free(pidSignature);
+	pidSignature = NULL;
 
 	freePrgSet(prgset);
 	freeContParm(contparm);
@@ -444,7 +473,6 @@ void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_newread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc1, orchestrator_update_getpids);
-//	TODO: add examples getpPids
 	tcase_add_test(tc1, orchestrator_update_scannew);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
 
