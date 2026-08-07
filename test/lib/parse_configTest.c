@@ -211,6 +211,58 @@ START_TEST(parse_config_dockerprefix)
 }
 END_TEST
 
+/// TEST CASE -> parse every global configuration value
+/// EXPECTED -> strings, switches, numbers and affinity mode are stored verbatim
+START_TEST(parse_config_global)
+{
+	parse_config_json(
+		"{\"global\":{"
+		"\"logdir\":\"/logs/\",\"log_basename\":\"runtime.log\","
+		"\"prc_kernel\":\"/kernel/\",\"sys_cgroup\":\"/cgroup/\","
+		"\"sys_cpu\":\"/cpu/\",\"cont_ppidc\":\"parent\","
+		"\"cont_pidc\":\"init\",\"cont_cgrp\":\"containers/\","
+		"\"priority\":17,\"clock\":2,\"default_policy\":\"fifo\","
+		"\"quiet\":true,\"setdflag\":true,\"interval\":1234,"
+		"\"dl_wcet\":55,\"loops\":7,\"runtime\":90,"
+		"\"psigscan\":true,\"trackpids\":true,\"lock_pages\":true,"
+		"\"smi\":true,\"rrtime\":42,\"setaffinity\":\"user-specified\","
+		"\"affinity\":\"2-3\",\"numa\":\"1\",\"ftrace\":true,"
+		"\"ptresh\":0.975}}"
+	);
+
+	ck_assert_str_eq(set->logdir, "/logs/");
+	ck_assert_str_eq(set->logbasename, "runtime.log");
+	ck_assert_str_eq(set->procfileprefix, "/kernel/");
+	ck_assert_str_eq(set->cgroupfileprefix, "/cgroup/");
+	ck_assert_str_eq(set->cpusystemfileprefix, "/cpu/");
+	ck_assert_str_eq(set->cont_ppidc, "parent");
+	ck_assert_str_eq(set->cont_pidc, "init");
+	ck_assert_str_eq(set->cont_cgrp, "containers/");
+	char expected[128];
+	snprintf(expected, sizeof(expected), "/cgroup/%scontainers/", CGRP_CSET);
+	ck_assert_str_eq(set->cpusetdfileprefix, expected);
+	ck_assert_int_eq(set->priority, 17);
+	ck_assert_int_eq(set->clocksel, 2);
+	ck_assert_uint_eq(set->policy, SCHED_FIFO);
+	ck_assert_int_eq(set->quiet, 1);
+	ck_assert_int_eq(set->setdflag, 1);
+	ck_assert_int_eq(set->interval, 1234);
+	ck_assert_int_eq(set->update_wcet, 55);
+	ck_assert_int_eq(set->loops, 7);
+	ck_assert_int_eq(set->runtime, 90);
+	ck_assert_int_eq(set->psigscan, 1);
+	ck_assert_int_eq(set->trackpids, 1);
+	ck_assert_int_eq(set->lock_pages, 1);
+	ck_assert_int_eq(set->smi, 1);
+	ck_assert_int_eq(set->rrtime, 42);
+	ck_assert_int_eq(set->setaffinity, AFFINITY_USERSPECIFIED);
+	ck_assert_str_eq(set->affinity, "2-3");
+	ck_assert_str_eq(set->numa, "1");
+	ck_assert_int_eq(set->ftrace, 1);
+	ck_assert_double_eq_tol(set->ptresh, 0.975, 0.000001);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -228,6 +280,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_tst3);
 	tcase_add_test(tc2, parse_config_defaults);
 	tcase_add_test(tc2, parse_config_dockerprefix);
+	tcase_add_test(tc2, parse_config_global);
 
 	suite_add_tcase(s, tc2);
 
