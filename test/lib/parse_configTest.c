@@ -153,6 +153,43 @@ START_TEST(parse_config_tst3)
 }
 END_TEST
 
+/// TEST CASE -> initialize all program defaults
+/// EXPECTED -> scalar defaults and optional pointers match their documented values
+START_TEST(parse_config_defaults)
+{
+	memset(set, 0xA5, sizeof(*set));
+	parse_config_set_default(set);
+
+	ck_assert_ptr_eq(set->logdir, NULL);
+	ck_assert_ptr_eq(set->logbasename, NULL);
+	ck_assert_ptr_eq(set->cont_ppidc, NULL);
+	ck_assert_ptr_eq(set->cont_pidc, NULL);
+	ck_assert_ptr_eq(set->cont_cgrp, NULL);
+	ck_assert_ptr_eq(set->procfileprefix, NULL);
+	ck_assert_ptr_eq(set->cgroupfileprefix, NULL);
+	ck_assert_ptr_eq(set->cpusystemfileprefix, NULL);
+	ck_assert_ptr_eq(set->cpusetdfileprefix, NULL);
+	ck_assert_ptr_eq(set->affinity, NULL);
+	ck_assert_ptr_eq(set->affinity_mask, NULL);
+	ck_assert_ptr_eq(set->numa, NULL);
+	ck_assert_int_eq(set->priority, 0);
+	ck_assert_int_eq(set->clocksel, 0);
+	ck_assert_uint_eq(set->policy, SCHED_OTHER);
+	ck_assert_int_eq(set->interval, TSCAN);
+	ck_assert_int_eq(set->update_wcet, TWCET);
+	ck_assert_int_eq(set->loops, TDETM);
+	ck_assert_int_eq(set->kernelversion, KV_NOT_SUPPORTED);
+	ck_assert_int_eq(set->setaffinity, AFFINITY_UNSPECIFIED);
+	ck_assert_int_eq(set->use_cgroup, DM_CGRP);
+	ck_assert_int_eq(set->sched_mode, SM_STATIC);
+	ck_assert_double_eq_tol(set->ptresh, 0.9, 0.000001);
+	ck_assert_int_eq(set->quiet | set->setdflag | set->runtime |
+		set->psigscan | set->trackpids | set->dryrun | set->blindrun |
+		set->lock_pages | set->force | set->smi | set->rrtime |
+		set->ftrace, 0);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -168,6 +205,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_tst1);
 	tcase_add_test(tc2, parse_config_tst2);
 	tcase_add_test(tc2, parse_config_tst3);
+	tcase_add_test(tc2, parse_config_defaults);
 
 	suite_add_tcase(s, tc2);
 
