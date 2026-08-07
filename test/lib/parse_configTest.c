@@ -418,6 +418,23 @@ START_TEST(parse_config_invalid_values)
 }
 END_TEST
 
+/// TEST CASE -> load configuration through the file wrapper
+/// EXPECTED -> file contents are parsed into the supplied structures
+START_TEST(parse_config_from_file)
+{
+	char path[] = "/tmp/parse-config-XXXXXX";
+	int fd = mkstemp(path);
+	ck_assert_int_ge(fd, 0);
+	const char data[] = "{\"pids\":[{\"cmd\":\"file-task\"}]}";
+	ck_assert_int_eq(write(fd, data, sizeof(data) - 1), sizeof(data) - 1);
+	ck_assert_int_eq(close(fd), 0);
+
+	parse_config_file(path, set, conts);
+	ck_assert_ptr_ne(find_pid("file-task"), NULL);
+	ck_assert_int_eq(unlink(path), 0);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -442,6 +459,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_hierarchy);
 	tcase_add_loop_exit_test(tc2, parse_config_invalid_values,
 		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
+	tcase_add_test(tc2, parse_config_from_file);
 
 	suite_add_tcase(s, tc2);
 
