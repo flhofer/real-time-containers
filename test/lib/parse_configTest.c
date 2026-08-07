@@ -9,8 +9,10 @@
 #include "parse_configTest.h"
 
 // tested
-#include "../../src/lib/parse_config.c"
+#include "parse_config.h"
+#include "kernutil.h"
 
+#include <limits.h>
 #include <unistd.h>
 
 static prgset_t * set;
@@ -50,10 +52,12 @@ static void parse_config_tc1_teardown() {
 }
 
 static void parse_config_json(const char * text) {
-	struct json_object * root = json_tokener_parse(text);
-	ck_assert_ptr_ne(root, NULL);
-	parse_config(root, set, conts);
-	ck_assert_int_eq(json_object_put(root), 1);
+	FILE * input = tmpfile();
+	ck_assert_ptr_ne(input, NULL);
+	ck_assert_int_eq(fwrite(text, sizeof(char), strlen(text), input), strlen(text));
+	rewind(input);
+	parse_config_pipe(input, set, conts);
+	fclose(input);
 }
 
 static pidc_t * find_pid(const char * signature) {
@@ -98,53 +102,31 @@ static void checkConfigDefault(containers_t * conts) {
 
 START_TEST(parse_config_def_config)
 {	
-	char buf[200] = "echo '";
-	pp = popen (strcat(strcat(buf, files[_i]), "'"), "r");
-	parse_config_pipe(pp, set, conts);
+	parse_config_json(files[_i]);
 
 	checkConfigDefault(conts);
-	ck_assert(!conts->cont);
+	if (_i<7)
+		ck_assert_ptr_null(conts->cont);
+	else
+		ck_assert_ptr_nonnull(conts->cont);
 }
 END_TEST
 
-START_TEST(parse_config_def_config2)
+/// TEST CASE -> read a basic JSON configuration from a pipe and parse it into the program's data structures
+/// EXPECTED -> scalar defaults and optional pointers match their documented values
+START_TEST(parse_config_tst)
 {	
-	char buf[200] = "echo '";
-	pp = popen (strcat(strcat(buf, files[_i]), "'"), "r");
-	parse_config_pipe(pp, set, conts);
-
-	checkConfigDefault(conts);
-	ck_assert(conts->cont);
-}
-END_TEST
-
-START_TEST(parse_config_tst1)
-{	
-	pp = popen ("echo '{\n \"images\" : [{\n }]\n} '", "r");
-	parse_config_pipe(pp, set, conts);
-
+	parse_config_json("{\n \"images\" : [{\n }]\n} ");
 	ck_assert(conts->img);
-}
-END_TEST
 
-START_TEST(parse_config_tst2)
-{	
-	pp = popen ("echo '{\n \"images\" : [{\n \"imgid\" : \"123121312\" }]\n} '", "r");
-	parse_config_pipe(pp, set, conts);
-
+	parse_config_json("{\n \"images\" : [{\n \"imgid\" : \"123121312\" }]\n} ");
 	ck_assert(!conts->pids);
 	ck_assert(!conts->cont);
 	ck_assert(conts->img);
 	ck_assert(!conts->img->next);
 	ck_assert_str_eq(conts->img->imgid, "123121312");
-}
-END_TEST
 
-START_TEST(parse_config_tst3)
-{	
-	pp = popen ("echo '{\n \"pids\" : [{\n \"cmd\" : \"psp\" }]\n} '", "r");
-	parse_config_pipe(pp, set, conts);
-
+	parse_config_json("{\n \"pids\" : [{\n \"cmd\" : \"psp\" }]\n} ");
 	ck_assert(conts->pids);
 	ck_assert(!conts->cont);
 	ck_assert(!conts->img);
@@ -477,20 +459,17 @@ void library_parse_config (Suite * s) {
 
 	TCase *tc2 = tcase_create("parse_config_blocks");
 	tcase_add_checked_fixture(tc2, parse_config_tc1_startup, parse_config_tc1_teardown);
-	tcase_add_test(tc2, parse_config_tst1);
-	tcase_add_test(tc2, parse_config_tst2);
-	tcase_add_test(tc2, parse_config_tst3);
+	tcase_add_test(tc2, parse_config_tst);
 	tcase_add_loop_exit_test(tc2, parse_config_invalid_values,
 		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
 	tcase_add_test(tc2, parse_config_defaults);
 	tcase_add_test(tc2, parse_config_global);
 	tcase_add_test(tc2, parse_config_resources);
 
-	TCase *tc3 = tcase_create("parse_config_def");
+	TCase *tc3 = tcase_create("parse_config_root");
 	tcase_add_checked_fixture(tc3, parse_config_tc1_startup, parse_config_tc1_teardown);
 	tcase_add_loop_exit_test(tc3, parse_config_err_conf, EXIT_INV_CONFIG, 0, 3);
-	tcase_add_loop_test(tc3, parse_config_def_config, 3, 7);
-	tcase_add_loop_test(tc3, parse_config_def_config2, 7, 10);
+	tcase_add_loop_test(tc3, parse_config_def_config, 3, 10);
 
     suite_add_tcase(s, tc3);
 
