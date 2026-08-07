@@ -403,6 +403,21 @@ START_TEST(parse_config_hierarchy)
 }
 END_TEST
 
+static const char * invalid_config[] = {
+	"{\"containers\":{}}",
+	"{\"images\":{}}",
+	"{\"scheduling\":{\"policy\":\"invalid\"}}",
+	"{\"global\":{\"default_policy\":\"invalid\"}}",
+};
+
+/// TEST CASE -> reject invalid section types and scheduler names
+/// EXPECTED -> parser exits with the configuration error code
+START_TEST(parse_config_invalid_values)
+{
+	parse_config_json(invalid_config[_i]);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -425,6 +440,8 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_precedence);
 	tcase_add_test(tc2, parse_config_resources);
 	tcase_add_test(tc2, parse_config_hierarchy);
+	tcase_add_loop_exit_test(tc2, parse_config_invalid_values,
+		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
 
 	suite_add_tcase(s, tc2);
 
