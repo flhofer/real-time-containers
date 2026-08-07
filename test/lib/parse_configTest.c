@@ -310,6 +310,34 @@ START_TEST(parse_config_precedence)
 }
 END_TEST
 
+/// TEST CASE -> parse explicit global scheduling and resource limits
+/// EXPECTED -> scheduler fallback fields and all resource values are populated
+START_TEST(parse_config_resources)
+{
+	parse_config_json(
+		"{\"scheduling\":{\"policy\":\"deadline\",\"flags\":5,"
+		"\"nice\":-3,\"prio\":8,\"runtime\":1000},"
+		"\"resources\":{\"affinity\":4,\"rt-soft\":10,\"rt-hard\":20,"
+		"\"data-soft\":30,\"data-hard\":40}}"
+	);
+
+	ck_assert_uint_eq(conts->attr->sched_policy, SCHED_DEADLINE);
+	ck_assert_uint_eq(conts->attr->sched_flags, 5);
+	ck_assert_int_eq(conts->attr->sched_nice, -3);
+	ck_assert_uint_eq(conts->attr->sched_priority, 8);
+	ck_assert_uint_eq(conts->attr->sched_runtime, 1000);
+	ck_assert_uint_eq(conts->attr->sched_deadline, 1000);
+	ck_assert_uint_eq(conts->attr->sched_period, 1000);
+	ck_assert_int_eq(conts->rscs->affinity, 4);
+	ck_assert_ptr_eq(conts->rscs->affinity_mask, NULL);
+	ck_assert_int_eq(conts->rscs->rt_timew, 10);
+	ck_assert_int_eq(conts->rscs->rt_time, 20);
+	ck_assert_int_eq(conts->rscs->mem_dataw, 30);
+	ck_assert_int_eq(conts->rscs->mem_data, 40);
+}
+END_TEST
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -330,6 +358,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_global);
 	tcase_add_test(tc2, parse_config_affinity_fallback);
 	tcase_add_test(tc2, parse_config_precedence);
+	tcase_add_test(tc2, parse_config_resources);
 
 	suite_add_tcase(s, tc2);
 
