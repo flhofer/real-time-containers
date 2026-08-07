@@ -982,6 +982,37 @@ START_TEST(orchestrator_manage_updatestats)
 	ck_assert_int_eq(-1, get_sched_info(&missing));
 }
 END_TEST
+
+/// TEST CASE -> update observed period and runtime estimates from complete histograms
+/// EXPECTED -> mean estimates and resample counters are committed by manageSched
+START_TEST(orchestrator_manage_schedule_histograms)
+{
+	prgset->sched_mode = SM_PADAPTIVE;
+	prgset->status |= MSK_STATTRTL;
+	node_push(&nhead);
+	nhead->pid = getpid();
+	nhead->psig = strdup("manage-test");
+	nhead->attr.sched_policy = SCHED_OTHER;
+
+	ck_assert_int_eq(0, runstats_histInit(&nhead->mon.pdf_phist, 0.01));
+	ck_assert_int_eq(0, runstats_histInit(&nhead->mon.pdf_hist, 0.001));
+	for (int i=0; i<50; i++){
+		double offset = (double)(i%5-2) / 10000.0;
+		ck_assert_int_eq(0, runstats_histAdd(nhead->mon.pdf_phist,
+				&nhead->mon.pdf_pscope, 0.01 + offset));
+		ck_assert_int_eq(0, runstats_histAdd(nhead->mon.pdf_hist,
+				&nhead->mon.pdf_scope, 0.001 + offset));
+	}
+
+	ck_assert_int_eq(0, manageSched());
+	ck_assert_uint_ge(nhead->mon.cdf_period, 9999990);
+	ck_assert_uint_le(nhead->mon.cdf_period, 10000010);
+	ck_assert_uint_ge(nhead->mon.cdf_runtime, 999990);
+	ck_assert_uint_le(nhead->mon.cdf_runtime, 1000010);
+	ck_assert_uint_eq(2, nhead->mon.resample);
+	ck_assert_uint_eq(0, nhead->mon.pdf_pscope.samples);
+	ck_assert_uint_eq(0, nhead->mon.pdf_scope.samples);
+}
 END_TEST
 
 /// TEST CASE -> percentile runtime follows the task's role in an RT allocation
@@ -1061,6 +1092,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_realloc_reject);
 	tcase_add_test(tc5, orchestrator_manage_updatestats);
+	tcase_add_test(tc5, orchestrator_manage_schedule_histograms);
 	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_missingpipe);
