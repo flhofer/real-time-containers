@@ -17,7 +17,8 @@ orcbins = update.o manage.o prepare.o adaptive.o resmgnt.o
 testbins = orchestrator_suite.o library_suite.o resmgntTest.o \
 		   adaptiveTest.o manageTest.o updateTest.o prepareTest.o \
 		   orchestratorTest.o dockerlinkTest.o\
-		   kernutilTest.o orchdataTest.o parse_configTest.o errorTest.o
+		   kernutilTest.o orchdataTest.o parse_configTest.o errorTest.o \
+		   runstatsTest.o
 
 TARGETS = $(sources:.c=)	# sources without .c ending
 LIBS	= -lrt -lcap -lrttest -ljson-c -lm -lgsl -lgslcblas -lnuma

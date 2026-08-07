@@ -13,6 +13,7 @@
 #include "orchdataTest.h"
 #include "parse_configTest.h"
 #include "errorTest.h"
+#include "runstatsTest.h"
 
 Suite * library_suite(void) {
 
@@ -20,6 +21,7 @@ Suite * library_suite(void) {
 
 	// call tests and append test cases	
 	library_kernutil(s);
+	library_runstats(s);
 	library_orchdata(s);
 
 	// these use dbgprint. check first
