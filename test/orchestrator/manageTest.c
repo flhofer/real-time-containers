@@ -555,6 +555,64 @@ START_TEST(orchestrator_manage_ftrc_ppswitch_migration)
 }
 END_TEST
 
+/// TEST CASE -> process wakeups used to infer a non-Deadline task period
+/// EXPECTED -> stale and early wakeups are ignored while full cycles are sampled
+START_TEST(orchestrator_manage_ftrc_ppwakeup)
+{
+	const struct tr_common common = { (void *)0, (void *)2, (void *)3, (void *)4 };
+	const struct tr_wakeup wakeup = { (void *)8, (void *)24, (void *)28, (void *)32 };
+	tr_common = common;
+	tr_wakeup = wakeup;
+
+	node_push(&nhead);
+	nhead->pid = 42;
+	nhead->psig = strdup("helper");
+	nhead->attr.sched_policy = SCHED_OTHER;
+	nhead->mon.cdf_period = 100000000;
+
+	unsigned char frame[40] = { 0 };
+	pid_t pid = nhead->pid;
+	int32_t priority = 120;
+	int32_t CPU = 0;
+	memcpy(&frame[4], &pid, sizeof(pid));
+	memcpy(&frame[8], nhead->psig, strlen(nhead->psig));
+	memcpy(&frame[24], &pid, sizeof(pid));
+	memcpy(&frame[28], &priority, sizeof(priority));
+	memcpy(&frame[32], &CPU, sizeof(CPU));
+
+	ck_assert_int_eq(0, pickPidInfoW(frame, NULL, 1000000000));
+	ck_assert_uint_eq(1000000000, nhead->mon.last_tsP);
+	ck_assert_uint_eq(1, nhead->mon.dl_count);
+	ck_assert_ptr_null(nhead->mon.pdf_phist);
+
+	ck_assert_int_eq(0, pickPidInfoW(frame, NULL, 1020000000));
+	ck_assert_uint_eq(1000000000, nhead->mon.last_tsP);
+	ck_assert_uint_eq(1, nhead->mon.dl_count);
+	ck_assert_int_eq(0, pickPidInfoW(frame, NULL, 900000000));
+	ck_assert_uint_eq(1000000000, nhead->mon.last_tsP);
+
+	ck_assert_int_eq(0, pickPidInfoW(frame, NULL, 1100000000));
+	ck_assert_uint_eq(1100000000, nhead->mon.last_tsP);
+	ck_assert_uint_eq(2, nhead->mon.dl_count);
+	ck_assert_ptr_nonnull(nhead->mon.pdf_phist);
+	ck_assert_uint_eq(1, nhead->mon.pdf_pscope.samples);
+	ck_assert_uint_eq(1200000000, nhead->mon.deadline);
+
+	nhead->attr.sched_policy = SCHED_DEADLINE;
+	ck_assert_int_eq(0, pickPidInfoW(frame, NULL, 1200000000));
+	ck_assert_uint_eq(1100000000, nhead->mon.last_tsP);
+	ck_assert_uint_eq(2, nhead->mon.dl_count);
+
+	nhead->attr.sched_policy = SCHED_OTHER;
+	frame[8] = 0x80;
+	ck_assert_int_eq(-1, pickPidInfoW(frame, NULL, 1200000000));
+	frame[8] = 'h';
+	uint16_t malformed = 0xF000;
+	memcpy(frame, &malformed, sizeof(malformed));
+	ck_assert_int_eq(-1, pickPidInfoW(frame, NULL, 1200000000));
+}
+END_TEST
+
 /// TEST CASE -> invalidate runtime state after a CPU reports lost trace events
 /// EXPECTED -> affected samples are dropped without touching another CPU's interval
 START_TEST(orchestrator_manage_ftrc_loss)
@@ -927,6 +985,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppcmn);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch);
 	tcase_add_test(tc4, orchestrator_manage_ftrc_ppswitch_migration);
+	tcase_add_test(tc4, orchestrator_manage_ftrc_ppwakeup);
 	suite_add_tcase(s, tc4);
 
 	TCase *tc5 = tcase_create("manage_ftrace_pickpid_acc");
