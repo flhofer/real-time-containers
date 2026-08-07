@@ -63,9 +63,11 @@ else
 		# Force coverage profiling across all compiled files
 		CFLAGS += -coverage
 
-#		to activate once we have a separate test binary, we need to exclude the following files from coverage		
-# 		# Always apply the exclusion pattern if COVERAGE is enabled
-# 		CFLAGS += -fprofile-exclude-files="test\.[ch]|.*Test\.[ch]|.*_suite\.[ch]|kbuffer\.[ch]|numa\.h|cpuid\.h"
+ 		# Exclude test files and some other files from coverage profiling
+		# orchestrator main files are included in coverage through the test files
+		# kbuffer is excluded because it is a library and not part of the orchestrator code
+		# rt-sched.h is excluded because it is a header file and not part of the orchestrator code
+ 		CFLAGS += -fprofile-exclude-files="test\.[ch]|test/lib.*Test\.[ch]|.*_suite\.[ch]|src/orchestrator/.*\.[ch]|kbuffer\.[ch]|rt-sched\.h"
 		
 		# Set DIRDEPTH dynamically for GCOV_PREFIX_STRIP in the check target
 		DIRDEPTH=$(shell pwd | tr -cd '/' | wc -c)
