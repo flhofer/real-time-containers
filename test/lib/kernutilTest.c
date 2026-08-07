@@ -315,6 +315,30 @@ START_TEST(kernutil_affinity_invalid)
 }
 END_TEST
 
+/// TEST CASE -> launch commands through read, write and non-blocking pipes
+/// EXPECTED -> data is transferred and child status is returned by pclose2
+START_TEST(kernutil_popen2)
+{
+	pid_t pid;
+	char value[32] = {0};
+	FILE * pipefile = popen2("printf pipe-data", "r", &pid);
+	ck_assert_ptr_ne(pipefile, NULL);
+	ck_assert_ptr_ne(fgets(value, sizeof(value), pipefile), NULL);
+	ck_assert_str_eq(value, "pipe-data");
+	int status = pclose2(pipefile, pid, 0);
+	ck_assert(WIFEXITED(status));
+	ck_assert_int_eq(WEXITSTATUS(status), EXIT_SUCCESS);
+
+	pipefile = popen2("cat >/dev/null && true", "wx", &pid);
+	ck_assert_ptr_ne(pipefile, NULL);
+	ck_assert(fcntl(fileno(pipefile), F_GETFL) & O_NONBLOCK);
+	ck_assert_int_ge(fputs("data", pipefile), 0);
+	status = pclose2(pipefile, pid, 0);
+	ck_assert(WIFEXITED(status));
+	ck_assert_int_eq(WEXITSTATUS(status), EXIT_SUCCESS);
+}
+END_TEST
+
 /// TEST CASE -> inspect architecture-dependent SMI helpers through safe error paths
 /// EXPECTED -> invalid descriptors fail and capability detection remains boolean
 START_TEST(kernutil_smi_helpers)
@@ -355,6 +379,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_loop_test(tc1, kernutil_affinity_policy, 0,
 		sizeof(affinity_var) / sizeof(affinity_var[0]));
 	tcase_add_test(tc1, kernutil_affinity_invalid);
+	tcase_add_test(tc1, kernutil_popen2);
 	tcase_add_test(tc1, kernutil_smi_helpers);
 	tcase_add_test(tc1, kernutil_debug_prefix);
 
