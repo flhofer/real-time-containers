@@ -369,6 +369,67 @@ START_TEST(orchestrator_manage_ftrc_offsetparse)
 }
 END_TEST
 
+/// TEST CASE -> append an ftrace event from a synthetic tracefs directory
+/// EXPECTED -> event ID, callback and field description are loaded and enabled
+START_TEST(orchestrator_manage_ftrc_append)
+{
+	ck_assert_int_eq(-1, parseEventOffsets());
+
+	char directory[] = "/tmp/manage-event-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+	char events[PATH_MAX];
+	char sched[PATH_MAX];
+	char eventdir[PATH_MAX];
+	char prefix[PATH_MAX];
+	char enable[PATH_MAX];
+	char id[PATH_MAX];
+	char format[PATH_MAX];
+	ck_assert_int_lt(snprintf(events, sizeof(events), "%s/events", directory), (int)sizeof(events));
+	ck_assert_int_lt(snprintf(sched, sizeof(sched), "%s/sched", events), (int)sizeof(sched));
+	ck_assert_int_lt(snprintf(eventdir, sizeof(eventdir), "%s/sched_switch", sched), (int)sizeof(eventdir));
+	ck_assert_int_lt(snprintf(prefix, sizeof(prefix), "%s/", directory), (int)sizeof(prefix));
+	ck_assert_int_lt(snprintf(enable, sizeof(enable), "%s/enable", eventdir), (int)sizeof(enable));
+	ck_assert_int_lt(snprintf(id, sizeof(id), "%s/id", eventdir), (int)sizeof(id));
+	ck_assert_int_lt(snprintf(format, sizeof(format), "%s/format", eventdir), (int)sizeof(format));
+	ck_assert_int_eq(0, mkdir(events, S_IRWXU));
+	ck_assert_int_eq(0, mkdir(sched, S_IRWXU));
+	ck_assert_int_eq(0, mkdir(eventdir, S_IRWXU));
+	manageTestWriteFile(enable, "0\n");
+	manageTestWriteFile(id, "317\n");
+	manageTestWriteFile(format,
+			"name: sched_switch\n"
+			"ID: 317\n"
+			"format:\n"
+			"\tfield:unsigned short common_type; offset:0; size:2; signed:0;\n");
+
+	ck_assert_int_eq(0, appendEvent(prefix, TR_EVENT_SWITCH, pickPidInfoS));
+	ck_assert_ptr_nonnull(elist_head);
+	ck_assert_int_eq(317, elist_head->eventid);
+	ck_assert_str_eq(TR_EVENT_SWITCH, elist_head->event);
+	ck_assert_ptr_eq(pickPidInfoS, elist_head->eventcall);
+	ck_assert_ptr_nonnull(elist_head->fields);
+	ck_assert_str_eq("common_type", elist_head->fields->name);
+
+	char value[3] = { 0 };
+	FILE * file = fopen(enable, "r");
+	ck_assert_ptr_nonnull(file);
+	ck_assert_int_eq(2, fread(value, 1, 2, file));
+	ck_assert_int_eq(0, fclose(file));
+	ck_assert_str_eq("1\n", value);
+
+	free(elist_head->event);
+	elist_head->event = NULL;
+	clearEventConf();
+	ck_assert_int_eq(0, unlink(enable));
+	ck_assert_int_eq(0, unlink(id));
+	ck_assert_int_eq(0, unlink(format));
+	ck_assert_int_eq(0, rmdir(eventdir));
+	ck_assert_int_eq(0, rmdir(sched));
+	ck_assert_int_eq(0, rmdir(events));
+	ck_assert_int_eq(0, rmdir(directory));
+}
+END_TEST
+
 /// TEST CASE -> pass a kernel tracer frame to pickPidCommon and evaluates it
 /// EXPECTED -> corresponding nodes and data should change
 START_TEST(orchestrator_manage_ftrc_ppcmn)
@@ -876,6 +937,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
 	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
+	tcase_add_test(tc5, orchestrator_manage_ftrc_append);
 	tcase_add_test(tc5, orchestrator_manage_resource_usage);
 	tcase_add_test(tc5, orchestrator_manage_cpustat);
 	tcase_add_test(tc5, orchestrator_manage_hist_scope);
