@@ -936,6 +936,31 @@ START_TEST(orchestrator_manage_siblingsfit)
 }
 END_TEST
 
+/// TEST CASE -> exercise no-op and rejected PID reallocation paths
+/// EXPECTED -> unchanged resources return one and invalid candidates are rejected
+START_TEST(orchestrator_manage_realloc_reject)
+{
+	resTracer_t tracer = { 0 };
+	tracer.affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(tracer.affinity, 0);
+	node_t item = { 0 };
+	item.pid = 1;
+	item.attr.sched_policy = SCHED_OTHER;
+
+	ck_assert_int_eq(1, pidReallocAndTest(NULL, &tracer, &item));
+	ck_assert_int_eq(1, pidReallocAndTest(&tracer, &tracer, &item));
+	resTracer_t candidate = { 0 };
+	candidate.affinity = numa_allocate_cpumask();
+	numa_bitmask_setbit(candidate.affinity, 1);
+	ck_assert_int_eq(-1, pidReallocAndTest(&candidate, &tracer, &item));
+	ck_assert_int_eq(-1, pickPidReallocCPU(999, 0));
+	ck_assert_int_eq(1, updateSiblings(&item));
+
+	numa_free_cpumask(candidate.affinity);
+	numa_free_cpumask(tracer.affinity);
+}
+END_TEST
+
 /// TEST CASE -> percentile runtime follows the task's role in an RT allocation
 /// EXPECTED -> RT tasks and their non-RT container helpers use the percentile
 START_TEST(orchestrator_manage_runtime_percentile)
@@ -1011,6 +1036,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
+	tcase_add_test(tc5, orchestrator_manage_realloc_reject);
 	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_missingpipe);
