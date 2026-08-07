@@ -11,6 +11,7 @@
 // tested
 #include "../../src/lib/parse_config.c"
 
+#include <unistd.h>
 
 static prgset_t * set;
 static containers_t * conts;
@@ -38,12 +39,35 @@ static char * files [10] = {
 static void parse_config_tc1_startup() {
 	set = calloc(sizeof(prgset_t), 1);
 	conts = calloc(sizeof(containers_t), 1);
+	pp = NULL;
 }
 
 static void parse_config_tc1_teardown() {
-	pclose(pp);
+	if (pp)
+		pclose(pp);
 	freePrgSet(set);
 	freeContParm(conts);
+}
+
+static void parse_config_json(const char * text) {
+	struct json_object * root = json_tokener_parse(text);
+	ck_assert_ptr_ne(root, NULL);
+	parse_config(root, set, conts);
+	ck_assert_int_eq(json_object_put(root), 1);
+}
+
+static pidc_t * find_pid(const char * signature) {
+	for (pidc_t * pid = conts->pids; pid; pid = pid->next)
+		if (pid->psig && !strcmp(pid->psig, signature))
+			return pid;
+	return NULL;
+}
+
+static cont_t * find_container(const char * identifier) {
+	for (cont_t * container = conts->cont; container; container = container->next)
+		if (container->contid && !strcmp(container->contid, identifier))
+			return container;
+	return NULL;
 }
 
 START_TEST(parse_config_err_conf)
