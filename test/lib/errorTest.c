@@ -9,7 +9,7 @@
 #include "errorTest.h"
 
 // tested
-#include "../../src/lib/error.c"
+#include "error.h"
 
 #include <errno.h>
 #include <signal.h>
