@@ -724,6 +724,10 @@ START_TEST(orchestrator_manage_cpustat)
 	ck_assert_uint_eq(621, total);
 	ck_assert_uint_eq(450, idle);
 	ck_assert_int_eq(-1, parseCPUStat("cpu 100 20 30 400", &CPUno, &total, &idle));
+	ck_assert_int_eq(-1, parseCPUStat(NULL, &CPUno, &total, &idle));
+	ck_assert_int_eq(-1, parseCPUStat(line, NULL, &total, &idle));
+	ck_assert_int_eq(-1, parseCPUStat(line, &CPUno, NULL, &idle));
+	ck_assert_int_eq(-1, parseCPUStat(line, &CPUno, &total, NULL));
 }
 END_TEST
 
