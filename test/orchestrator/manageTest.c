@@ -22,10 +22,19 @@
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
 #include <limits.h>
+#include <sys/stat.h>
 #include <linux/sched.h>	// Linux specific scheduling
 
 #define MAX_PATH 256
 #define TESTCPU "0"
+
+static void
+manageTestWriteFile(const char * path, const char * value){
+	FILE * file = fopen(path, "w");
+	ck_assert_msg(file, "Could not create test file %s", path);
+	ck_assert_int_eq((int)strlen(value), (int)fwrite(value, 1, strlen(value), file));
+	ck_assert_int_eq(0, fclose(file));
+}
 
 void buildEventConf(){
 	push((void**)&elist_head, sizeof(struct ftrace_elist));
@@ -48,6 +57,9 @@ void clearEventConf(){
 static void orchestrator_manage_setup() {
 	prgset = calloc (1, sizeof(prgset_t));
 	parse_config_set_default(prgset);
+	scount = 0;
+	cpuStatTimestamp = 0;
+	ftrace_stop = 0;
 	prgset->affinity = strdup(TESTCPU);
 	prgset->affinity_mask = parse_cpumask(prgset->affinity);
 	prgset->ftrace = 0;
@@ -66,6 +78,8 @@ static void orchestrator_manage_teardown() {
 		node_pop(&nhead);
 	while (elist_thead)
 		pop((void**)&elist_thead);
+	clearEventConf();
+	freeTracer(&rHead);
 
 	if (prgset)
 		freePrgSet(prgset);
