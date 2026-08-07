@@ -315,6 +315,17 @@ START_TEST(kernutil_affinity_invalid)
 }
 END_TEST
 
+/// TEST CASE -> obtain the tracing filesystem prefix repeatedly
+/// EXPECTED -> the cached storage is stable and always null terminated
+START_TEST(kernutil_debug_prefix)
+{
+	char * first = get_debugfileprefix();
+	char * second = get_debugfileprefix();
+	ck_assert_ptr_eq(first, second);
+	ck_assert_ptr_ne(memchr(first, '\0', _POSIX_PATH_MAX), NULL);
+}
+END_TEST
+
 void library_kernutil (Suite * s) {
 
 	TCase *tc1 = tcase_create("kernutil");
@@ -332,6 +343,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_loop_test(tc1, kernutil_affinity_policy, 0,
 		sizeof(affinity_var) / sizeof(affinity_var[0]));
 	tcase_add_test(tc1, kernutil_affinity_invalid);
+	tcase_add_test(tc1, kernutil_debug_prefix);
 
     suite_add_tcase(s, tc1);
 
