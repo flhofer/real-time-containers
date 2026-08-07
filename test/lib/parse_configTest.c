@@ -263,6 +263,17 @@ START_TEST(parse_config_global)
 }
 END_TEST
 
+/// TEST CASE -> parse an affinity mask without an explicit affinity mode
+/// EXPECTED -> the mode is promoted to user-specified
+START_TEST(parse_config_affinity_fallback)
+{
+	parse_config_json("{\"global\":{\"affinity\":\"1,3\"}}");
+	ck_assert_int_eq(set->setaffinity, AFFINITY_USERSPECIFIED);
+	ck_assert_str_eq(set->affinity, "1,3");
+}
+END_TEST
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -281,6 +292,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_defaults);
 	tcase_add_test(tc2, parse_config_dockerprefix);
 	tcase_add_test(tc2, parse_config_global);
+	tcase_add_test(tc2, parse_config_affinity_fallback);
 
 	suite_add_tcase(s, tc2);
 
