@@ -188,6 +188,50 @@ START_TEST(orchestrator_update_getcontpids)
 }
 END_TEST
 
+/// TEST CASE -> parse parent-based discovery using controlled pidof and ps output
+/// EXPECTED -> PPIDs are retained as container IDs for every discovered task
+START_TEST(orchestrator_update_getparentpids)
+{
+	char directory[] = "/tmp/update-parent-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+	char pidof[PATH_MAX];
+	char ps[PATH_MAX];
+	char path[PATH_MAX * 2];
+	ck_assert_int_lt(snprintf(pidof, sizeof(pidof), "%s/pidof", directory), (int)sizeof(pidof));
+	ck_assert_int_lt(snprintf(ps, sizeof(ps), "%s/ps", directory), (int)sizeof(ps));
+	updateTestWriteExecutable(pidof, "#!/bin/sh\nprintf '1234 5678\\n'\n");
+	updateTestWriteExecutable(ps, "#!/bin/sh\nprintf '111 1234 helper-one\\n222 5678 helper-two\\n'\n");
+
+	const char * oldPath = getenv("PATH");
+	char * savedPath = strdup(oldPath ? oldPath : "");
+	ck_assert_ptr_nonnull(savedPath);
+	ck_assert_int_lt(snprintf(path, sizeof(path), "%s:%s", directory, savedPath), (int)sizeof(path));
+	ck_assert_int_eq(0, setenv("PATH", path, 1));
+	free(prgset->cont_ppidc);
+	prgset->cont_ppidc = strdup("fake-shim");
+
+	node_t * found = NULL;
+	getParentPids(&found);
+	ck_assert_ptr_nonnull(found);
+	ck_assert_ptr_nonnull(found->next);
+	ck_assert_ptr_null(found->next->next);
+	ck_assert_int_eq(222, found->pid);
+	ck_assert_str_eq("5678", found->contid);
+	ck_assert_int_eq(111, found->next->pid);
+	ck_assert_str_eq("1234", found->next->contid);
+	ck_assert_int_ne(0, found->status & MSK_STATSIBL);
+	ck_assert_int_ne(0, found->next->status & MSK_STATSIBL);
+
+	while (found)
+		node_pop(&found);
+	ck_assert_int_eq(0, setenv("PATH", savedPath, 1));
+	free(savedPath);
+	ck_assert_int_eq(0, unlink(pidof));
+	ck_assert_int_eq(0, unlink(ps));
+	ck_assert_int_eq(0, rmdir(directory));
+}
+END_TEST
+
 /// TEST CASE -> test detected pid list using pid signture and ps
 /// EXPECTED -> 3 elements detectes (and no leaks!)
 START_TEST(orchestrator_update_getpids)
@@ -570,6 +614,7 @@ void orchestrator_update (Suite * s) {
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc1, orchestrator_update_select);
 	tcase_add_test(tc1, orchestrator_update_getcontpids);
+	tcase_add_test(tc1, orchestrator_update_getparentpids);
 	tcase_add_test(tc1, orchestrator_update_getpids);
 	tcase_add_test(tc1, orchestrator_update_scannew);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
