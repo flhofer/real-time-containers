@@ -869,6 +869,8 @@ END_TEST
 /// EXPECTED -> main alone fits, aggregate container load does not
 START_TEST(orchestrator_manage_siblingsfit)
 {
+	ck_assert_int_eq(-1, pidSiblingsFit(NULL, NULL));
+
 	cont_t * cont = calloc(1, sizeof(cont_t));
 	pidc_t * mainParam = calloc(1, sizeof(pidc_t));
 	pidc_t * rtParam = calloc(1, sizeof(pidc_t));
