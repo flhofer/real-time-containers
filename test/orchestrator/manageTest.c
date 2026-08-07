@@ -786,6 +786,43 @@ START_TEST(orchestrator_manage_siblingsfit)
 }
 END_TEST
 
+/// TEST CASE -> percentile runtime follows the task's role in an RT allocation
+/// EXPECTED -> RT tasks and their non-RT container helpers use the percentile
+START_TEST(orchestrator_manage_runtime_percentile)
+{
+	cont_t cont = { 0 };
+	cont_t unrelatedCont = { 0 };
+	pidc_t anchorParam = { 0 };
+	pidc_t helperParam = { 0 };
+	anchorParam.cont = &cont;
+	helperParam.cont = &cont;
+
+	node_push(&nhead);
+	node_t * anchor = nhead;
+	anchor->pid = 1;
+	anchor->param = &anchorParam;
+	anchor->attr.sched_policy = SCHED_DEADLINE;
+
+	node_t helper = { 0 };
+	helper.pid = 2;
+	helper.param = &helperParam;
+	helper.attr.sched_policy = SCHED_OTHER;
+
+	prgset->sched_mode = SM_DYNSIMPLE;
+	ck_assert_int_eq(1, pickPidUseRuntimePercentile(anchor));
+	ck_assert_int_eq(1, pickPidUseRuntimePercentile(&helper));
+
+	helperParam.cont = &unrelatedCont;
+	ck_assert_int_eq(0, pickPidUseRuntimePercentile(&helper));
+
+	prgset->sched_mode = SM_PADAPTIVE;
+	ck_assert_int_eq(0, pickPidUseRuntimePercentile(anchor));
+	ck_assert_int_eq(0, pickPidUseRuntimePercentile(&helper));
+
+	anchor->param = NULL;
+}
+END_TEST
+
 void orchestrator_manage (Suite * s) {
 	TCase *tc1 = tcase_create("manage_thread_stop");
 
@@ -823,6 +860,7 @@ void orchestrator_manage (Suite * s) {
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf);
 	tcase_add_test(tc5, orchestrator_manage_ppckbuf_dlperiod);
 	tcase_add_test(tc5, orchestrator_manage_siblingsfit);
+	tcase_add_test(tc5, orchestrator_manage_runtime_percentile);
 	tcase_add_test(tc5, orchestrator_manage_ftrc_loss);
 	tcase_add_test(tc5, orchestrator_manage_resource_usage);
 	tcase_add_test(tc5, orchestrator_manage_cpustat);
