@@ -244,6 +244,25 @@ START_TEST(orchdata_check_links)
 }
 END_TEST
 
+/// TEST CASE -> inspect a container linked to two different images
+/// EXPECTED -> conflicting configuration is reported instead of overwritten
+START_TEST(orchdata_check_link_conflict)
+{
+	img_t image_a = {.imgid = "image-a"};
+	img_t image_b = {.imgid = "image-b"};
+	cont_t container = {.contid = "container", .img = &image_b};
+	conts_t link_a = {.cont = &container};
+	conts_t link_b = {.cont = &container};
+	containers_t configuration = {.img = &image_a, .cont = &container};
+	image_a.next = &image_b;
+	image_a.conts = &link_a;
+	image_b.conts = &link_b;
+
+	ck_assert_int_eq(checkContParam(&configuration), -1);
+	ck_assert_ptr_eq(container.img, &image_b);
+}
+END_TEST
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
@@ -504,6 +523,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_free_settings);
 	tcase_add_test(tc0, orchdata_free_containers);
 	tcase_add_test(tc0, orchdata_check_links);
+	tcase_add_test(tc0, orchdata_check_link_conflict);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
