@@ -315,6 +315,18 @@ START_TEST(kernutil_affinity_invalid)
 }
 END_TEST
 
+/// TEST CASE -> inspect architecture-dependent SMI helpers through safe error paths
+/// EXPECTED -> invalid descriptors fail and capability detection remains boolean
+START_TEST(kernutil_smi_helpers)
+{
+	unsigned long counter = 0;
+	int capability = has_smi_counter();
+	ck_assert_int_lt(open_msr_file(INT_MAX), 0);
+	ck_assert_int_ne(get_smi_counter(-1, &counter), 0);
+	ck_assert(capability == 0 || capability == 1);
+}
+END_TEST
+
 /// TEST CASE -> obtain the tracing filesystem prefix repeatedly
 /// EXPECTED -> the cached storage is stable and always null terminated
 START_TEST(kernutil_debug_prefix)
@@ -343,6 +355,7 @@ void library_kernutil (Suite * s) {
 	tcase_add_loop_test(tc1, kernutil_affinity_policy, 0,
 		sizeof(affinity_var) / sizeof(affinity_var[0]));
 	tcase_add_test(tc1, kernutil_affinity_invalid);
+	tcase_add_test(tc1, kernutil_smi_helpers);
 	tcase_add_test(tc1, kernutil_debug_prefix);
 
     suite_add_tcase(s, tc1);
