@@ -135,6 +135,59 @@ START_TEST(orchestrator_update_select)
 }
 END_TEST
 
+/// TEST CASE -> read process IDs from a synthetic container CGroup
+/// EXPECTED -> all PIDs receive the container ID and sibling marker
+START_TEST(orchestrator_update_getcontpids)
+{
+	char directory[] = "/tmp/update-cgroup-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+	const char * id = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+	char container[PATH_MAX];
+	char tasks[PATH_MAX];
+	char prefix[PATH_MAX];
+	char contents[64];
+	ck_assert_int_lt(snprintf(container, sizeof(container), "%s/docker-%s.scope", directory, id), (int)sizeof(container));
+	ck_assert_int_lt(snprintf(tasks, sizeof(tasks), "%s/%s", container, CGRP_PIDS), (int)sizeof(tasks));
+	ck_assert_int_lt(snprintf(prefix, sizeof(prefix), "%s/", directory), (int)sizeof(prefix));
+	ck_assert_int_lt(snprintf(contents, sizeof(contents), "%d\n%d\n", getpid(), getppid()), (int)sizeof(contents));
+	ck_assert_int_eq(0, mkdir(container, S_IRWXU));
+	updateTestWriteFile(tasks, contents);
+
+	free(prgset->cpusetdfileprefix);
+	prgset->cpusetdfileprefix = strdup(prefix);
+	node_t * found = NULL;
+	getContPids(&found);
+
+	int count = 0;
+	for (node_t * item=found; item; item=item->next){
+		ck_assert(item->pid == getpid() || item->pid == getppid());
+		ck_assert_str_eq(id, item->contid);
+		ck_assert_int_ne(0, item->status & MSK_STATSIBL);
+		count++;
+	}
+	ck_assert_int_eq(2, count);
+
+	while (found)
+		node_pop(&found);
+	ck_assert_int_lt(snprintf(contents, sizeof(contents), "%d\n", getpid()), (int)sizeof(contents));
+	updateTestWriteFile(tasks, contents);
+	getContPids(&found);
+	ck_assert_ptr_nonnull(found);
+	ck_assert_ptr_null(found->next);
+	ck_assert_int_eq(getpid(), found->pid);
+	ck_assert_int_eq(0, found->status & MSK_STATSIBL);
+	node_pop(&found);
+
+	ck_assert_int_eq(0, unlink(tasks));
+	ck_assert_int_eq(0, rmdir(container));
+	ck_assert_int_eq(0, rmdir(directory));
+
+	getContPids(&found);
+	ck_assert_ptr_null(found);
+	ck_assert_int_eq(DM_CNTPID, prgset->use_cgroup);
+}
+END_TEST
+
 /// TEST CASE -> test detected pid list using pid signture and ps
 /// EXPECTED -> 3 elements detectes (and no leaks!)
 START_TEST(orchestrator_update_getpids)
@@ -516,6 +569,7 @@ void orchestrator_update (Suite * s) {
 	TCase *tc1 = tcase_create("update_newread");
 	tcase_add_checked_fixture(tc1, orchestrator_update_setup, orchestrator_update_teardown);
 	tcase_add_test(tc1, orchestrator_update_select);
+	tcase_add_test(tc1, orchestrator_update_getcontpids);
 	tcase_add_test(tc1, orchestrator_update_getpids);
 	tcase_add_test(tc1, orchestrator_update_scannew);
 	tcase_add_test(tc1, orchestrator_update_dlinkread);
