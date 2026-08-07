@@ -7,7 +7,9 @@
 #include "runstatsTest.h"
 
 // tested
-#include "../../src/lib/runstats.c"
+#include "runstats.h"
+
+extern const size_t num_par;   /* number of model parameters, = polynomial or function size */
 
 static stat_hist * histogram;
 static stat_param * parameters;

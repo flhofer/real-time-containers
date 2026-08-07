@@ -48,16 +48,6 @@
 #define ROOT_EPSABS	0		// max error absolute value (p)
 #define ROOT_EPSREL	1e-7	// max error relative value min (a|b)
 
-#define STARTBINS 30		// default bin number
-#define BIN_DEFMIN 0.70		// default range: - offset * x
-#define BIN_DEFMAX 1.30 	// default range: + offset * x
-#define BIN_OUTMAX 0.10		// maximum fraction outside the precision range
-#define BIN_NEWMARGIN 0.05	// margin around resampled outside values
-
-#define MODEL_DEFAMP 1/(sqrt(2*M_PI)*b*MODEL_DEFSTD)	// default model amplitude
-#define MODEL_DEFOFS 1.02	// default model offset: runtime (b) * x
-#define MODEL_DEFSTD 0.01	// default model stddev: runtime (b) * x
-
 const size_t num_par = 3;   /* number of model parameters, = polynomial or function size */
 
 struct func_integmdl_par {
