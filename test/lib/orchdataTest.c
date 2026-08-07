@@ -151,6 +151,35 @@ START_TEST(orchdata_ndpop_statistics)
 }
 END_TEST
 
+/// TEST CASE -> release program settings and a list of resource tracers
+/// EXPECTED -> all owned strings and CPU masks are accepted
+START_TEST(orchdata_free_settings)
+{
+	prgset_t * settings = calloc(1, sizeof(*settings));
+	ck_assert_ptr_ne(settings, NULL);
+	settings->logdir = strdup("logdir");
+	settings->logbasename = strdup("logbase");
+	settings->cont_ppidc = strdup("ppid");
+	settings->cont_pidc = strdup("pid");
+	settings->cont_cgrp = strdup("cgroup");
+	settings->procfileprefix = strdup("proc");
+	settings->cgroupfileprefix = strdup("cgroupfs");
+	settings->cpusystemfileprefix = strdup("cpusystem");
+	settings->cpusetdfileprefix = strdup("cpuset");
+	settings->affinity = strdup("0-1");
+	settings->affinity_mask = numa_allocate_cpumask();
+	freePrgSet(settings);
+
+	resTracer_t * tracers = NULL;
+	push((void **)&tracers, sizeof(*tracers));
+	tracers->affinity = numa_allocate_cpumask();
+	push((void **)&tracers, sizeof(*tracers));
+	tracers->affinity = numa_allocate_cpumask();
+	freeTracer(&tracers);
+	ck_assert_ptr_eq(tracers, NULL);
+}
+END_TEST
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
@@ -408,6 +437,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_qsort3);
 	tcase_add_test(tc0, orchdata_copyresources);
 	tcase_add_test(tc0, orchdata_copyresources_shared);
+	tcase_add_test(tc0, orchdata_free_settings);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
