@@ -466,34 +466,42 @@ START_TEST(parse_config_from_stdin)
 END_TEST
 
 void library_parse_config (Suite * s) {
-	TCase *tc1 = tcase_create("parse_config_def");
 
+	TCase *tc1 = tcase_create("parse_config_reading");
 	tcase_add_checked_fixture(tc1, parse_config_tc1_startup, parse_config_tc1_teardown);
-	tcase_add_loop_exit_test(tc1, parse_config_err_conf, EXIT_INV_CONFIG, 0, 3);
-	tcase_add_loop_test(tc1, parse_config_def_config, 3, 7);
-	tcase_add_loop_test(tc1, parse_config_def_config2, 7, 10);
+	tcase_add_test(tc1, parse_config_from_file);
+	tcase_add_exit_test(tc1, parse_config_missing_file, EXIT_INV_CONFIG);
+	tcase_add_test(tc1, parse_config_from_stdin);
 
-    suite_add_tcase(s, tc1);
+	suite_add_tcase(s, tc1);
 
 	TCase *tc2 = tcase_create("parse_config_blocks");
 	tcase_add_checked_fixture(tc2, parse_config_tc1_startup, parse_config_tc1_teardown);
 	tcase_add_test(tc2, parse_config_tst1);
 	tcase_add_test(tc2, parse_config_tst2);
 	tcase_add_test(tc2, parse_config_tst3);
-	tcase_add_test(tc2, parse_config_defaults);
-	tcase_add_test(tc2, parse_config_dockerprefix);
-	tcase_add_test(tc2, parse_config_global);
-	tcase_add_test(tc2, parse_config_affinity_fallback);
-	tcase_add_test(tc2, parse_config_precedence);
-	tcase_add_test(tc2, parse_config_resources);
-	tcase_add_test(tc2, parse_config_hierarchy);
 	tcase_add_loop_exit_test(tc2, parse_config_invalid_values,
 		EXIT_INV_CONFIG, 0, sizeof(invalid_config) / sizeof(invalid_config[0]));
-	tcase_add_test(tc2, parse_config_from_file);
-	tcase_add_exit_test(tc2, parse_config_missing_file, EXIT_INV_CONFIG);
-	tcase_add_test(tc2, parse_config_from_stdin);
+	tcase_add_test(tc2, parse_config_defaults);
+	tcase_add_test(tc2, parse_config_global);
+	tcase_add_test(tc2, parse_config_resources);
 
-	suite_add_tcase(s, tc2);
+	TCase *tc3 = tcase_create("parse_config_def");
+	tcase_add_checked_fixture(tc3, parse_config_tc1_startup, parse_config_tc1_teardown);
+	tcase_add_loop_exit_test(tc3, parse_config_err_conf, EXIT_INV_CONFIG, 0, 3);
+	tcase_add_loop_test(tc3, parse_config_def_config, 3, 7);
+	tcase_add_loop_test(tc3, parse_config_def_config2, 7, 10);
+
+    suite_add_tcase(s, tc3);
+
+	TCase *tc4 = tcase_create("parse_config_extras");
+	tcase_add_checked_fixture(tc4, parse_config_tc1_startup, parse_config_tc1_teardown);	
+	tcase_add_test(tc4, parse_config_dockerprefix);
+	tcase_add_test(tc4, parse_config_affinity_fallback);
+	tcase_add_test(tc4, parse_config_precedence);
+	tcase_add_test(tc4, parse_config_hierarchy);
+
+	suite_add_tcase(s, tc4);
 
 	return;
 }
