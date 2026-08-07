@@ -110,6 +110,24 @@ START_TEST(orchdata_copyresources)
 }
 END_TEST
 
+/// TEST CASE -> copy shared resource configuration for a PID
+/// EXPECTED -> shared pointers are retained and not freed with the destination
+START_TEST(orchdata_copyresources_shared)
+{
+	struct sched_attr attr = {.size = SCHED_ATTR_SIZE};
+	struct sched_rscs rscs = {0};
+	pidc_t source = {.status = MSK_STATSHAT | MSK_STATSHRC,
+		.attr = &attr, .rscs = &rscs};
+	pidc_t target = {0};
+
+	copyResourceConfigP(&source, &target);
+	ck_assert_int_eq(target.status, source.status);
+	ck_assert_ptr_eq(target.attr, source.attr);
+	ck_assert_ptr_eq(target.rscs, source.rscs);
+	freeParm((cont_t *)&target);
+}
+END_TEST
+
 /// TEST CASE -> release a node containing runtime and period statistics
 /// EXPECTED -> all subordinate statistics and affinity allocations are accepted
 START_TEST(orchdata_ndpop_statistics)
@@ -389,6 +407,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_qsort2);
 	tcase_add_test(tc0, orchdata_qsort3);
 	tcase_add_test(tc0, orchdata_copyresources);
+	tcase_add_test(tc0, orchdata_copyresources_shared);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
