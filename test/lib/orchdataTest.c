@@ -222,6 +222,28 @@ START_TEST(orchdata_free_containers)
 }
 END_TEST
 
+/// TEST CASE -> repair missing reverse links in a configuration hierarchy
+/// EXPECTED -> all three links are restored and reported as fixes
+START_TEST(orchdata_check_links)
+{
+	img_t image = {.imgid = "image"};
+	cont_t container = {.contid = "container"};
+	pidc_t pid = {.psig = "task"};
+	conts_t image_container = {.cont = &container};
+	pids_t image_pid = {.pid = &pid};
+	pids_t container_pid = {.pid = &pid};
+	containers_t configuration = {.img = &image, .cont = &container, .pids = &pid};
+	image.conts = &image_container;
+	image.pids = &image_pid;
+	container.pids = &container_pid;
+
+	ck_assert_int_eq(checkContParam(&configuration), 3);
+	ck_assert_ptr_eq(container.img, &image);
+	ck_assert_ptr_eq(pid.img, &image);
+	ck_assert_ptr_eq(pid.cont, &container);
+}
+END_TEST
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
@@ -481,6 +503,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_copyresources_shared);
 	tcase_add_test(tc0, orchdata_free_settings);
 	tcase_add_test(tc0, orchdata_free_containers);
+	tcase_add_test(tc0, orchdata_check_links);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
