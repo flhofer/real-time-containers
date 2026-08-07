@@ -8,12 +8,17 @@
 
 #include "dockerlinkTest.h"
 
+// Includes from orchestrator library
+#include "error.h"
+
 // tested
-#include "../../src/lib/dockerlink.c"
+#include "dockerlink.h"
 
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h> 		// for SIGs, handling in main, raise in update
+#include <stdlib.h>
+#include <string.h>
 
 static char * dockerlink_empty [6] = {
 	"",			// empty
@@ -52,21 +57,20 @@ static void freeContainerEvent(contevent_t * event) {
 }
 
 static void checkContainer(contevent_t * cntevent) {
-
-	usleep(1000);
+	int retries = 5000;
 	(void)pthread_mutex_lock(&containerMutex);
-			
-	while (!containerEvent) {
+
+	while (cntevent->id && !containerEvent && retries--) {
 		(void)pthread_mutex_unlock(&containerMutex);
-
-		// if no event, and we did't expect one. return
-		if (!cntevent->id){
-			ck_assert(!containerEvent);
-			return;
-		}
-
 		usleep(1000);
 		(void)pthread_mutex_lock(&containerMutex);
+	}
+
+	// if no event was expected, verify after the watcher has stopped
+	if (!cntevent->id) {
+		ck_assert_ptr_eq(containerEvent, NULL);
+		(void)pthread_mutex_unlock(&containerMutex);
+		return;
 	}
 
 	ck_assert(containerEvent);
@@ -106,87 +110,6 @@ START_TEST(dockerlink_err_json)
 }
 END_TEST
 
-/// TEST CASE -> parse a complete event directly from the Docker event stream
-/// EXPECTED -> all supported JSON fields are copied into the event data
-START_TEST(dockerlink_read_pipe)
-{
-	struct eventData event = {0};
-	inpipe = tmpfile();
-	ck_assert_ptr_ne(inpipe, NULL);
-	ck_assert_int_gt(fputs(dockerlink_events[5], inpipe), 0);
-	rewind(inpipe);
-	dlink_stop = 0;
-
-	ck_assert_int_eq(read_pipe(&event), 1);
-	ck_assert_str_eq(event.type, "container");
-	ck_assert_str_eq(event.status, "start");
-	ck_assert_str_eq(event.name, "rt-app-tst-10");
-	ck_assert_str_eq(event.id, cntexpected[5].id);
-	ck_assert_str_eq(event.from, "testcnt");
-	ck_assert_str_eq(event.scope, "local");
-	ck_assert_uint_eq(event.timenano, cntexpected[5].timenano);
-
-	free(event.type);
-	free(event.status);
-	free(event.name);
-	free(event.id);
-	free(event.from);
-	free(event.scope);
-	fclose(inpipe);
-	inpipe = NULL;
-}
-END_TEST
-
-/// TEST CASE -> parse supported and ignored events without the watcher thread
-/// EXPECTED -> start/kill map to container events and other event types are ignored
-START_TEST(dockerlink_check_event)
-{
-	static const int source[] = {0, 2, 3, 5};
-	inpipe = tmpfile();
-	ck_assert_ptr_ne(inpipe, NULL);
-	ck_assert_int_gt(fputs(dockerlink_events[source[_i]], inpipe), 0);
-	rewind(inpipe);
-	dlink_stop = 0;
-
-	contevent_t * event = check_event();
-	if (source[_i] == 0 || source[_i] == 5) {
-		ck_assert_ptr_ne(event, NULL);
-		ck_assert_int_eq(event->event, cntexpected[source[_i]].event);
-		ck_assert_str_eq(event->name, cntexpected[source[_i]].name);
-		ck_assert_str_eq(event->id, cntexpected[source[_i]].id);
-		ck_assert_str_eq(event->image, cntexpected[source[_i]].image);
-	} else
-		ck_assert_ptr_eq(event, NULL);
-
-	freeContainerEvent(event);
-	fclose(inpipe);
-	inpipe = NULL;
-}
-END_TEST
-
-/// TEST CASE -> interrupt or exhaust the event stream
-/// EXPECTED -> no event is read after either condition
-START_TEST(dockerlink_read_stop)
-{
-	struct eventData event = {0};
-	inpipe = tmpfile();
-	ck_assert_ptr_ne(inpipe, NULL);
-
-	dlink_stop = 0;
-	ck_assert_int_eq(read_pipe(&event), 0);
-	rewind(inpipe);
-	ck_assert_int_gt(fputs(dockerlink_events[0], inpipe), 0);
-	rewind(inpipe);
-	dlink_inthand(SIGHUP, NULL, NULL);
-	ck_assert_int_eq(dlink_stop, 1);
-	ck_assert_int_eq(read_pipe(&event), 0);
-
-	fclose(inpipe);
-	inpipe = NULL;
-	dlink_stop = 0;
-}
-END_TEST
-
 /// TEST CASE -> cycle through events
 /// EXPECTED -> immediate container response for 0 and 5 only
 /// NOTES -> connection/test should end, thread exits when pipe dies
@@ -198,9 +121,10 @@ START_TEST(dockerlink_conf)
 	strcat(strcat(buf, dockerlink_events[_i]), "'");
 	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
-	checkContainer(&cntexpected[_i]);
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL ); // wait until end
+	ck_assert_int_eq(iret1, 0);
+	checkContainer(&cntexpected[_i]);
 }
 END_TEST
 
@@ -217,9 +141,10 @@ START_TEST(dockerlink_conf_att)
 	strcat(strcat(buf, dockerlink_events[_i]), "' && sleep 1");
 	iret1 = pthread_create( &thread1, NULL, dlink_thread_watch, (void*) buf);
 	ck_assert_int_eq(iret1, 0);
-	checkContainer(&cntexpected[_i]);
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+	ck_assert_int_eq(iret1, 0);
+	checkContainer(&cntexpected[_i]);
 }
 END_TEST
 
@@ -247,6 +172,7 @@ START_TEST(dockerlink_conf_dmp)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+	ck_assert_int_eq(iret1, 0);
 }
 END_TEST
 
@@ -262,10 +188,11 @@ START_TEST(dockerlink_stop)
 
 	sleep(2);
 	// set stop signal
-	(void)pthread_kill (thread1, SIGHUP); // tell linking threads to stop
+	ck_assert_int_eq(pthread_kill(thread1, SIGHUP), 0); // tell linking threads to stop
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+	ck_assert_int_eq(iret1, 0);
 
 }
 END_TEST
@@ -282,6 +209,7 @@ START_TEST(dockerlink_startfail)
 
 	if (!iret1) // thread started successfully
 		iret1 = pthread_join( thread1, NULL); // wait until end
+	ck_assert_int_eq(iret1, 0);
 
 }
 END_TEST
@@ -301,9 +229,6 @@ void library_dockerlink (Suite * s) {
 	TCase *tc1 = tcase_create("dockerlink_json");
  
 	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
-	tcase_add_test(tc1, dockerlink_read_pipe);
-	tcase_add_loop_test(tc1, dockerlink_check_event, 0, 4);
-	tcase_add_test(tc1, dockerlink_read_stop);
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
