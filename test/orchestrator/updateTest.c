@@ -274,7 +274,7 @@ START_TEST(orchestrator_update_getpids)
 #else
 	(void)sprintf(pid, "-C %s", prgset->cont_pidc);
 #endif
-	usleep(1000); // wait for process creation // yield
+	usleep(100000); // wait for process creation // yield
 
 	selectUpdate();
 
@@ -333,7 +333,7 @@ START_TEST(orchestrator_update_scannew)
 
 	selectUpdate();
 
-	usleep(1000); // wait for process creation // yield
+	usleep(100000); // wait for process creation // yield
 	scanNew();
 
 	// verify 3 nodes exist
@@ -357,7 +357,7 @@ START_TEST(orchestrator_update_scannew)
 	ck_assert_int_eq(nhead->pid, pid3);
 
 	fd2 = popen2("sleep 3", "r", &pid2);
-	usleep(1000); // wait for process creation // yield
+	usleep(100000); // wait for process creation // yield
 
 	scanNew();
 
