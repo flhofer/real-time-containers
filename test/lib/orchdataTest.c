@@ -85,6 +85,29 @@ START_TEST(orchdata_ndpush)
 }
 END_TEST
 
+/// TEST CASE -> release a node containing runtime and period statistics
+/// EXPECTED -> all subordinate statistics and affinity allocations are accepted
+START_TEST(orchdata_ndpop_statistics)
+{
+	node_push(&nhead);
+	ck_assert_int_eq(runstats_histInit(&nhead->mon.pdf_hist, 1.0), 0);
+	ck_assert_int_eq(runstats_histInit(&nhead->mon.pdf_phist, 2.0), 0);
+	ck_assert_int_eq(runstats_histAdd(nhead->mon.pdf_hist,
+		&nhead->mon.pdf_scope, 1.0), 0);
+	ck_assert_int_eq(runstats_histAdd(nhead->mon.pdf_phist,
+		&nhead->mon.pdf_pscope, 2.0), 0);
+	ck_assert_int_eq(runstats_cdfCreate(&nhead->mon.pdf_hist,
+		&nhead->mon.pdf_cdf), 0);
+	ck_assert_int_eq(runstats_cdfCreate(&nhead->mon.pdf_phist,
+		&nhead->mon.pdf_pcdf), 0);
+	nhead->mon.assigned_mask = numa_allocate_cpumask();
+	ck_assert_ptr_ne(nhead->mon.assigned_mask, NULL);
+
+	node_pop(&nhead);
+	ck_assert_ptr_eq(nhead, NULL);
+}
+END_TEST
+
 /// TEST CASE -> pop node elements and test
 /// EXPECTED -> should free without issues also NULL values
 START_TEST(orchdata_ndpop)
@@ -332,6 +355,7 @@ void library_orchdata (Suite * s) {
 	TCase *tc0 = tcase_create("orchdata_memory");
 	tcase_add_test(tc0, orchdata_ndpush);
 	tcase_add_test(tc0, orchdata_ndpop);
+	tcase_add_test(tc0, orchdata_ndpop_statistics);
 #ifdef DEBUG // not testable if pointers are not reset. Do in debug build only
 	tcase_add_test(tc0, orchdata_ndpop2);
 	tcase_add_test(tc0, orchdata_ndpop3);
