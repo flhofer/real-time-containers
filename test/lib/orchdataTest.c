@@ -85,6 +85,31 @@ START_TEST(orchdata_ndpush)
 }
 END_TEST
 
+/// TEST CASE -> duplicate owned resource configuration
+/// EXPECTED -> values and affinity are copied into independent allocations
+START_TEST(orchdata_copyresources)
+{
+	struct sched_attr attr = {.size = SCHED_ATTR_SIZE, .sched_policy = SCHED_FIFO};
+	struct sched_rscs rscs = {.affinity = 3, .rt_timew = 4, .rt_time = 5};
+	rscs.affinity_mask = numa_allocate_cpumask();
+	ck_assert_ptr_ne(rscs.affinity_mask, NULL);
+	numa_bitmask_setbit(rscs.affinity_mask, 1);
+	cont_t source = {.attr = &attr, .rscs = &rscs};
+	cont_t target = {0};
+
+	copyResourceConfigC(&source, &target);
+	ck_assert_ptr_ne(target.attr, source.attr);
+	ck_assert_ptr_ne(target.rscs, source.rscs);
+	ck_assert_ptr_ne(target.rscs->affinity_mask, source.rscs->affinity_mask);
+	ck_assert_int_eq(memcmp(target.attr, source.attr, sizeof(attr)), 0);
+	ck_assert_int_eq(target.rscs->affinity, source.rscs->affinity);
+	ck_assert_int_eq(numa_bitmask_isbitset(target.rscs->affinity_mask, 1), 1);
+
+	freeParm(&target);
+	numa_free_cpumask(rscs.affinity_mask);
+}
+END_TEST
+
 /// TEST CASE -> release a node containing runtime and period statistics
 /// EXPECTED -> all subordinate statistics and affinity allocations are accepted
 START_TEST(orchdata_ndpop_statistics)
@@ -363,6 +388,7 @@ void library_orchdata (Suite * s) {
 	tcase_add_test(tc0, orchdata_qsort);
 	tcase_add_test(tc0, orchdata_qsort2);
 	tcase_add_test(tc0, orchdata_qsort3);
+	tcase_add_test(tc0, orchdata_copyresources);
     suite_add_tcase(s, tc0);
 
     // FIXME: copyresources tested in duplicateOrRefreshContainer
