@@ -7,9 +7,15 @@
 */
 
 #include "kernutilTest.h"
+#include "orchdata.h"
 
 // tested
-#include "../../src/lib/kernutil.c"
+#include "kernutil.h"
+
+#include <limits.h>
+#include <errno.h>	// error numbers and strings
+#include <fcntl.h>	// file control, new open/close functions
+#include <sched.h>
 
 /// TEST CASE -> test kernel version read
 /// EXPECTED -> uname function call should match /proc read result
