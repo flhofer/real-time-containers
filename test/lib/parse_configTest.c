@@ -190,6 +190,27 @@ START_TEST(parse_config_defaults)
 }
 END_TEST
 
+/// TEST CASE -> compose the Docker cpuset path from default and custom prefixes
+/// EXPECTED -> controller, cgroup prefix and container group are joined in order
+START_TEST(parse_config_dockerprefix)
+{
+	set->cont_cgrp = strdup("group/");
+	parse_dockerfileprefix(set);
+	char expected[128];
+	snprintf(expected, sizeof(expected), "/sys/fs/cgroup/%sgroup/", CGRP_CSET);
+	ck_assert_str_eq(set->cgroupfileprefix, "/sys/fs/cgroup/");
+	ck_assert_str_eq(set->cpusetdfileprefix, expected);
+
+	free(set->cgroupfileprefix);
+	free(set->cpusetdfileprefix);
+	set->cgroupfileprefix = strdup("/custom/cgroup/");
+	set->cpusetdfileprefix = NULL;
+	parse_dockerfileprefix(set);
+	snprintf(expected, sizeof(expected), "/custom/cgroup/%sgroup/", CGRP_CSET);
+	ck_assert_str_eq(set->cpusetdfileprefix, expected);
+}
+END_TEST
+
 void library_parse_config (Suite * s) {
 	TCase *tc1 = tcase_create("parse_config_def");
 
@@ -206,6 +227,7 @@ void library_parse_config (Suite * s) {
 	tcase_add_test(tc2, parse_config_tst2);
 	tcase_add_test(tc2, parse_config_tst3);
 	tcase_add_test(tc2, parse_config_defaults);
+	tcase_add_test(tc2, parse_config_dockerprefix);
 
 	suite_add_tcase(s, tc2);
 
