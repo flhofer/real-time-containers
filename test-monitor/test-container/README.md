@@ -48,3 +48,12 @@ The `containers.sh` script allows the creation and update of the test container 
 
 Run `./containers.sh help` for help on usage.
 
+### Special configuration files
+
+Beyond the standard configurations used in containers, we here also include some examples for different configurations. 
+
+Among them is a network child thread configuration that can be used with the network-io patch available in the custom `rt-app` repo. (see `rt-app-1-10-fifo-net.json`).
+
+Considerations:
+
+for usecase 3, we created a configuration that simulates network traffic and a fifo task in prio 55, also known as CoDeSys priority 1, higher than sustem Soft-IRQs typically scheduled at prio 50.

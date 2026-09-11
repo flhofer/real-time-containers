@@ -1,0 +1,42 @@
+{
+	"tasks" : {
+		"thread0" : {
+			"policy" : "SCHED_FIFO",
+			"priority": 55,
+			"run" : 1000,
+			"timer" : { "ref" : "wup1", "period" : 10000 }
+		},
+		"thread1": {
+			"policy" : "SCHED_FIFO",
+			"instance": 1,
+			"loop": -1,
+			"priority": 90,
+			"timer": {
+			"ref": "unique_net",
+			"period": 1000
+			},
+			"net": 1
+		}
+	},
+	"global" : {
+		"duration" : 1000,
+		"calibration" : 31.5,
+		"default_policy" : "SCHED_FIFO",
+		"pi_enabled" : false,
+		"lock_pages" : true,
+		"logdir" : "./log",
+		"log_size" : 40,
+		"log_basename" : "log",
+		"ftrace" : "none",
+		"gnuplot" : false,
+		"io_device" : "/dev/null",
+		"mem_buffer_size" : 4194304,
+		"cumulative_slack" : false,
+		"network": {
+			"iface": "enp7s0",
+			"remote": "10.0.10.20",
+			"port": 9999,
+			"pkt_size": 256
+		}
+	}
+}
