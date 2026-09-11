@@ -1,9 +1,8 @@
 FROM ubuntu:latest
 
 RUN apt-get update && \
-	apt-get install -y gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev libgsl-dbg \
-	&& rm -rf /var/lib/apt/lists/*
+	apt-get install -y --no-install-recommends gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev && \
+	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home
 CMD ["make", "-B"]
-
