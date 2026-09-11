@@ -58,7 +58,17 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: "Build ubuntu container and run tests"
+    - name: "Build Ubuntu 22.04 container and run tests"
+      run: |
+        docker build -t ubuntu2204build -f tools/Dockerfile-Build-ubuntu-22.04 . \
+        && docker run --rm -v "$PWD":/home ubuntu2204build
+
+    - name: "Build Ubuntu 24.04 container and run tests"
+      run: |
+        docker build -t ubuntu2404build -f tools/Dockerfile-Build-ubuntu-24.04 . \
+        && docker run --rm -v "$PWD":/home ubuntu2404build
+
+    - name: "Build latest Ubuntu container and run tests"
       run: |
         docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . \
         && docker run --rm -v "$PWD":/home ubuntubuild
@@ -77,4 +87,3 @@ jobs:
       run: |
         docker build -t alpinebuild -f tools/Dockerfile-Build-alpine . \
         && docker run --rm -v "$PWD":/home alpinebuild
-
