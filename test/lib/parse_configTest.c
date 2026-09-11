@@ -433,7 +433,7 @@ START_TEST(parse_config_from_stdin)
 	FILE * input = tmpfile();
 	ck_assert_int_ge(stdin_copy, 0);
 	ck_assert_ptr_ne(input, NULL);
-	ck_assert_int_gt(fputs("{\"pids\":[{\"cmd\":\"stdin-task\"}]}", input), 0);
+	ck_assert_int_ge(fputs("{\"pids\":[{\"cmd\":\"stdin-task\"}]}", input), 0);
 	rewind(input);
 	ck_assert_int_ge(dup2(fileno(input), STDIN_FILENO), 0);
 	clearerr(stdin);
