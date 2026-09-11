@@ -1,0 +1,29 @@
+{
+	"tasks" : {
+		"thread1" : {
+			"phases" : {
+				"phase1" : {
+					"loop" : -1,
+					"run" : 900,
+					"timer" : { "ref" : "unique", "period" : 10000 }
+				}
+			}
+		}
+	},
+
+	"global" : {
+		"duration" : 120,
+		"calibration" : "CPU2",
+		"default_policy" : "SCHED_FIFO",
+		"pi_enabled" : false,
+		"lock_pages" : true,
+		"logdir" : "./",
+		"log_size" : 40,
+		"log_basename" : "rt-app",
+		"ftrace" : false,
+		"gnuplot" : false,
+		"io_device" : "/dev/null",
+		"mem_buffer_size" : 4194304,
+		"cumulative_slack" : false
+	}
+}
