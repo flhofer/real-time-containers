@@ -923,7 +923,16 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 	{	// solver type and initialization
 		T = gsl_root_fsolver_brent;
 		s = gsl_root_fsolver_alloc (T);
-		gsl_root_fsolver_set (s, &F, bmin, bmax);
+		if (!s) {
+			gsl_vector_free(x);
+			return GSL_ENOMEM;
+		}
+		ret = gsl_root_fsolver_set (s, &F, bmin, bmax);
+		if (ret != GSL_SUCCESS) {
+			gsl_root_fsolver_free(s);
+			gsl_vector_free(x);
+			return ret;
+		}
 	}
 
 	printDbg(PFX "using %s method\n",
