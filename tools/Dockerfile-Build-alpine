@@ -1,7 +1,6 @@
 FROM alpine:latest
 
-RUN apk add --no-cache gcc g++ make git check check-dev subunit-dev json-c-dev numactl-dev libcap-dev libc-dev gsl-dev
+RUN apk --timeout 30 add --no-cache gcc g++ make git check check-dev subunit-dev json-c-dev numactl-dev libcap-dev libc-dev gsl-dev
 
 WORKDIR /home
 CMD ["make", "-B"]
-

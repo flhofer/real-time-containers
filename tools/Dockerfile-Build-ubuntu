@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
-RUN apt-get update && \
-	apt-get install -y --no-install-recommends gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev && \
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && \
+	apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends gcc g++ make git check libsubunit-dev libjson-c-dev libnuma-dev libcap-dev libgsl-dev && \
 	rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home

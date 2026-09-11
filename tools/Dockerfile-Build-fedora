@@ -1,8 +1,7 @@
 FROM fedora:latest
 
-RUN dnf update -y && \
-	dnf install -y gcc g++ make git procps-ng check check-devel subunit-devel json-c-devel numactl-devel libcap-devel gsl-devel
+RUN dnf --setopt=retries=3 --setopt=timeout=30 update -y && \
+	dnf --setopt=retries=3 --setopt=timeout=30 install -y gcc g++ make git procps-ng check check-devel subunit-devel json-c-devel numactl-devel libcap-devel gsl-devel
 
 WORKDIR /home
 CMD ["make", "-B"]
-
