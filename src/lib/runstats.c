@@ -917,13 +917,8 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 	const gsl_root_fsolver_type *T;
 	gsl_root_fsolver *s;
 
-	gsl_function F; // define function to solve for
-	{
-		struct func_integmdl_par params = { x, a, p, error};
-		F.function = &func_integmdl;
-		F.params = &params;
-	}
-
+	struct func_integmdl_par params = { x, a, p, error };
+	gsl_function F = { &func_integmdl, &params };
 
 	{	// solver type and initialization
 		T = gsl_root_fsolver_brent;
