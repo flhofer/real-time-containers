@@ -56,4 +56,8 @@ Among them is a network child thread configuration that can be used with the net
 
 Considerations:
 
-for usecase 3, we created a configuration that simulates network traffic and a fifo task in prio 55, also known as CoDeSys priority 1, higher than sustem Soft-IRQs typically scheduled at prio 50.
+For use case 3, the configuration simulates network traffic and a FIFO task with priority 55, also known as CoDeSys priority 1. This is higher than the priority typically assigned to soft IRQs, which is usually 50.
+
+Configurations ending in `-net.json` enable the network child-thread setup provided by the network-I/O patch in the customized `rt-app` version. These files are intended for testing network-related scheduling and interference.
+
+Configurations ending in `-fifo.json` configure the relevant task with FIFO real-time scheduling. They are intended for testing priority-based execution against other real-time tasks and system soft IRQ activity.
