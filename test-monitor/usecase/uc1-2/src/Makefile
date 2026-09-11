@@ -2,7 +2,12 @@ usecases: DataGenerator WorkerApp DataDistributor
 	@echo "build of usecases executables is complete"
 
 OBJDIR ?= .
-CCPFLAGS += -g -std=c++14 -pthread
+CCPFLAGS += -std=c++14 -pthread
+ifneq ($(filter 1 true yes on,$(strip $(DEBUG))),)
+	CCPFLAGS += -O0 -g -D DEBUG
+else
+	CCPFLAGS += -O2
+endif
 CLEANUP += DataGenerator WorkerApp DataDistributor make.out
 
 # Data generator obj

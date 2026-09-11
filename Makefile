@@ -54,8 +54,10 @@ ifeq (1, $(PRIV))
 	CFLAGS += -D PRVTEST
 endif
 
-# If debug is defined, disable optimization level
-ifndef DEBUG
+# Treat the values used by the CLI and GitHub Actions as enabled. Other values,
+# including an unset DEBUG or DEBUG=false, produce a release build.
+DEBUG_ENABLED := $(filter 1 true yes on,$(strip $(DEBUG)))
+ifeq ($(DEBUG_ENABLED),)
 	CFLAGS	+= -O2 -D VERSION=\"$(VERSION)\"
 else
 	CFLAGS	+= -O0 -g -D DEBUG -D VERSION=\"$(VERSION)$(VERSUFF)\ $(GIT_VERSION)\"
