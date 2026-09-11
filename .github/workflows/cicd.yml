@@ -10,6 +10,9 @@ on:
   schedule:
     - cron: "0 2 * * 0" # Run at 2am UTC on Sun
 
+permissions:
+  contents: read
+
 jobs:
   build_and_test:
     name: "Compile artifacts"
@@ -27,12 +30,12 @@ jobs:
 
     - name: "Build Orchestrator"
       run: make orchestrator
-      env: 
+      env:
         DEBUG: ${{ !endsWith(github.ref, '/master') }}
-      
+
     - name: "Build Use cases"
       run: make usecases
-      env: 
+      env:
         DEBUG: ${{ !endsWith(github.ref, '/master') }}
 
     - name: Build test code - libcheck
