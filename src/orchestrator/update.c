@@ -248,7 +248,8 @@ getCmdLinePids (node_t **pidlst)
 static void
 getParentPids (node_t **pidlst)
 {
-	char pidline[BUFRD-18];
+	int blen = BUFRD-18; // buffer length for PID list, 18 = 10 + 7 + 1 (pidof + space + null)
+	char pidline[blen];
 
 	if (!prgset->cont_ppidc)
 		err_exit("Process signature tag is a null pointer!");
@@ -264,10 +265,10 @@ getParentPids (node_t **pidlst)
 		return;
 
 	// read list of PPIDs
-	if (fgets(pidline,BUFRD-18,fp)) { // len -10/17 (+\n), limit maximum (see below)
+	if (fgets(pidline,blen,fp)) { // len -10/17 (+\n), limit maximum (see below)
 		int i=0;
 		// replace space with, for PID list
-		while (pidline[i] && i<BUFRD) {
+		while (pidline[i] && i<blen) {
 			if (' ' == pidline[i]) 
 #ifdef BUSYBOX
 				pidline[i]='|';	// use pipe for regex in grep
@@ -278,13 +279,13 @@ getParentPids (node_t **pidlst)
 		}
 
 #ifdef BUSYBOX
-			char pids[BUFRD];
+		char pids[BUFRD];
 		(void)sprintf(pids, "-T | grep -E '%s'", pidline); // len = 17, sum = total buffer
 #else
 		char pids[BUFRD] = "-T --ppid "; // len = 10, sum = total buffer
 		(void)strcat(pids, pidline);
 #endif
-		pids[strlen(pids)-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
+		pids[BUFRD-1]='\0'; // just to be sure.. terminate with null-char, overwrite \n
 
 		getPids(pidlst, pids, pidline);
 	}
