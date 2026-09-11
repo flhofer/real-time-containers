@@ -3,10 +3,24 @@ name: C/C++ CI
 on: 
   push:
     paths:
-      - '**.c'
-      - '**.cpp'
+      - '**/*.c'
+      - '**/*.cpp'
+      - '**/*.h'
       - 'Makefile'
-      
+      - '**/Makefile'
+      - 'test/resources/**'
+      - 'tools/Dockerfile-Build-*'
+      - '.github/workflows/cicd.yml'
+  pull_request:
+    paths:
+      - '**/*.c'
+      - '**/*.cpp'
+      - '**/*.h'
+      - 'Makefile'
+      - '**/Makefile'
+      - 'test/resources/**'
+      - 'tools/Dockerfile-Build-*'
+      - '.github/workflows/cicd.yml'
   schedule:
     - cron: "0 2 * * 0" # Run at 2am UTC on Sun
 
