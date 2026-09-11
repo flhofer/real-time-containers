@@ -943,6 +943,8 @@ runstats_mdlUpb(stat_param * x, double a, double * b, double p, double * error){
 	{
 	  iter++;
 	  status = gsl_root_fsolver_iterate (s);
+	  if (status != GSL_SUCCESS)
+		  break;
 	  *b = gsl_root_fsolver_root (s);
 	  bmin = gsl_root_fsolver_x_lower (s);
 	  bmax = gsl_root_fsolver_x_upper (s);
