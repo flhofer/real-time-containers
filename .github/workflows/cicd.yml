@@ -67,40 +67,41 @@ jobs:
         path: bin/
 
   test_containers:
-    name: "Test against distros"
+    name: "Test ${{ matrix.name }}"
 
     runs-on: ubuntu-22.04
-          
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 22.04
+            id: ubuntu-2204
+            dockerfile: Dockerfile-Build-ubuntu-22.04
+          - name: Ubuntu 24.04
+            id: ubuntu-2404
+            dockerfile: Dockerfile-Build-ubuntu-24.04
+          - name: Ubuntu latest
+            id: ubuntu-latest
+            dockerfile: Dockerfile-Build-ubuntu
+          - name: Debian latest
+            id: debian-latest
+            dockerfile: Dockerfile-Build-debian
+          - name: Fedora latest
+            id: fedora-latest
+            dockerfile: Dockerfile-Build-fedora
+          - name: Alpine latest
+            id: alpine-latest
+            dockerfile: Dockerfile-Build-alpine
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: "Build Ubuntu 22.04 container and run tests"
-      run: |
-        docker build -t ubuntu2204build -f tools/Dockerfile-Build-ubuntu-22.04 . \
-        && docker run --rm -v "$PWD":/home ubuntu2204build
+    - name: Build container
+      timeout-minutes: 10
+      run: docker build --progress=plain -t "ci-${{ matrix.id }}" -f "tools/${{ matrix.dockerfile }}" tools/
 
-    - name: "Build Ubuntu 24.04 container and run tests"
-      run: |
-        docker build -t ubuntu2404build -f tools/Dockerfile-Build-ubuntu-24.04 . \
-        && docker run --rm -v "$PWD":/home ubuntu2404build
-
-    - name: "Build latest Ubuntu container and run tests"
-      run: |
-        docker build -t ubuntubuild -f tools/Dockerfile-Build-ubuntu . \
-        && docker run --rm -v "$PWD":/home ubuntubuild
-
-    - name: "Build debian container and run tests"
-      run: |
-        docker build -t debianbuild -f tools/Dockerfile-Build-debian . \
-        && docker run --rm -v "$PWD":/home debianbuild
-
-    - name: "Build fedora container and run tests"
-      run: |
-        docker build -t fedorabuild -f tools/Dockerfile-Build-fedora . \
-        && docker run --rm -v "$PWD":/home fedorabuild
-
-    - name: "Build alpine container and run tests"
-      run: |
-        docker build -t alpinebuild -f tools/Dockerfile-Build-alpine . \
-        && docker run --rm -v "$PWD":/home alpinebuild
+    - name: Run tests
+      timeout-minutes: 10
+      run: docker run --rm -v "$PWD":/home "ci-${{ matrix.id }}"
