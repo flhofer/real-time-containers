@@ -959,9 +959,9 @@ checkUvalue(struct resTracer * const res, struct sched_attr * const par, int add
 		if (hm && base == baset)
 				rv = 0;				// harmonic and p_i = p_m
 		else if (hm && hyperP == baset)
-				rv = 1;				// harmonic and p_i > p_m, candidate gets interrupted
+				rv = 1;				// harmonic and p_i > p_m, candidate period is a multiple of current harmonic base
 		else if (hm && hyperP == base)
-				rv = 2;				// harmonic and p_i < p_m, candidate interrupts
+				rv = 2;				// harmonic and p_i < p_m, candidate period divides current harmonic base
 		else{
 			// interruption score -> non harmonic !: verify how often new baset fits in runtime tot -> max interr.
 			rv = MIN((int)((res->U * (double)base)/(double)baset)+SCHED_UHARMONIC, INT_MAX);
@@ -969,7 +969,7 @@ checkUvalue(struct resTracer * const res, struct sched_attr * const par, int add
 		}
 
 		// recompute new values of resource tracer
-		used = used * hyperP / base;
+		used = used * hyperP / base; // warn multiplication overflow possible, but should not happen with 64bit
 		base = hyperP;
 	}
 
@@ -978,10 +978,10 @@ checkUvalue(struct resTracer * const res, struct sched_attr * const par, int add
 		rv = INT_MAX;
 	}
 	else
-		used += par->sched_runtime * base/baset2;
+		used += par->sched_runtime * base/baset2; // warn multiplication overflow possible, but should not happen with 64bit
 
 	// calculate and verify utilization rate
-	float U = (double)used/(double)base;
+	float U = (float)((double)used/(double)base);
 	if (MAX_UL < U)
 		rv = -1;
 
