@@ -96,16 +96,18 @@
 			  const char *what,
 			  int nullable)
 	{
-		struct json_object *to;
+		struct json_object *to = NULL;
 		json_bool ret;
 		ret = json_object_object_get_ex(where, what, &to);
-		if (!nullable && !ret){
-			err_msg(PFX "Error while parsing config\n" PFL);
-			exit(EXIT_INV_CONFIG);
+		if (!ret) {
+			if (!nullable) {
+				err_msg(PFX "Required JSON key '%s' not found", what);
+				exit(EXIT_INV_CONFIG);
+			}
+			return NULL;
 		}
 
-
-		if (!nullable && strcmp(json_object_to_json_string(to), "null") == 0) {
+		if (!nullable && json_object_is_type(to, json_type_null)) {
 			err_msg(PFX "Cannot find key %s", what);
 			exit(EXIT_INV_CONFIG);
 		}
