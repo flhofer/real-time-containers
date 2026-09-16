@@ -47,6 +47,18 @@ static contevent_t cntexpected[6] = {
 	{ cnt_add, "rt-app-tst-10", "4cf50eb963ca612f267cfb5890154afabcd1aa931d7e791f5cfee22bef698c29", "testcnt", 1563572501557282644},
 	};
 
+static const char * dockerlink_actor_events[] = {
+	"{\"Type\":\"container\",\"Action\":\"create\",\"Actor\":{\"ID\":\"57731e92ada2\",\"Attributes\":{\"image\":\"testcnt\",\"name\":\"nice_nightingale\"}},\"scope\":\"local\",\"timeNano\":1789576743871434672}",
+	"{\"Type\":\"container\",\"Action\":\"start\",\"Actor\":{\"ID\":\"57731e92ada2\",\"Attributes\":{\"image\":\"testcnt\",\"name\":\"nice_nightingale\"}},\"scope\":\"local\",\"timeNano\":1789576744640455389}",
+	"{\"Type\":\"container\",\"Action\":\"kill\",\"Actor\":{\"ID\":\"57731e92ada2\",\"Attributes\":{\"image\":\"testcnt\",\"name\":\"nice_nightingale\"}},\"scope\":\"local\",\"timeNano\":1789576745087355018}"
+};
+
+static contevent_t actor_expected[] = {
+	{0, NULL},
+	{cnt_add, "nice_nightingale", "57731e92ada2", "testcnt", 1789576744640455389},
+	{cnt_remove, "nice_nightingale", "57731e92ada2", "testcnt", 1789576745087355018}
+};
+
 static void freeContainerEvent(contevent_t * event) {
 	if (!event)
 		return;
@@ -125,6 +137,22 @@ START_TEST(dockerlink_conf)
 		iret1 = pthread_join( thread1, NULL ); // wait until end
 	ck_assert_int_eq(iret1, 0);
 	checkContainer(&cntexpected[_i]);
+}
+END_TEST
+
+/// TEST CASE -> parse current Docker events that only expose Action and Actor
+/// EXPECTED -> ignored actions do not fail; start and kill produce notifications
+START_TEST(dockerlink_actor_conf)
+{
+	pthread_t thread1;
+	char buf[1024] = "echo '";
+	strcat(strcat(buf, dockerlink_actor_events[_i]), "'");
+	int iret1 = pthread_create(&thread1, NULL, dlink_thread_watch, (void*)buf);
+	ck_assert_int_eq(iret1, 0);
+	if (!iret1)
+		iret1 = pthread_join(thread1, NULL);
+	ck_assert_int_eq(iret1, 0);
+	checkContainer(&actor_expected[_i]);
 }
 END_TEST
 
@@ -230,6 +258,8 @@ void library_dockerlink (Suite * s) {
  
 	tcase_add_loop_exit_test(tc1, dockerlink_err_json, EXIT_INV_CONFIG, 0, 6);
 	tcase_add_loop_test(tc1, dockerlink_conf, 0, 6);
+	tcase_add_loop_test(tc1, dockerlink_actor_conf, 0,
+		sizeof(dockerlink_actor_events) / sizeof(dockerlink_actor_events[0]));
 	tcase_add_loop_test(tc1, dockerlink_conf_att, 0, 6);
 	tcase_add_test(tc1, dockerlink_conf_dmp);
 
