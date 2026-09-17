@@ -170,11 +170,44 @@ START_TEST(orchestratorPolicyDefaultsTest)
 }
 END_TEST
 
+/// TEST CASE -> use bare affinity selection when the default config is absent
+/// EXPECTED -> report a command/configuration error instead of initializing
+///             affinity with null configuration paths
+START_TEST(orchestratorMissingConfigTest)
+{
+	char directory[] = "/tmp/orchestrator-no-config-XXXXXX";
+	ck_assert_ptr_nonnull(mkdtemp(directory));
+
+	pid_t child = fork();
+	ck_assert_int_ge(child, 0);
+	if (!child) {
+		if (chdir(directory))
+			_exit(99);
+
+		char * argv[] = {"orchestrator", "-a", NULL};
+		prgset_t * set = calloc(1, sizeof(*set));
+		if (!set)
+			_exit(98);
+		optind = 1;
+		opterr = 0;
+		process_options(set, 2, argv, 4);
+		_exit(97);
+	}
+
+	int status;
+	ck_assert_int_eq(child, waitpid(child, &status, 0));
+	ck_assert(WIFEXITED(status));
+	ck_assert_int_eq(EXIT_FAILURE, WEXITSTATUS(status));
+	ck_assert_int_eq(0, rmdir(directory));
+}
+END_TEST
+
 void orchestrator_orchestrator (Suite * s) {
 	TCase *tc1 = tcase_create("orchestrator_options");
 	tcase_add_test(tc1, orchestratorSignalTest);
 	tcase_add_test(tc1, orchestratorOptionsTest);
 	tcase_add_test(tc1, orchestratorPolicyDefaultsTest);
+	tcase_add_test(tc1, orchestratorMissingConfigTest);
 
 	suite_add_tcase(s, tc1);
 }
