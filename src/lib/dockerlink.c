@@ -40,10 +40,10 @@ contevent_t * containerEvent; // data
 	
 struct eventData {
 	char * type;
-	char * status;
+	char * action;
 	char * name;
 	char * id;
-	char * from;
+	char * image;
 	char * scope;
 	uint64_t timenano;
 };
@@ -113,7 +113,7 @@ static int read_pipe(struct eventData * evnt){
 		// we're only interested in container events, so check type first
 		evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
 		if (!strcmp(evnt->type, "container")) {
-			evnt->status = get_string_value_from(root, "Action", TRUE, evnt->status);
+			evnt->action = get_string_value_from(root, "Action", TRUE, evnt->action);
 			struct json_object *actor, *attrib;
 
 			actor = get_in_object(root, "Actor", TRUE);
@@ -122,7 +122,7 @@ static int read_pipe(struct eventData * evnt){
 				attrib = get_in_object(actor, "Attributes", TRUE);
 				if (attrib){
 					evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);
-					evnt->from = get_string_value_from(attrib, "image", FALSE, NULL);
+					evnt->image = get_string_value_from(attrib, "image", FALSE, NULL);
 				}
 			}
 		}
@@ -157,36 +157,36 @@ static contevent_t * check_event() {
 	// parse element
 	contevent_t * cntevent = NULL; // return element, default - null
 
-	if (evnt.type && evnt.status && !strcmp(evnt.type, "container")){
+	if (evnt.type && evnt.action && !strcmp(evnt.type, "container")){
 		// kill	
-		if (!strcmp(evnt.status, "kill") && evnt.name && evnt.id && evnt.from)
+		if (!strcmp(evnt.action, "kill") && evnt.name && evnt.id && evnt.image)
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_remove;
 			cntevent->name = strdup(evnt.name);
 			cntevent->id = strdup(evnt.id);
-			cntevent->image = strdup(evnt.from);
+			cntevent->image = strdup(evnt.image);
 			cntevent->timenano = evnt.timenano;
 		}
-		else if (!strcmp(evnt.status, "start") && evnt.name && evnt.id && evnt.from)
+		else if (!strcmp(evnt.action, "start") && evnt.name && evnt.id && evnt.image)
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
 			cntevent->event = cnt_add;
 			cntevent->name = strdup(evnt.name);
 			cntevent->id = strdup(evnt.id);
-			cntevent->image = strdup(evnt.from);
+			cntevent->image = strdup(evnt.image);
 			cntevent->timenano = evnt.timenano;
 		}
 	}
 
 	// free elements
 	free(evnt.type);
-	free(evnt.status);
+	free(evnt.action);
 	free(evnt.name);
 	free(evnt.id);
-	free(evnt.from);
+	free(evnt.image);
 	free(evnt.scope);
 	// free main
 
