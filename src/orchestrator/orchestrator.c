@@ -49,7 +49,8 @@ resTracer_t * rHead = NULL;
 // -------------- LOCAL variables for all the functions  ------------------
 
 // configuration read file
-static char * config = "config.json";
+#define DEFAULT_CONFIG_FILE "config.json"
+static const char * config = DEFAULT_CONFIG_FILE;
 
 // signal to keep status of triggers ext SIG
 static volatile sig_atomic_t main_stop;
@@ -249,6 +250,7 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	int error = 0;
 	int option_index = 0;
 	int optargs = 0;
+	config = DEFAULT_CONFIG_FILE;
 #ifdef DEBUG
 	dbg_out = fopen("/dev/null", "w");
 	stats_out = fopen("/dev/null", "w");
@@ -296,10 +298,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 		case 'a':
 		case OPT_AFFINITY:
 			if (NULL != optarg) {
-				set->affinity = optarg;
+				set->affinity = strdup(optarg);
+				if (!set->affinity)
+					err_exit("could not allocate memory!");
 				set->setaffinity = AFFINITY_USERSPECIFIED;
 			} else if (optind<argc && atoi(argv[optind])) {
-				set->affinity = argv[optind];
+				set->affinity = strdup(argv[optind]);
+				if (!set->affinity)
+					err_exit("could not allocate memory!");
 				optargs++;
 				set->setaffinity = AFFINITY_USERSPECIFIED;
 			// flag -a with no range = all
@@ -333,12 +339,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->use_cgroup = DM_CGRP;
 			if (NULL != optarg) {
 				free(set->cont_cgrp);
-				set->cont_cgrp = optarg;
+				set->cont_cgrp = strdup(optarg);
 			} else if (optind<argc) {
 				free(set->cont_cgrp);
-				set->cont_cgrp = argv[optind];
+				set->cont_cgrp = strdup(argv[optind]);
 				optargs++;
 			}
+			if (!set->cont_cgrp)
+				err_exit("could not allocate memory!");
 
 			/// -------------------- DOCKER & CGROUP CONFIGURATION
 			// create Docker CGroup prefix
@@ -376,10 +384,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->use_cgroup = DM_CMDLINE;
 			if (NULL != optarg) {
 				free(set->cont_pidc);
-				set->cont_pidc = optarg;
+				set->cont_pidc = strdup(optarg);
+				if (!set->cont_pidc)
+					err_exit("could not allocate memory!");
 			} else if (optind<argc) {
 				free(set->cont_pidc);
-				set->cont_pidc = argv[optind];
+				set->cont_pidc = strdup(argv[optind]);
+				if (!set->cont_pidc)
+					err_exit("could not allocate memory!");
 				optargs++;
 			}
 			break;
@@ -417,10 +429,14 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			set->use_cgroup = DM_CNTPID;
 			if (NULL != optarg) {
 				free(set->cont_ppidc);
-				set->cont_ppidc = optarg;
+				set->cont_ppidc = strdup(optarg);
+				if (!set->cont_ppidc)
+					err_exit("could not allocate memory!");
 			} else if (optind<argc) {
 				free(set->cont_ppidc);
-				set->cont_ppidc = argv[optind];
+				set->cont_ppidc = strdup(argv[optind]);
+				if (!set->cont_ppidc)
+					err_exit("could not allocate memory!");
 				optargs++;
 			}
 			break;
@@ -482,6 +498,10 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 			err_exit("--smi is not available on your arch");
 #endif
 			break;
+		case '?':
+		default:
+			error = 1;
+			break;
 		}
 	}
 
@@ -508,6 +528,11 @@ static void process_options (prgset_t *set, int argc, char *argv[], int max_cpus
 	if ( access( config, F_OK )) {
 		err_msg("configuration file '%s' not found", config);
 		error = 1;
+	}
+
+	// error already present? print help message and exit
+	if (error) {
+		display_help(1);
 	}
 
 	// create parameter structure

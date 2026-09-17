@@ -40,6 +40,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static void
@@ -122,9 +123,6 @@ START_TEST(orchestratorOptionsTest)
 	ck_assert_int_eq(1, set->setdflag);
 	ck_assert_ptr_nonnull(orchestrator_test_contparm);
 
-	/* These two values point inside argv strings and are not owned by set. */
-	set->affinity = NULL;
-	set->cont_pidc = NULL;
 	freePrgSet(set);
 	freeContParm(orchestrator_test_contparm);
 	orchestrator_test_contparm = NULL;
@@ -160,7 +158,6 @@ START_TEST(orchestratorPolicyDefaultsTest)
 	ck_assert_int_eq(SCHED_RR, set->policy);
 	ck_assert_int_eq(10, set->priority);
 
-	set->affinity = NULL;
 	freePrgSet(set);
 	freeContParm(orchestrator_test_contparm);
 	orchestrator_test_contparm = NULL;
