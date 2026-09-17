@@ -110,25 +110,24 @@ static int read_pipe(struct eventData * evnt){
 			pthread_exit(&th_return);
 		}
 
+		// we're only interested in container events, so check type first
 		evnt->type = get_string_value_from(root, "Type", FALSE, NULL);
 		if (!strcmp(evnt->type, "container")) {
-			evnt->status = get_string_value_from(root, "status", FALSE, NULL);
-			evnt->id = get_string_value_from(root, "id", FALSE, NULL);
-			evnt->from = get_string_value_from(root, "from", FALSE, NULL);
+			evnt->status = get_string_value_from(root, "Action", TRUE, evnt->status);
 			struct json_object *actor, *attrib;
 
 			actor = get_in_object(root, "Actor", TRUE);
 			if (actor) {
-				// not status type, ID is here
-	//			if (!evnt->id)
-	//				evnt->id = get_string_value_from(actor, "ID", FALSE, NULL);
+				evnt->id = get_string_value_from(actor, "ID", FALSE, NULL);
 				attrib = get_in_object(actor, "Attributes", TRUE);
-				if (attrib)
+				if (attrib){
 					evnt->name = get_string_value_from(attrib, "name", FALSE, NULL);
+					evnt->from = get_string_value_from(attrib, "image", FALSE, NULL);
+				}
 			}
 		}
-		evnt->scope = get_string_value_from(root, "scope", FALSE, NULL);
-		evnt->timenano = get_int64_value_from(root, "timeNano", FALSE, 0);
+		evnt->scope = get_string_value_from(root, "scope", TRUE, NULL);
+		evnt->timenano = get_int64_value_from(root, "timeNano", TRUE, 0);
 		if (!json_object_put(root)){ // free object
 			printDbg(PFX "Could not free objects!\n");
 			th_return = EXIT_FAILURE;
@@ -158,9 +157,9 @@ static contevent_t * check_event() {
 	// parse element
 	contevent_t * cntevent = NULL; // return element, default - null
 
-	if (evnt.type && !strcmp(evnt.type, "container")){
+	if (evnt.type && evnt.status && !strcmp(evnt.type, "container")){
 		// kill	
-		if ((!strcmp(evnt.status, "kill")))
+		if (!strcmp(evnt.status, "kill") && evnt.name && evnt.id && evnt.from)
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
@@ -170,7 +169,7 @@ static contevent_t * check_event() {
 			cntevent->image = strdup(evnt.from);
 			cntevent->timenano = evnt.timenano;
 		}
-		else if (!strcmp(evnt.status, "start"))
+		else if (!strcmp(evnt.status, "start") && evnt.name && evnt.id && evnt.from)
 		{
 			cntevent = malloc(sizeof(contevent_t));
 			
